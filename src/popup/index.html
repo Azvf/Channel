@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge Extension</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Edge Extension</h1>
+            <p>欢迎使用我们的浏览器插件！</p>
+        </header>
+        
+        <main>
+            <div class="feature-section">
+                <h3>功能演示</h3>
+                <button id="getCurrentTab" class="btn">获取当前标签页信息</button>
+                <button id="changePageColor" class="btn">改变页面颜色</button>
+                <button id="showNotification" class="btn">显示通知</button>
+            </div>
+            
+            <div class="status-section">
+                <h3>状态</h3>
+                <div id="status" class="status">就绪</div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>版本 1.0.0</p>
+        </footer>
+    </div>
+    
+    <script type="module" src="popup.js"></script>
+</body>
+</html>
