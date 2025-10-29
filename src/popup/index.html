@@ -3,32 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edge Extension</title>
+    <title>GameplayTag Extension</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Edge Extension</h1>
-            <p>欢迎使用我们的浏览器插件！</p>
+            <h1 id="modeTitle" class="clickable-title">Tagging</h1>
         </header>
         
         <main>
-            <div class="feature-section">
-                <h3>功能演示</h3>
-                <button id="getCurrentTab" class="btn">获取当前标签页信息</button>
-                <button id="changePageColor" class="btn">改变页面颜色</button>
-                <button id="showNotification" class="btn">显示通知</button>
+
+            <!-- Tagging模式：标签管理 -->
+            <div id="taggingMode" class="mode-content">
+                <div class="tag-section">
+                    <h3>标签管理</h3>
+                    <div class="tag-controls">
+                        <div class="input-group">
+                            <input type="text" id="newTagName" placeholder="输入新标签名称" class="tag-input">
+                            <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+                        </div>
+                        <button id="createTagBtn" class="btn btn-primary">创建标签</button>
+                    </div>
+                    
+                    <div class="current-tags">
+                        <h4>当前页面标签</h4>
+                        <div id="currentPageTitle" class="current-page-title"></div>
+                        <div id="currentPageTags" class="tag-list"></div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Tagged模式：标签浏览 -->
+            <div id="taggedMode" class="mode-content" style="display: none;">
+                <div class="tag-section">
+                    <h3>标签浏览</h3>
+                    <div class="tag-filter">
+                        <div class="input-group">
+                            <input type="text" id="tagFilterInput" placeholder="输入标签名称进行筛选" class="tag-input">
+                            <div id="tagFilterDropdown" class="autocomplete-dropdown"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="filtered-pages">
+                        <h4>筛选结果</h4>
+                        <div id="filteredPagesList" class="pages-list"></div>
+                    </div>
+                </div>
+            </div>
+
             
             <div class="status-section">
-                <h3>状态</h3>
                 <div id="status" class="status">就绪</div>
+            </div>
+            
+            <!-- 调试工具 -->
+            <div class="debug-section">
+                <h3>调试工具</h3>
+                <div class="debug-buttons">
+                    <button id="clearCacheBtn" class="btn btn-danger">清空本地缓存</button>
+                    <button id="debugStorageBtn" class="btn btn-small">查看存储状态</button>
+                    <button id="cleanupTagsBtn" class="btn btn-small">清理未使用标签</button>
+                </div>
             </div>
         </main>
         
         <footer>
-            <p>版本 1.0.0</p>
+            <p>版本 1.0.0 | GameplayTag System</p>
         </footer>
     </div>
     

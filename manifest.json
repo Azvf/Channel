@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Edge Extension",
+  "name": "GameplayTag Extension",
   "version": "1.0.0",
-  "description": "A modern Edge browser extension built with TypeScript",
+  "description": "智能页面标签管理系统 - 基于Unreal Engine GameplayTag设计",
   "permissions": [
     "activeTab",
     "storage",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "https://*/*",
@@ -14,7 +15,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Edge Extension"
+    "default_title": "GameplayTag Extension"
   },
   "background": {
     "service_worker": "background.js"
