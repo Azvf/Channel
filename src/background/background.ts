@@ -3,7 +3,6 @@
 
 // 插件安装时的初始化
 chrome.runtime.onInstalled.addListener((details) => {
-    console.log('Edge Extension 已安装', details);
     
     // 设置默认配置
     chrome.storage.sync.set({
@@ -15,7 +14,6 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // 监听来自popup的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('Background 收到消息:', message);
     
     switch (message.action) {
         case 'getTabInfo':
@@ -104,11 +102,9 @@ async function handleShowNotification(sendResponse: (response: any) => void) {
 // 监听标签页更新
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
-        console.log('标签页已加载:', tab.url);
     }
 });
 
 // 监听存储变化
 chrome.storage.onChanged.addListener((changes, namespace) => {
-    console.log('存储发生变化:', changes, namespace);
 });

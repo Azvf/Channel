@@ -1,11 +1,9 @@
 // Content Script
 // 在网页中注入的脚本，可以访问和修改页面内容
 
-console.log('Edge Extension Content Script 已加载');
 
 // 监听来自background script的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('Content Script 收到消息:', message);
     
     switch (message.action) {
         case 'getPageInfo':
@@ -117,7 +115,6 @@ if (document.readyState === 'loading') {
 }
 
 function initializeContentScript() {
-    console.log('Content Script 初始化完成');
     
     // 添加页面标识
     document.body.setAttribute('data-edge-extension', 'loaded');
@@ -126,7 +123,6 @@ function initializeContentScript() {
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.type === 'childList') {
-                console.log('页面内容已更新');
             }
         });
     });

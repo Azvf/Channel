@@ -1,7 +1,6 @@
 // Injected Script
 // 在页面上下文中直接执行的脚本，可以访问页面的全局变量
 
-console.log('Edge Extension Injected Script 已加载');
 
 // 创建一个全局对象来与content script通信
 (window as any).edgeExtension = {
@@ -126,4 +125,3 @@ window.addEventListener('message', (event) => {
     }
 });
 
-console.log('Edge Extension Injected Script 初始化完成');

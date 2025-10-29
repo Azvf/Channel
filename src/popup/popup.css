@@ -12,6 +12,7 @@ body {
     color: white;
     font-size: 14px;
     line-height: 1.5;
+    overflow-x: hidden; /* 防止整个页面出现横向滚动 */
 }
 
 /* 针对body和html的滚动条按钮移除 */
@@ -90,6 +91,8 @@ body::-webkit-scrollbar-button:vertical:end:increment {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    max-width: 100%; /* 确保容器不会超出父元素 */
+    overflow-x: hidden; /* 防止容器内容溢出 */
 }
 
 header {
@@ -113,10 +116,13 @@ header h1 {
     transition: all 0.3s ease;
     user-select: none;
     position: relative;
+    display: inline-block;
+    padding: 2px 4px;
+    margin: 0;
 }
 
 .clickable-title:hover {
-    transform: scale(1.05);
+    transform: scale(1.02);
     filter: brightness(1.2);
 }
 
@@ -156,7 +162,7 @@ main {
     }
 }
 
-.tag-section, .status-section, .debug-section {
+.tag-section, .debug-section {
     background: rgba(255, 255, 255, 0.12);
     border-radius: 16px;
     padding: 20px;
@@ -372,26 +378,79 @@ main {
     display: inline-flex;
     align-items: center;
     padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.2);
+    /* 毛玻璃效果 */
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-radius: 16px;
     font-size: 12px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 玻璃边框和阴影 */
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+/* 确保文本内容在伪元素之上 */
+.tag-item > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* 玻璃表面高光反射效果 */
+.tag-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.4) 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        transparent 100%
+    );
+    border-radius: 16px 16px 0 0;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .tag-item:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(25px) saturate(200%);
+    -webkit-backdrop-filter: blur(25px) saturate(200%);
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    transform: translateY(-1px);
 }
 
 .tag-item.selected {
-    background: rgba(76, 175, 80, 0.4);
-    border: 1px solid rgba(76, 175, 80, 0.6);
+    background: rgba(76, 175, 80, 0.25);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(76, 175, 80, 0.5);
     cursor: pointer;
+    box-shadow: 
+        0 2px 8px rgba(76, 175, 80, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .tag-item.selected:hover {
-    background: rgba(76, 175, 80, 0.6);
-    border-color: rgba(76, 175, 80, 0.8);
+    background: rgba(76, 175, 80, 0.35);
+    backdrop-filter: blur(25px) saturate(200%);
+    -webkit-backdrop-filter: blur(25px) saturate(200%);
+    border-color: rgba(76, 175, 80, 0.7);
+    box-shadow: 
+        0 4px 12px rgba(76, 175, 80, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    transform: translateY(-1px);
 }
 
 .tag-remove {
@@ -404,20 +463,32 @@ main {
     opacity: 1;
 }
 
-
-.status {
-    padding: 8px 12px;
-    background: rgba(76, 175, 80, 0.2);
-    border: 1px solid rgba(76, 175, 80, 0.4);
-    border-radius: 6px;
-    font-size: 14px;
-    text-align: center;
+/* WebGL Tag样式 */
+.tag-item-webgl {
+    display: inline-block;
+    position: relative;
+    margin: 2px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.status.error {
-    background: rgba(244, 67, 54, 0.2);
-    border-color: rgba(244, 67, 54, 0.4);
+.tag-item-webgl:hover {
+    transform: translateY(-1px);
 }
+
+.tag-item-webgl.selected {
+    /* 选中状态的额外样式 */
+}
+
+.tag-remove-webgl {
+    transition: all 0.2s ease;
+}
+
+.tag-remove-webgl:hover {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    transform: translateY(-50%) scale(1.1);
+}
+
+
 
 footer {
     text-align: center;
@@ -449,7 +520,9 @@ h4 {
 .pages-list {
     max-height: 300px;
     overflow-y: auto;
+    overflow-x: hidden; /* 防止横向滚动 */
     margin-top: 12px;
+    padding: 0 4px; /* 为hover效果预留空间 */
 }
 
 .page-item {
@@ -460,14 +533,87 @@ h4 {
     background: rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative; /* 为伪元素定位 */
+    overflow: hidden; /* 防止内容溢出 */
 }
 
 .page-item:hover {
     background: rgba(255, 255, 255, 0.12);
-    transform: translateX(4px);
     border-color: rgba(102, 126, 234, 0.3);
+    box-shadow: 
+        0 2px 8px rgba(102, 126, 234, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: scale(1.01); /* 轻微缩放替代位移 */
+}
+
+/* 添加左侧高亮条效果 */
+.page-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%; /* 从中心开始 */
+    height: 0; /* 初始高度为0 */
+    width: 4px; /* 固定宽度 */
+    background: linear-gradient(180deg, #4facfe, #00f2fe);
+    border-radius: 0 2px 2px 0;
+    transform: translateY(-50%); /* 垂直居中 */
+    transition: 
+        height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0; /* 初始透明度为0 */
+    box-shadow: none; /* 初始无阴影 */
+}
+
+.page-item:hover::before {
+    height: 100%; /* hover时展开到全高 */
+    opacity: 1; /* 完全显示 */
+    box-shadow: 
+        0 0 2px rgba(79, 172, 254, 0.8), /* 高亮条核心发光 */
+        0 0 6px rgba(0, 242, 254, 0.4), /* 内层柔和光晕 */
+        0 0 10px rgba(79, 172, 254, 0.2); /* 外层柔和扩散 */
+}
+
+/* 添加柔和的bloom光效层 - 只影响高亮条周边 */
+.page-item::after {
+    content: '';
+    position: absolute;
+    left: -4px; /* 更小的覆盖区域 */
+    top: 0;
+    width: 8px; /* 更窄的宽度 */
+    height: 100%;
+    background: linear-gradient(90deg, 
+        rgba(79, 172, 254, 0.1) 0%, 
+        rgba(0, 242, 254, 0.15) 50%,
+        transparent 100%);
+    border-radius: 0 4px 4px 0;
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none; /* 不影响点击事件 */
+    z-index: -1; /* 在背景层 */
+}
+
+.page-item:hover::after {
+    opacity: 1;
+    animation: bloomPulse 2s ease-in-out infinite;
+}
+
+/* 柔和的bloom脉冲动画 */
+@keyframes bloomPulse {
+    0% {
+        opacity: 0.2;
+        transform: scaleX(0.9) scaleY(1);
+    }
+    50% {
+        opacity: 0.4;
+        transform: scaleX(1.05) scaleY(1.01);
+    }
+    100% {
+        opacity: 0.2;
+        transform: scaleX(0.9) scaleY(1);
+    }
 }
 
 .page-favicon {
@@ -481,6 +627,8 @@ h4 {
 .page-content {
     flex: 1;
     min-width: 0;
+    max-width: calc(100% - 28px); /* 减去图标和边距的宽度 */
+    overflow: hidden; /* 防止内容溢出 */
 }
 
 .page-item-title {

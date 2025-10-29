@@ -1,12 +1,13 @@
 import { TagManager } from '../services/tagManager';
 import { GameplayTag, TaggedPage } from '../types/gameplayTag';
+import { TagWebGLRenderer, TagRenderOptions } from '../services/tagWebGLRenderer';
+
 
 // 获取DOM元素
 const newTagNameInput = document.getElementById('newTagName') as HTMLInputElement;
 const createTagBtn = document.getElementById('createTagBtn') as HTMLButtonElement;
 const currentPageTags = document.getElementById('currentPageTags') as HTMLDivElement;
 const currentPageTitle = document.getElementById('currentPageTitle') as HTMLDivElement;
-const statusElement = document.getElementById('status') as HTMLDivElement;
 const clearCacheBtn = document.getElementById('clearCacheBtn') as HTMLButtonElement;
 const debugStorageBtn = document.getElementById('debugStorageBtn') as HTMLButtonElement;
 const cleanupTagsBtn = document.getElementById('cleanupTagsBtn') as HTMLButtonElement;
@@ -24,6 +25,9 @@ const filteredPagesList = document.getElementById('filteredPagesList') as HTMLDi
 const tagManager = TagManager.getInstance();
 let currentPage: TaggedPage | null = null;
 
+// WebGL渲染器
+const tagWebGLRenderer = new TagWebGLRenderer();
+
 // 模式管理
 enum AppMode {
     TAGGING = 'tagging',
@@ -35,27 +39,32 @@ class ModeManager {
     private static readonly STORAGE_KEY = 'app_mode';
 
     static async init() {
+        // 移除旧的事件监听器（如果存在）
+        modeTitle.removeEventListener('click', this.handleTitleClick);
+        
         // 标题点击切换模式
-        modeTitle.addEventListener('click', async () => {
-            await this.toggleMode();
-        });
+        modeTitle.addEventListener('click', this.handleTitleClick);
 
         // 从存储中加载上次的模式
         await this.loadModeFromStorage();
     }
+
+    private static handleTitleClick = async (event: Event) => {
+        try {
+            await this.toggleMode();
+        } catch (error) {
+            console.error('Error in toggleMode:', error);
+        }
+    };
 
     private static async loadModeFromStorage() {
         try {
             const result = await chrome.storage.local.get([this.STORAGE_KEY]);
             const savedMode = result[this.STORAGE_KEY] as AppMode;
             
-            console.log('从存储加载模式:', { savedMode, availableModes: Object.values(AppMode) });
-            
             if (savedMode && Object.values(AppMode).includes(savedMode)) {
-                console.log('使用保存的模式:', savedMode);
                 await this.setMode(savedMode);
             } else {
-                console.log('使用默认模式: TAGGING');
                 await this.setMode(AppMode.TAGGING);
             }
         } catch (error) {
@@ -67,7 +76,6 @@ class ModeManager {
     private static async saveModeToStorage() {
         try {
             await chrome.storage.local.set({ [this.STORAGE_KEY]: this.currentMode });
-            console.log('模式已保存到存储:', this.currentMode);
         } catch (error) {
             console.error('保存模式失败:', error);
         }
@@ -110,6 +118,7 @@ class ModeManager {
 
     static filterPagesByTag(tagName: string) {
         const allTags = tagManager.getAllTags();
+        
         const selectedTag = allTags.find(tag => 
             tag.name.toLowerCase() === tagName.toLowerCase() || 
             tag.fullName.toLowerCase() === tagName.toLowerCase()
@@ -204,11 +213,6 @@ class ModeManager {
     }
 }
 
-// 更新状态显示
-function updateStatus(message: string, isError = false) {
-    statusElement.textContent = message;
-    statusElement.className = isError ? 'status error' : 'status';
-}
 
 // 页面更新辅助函数
 class PageUpdateHelper {
@@ -300,8 +304,6 @@ class InitializationHelper {
         window.addEventListener('beforeunload', async () => {
             await ErrorHandler.executeWithErrorHandling(
                 async () => {
-                    // 清理未使用的标签
-                    tagManager.cleanupUnusedTags();
                     // 同步到存储
                     await tagManager.syncToStorage();
                 },
@@ -314,8 +316,6 @@ class InitializationHelper {
             if (document.hidden) {
                 await ErrorHandler.executeWithErrorHandling(
                     async () => {
-                        // 清理未使用的标签
-                        tagManager.cleanupUnusedTags();
                         // 同步到存储
                         await tagManager.syncToStorage();
                     },
@@ -337,9 +337,7 @@ class InitializationHelper {
                 '存储状态调试'
             );
             
-            if (result) {
-                updateStatus(result);
-            }
+            // 状态更新已移除
         });
 
         // 清理未使用标签
@@ -385,9 +383,7 @@ class EventHandlerHelper {
                 context
             );
             
-            if (result) {
-                updateStatus(result);
-            }
+            // 状态更新已移除
         };
     }
 
@@ -413,9 +409,7 @@ class EventHandlerHelper {
                     context
                 );
                 
-                if (result) {
-                    updateStatus(result);
-                }
+                // 状态更新已移除
             }
         };
     }
@@ -493,8 +487,6 @@ class OperationWrapper {
             },
             // 执行操作
             async () => {
-                console.log(`${operation === 'add' ? '添加标签到页面' : '从页面移除标签'}:`, 
-                           currentPage!.id, currentPage!.url, tagId);
                 
                 const success = operation === 'add' 
                     ? tagManager.addTagToPage(currentPage!.id, tagId)
@@ -524,24 +516,48 @@ class OperationWrapper {
         return this.executeTagOperationCore(
             // 验证
             async () => {
-                if (!tagName.trim()) {
+                if (!tagName || !tagName.trim()) {
                     return { valid: false, error: '请输入标签名称' };
                 }
+                
+                const trimmedName = tagName.trim();
+                if (trimmedName.length === 0) {
+                    return { valid: false, error: '标签名称不能为空' };
+                }
+                
+                if (trimmedName.length > 50) {
+                    return { valid: false, error: '标签名称不能超过50个字符' };
+                }
+                
+                // 检查是否包含无效字符
+                if (!/^[a-zA-Z0-9\u4e00-\u9fa5._-]+$/.test(trimmedName)) {
+                    return { valid: false, error: '标签名称只能包含字母、数字、中文、点、下划线和连字符' };
+                }
+                
                 return { valid: true };
             },
             // 执行操作
             async () => {
-                const newTag = tagManager.createTag(tagName);
-                
-                // 自动选中新创建的标签（添加到当前页面）
-                if (currentPage) {
-                    tagManager.addTagToPage(currentPage.id, newTag.id);
+                try {
+                    const trimmedName = tagName.trim();
+                    const newTag = tagManager.createTag(trimmedName);
+                    
+                    // 自动选中新创建的标签（添加到当前页面）
+                    if (currentPage) {
+                        tagManager.addTagToPage(currentPage.id, newTag.id);
+                    }
+                    
+                    // 检查是否有父类标签需要合并
+                    await this.mergeParentTagsIfNeeded(newTag);
+                    
+                    return newTag;
+                } catch (error) {
+                    // 处理TagManager抛出的验证错误
+                    if (error instanceof Error) {
+                        return { valid: false, error: error.message };
+                    }
+                    throw error;
                 }
-                
-                // 检查是否有父类标签需要合并
-                await this.mergeParentTagsIfNeeded(newTag);
-                
-                return newTag;
             },
             // 成功后处理
             async () => {
@@ -553,7 +569,12 @@ class OperationWrapper {
                 }
             },
             // 成功消息
-            (newTag) => `标签 "${newTag.name}" 已创建并自动选中`,
+            (result) => {
+                if (result && typeof result === 'object' && 'name' in result) {
+                    return `标签 "${result.name}" 已创建并自动选中`;
+                }
+                return '标签已创建并自动选中';
+            },
             // 错误消息
             '创建标签失败'
         );
@@ -568,13 +589,6 @@ class OperationWrapper {
         // 获取当前页面的所有标签
         const currentPageTags = currentPage.tags || [];
         
-        console.log('检查父类标签合并:', {
-            newTagName: newTag.name,
-            currentPageTags: currentPageTags.map(id => {
-                const tag = tagManager.getTagById(id);
-                return tag ? tag.name : 'unknown';
-            })
-        });
         
         // 查找可能的父类标签（标签名是当前标签名的前缀）
         const parentTags = currentPageTags.filter(tagId => {
@@ -586,7 +600,7 @@ class OperationWrapper {
                            (tag.name !== newTag.name && newTag.name.startsWith(tag.name));
             
             if (isParent) {
-                console.log(`发现父类标签: ${tag.name} -> ${newTag.name}`);
+                // 发现父类标签
             }
             
             return isParent;
@@ -597,7 +611,6 @@ class OperationWrapper {
             const parentTag = tagManager.getTagById(parentTagId);
             if (!parentTag) continue;
             
-            console.log(`合并父类标签: ${parentTag.name} -> ${newTag.name}`);
             
             // 从当前页面移除父标签
             tagManager.removeTagFromPage(currentPage.id, parentTagId);
@@ -605,7 +618,6 @@ class OperationWrapper {
             // 将父标签设置为新标签的父标签
             if (newTag.parent !== parentTagId) {
                 tagManager.updateTagParent(newTag.id, parentTagId);
-                console.log(`已设置父标签关系: ${parentTag.name} -> ${newTag.name}`);
             }
         }
     }
@@ -636,33 +648,16 @@ class OperationWrapper {
         const allTags = tagManager.getAllTags();
         const allPages = tagManager.getTaggedPages();
         
-        console.log('=== 存储状态调试信息 ===');
-        console.log('内存中的标签数量:', stats.tagsCount);
-        console.log('内存中的页面数量:', stats.pagesCount);
-        console.log('所有标签:', allTags);
-        console.log('所有页面:', allPages);
         
         // 检查Chrome存储
         const storageData = await chrome.storage.local.get(['gameplay_tags', 'tagged_pages']);
-        console.log('Chrome存储数据:', storageData);
-        console.log('存储中的标签数量:', Object.keys(storageData.gameplay_tags || {}).length);
-        console.log('存储中的页面数量:', Object.keys(storageData.tagged_pages || {}).length);
         
         // 检查当前页面
         if (currentPage) {
-            console.log('当前页面信息:', {
-                id: currentPage.id,
-                url: currentPage.url,
-                title: currentPage.title,
-                tags: currentPage.tags
-            });
         }
         
         // 执行存储测试
         await tagManager.testStorage();
-        
-        // 执行标签清理
-        tagManager.cleanupUnusedTags();
     }
 }
 
@@ -713,7 +708,7 @@ class ErrorHandler {
             return await operation();
         } catch (error) {
             console.error(`${context ? `[${context}] ` : ''}${errorMessage}:`, error);
-            updateStatus(errorMessage, true);
+            // 状态更新已移除
             return null;
         }
     }
@@ -725,15 +720,15 @@ class ErrorHandler {
         errorMessage: string,
         context?: string
     ): Promise<T | null> {
-        updateStatus(loadingMessage);
+        // 状态更新已移除
         
         try {
             const result = await operation();
-            updateStatus(successMessage);
+            // 状态更新已移除
             return result;
         } catch (error) {
             console.error(`${context ? `[${context}] ` : ''}${errorMessage}:`, error);
-            updateStatus(errorMessage, true);
+            // 状态更新已移除
             return null;
         }
     }
@@ -880,12 +875,6 @@ async function initializePage() {
                 tab.favIconUrl
             );
             
-            console.log('当前页面信息:', {
-                url: currentPage.url,
-                title: currentPage.title,
-                pageId: currentPage.id,
-                tags: currentPage.tags
-            });
             
             // 加载所有数据
             await loadCurrentPageTags();
@@ -912,86 +901,116 @@ async function initializePage() {
         '页面初始化'
     );
     
-    if (result) {
-        updateStatus(result);
-    }
+    // 状态更新已移除
 }
 
 
 // 加载当前页面标签
 async function loadCurrentPageTags() {
     if (!currentPage) {
-        console.log('当前页面为空，无法加载标签');
         currentPageTitle.textContent = '无当前页面';
         return;
     }
     
-    console.log('加载当前页面标签:', {
-        pageId: currentPage.id,
-        pageUrl: currentPage.url,
-        pageTags: currentPage.tags
-    });
     
     // 显示当前页面标题
     currentPageTitle.textContent = `${currentPage.title} (${currentPage.tags.length} 个标签)`;
     
     const allTags = tagManager.getAllTags();
-    const pageTags = allTags.filter(tag => currentPage!.tags.includes(tag.id));
-    const unusedTags = allTags.filter(tag => !currentPage!.tags.includes(tag.id));
+    const pageTags = allTags.filter(tag => currentPage!.tags.includes
+        (tag.id));
     
-    console.log('当前页面的标签:', pageTags.map(t => t.name));
-    console.log('所有可用标签:', allTags.map(t => t.name));
-    
-    // 使用通用DOM操作处理器
-    const allTagsToShow = [
-        ...pageTags.map(tag => ({ tag, isSelected: true })),
-        ...unusedTags.map(tag => ({ tag, isSelected: false }))
-    ];
-    
+    // 只显示当前页面拥有的标签
     DOMOperationHandler.clearAndFill(
         currentPageTags,
-        allTagsToShow,
-        (item) => createTagElement(item.tag, item.isSelected)
+        pageTags,
+        (tag) => createTagElement(tag)
     );
 }
 
-// 创建标签元素
-function createTagElement(tag: GameplayTag, isSelected: boolean): HTMLDivElement {
+// 创建标签元素 - 使用WebGL渲染
+function createTagElement(tag: GameplayTag): HTMLDivElement {
+    
     const tagElement = document.createElement('div');
-    tagElement.className = `tag-item${isSelected ? ' selected' : ''}`;
-    // Only set backgroundColor if tag.color is defined
-    if (typeof tag.color === 'string') {
-        tagElement.style.backgroundColor = tag.color;
-    }
-    tagElement.innerHTML = `
-        <span>${tag.name}</span>
-        ${isSelected ? `<span class="tag-remove" data-tag-id="${tag.id}" title="点击移除标签">×</span>` : ''}
+    tagElement.className = 'tag-item-webgl selected';
+    
+    // 创建WebGL canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 120; // 固定宽度
+    canvas.height = 32; // 固定高度
+    canvas.style.width = '120px';
+    canvas.style.height = '32px';
+    canvas.style.borderRadius = '16px';
+    canvas.style.cursor = 'pointer';
+    
+    // 配置WebGL渲染选项 - 玻璃质感
+    const renderOptions: TagRenderOptions = {
+        width: 120,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        textColor: '#ffffff',
+        text: tag.name,
+        fontSize: 12,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    };
+    
+    // 使用WebGL渲染
+    const webglCanvas = tagWebGLRenderer.createTagElement(renderOptions);
+    webglCanvas.style.width = '120px';
+    webglCanvas.style.height = '32px';
+    webglCanvas.style.borderRadius = '16px';
+    webglCanvas.style.cursor = 'pointer';
+    webglCanvas.style.display = 'block';
+    webglCanvas.style.position = 'relative';
+    webglCanvas.style.zIndex = '1';
+    
+    // 添加点击事件来移除标签
+    tagElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleTagPageOperation('remove', tag.id);
+    });
+    
+    tagElement.appendChild(webglCanvas);
+    tagElement.style.position = 'relative';
+    tagElement.style.display = 'inline-block';
+    tagElement.style.margin = '4px';
+    tagElement.style.transition = 'all 0.3s ease';
+    tagElement.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+    tagElement.style.borderRadius = '18px';
+    tagElement.style.boxShadow = `
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2)
     `;
+    tagElement.style.outline = 'none';
+    tagElement.style.overflow = 'hidden';
+    tagElement.style.backdropFilter = 'blur(12px) saturate(200%) brightness(110%)';
+    tagElement.style.background = 'rgba(255, 255, 255, 0.1)';
+    
+    // 添加悬停效果
+    tagElement.addEventListener('mouseenter', () => {
+        tagElement.style.transform = 'scale(1.02)';
+        tagElement.style.boxShadow = `
+            0 12px 40px rgba(0, 0, 0, 0.15),
+            0 4px 12px rgba(0, 0, 0, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3)
+        `;
+        tagElement.style.backdropFilter = 'blur(16px) saturate(250%) brightness(120%)';
+    });
+    
+    tagElement.addEventListener('mouseleave', () => {
+        tagElement.style.transform = 'scale(1)';
+        tagElement.style.boxShadow = `
+            0 8px 32px rgba(0, 0, 0, 0.12),
+            0 2px 8px rgba(0, 0, 0, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2)
+        `;
+        tagElement.style.backdropFilter = 'blur(12px) saturate(200%) brightness(110%)';
+    });
     
     // 添加工具提示
-    if (isSelected) {
-        tagElement.title = '点击移除标签';
-    } else {
-        tagElement.title = '点击添加标签';
-    }
-    
-    if (isSelected) {
-        // 移除标签 - 点击标签本身或删除按钮都可以移除
-        tagElement.addEventListener('click', () => {
-            handleTagPageOperation('remove', tag.id);
-        });
-        
-        const removeBtn = tagElement.querySelector('.tag-remove') as HTMLSpanElement;
-        removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleTagPageOperation('remove', tag.id);
-        });
-    } else {
-        // 添加标签
-        tagElement.addEventListener('click', () => {
-            handleTagPageOperation('add', tag.id);
-        });
-    }
+    tagElement.title = '点击移除标签';
     
     return tagElement;
 }
@@ -1005,7 +1024,7 @@ async function handleTagPageOperation(operation: 'add' | 'remove', tagId: string
         operation === 'add' ? '标签已添加' : '标签已移除',
         operation === 'add' ? '添加标签失败' : '移除标签失败'
     );
-    updateStatus(result.message, result.isError);
+    // 状态更新已移除
 }
 
 // 初始化

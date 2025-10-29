@@ -26,12 +26,31 @@ export class TagManager {
 
   // 标签管理
   public createTag(name: string, parentId?: string, description?: string, color?: string): GameplayTag {
-    const fullName = parentId ? `${this.tags[parentId].fullName}.${name}` : name;
+    // 验证标签名称
+    if (!name || !name.trim()) {
+      throw new Error('标签名称不能为空');
+    }
+    
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) {
+      throw new Error('标签名称不能为空');
+    }
+    
+    if (trimmedName.length > 50) {
+      throw new Error('标签名称不能超过50个字符');
+    }
+    
+    // 检查是否包含无效字符
+    if (!/^[a-zA-Z0-9\u4e00-\u9fa5._-]+$/.test(trimmedName)) {
+      throw new Error('标签名称只能包含字母、数字、中文、点、下划线和连字符');
+    }
+    
+    const fullName = parentId ? `${this.tags[parentId].fullName}.${trimmedName}` : trimmedName;
     const id = this.generateTagId(fullName);
     
     const tag: GameplayTag = {
       id,
-      name,
+      name: trimmedName,
       fullName,
       parent: parentId,
       children: [],
@@ -119,12 +138,10 @@ export class TagManager {
   // 页面管理
   public addTagToPage(pageId: string, tagId: string): boolean {
     if (!this.tags[tagId]) {
-      console.log('标签不存在:', tagId);
       return false;
     }
 
     if (!this.pages[pageId]) {
-      console.log('页面不存在:', pageId);
       return false;
     }
 
@@ -132,17 +149,14 @@ export class TagManager {
       this.pages[pageId].tags.push(tagId);
       this.pages[pageId].updatedAt = Date.now();
       // 不在这里调用saveToStorage，让调用者处理
-      console.log('成功添加标签:', { pageId, tagId, currentTags: this.pages[pageId].tags });
       return true;
     } else {
-      console.log('标签已存在于页面中:', { pageId, tagId, currentTags: this.pages[pageId].tags });
       return false;
     }
   }
 
   public removeTagFromPage(pageId: string, tagId: string): boolean {
     if (!this.pages[pageId]) {
-      console.log('页面不存在:', pageId);
       return false;
     }
 
@@ -151,14 +165,9 @@ export class TagManager {
       this.pages[pageId].tags.splice(index, 1);
       this.pages[pageId].updatedAt = Date.now();
       // 不在这里调用saveToStorage，让调用者处理
-      console.log('成功移除标签:', { pageId, tagId, remainingTags: this.pages[pageId].tags });
-      
-      // 检查标签是否还被其他页面使用
-      this.checkAndCleanupUnusedTag(tagId);
       
       return true;
     } else {
-      console.log('标签不在页面中:', { pageId, tagId, currentTags: this.pages[pageId].tags });
       return false;
     }
   }
@@ -176,12 +185,6 @@ export class TagManager {
         tags: existingTags, // 确保标签不被覆盖
         ...(favicon && { favicon })
       };
-      console.log('更新现有页面:', {
-        pageId,
-        url,
-        title,
-        existingTags: existingTags.length
-      });
     } else {
       // 创建新页面
       this.pages[pageId] = {
@@ -194,11 +197,6 @@ export class TagManager {
         updatedAt: Date.now(),
         favicon
       };
-      console.log('创建新页面:', {
-        pageId,
-        url,
-        title
-      });
     }
 
     // 不在这里调用saveToStorage，让调用者处理
@@ -207,7 +205,8 @@ export class TagManager {
 
   public getTaggedPages(tagId?: string): TaggedPage[] {
     if (!tagId) {
-      return Object.values(this.pages);
+      // 返回所有有标签的页面，过滤掉没有标签的页面
+      return Object.values(this.pages).filter(page => page.tags && page.tags.length > 0);
     }
 
     // 获取标签及其所有子标签的页面
@@ -215,7 +214,8 @@ export class TagManager {
     const result: TaggedPage[] = [];
 
     for (const page of Object.values(this.pages)) {
-      if (page.tags.some(pageTagId => tagAndChildren.includes(pageTagId))) {
+      // 确保页面有标签且匹配目标标签
+      if (page.tags && page.tags.length > 0 && page.tags.some(pageTagId => tagAndChildren.includes(pageTagId))) {
         result.push(page);
       }
     }
@@ -279,10 +279,6 @@ export class TagManager {
       this.tags = storageData[this.STORAGE_KEYS.TAGS] || {};
       this.pages = storageData[this.STORAGE_KEYS.PAGES] || {};
       
-      console.log('从存储加载数据:', { 
-        tags: Object.keys(this.tags).length, 
-        pages: Object.keys(this.pages).length 
-      });
     } catch (error) {
       console.error('加载存储数据失败:', error);
     }
@@ -296,18 +292,9 @@ export class TagManager {
       };
       
       await chrome.storage.local.set(dataToSave);
-      console.log('数据已保存到存储:', { 
-        tags: Object.keys(this.tags).length, 
-        pages: Object.keys(this.pages).length,
-        storageKeys: Object.keys(dataToSave)
-      });
       
       // 验证保存是否成功
       const verification = await chrome.storage.local.get([this.STORAGE_KEYS.TAGS, this.STORAGE_KEYS.PAGES]);
-      console.log('存储验证:', {
-        tagsInStorage: Object.keys(verification[this.STORAGE_KEYS.TAGS] || {}).length,
-        pagesInStorage: Object.keys(verification[this.STORAGE_KEYS.PAGES] || {}).length
-      });
     } catch (error) {
       console.error('保存存储数据失败:', error);
     }
@@ -325,23 +312,13 @@ export class TagManager {
 
   // 测试存储功能
   public async testStorage(): Promise<void> {
-    console.log('=== 存储测试开始 ===');
     
     // 保存当前状态
     await this.saveToStorage();
     
     // 验证保存
     const verification = await chrome.storage.local.get([this.STORAGE_KEYS.TAGS, this.STORAGE_KEYS.PAGES]);
-    console.log('存储测试结果:', {
-      memoryTags: Object.keys(this.tags).length,
-      memoryPages: Object.keys(this.pages).length,
-      storageTags: Object.keys(verification[this.STORAGE_KEYS.TAGS] || {}).length,
-      storagePages: Object.keys(verification[this.STORAGE_KEYS.PAGES] || {}).length,
-      tagsMatch: JSON.stringify(this.tags) === JSON.stringify(verification[this.STORAGE_KEYS.TAGS] || {}),
-      pagesMatch: JSON.stringify(this.pages) === JSON.stringify(verification[this.STORAGE_KEYS.PAGES] || {})
-    });
     
-    console.log('=== 存储测试结束 ===');
   }
 
   // Tag生命周期管理
@@ -353,10 +330,8 @@ export class TagManager {
     const isTagUsed = Object.values(this.pages).some(page => page.tags.includes(tagId));
     
     if (!isTagUsed) {
-      console.log('标签未被任何页面使用，准备删除:', tagId);
       this.deleteTag(tagId);
     } else {
-      console.log('标签仍被其他页面使用，保留:', tagId);
     }
   }
 
@@ -365,16 +340,13 @@ export class TagManager {
    */
   private deleteTag(tagId: string): void {
     if (!this.tags[tagId]) {
-      console.log('标签不存在，无法删除:', tagId);
       return;
     }
 
     const tag = this.tags[tagId];
-    console.log('开始删除标签:', { id: tagId, name: tag.name, fullName: tag.fullName });
 
     // 递归删除所有子标签
     if (tag.children && tag.children.length > 0) {
-      console.log('删除子标签:', tag.children);
       // 创建副本以避免在迭代时修改数组
       const childrenToDelete = [...tag.children];
       childrenToDelete.forEach(childId => this.deleteTag(childId));
@@ -387,20 +359,17 @@ export class TagManager {
       if (childIndex > -1) {
         parentTag.children.splice(childIndex, 1);
         parentTag.updatedAt = Date.now();
-        console.log('从父标签中移除子标签:', { parentId: tag.parent, childId: tagId });
       }
     }
 
     // 删除标签本身
     delete this.tags[tagId];
-    console.log('标签已删除:', tagId);
   }
 
   /**
    * 清理所有未使用的标签
    */
   public cleanupUnusedTags(): void {
-    console.log('=== 开始清理未使用的标签 ===');
     
     const allTagIds = Object.keys(this.tags);
     const usedTagIds = new Set<string>();
@@ -417,23 +386,15 @@ export class TagManager {
     // 找出未使用的标签
     const unusedTagIds = allTagIds.filter(tagId => !usedTagIds.has(tagId));
     
-    console.log('标签使用情况:', {
-      总标签数: allTagIds.length,
-      使用中标签数: usedTagIds.size,
-      未使用标签数: unusedTagIds.length,
-      未使用标签: unusedTagIds.map(id => ({ id, name: this.tags[id]?.name, fullName: this.tags[id]?.fullName }))
-    });
     
     // 按层级排序，先删除子标签，再删除父标签
     const sortedUnusedTagIds = this.sortTagsByHierarchy(unusedTagIds);
     
     // 删除未使用的标签
     sortedUnusedTagIds.forEach(tagId => {
-      console.log('删除未使用的标签:', { id: tagId, name: this.tags[tagId]?.name });
       this.deleteTag(tagId);
     });
     
-    console.log('=== 标签清理完成 ===');
   }
 
   /**
