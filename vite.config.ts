@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 import { fileURLToPath, URL } from 'url'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
@@ -8,7 +9,7 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        popup: resolve(fileURLToPath(new URL('./src/popup/popup.ts', import.meta.url))),
+        popup: resolve(fileURLToPath(new URL('./src/popup/main.ts', import.meta.url))),
         background: resolve(fileURLToPath(new URL('./src/background/background.ts', import.meta.url))),
         content: resolve(fileURLToPath(new URL('./src/content/content.ts', import.meta.url))),
         injected: resolve(fileURLToPath(new URL('./src/injected/injected.ts', import.meta.url)))
@@ -21,6 +22,7 @@ export default defineConfig({
     }
   },
   plugins: [
+    vue(),
     viteStaticCopy({
       targets: [
         {
@@ -42,6 +44,12 @@ export default defineConfig({
         {
           src: 'icon.png',
           dest: '.'
+        }
+        ,
+        // Copy background images and any static assets under image/
+        {
+          src: 'image/bg/*',
+          dest: 'image/bg'
         }
       ]
     })

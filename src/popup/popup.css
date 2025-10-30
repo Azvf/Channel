@@ -4,15 +4,59 @@
     box-sizing: border-box;
 }
 
+html {
+    background: transparent;
+    height: 100%;
+}
+
 body {
-    width: 420px;
-    min-height: 500px;
+    width: 396px; /* 略微增宽，仍保持便携与近黄金比例 */
+    min-height: 600px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: transparent;
     color: white;
     font-size: 14px;
     line-height: 1.5;
     overflow-x: hidden; /* 防止整个页面出现横向滚动 */
+    padding: 0; /* 去除外围白色留边 */
+    height: 100%;
+    /* Liquid Glass 变量（参考 advanced-liquid-glass switcher） */
+    --c-glass: #bbbbbc;
+    --c-light: #fff;
+    --c-dark: #000;
+    --c-content: #e1e1e1;
+    --c-action: #03d5ff;
+    --c-bg: #1b1b1d;
+    --glass-reflex-dark: 2;
+    --glass-reflex-light: 0.3;
+    --saturation: 150%;
+}
+
+#app {
+    height: 100%;
+}
+
+/* Popup surface
+ - 使用背景图片 + 磨砂玻璃叠层（不改布局，仅视觉） */
+.popup-surface {
+    background: #111 url('image/bg/bg.png') center center / cover no-repeat; /* 将图片放在 image/bg/bg.png */
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    height: 100%;
+    min-height: 100vh; /* 始终覆盖弹窗当前可视高度，避免切换时出现白边 */
+    position: relative;
+}
+
+.popup-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    /* 玻璃磨砂层：模糊 + 轻微暗化，提升可读性且与背景协调 */
+    background: linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.22));
+    backdrop-filter: blur(26px) saturate(140%);
+    -webkit-backdrop-filter: blur(26px) saturate(140%);
+    pointer-events: none;
 }
 
 /* 针对body和html的滚动条按钮移除 */
@@ -86,11 +130,12 @@ body::-webkit-scrollbar-button:vertical:end:increment {
 }
 
 .container {
-    padding: 24px;
+    padding: 20px;
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+    min-height: 0; /* 允许子元素在flex容器内正确收缩 */
     max-width: 100%; /* 确保容器不会超出父元素 */
     overflow-x: hidden; /* 防止容器内容溢出 */
 }
@@ -101,8 +146,8 @@ header {
 }
 
 header h1 {
-    font-size: 28px;
-    margin-bottom: 8px;
+    font-size: 22px;
+    margin-bottom: 6px;
     font-weight: 700;
     background: linear-gradient(45deg, #fff, #e0e7ff);
     -webkit-background-clip: text;
@@ -138,29 +183,58 @@ header p {
 }
 
 main {
+    flex: 1; /* 主内容区占满剩余空间 */
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 叠层容器：两个模式面板绝对定位叠放，避免切换引发布局抖动 */
+.mode-stack {
+    position: relative;
     flex: 1;
+    min-height: 0; /* 允许内部滚动 */
+}
+
+/* 模式面板（组件根）采用绝对定位叠层，仅切换透明度，不改尺寸流 */
+.mode-panel {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
 }
 
-.mode-content {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    animation: fadeIn 0.3s ease;
+.mode-panel.active {
+    opacity: 1;
+    pointer-events: auto;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* 模式导向的比例分配：
+   - Tagging：更关注当前页面标签（列表占主）
+   - Tagged：更关注筛选结果（结果列表占主） */
+#taggingMode .tag-section {
+    gap: 12px;
 }
+
+#taggingMode .tag-controls {
+    flex: 0 0 auto; /* 控件区域自适应内容高度 */
+}
+
+#taggingMode .current-tags {
+    flex: 1 1 60%; /* 列表区域获得主要空间 */
+    min-height: 0;
+}
+
+#taggedMode .filtered-pages {
+    flex: 1 1 auto; /* 结果列表占主 */
+    min-height: 0;
+}
+
+/* 旧的渐入动画移除，避免切换时触发布局变化导致抖动 */
 
 .tag-section, .debug-section {
     background: rgba(255, 255, 255, 0.12);
@@ -169,6 +243,19 @@ main {
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* 主功能区域扩展填充，调试区保留自然高度（两种模式通用） */
+.tag-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.debug-section {
+    flex: 0 0 auto;
+    margin-top: auto; /* 固定在底部，保持轻量占比 */
 }
 
 .tag-section h3, .debug-section h3 {
@@ -181,8 +268,33 @@ main {
 .tag-controls {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+/* Inline layout for input + button (Apple-like proportions) */
+.tag-controls-inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-start; /* 左对齐 */
+    width: 100%; /* 铺满一行 */
+}
+
+.tag-input-flex {
+    flex: 1 1 auto;
+    min-width: 0; /* 防止溢出 */
+}
+
+.tag-input,
+.tag-select {
+    height: 40px; /* Apple-like control height */
+}
+
+.btn {
+    height: 40px;
+    padding: 0 18px;
+    min-width: 84px; /* Compact but comfortable */
+    border-radius: 12px;
 }
 
 .input-group {
@@ -237,6 +349,62 @@ main {
     display: none;
 }
 
+/* 用于测量输入文字宽度以定位下拉，隐藏但占位 */
+.input-measure {
+	position: absolute;
+	left: 0;
+	top: 0;
+	display: block;
+	visibility: hidden;
+	white-space: pre;
+	font: inherit;
+	padding: 0;
+	margin: 0;
+	pointer-events: none;
+}
+
+/* —— Tagged 区域横向 chips + 输入 —— */
+#taggedMode .tag-filter .chip-input {
+	position: relative;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	border: 2px solid rgba(255, 255, 255, 0.2);
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.08);
+	min-height: 44px; /* 稳定高度，避免输入时跳动 */
+}
+
+#taggedMode .tag-filter .chip-input:focus-within {
+	border-color: rgba(102, 126, 234, 0.6);
+	background: rgba(255, 255, 255, 0.12);
+	box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+#taggedMode .tag-filter .chip-input .tag-input {
+	/* 关键：允许输入在同一行收缩到 0，避免提前换行 */
+	flex: 1 1 0;
+	min-width: 48px;
+	max-width: 100%;
+	width: auto;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	padding: 6px 4px;
+}
+
+#taggedMode .tag-filter .chip-input .tag-input:focus {
+	outline: none;
+	border: none;
+	box-shadow: none;
+}
+
+#taggedMode .tag-filter .chip-input .filter-chip {
+	margin: 4px 2px;
+}
+
 .autocomplete-dropdown.show {
     display: block;
 }
@@ -247,16 +415,13 @@ main {
     color: #333;
     font-size: 14px;
     font-weight: 400;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.autocomplete-item:last-child {
-    border-bottom: none;
-}
+.autocomplete-item:last-child {}
 
 .autocomplete-item:hover {
     background: rgba(102, 126, 234, 0.1);
@@ -267,6 +432,11 @@ main {
     background: rgba(102, 126, 234, 0.15);
     color: #667eea;
     font-weight: 500;
+}
+
+.autocomplete-item.echo-item {
+    background: rgba(102, 126, 234, 0.06);
+    border-left: 3px solid rgba(102, 126, 234, 0.45);
 }
 
 .autocomplete-item .tag-color {
@@ -295,18 +465,24 @@ main {
 }
 
 .btn {
-    padding: 14px 24px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 0 18px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.38);
     border-radius: 12px;
     color: white;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, transform 0.15s ease;
     outline: none;
     position: relative;
     overflow: hidden;
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    box-shadow:
+        inset 0 1px 1px rgba(255,255,255,0.28),
+        inset 0 -3px 8px rgba(255,255,255,0.06);
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,0.22));
 }
 
 .btn::before {
@@ -325,10 +501,11 @@ main {
 }
 
 .btn:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+    background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.5);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.32), inset 0 -4px 10px rgba(255,255,255,0.08);
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.25));
 }
 
 .btn:active {
@@ -337,22 +514,23 @@ main {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.4), rgba(76, 175, 80, 0.2));
-    border-color: rgba(76, 175, 80, 0.6);
+    background: rgba(102, 126, 234, 0.20);
+    border-color: rgba(102, 126, 234, 0.45);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.5), rgba(76, 175, 80, 0.3));
-    border-color: rgba(76, 175, 80, 0.8);
+    background: rgba(102, 126, 234, 0.26);
+    border-color: rgba(102, 126, 234, 0.55);
 }
 
 .btn-danger {
-    background: rgba(244, 67, 54, 0.3);
-    border-color: rgba(244, 67, 54, 0.5);
+    background: rgba(244, 67, 54, 0.24);
+    border-color: rgba(244, 67, 54, 0.48);
 }
 
 .btn-danger:hover {
-    background: rgba(244, 67, 54, 0.4);
+    background: rgba(244, 67, 54, 0.30);
+    border-color: rgba(244, 67, 54, 0.6);
 }
 
 .debug-buttons {
@@ -370,29 +548,39 @@ main {
 .tag-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 10px;
+    margin-top: 10px;
 }
 
 .tag-item {
     display: inline-flex;
     align-items: center;
-    padding: 4px 8px;
-    /* 毛玻璃效果 */
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-radius: 16px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    /* 玻璃边框和阴影 */
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: 
-        0 2px 8px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    position: relative;
-    overflow: hidden;
+    padding: 8px 12px;
+	/* Liquid glass 基础（对齐 switcher 外观） */
+	background-color: color-mix(in srgb, var(--c-glass) 36%, transparent);
+	backdrop-filter: blur(8px) saturate(var(--saturation));
+	-webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+	border-radius: 18px;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, filter 0.3s ease, transform 0.25s ease;
+	border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent);
+	/* 参考 switcher 与其 ::after 的多层内/外阴影 */
+	box-shadow:
+		inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+		inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent),
+		inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
+		inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
+		inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
+		inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+		0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+	/* 柔和的 bloom 阴影，避免明显矩形边缘 */
+	filter: drop-shadow(0 6px 16px color-mix(in srgb, var(--c-dark) 20%, transparent));
+	position: relative;
+	overflow: hidden;
+	transform: translateZ(0);
+	will-change: transform, box-shadow, background, border-color, filter;
 }
 
 /* 确保文本内容在伪元素之上 */
@@ -401,60 +589,106 @@ main {
     z-index: 2;
 }
 
-/* 玻璃表面高光反射效果 */
+/* 玻璃表面液态高光与流光 */
 .tag-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
-    background: linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.4) 0%,
-        rgba(255, 255, 255, 0.1) 50%,
-        transparent 100%
-    );
-    border-radius: 16px 16px 0 0;
-    pointer-events: none;
-    z-index: 1;
+	content: '';
+	position: absolute;
+	top: -40%;
+	left: -60%;
+	width: 220%;
+	height: 180%;
+	background: radial-gradient(ellipse at top left, rgba(255,255,255,0.28), rgba(255,255,255,0.06) 35%, transparent 60%);
+	filter: blur(2px);
+	pointer-events: none;
+	z-index: 1;
+	transition: transform 0.8s ease, opacity 0.4s ease;
+	transform: translateX(0);
+}
+
+.tag-item::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -120%;
+	width: 60%;
+	height: 100%;
+	background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.22) 35%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.18) 65%, transparent 100%);
+	opacity: 0.0;
+	filter: blur(1px);
+	transform: skewX(-12deg);
+	transition: transform 0.8s ease, opacity 0.4s ease;
+	z-index: 2;
 }
 
 .tag-item:hover {
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(25px) saturate(200%);
-    -webkit-backdrop-filter: blur(25px) saturate(200%);
-    border-color: rgba(255, 255, 255, 0.35);
-    box-shadow: 
-        0 4px 12px rgba(0, 0, 0, 0.15),
-        inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    transform: translateY(-1px);
+    background-color: color-mix(in srgb, var(--c-glass) 42%, transparent);
+    backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.05));
+    -webkit-backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.05));
+    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 16%), transparent);
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 12%), transparent),
+        inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent),
+        inset -2px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
+        inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
+        inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
+        inset 0px -5px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
+        0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
+    filter: drop-shadow(0 10px 22px color-mix(in srgb, var(--c-dark) 22%, transparent));
+    transform: translateY(-1px) translateZ(0);
+}
+
+.tag-item:hover::before {
+	transform: translateX(6%);
+}
+
+.tag-item:hover::after {
+	transform: translateX(260%) skewX(-12deg);
+	opacity: 0.65;
 }
 
 .tag-item.selected {
-    background: rgba(76, 175, 80, 0.25);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(76, 175, 80, 0.5);
-    cursor: pointer;
-    box-shadow: 
-        0 2px 8px rgba(76, 175, 80, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background-color: color-mix(in srgb, var(--c-glass) 42%, transparent);
+    backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.0));
+    -webkit-backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.0));
+    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 16%), transparent);
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 12%), transparent),
+        inset 2px 1.5px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 92%), transparent),
+        inset -1.5px -1.5px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
+        inset -2.5px -7px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
+        inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent),
+        inset 0px -5px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
+        0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
+    filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--c-dark) 22%, transparent));
 }
 
 .tag-item.selected:hover {
-    background: rgba(76, 175, 80, 0.35);
-    backdrop-filter: blur(25px) saturate(200%);
-    -webkit-backdrop-filter: blur(25px) saturate(200%);
-    border-color: rgba(76, 175, 80, 0.7);
-    box-shadow: 
-        0 4px 12px rgba(76, 175, 80, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    transform: translateY(-1px);
+    background-color: color-mix(in srgb, var(--c-glass) 46%, transparent);
+    backdrop-filter: blur(12px) saturate(calc(var(--saturation) * 1.08));
+    -webkit-backdrop-filter: blur(12px) saturate(calc(var(--saturation) * 1.08));
+    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 18%), transparent);
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 14%), transparent),
+        inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 96%), transparent),
+        inset -2px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 82%), transparent),
+        inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 62%), transparent),
+        inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent),
+        inset 0px -6px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 14%), transparent),
+        0px 7px 18px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent);
+    filter: drop-shadow(0 12px 24px color-mix(in srgb, var(--c-dark) 26%, transparent));
+}
+
+/* Tagged 模式下筛选 chips 的聚焦高亮 */
+.filter-chip.focused {
+	border-color: rgba(102, 126, 234, 0.8);
+	box-shadow:
+		inset 0 2px 3px rgba(255, 255, 255, 0.36),
+		inset 0 -6px 18px rgba(255, 255, 255, 0.10),
+		0 0 0 3px rgba(102, 126, 234, 0.18);
 }
 
 .tag-remove {
-    margin-left: 4px;
+    margin-left: 8px;
     cursor: pointer;
     opacity: 0.7;
 }
@@ -463,30 +697,7 @@ main {
     opacity: 1;
 }
 
-/* WebGL Tag样式 */
-.tag-item-webgl {
-    display: inline-block;
-    position: relative;
-    margin: 2px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tag-item-webgl:hover {
-    transform: translateY(-1px);
-}
-
-.tag-item-webgl.selected {
-    /* 选中状态的额外样式 */
-}
-
-.tag-remove-webgl {
-    transition: all 0.2s ease;
-}
-
-.tag-remove-webgl:hover {
-    background-color: rgba(255, 255, 255, 0.3) !important;
-    transform: translateY(-50%) scale(1.1);
-}
+/* 旧 WebGL 标签样式已移除 */
 
 
 
@@ -516,13 +727,14 @@ h4 {
     text-overflow: ellipsis;
 }
 
-/* 页面列表样式 */
+/* 页面列表样式（按容器剩余空间自适应） */
 .pages-list {
-    max-height: 300px;
+    flex: 1;              /* 填满可用空间 */
+    min-height: 0;        /* 允许在flex环境下滚动 */
     overflow-y: auto;
-    overflow-x: hidden; /* 防止横向滚动 */
+    overflow-x: hidden;   /* 防止横向滚动 */
     margin-top: 12px;
-    padding: 0 4px; /* 为hover效果预留空间 */
+    padding: 0 4px;       /* 为hover效果预留空间 */
 }
 
 .page-item {
@@ -537,6 +749,8 @@ h4 {
     border: 1px solid rgba(255, 255, 255, 0.1);
     position: relative; /* 为伪元素定位 */
     overflow: hidden; /* 防止内容溢出 */
+    transform: translateZ(0); /* 稳定渲染层，避免抖动 */
+    will-change: transform, box-shadow, background, border-color;
 }
 
 .page-item:hover {
@@ -545,7 +759,7 @@ h4 {
     box-shadow: 
         0 2px 8px rgba(102, 126, 234, 0.15),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transform: scale(1.01); /* 轻微缩放替代位移 */
+    transform: translateY(-2px) translateZ(0); /* 固定且整体的位移动效，避免缩放导致布局变化 */
 }
 
 /* 添加左侧高亮条效果 */
@@ -616,6 +830,22 @@ h4 {
     }
 }
 
+/* 当前标签区占据剩余空间，标签列表滚动（Tagging 模式） */
+.current-tags {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* 过滤结果容器占满可用空间，内部列表滚动（Tagged 模式） */
+.filtered-pages {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
 .page-favicon {
     width: 16px;
     height: 16px;
@@ -653,15 +883,87 @@ h4 {
 .page-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
+    gap: 8px;
+    margin-top: 10px;
 }
 
 .page-tag {
-    padding: 2px 6px;
-    background: rgba(102, 126, 234, 0.2);
-    border-radius: 10px;
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.9);
-    border: 1px solid rgba(102, 126, 234, 0.3);
+	padding: 6px 10px;
+	/* Liquid glass 外观（与 .tag-item 一致，参考 switcher） */
+	position: relative;
+	background-color: color-mix(in srgb, var(--c-glass) 32%, transparent);
+	backdrop-filter: blur(8px) saturate(var(--saturation));
+	-webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+	border-radius: 14px;
+	font-size: 12px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.95);
+	border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent);
+	box-shadow:
+		inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+		inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent),
+		inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
+		inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
+		inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
+		inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+		0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+	filter: drop-shadow(0 5px 14px color-mix(in srgb, var(--c-dark) 18%, transparent));
+	overflow: hidden;
+	transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, filter 0.25s ease, transform 0.2s ease;
+	transform: translateZ(0);
+	will-change: transform, box-shadow, background, border-color, filter;
+}
+
+.page-tag::before {
+	content: '';
+	position: absolute;
+	top: -40%;
+	left: -60%;
+	width: 220%;
+	height: 180%;
+	background: radial-gradient(ellipse at top left, rgba(255,255,255,0.24), rgba(255,255,255,0.06) 35%, transparent 60%);
+	filter: blur(2px);
+	pointer-events: none;
+	z-index: 1;
+	transition: transform 0.8s ease, opacity 0.4s ease;
+	transform: translateX(0);
+}
+
+.page-tag::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: -120%;
+	width: 60%;
+	height: 100%;
+	background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 35%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.16) 65%, transparent 100%);
+	opacity: 0.0;
+	filter: blur(1px);
+	transform: skewX(-12deg);
+	transition: transform 0.8s ease, opacity 0.4s ease;
+	z-index: 2;
+}
+
+.page-tag:hover {
+    background-color: color-mix(in srgb, var(--c-glass) 38%, transparent);
+    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 16%), transparent);
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 12%), transparent),
+        inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent),
+        inset -2px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
+        inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
+        inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
+        inset 0px -5px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
+        0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
+    filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--c-dark) 22%, transparent));
+    transform: translateY(-1px) translateZ(0);
+}
+
+.page-tag:hover::before {
+	transform: translateX(6%);
+}
+
+.page-tag:hover::after {
+	transform: translateX(260%) skewX(-12deg);
+	opacity: 0.6;
 }

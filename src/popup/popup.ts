@@ -1,32 +1,69 @@
 import { TagManager } from '../services/tagManager';
 import { GameplayTag, TaggedPage } from '../types/gameplayTag';
-import { TagWebGLRenderer, TagRenderOptions } from '../services/tagWebGLRenderer';
 
 
-// 获取DOM元素
-const newTagNameInput = document.getElementById('newTagName') as HTMLInputElement;
-const createTagBtn = document.getElementById('createTagBtn') as HTMLButtonElement;
-const currentPageTags = document.getElementById('currentPageTags') as HTMLDivElement;
-const currentPageTitle = document.getElementById('currentPageTitle') as HTMLDivElement;
-const clearCacheBtn = document.getElementById('clearCacheBtn') as HTMLButtonElement;
-const debugStorageBtn = document.getElementById('debugStorageBtn') as HTMLButtonElement;
-const cleanupTagsBtn = document.getElementById('cleanupTagsBtn') as HTMLButtonElement;
-const autocompleteDropdown = document.getElementById('autocompleteDropdown') as HTMLDivElement;
+
+// 获取DOM元素（延迟在初始化时绑定）
+let newTagNameInput: HTMLInputElement;
+let createTagBtn: HTMLButtonElement;
+let currentPageTags: HTMLDivElement;
+let currentPageTitle: HTMLDivElement;
+let clearCacheBtn: HTMLButtonElement;
+let debugStorageBtn: HTMLButtonElement;
+let cleanupTagsBtn: HTMLButtonElement;
+let autocompleteDropdown: HTMLDivElement;
 
 // 模式切换相关元素
-const modeTitle = document.getElementById('modeTitle') as HTMLHeadingElement;
-const taggingMode = document.getElementById('taggingMode') as HTMLDivElement;
-const taggedMode = document.getElementById('taggedMode') as HTMLDivElement;
-const tagFilterInput = document.getElementById('tagFilterInput') as HTMLInputElement;
-const tagFilterDropdown = document.getElementById('tagFilterDropdown') as HTMLDivElement;
-const filteredPagesList = document.getElementById('filteredPagesList') as HTMLDivElement;
+let modeTitle: HTMLHeadingElement;
+let taggingMode: HTMLDivElement;
+let taggedMode: HTMLDivElement;
+let tagFilterInput: HTMLInputElement;
+let tagFilterDropdown: HTMLDivElement;
+let filteredPagesList: HTMLDivElement;
+let tagFilterContainer: HTMLDivElement; // 大输入框容器（chip-input），用于插入已选chips与测量
+let tagFilterMeasure: HTMLSpanElement; // 用于测量当前输入文本宽度，定位下拉
+let tagFilterPlaceholderDefault = '输入标签名称进行筛选';
+
+// Tagged 筛选状态
+let filterSelectedTags: GameplayTag[] = [];
+let focusedFilterChipIndex = -1; // 被“选中/聚焦”的chip索引用于按键交互
+let activeDropdownStrictTag: GameplayTag | null = null; // 通过方向键选中的严格匹配项
+
+function bindDomElements(): void {
+    newTagNameInput = document.getElementById('newTagName') as HTMLInputElement;
+    createTagBtn = document.getElementById('createTagBtn') as HTMLButtonElement;
+    currentPageTags = document.getElementById('currentPageTags') as HTMLDivElement;
+    currentPageTitle = document.getElementById('currentPageTitle') as HTMLDivElement;
+    clearCacheBtn = document.getElementById('clearCacheBtn') as HTMLButtonElement;
+    debugStorageBtn = document.getElementById('debugStorageBtn') as HTMLButtonElement;
+    cleanupTagsBtn = document.getElementById('cleanupTagsBtn') as HTMLButtonElement;
+    autocompleteDropdown = document.getElementById('autocompleteDropdown') as HTMLDivElement;
+
+    modeTitle = document.getElementById('modeTitle') as HTMLHeadingElement;
+    taggingMode = document.getElementById('taggingMode') as HTMLDivElement;
+    taggedMode = document.getElementById('taggedMode') as HTMLDivElement;
+    tagFilterInput = document.getElementById('tagFilterInput') as HTMLInputElement;
+    if (tagFilterInput && tagFilterInput.placeholder) {
+        tagFilterPlaceholderDefault = tagFilterInput.placeholder;
+    }
+    tagFilterDropdown = document.getElementById('tagFilterDropdown') as HTMLDivElement;
+    filteredPagesList = document.getElementById('filteredPagesList') as HTMLDivElement;
+    tagFilterContainer = document.getElementById('tagFilterChipBox') as HTMLDivElement;
+
+    // 在输入前插入测量用 span（只在 Tagged 区域使用）
+    if (tagFilterContainer && tagFilterInput) {
+        tagFilterMeasure = document.createElement('span');
+        tagFilterMeasure.className = 'input-measure';
+        tagFilterMeasure.textContent = '';
+        tagFilterContainer.insertBefore(tagFilterMeasure, tagFilterInput);
+    }
+}
 
 // 初始化
 const tagManager = TagManager.getInstance();
 let currentPage: TaggedPage | null = null;
 
-// WebGL渲染器
-const tagWebGLRenderer = new TagWebGLRenderer();
+ 
 
 // 模式管理
 enum AppMode {
@@ -49,7 +86,7 @@ class ModeManager {
         await this.loadModeFromStorage();
     }
 
-    private static handleTitleClick = async (event: Event) => {
+    private static handleTitleClick = async () => {
         try {
             await this.toggleMode();
         } catch (error) {
@@ -91,16 +128,14 @@ class ModeManager {
         
         // 保存模式到存储
         await this.saveModeToStorage();
-        
-        if (mode === AppMode.TAGGING) {
-            modeTitle.textContent = 'Tagging';
-            taggingMode.style.display = 'block';
-            taggedMode.style.display = 'none';
-        } else {
-            modeTitle.textContent = 'Tagged';
-            taggingMode.style.display = 'none';
-            taggedMode.style.display = 'block';
-            
+
+        // 更新标题文本（保留原有交互）
+        modeTitle.textContent = mode === AppMode.TAGGING ? 'Tagging' : 'Tagged';
+
+        // 派发模式变更事件，由 Vue 层负责显隐与动效，避免布局抖动
+        window.dispatchEvent(new CustomEvent('app:mode-changed', { detail: mode }));
+
+        if (mode === AppMode.TAGGED) {
             // 切换到浏览模式时，重新加载数据并显示所有页面
             await tagManager.reloadFromStorage();
             this.loadAllTaggedPages();
@@ -116,22 +151,40 @@ class ModeManager {
         this.displayFilteredPages(allPages);
     }
 
-    static filterPagesByTag(tagName: string) {
+    static filterPagesByInputs(selectedTagIds: string[], partialText: string, strictSelectedTagId?: string) {
+        const allPages = tagManager.getTaggedPages();
         const allTags = tagManager.getAllTags();
-        
-        const selectedTag = allTags.find(tag => 
-            tag.name.toLowerCase() === tagName.toLowerCase() || 
-            tag.fullName.toLowerCase() === tagName.toLowerCase()
-        );
 
-        if (!selectedTag) {
-            this.displayFilteredPages([]);
-            return;
+        const normalizedPartial = (partialText || '').trim().toLowerCase();
+        const hasPartial = normalizedPartial.length > 0 && !strictSelectedTagId;
+
+        const partialCandidateIds: Set<string> = new Set();
+        if (hasPartial) {
+            allTags.forEach(t => {
+                if (t.name.toLowerCase().startsWith(normalizedPartial)) {
+                    partialCandidateIds.add(t.id);
+                }
+            });
         }
 
-        // 获取该标签及其所有子标签的页面
-        const pages = tagManager.getTaggedPages(selectedTag.id);
-        this.displayFilteredPages(pages);
+        // 需要满足：包含所有 selectedTagIds，且：
+        // - 若 strictSelectedTagId 存在，则还必须包含该 tag
+        // - 否则若存在 partial 文本，则必须至少包含一个 partial 候选
+        const filtered = allPages.filter(p => {
+            // 所有已选标签必须包含
+            for (const id of selectedTagIds) {
+                if (!p.tags.includes(id)) return false;
+            }
+            if (strictSelectedTagId) {
+                return p.tags.includes(strictSelectedTagId);
+            }
+            if (hasPartial) {
+                return p.tags.some(id => partialCandidateIds.has(id));
+            }
+            return true;
+        });
+
+        this.displayFilteredPages(filtered);
     }
 
     private static displayFilteredPages(pages: TaggedPage[]) {
@@ -185,15 +238,11 @@ class ModeManager {
         const tagsDiv = document.createElement('div');
         tagsDiv.className = 'page-tags';
         
-        // 创建标签元素
+        // 创建标签元素（统一玻璃风格，不使用颜色描边）
         pageTags.forEach(tag => {
             const tagSpan = document.createElement('span');
             tagSpan.className = 'page-tag';
             tagSpan.textContent = tag.name;
-            const color = tag.color || '#666666'; // 默认颜色
-            tagSpan.style.backgroundColor = `${color}20`;
-            tagSpan.style.borderColor = `${color}40`;
-            tagSpan.style.color = color;
             tagsDiv.appendChild(tagSpan);
         });
         
@@ -270,8 +319,8 @@ class InitializationHelper {
             '标签创建'
         ));
 
-        // 回车键创建标签
-        newTagNameInput.addEventListener('keypress', EventHandlerHelper.createEnterKeyHandler(createTagBtn));
+        // 回车键创建标签（使用 keydown，确保与自动完成行为一致）
+        newTagNameInput.addEventListener('keydown', EventHandlerHelper.createEnterKeyHandler(createTagBtn));
 
         // 清空缓存
         clearCacheBtn.addEventListener('click', EventHandlerHelper.createConfirmButtonHandler(
@@ -281,21 +330,83 @@ class InitializationHelper {
             '缓存清空'
         ));
 
-        // 标签筛选
+        // 标签筛选：多标签 + 部分匹配
         tagFilterInput.addEventListener('input', (e) => {
-            const query = (e.target as HTMLInputElement).value.trim();
-            if (query) {
-                ModeManager.filterPagesByTag(query);
-            } else {
-                ModeManager.loadAllTaggedPages();
-            }
+            const partial = (e.target as HTMLInputElement).value;
+            focusedFilterChipIndex = -1; // 输入时取消chip聚焦
+            // 用户主动输入时，清除严格选中项
+            activeDropdownStrictTag = null;
+            // 输入时若未通过方向键选择严格项，则按部分匹配策略
+            const strictId = getActiveStrictId();
+            ModeManager.filterPagesByInputs(
+                filterSelectedTags.map(t => t.id),
+                partial,
+                strictId
+            );
+            renderFilterChips();
+            // 更新下拉位置
+            updateFilterMeasure();
+            positionFilterDropdown();
+            updateFilterPlaceholder();
         });
 
-        tagFilterInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const query = (e.target as HTMLInputElement).value.trim();
-                if (query) {
-                    ModeManager.filterPagesByTag(query);
+        // Backspace/Enter 行为：
+        tagFilterInput.addEventListener('keydown', (e) => {
+            // 交由自动完成去处理方向键，但我们需要处理 Backspace/Enter 的 chips 逻辑
+            if (e.key === 'Backspace') {
+                if (tagFilterInput.selectionStart === 0 && tagFilterInput.selectionEnd === 0) {
+                    // 输入为空时，选中最后一个chip；再次 Backspace 删除该chip
+                    if (filterSelectedTags.length > 0) {
+                        if (focusedFilterChipIndex === filterSelectedTags.length - 1) {
+                            // 删除最后一个chip
+                            filterSelectedTags.pop();
+                            focusedFilterChipIndex = -1;
+                            const strictId2 = getActiveStrictId();
+                            ModeManager.filterPagesByInputs(
+                                filterSelectedTags.map(t => t.id),
+                                tagFilterInput.value,
+                                strictId2
+                            );
+                            renderFilterChips();
+                        } else {
+                            focusedFilterChipIndex = filterSelectedTags.length - 1;
+                            renderFilterChips();
+                        }
+                        e.preventDefault();
+                    }
+                }
+            } else if (e.key === 'Enter') {
+                const partial = tagFilterInput.value.trim();
+                // 若有严格选中项，则落袋为安（转为chip）
+                if (activeDropdownStrictTag) {
+                    commitFilterTag(activeDropdownStrictTag);
+                    e.preventDefault();
+                    return;
+                }
+                // 若当前有被聚焦的chip，则回退成可编辑文本
+                if (focusedFilterChipIndex >= 0 && filterSelectedTags[focusedFilterChipIndex]) {
+                    const tag = filterSelectedTags.splice(focusedFilterChipIndex, 1)[0];
+                    focusedFilterChipIndex = -1;
+                    tagFilterInput.value = tag.name;
+                    ModeManager.filterPagesByInputs(
+                        filterSelectedTags.map(t => t.id),
+                        tagFilterInput.value,
+                        undefined
+                    );
+                    renderFilterChips();
+                    // 保持输入框焦点
+                    setTimeout(() => tagFilterInput.focus(), 0);
+                    e.preventDefault();
+                    return;
+                }
+                // 无严格项、无chip聚焦：若输入完全等于某标签名，则转为chip
+                if (partial) {
+                    const all = tagManager.getAllTags();
+                    const exact = all.find(t => t.name.toLowerCase() === partial.toLowerCase());
+                    if (exact) {
+                        commitFilterTag(exact);
+                        e.preventDefault();
+                    }
                 }
             }
         });
@@ -327,7 +438,7 @@ class InitializationHelper {
 
         // 调试存储状态
         debugStorageBtn.addEventListener('click', async () => {
-            const result = await ErrorHandler.executeWithErrorHandling(
+            await ErrorHandler.executeWithErrorHandling(
                 async () => {
                     await OperationWrapper.executeDebugStorage();
                     const stats = tagManager.getDataStats();
@@ -368,16 +479,16 @@ class EventHandlerHelper {
      */
     static createButtonHandler(
         operation: () => Promise<OperationResult>,
-        loadingMessage: string,
+        _loadingMessage: string,
         context: string
     ): () => Promise<void> {
         return async () => {
-            const result = await ErrorHandler.executeWithStatusUpdate(
+            await ErrorHandler.executeWithStatusUpdate(
                 async () => {
                     const opResult = await operation();
                     return opResult.message;
                 },
-                loadingMessage,
+                _loadingMessage,
                 '', // 成功消息将在操作中设置
                 `${context}失败`,
                 context
@@ -393,17 +504,17 @@ class EventHandlerHelper {
     static createConfirmButtonHandler(
         confirmMessage: string,
         operation: () => Promise<OperationResult>,
-        loadingMessage: string,
+        _loadingMessage: string,
         context: string
     ): () => Promise<void> {
         return async () => {
             if (confirm(confirmMessage)) {
-                const result = await ErrorHandler.executeWithStatusUpdate(
+                await ErrorHandler.executeWithStatusUpdate(
                     async () => {
                         const opResult = await operation();
                         return opResult.message;
                     },
-                    loadingMessage,
+                    _loadingMessage,
                     '', // 成功消息将在操作中设置
                     `${context}失败`,
                     context
@@ -530,34 +641,32 @@ class OperationWrapper {
                 }
                 
                 // 检查是否包含无效字符
-                if (!/^[a-zA-Z0-9\u4e00-\u9fa5._-]+$/.test(trimmedName)) {
-                    return { valid: false, error: '标签名称只能包含字母、数字、中文、点、下划线和连字符' };
+                if (!/^[a-zA-Z0-9\u4e00-\u9fa5._\- ]+$/.test(trimmedName)) {
+                    return { valid: false, error: '标签名称只能包含字母、数字、中文、点、下划线、连字符和空格' };
                 }
                 
                 return { valid: true };
             },
             // 执行操作
             async () => {
-                try {
-                    const trimmedName = tagName.trim();
-                    const newTag = tagManager.createTag(trimmedName);
-                    
-                    // 自动选中新创建的标签（添加到当前页面）
+                const trimmedName = tagName.trim();
+                // 先查找是否已存在同名标签（忽略大小写）
+                const allTags = tagManager.getAllTags();
+                const existing = allTags.find(t => t.name.toLowerCase() === trimmedName.toLowerCase());
+
+                if (existing) {
                     if (currentPage) {
-                        tagManager.addTagToPage(currentPage.id, newTag.id);
+                        tagManager.addTagToPage(currentPage.id, existing.id);
                     }
-                    
-                    // 检查是否有父类标签需要合并
-                    await this.mergeParentTagsIfNeeded(newTag);
-                    
-                    return newTag;
-                } catch (error) {
-                    // 处理TagManager抛出的验证错误
-                    if (error instanceof Error) {
-                        return { valid: false, error: error.message };
-                    }
-                    throw error;
+                    return existing;
                 }
+
+                // 创建新标签
+                const newTag = tagManager.createTag(trimmedName);
+                if (currentPage) {
+                    tagManager.addTagToPage(currentPage.id, newTag.id);
+                }
+                return newTag;
             },
             // 成功后处理
             async () => {
@@ -571,56 +680,16 @@ class OperationWrapper {
             // 成功消息
             (result) => {
                 if (result && typeof result === 'object' && 'name' in result) {
-                    return `标签 "${result.name}" 已创建并自动选中`;
+                    return `标签 "${(result as any).name}" 已添加到当前页面`;
                 }
-                return '标签已创建并自动选中';
+                return '标签已添加到当前页面';
             },
             // 错误消息
             '创建标签失败'
         );
     }
 
-    /**
-     * 检查并合并父类标签
-     */
-    private static async mergeParentTagsIfNeeded(newTag: GameplayTag): Promise<void> {
-        if (!currentPage) return;
-        
-        // 获取当前页面的所有标签
-        const currentPageTags = currentPage.tags || [];
-        
-        
-        // 查找可能的父类标签（标签名是当前标签名的前缀）
-        const parentTags = currentPageTags.filter(tagId => {
-            const tag = tagManager.getTagById(tagId);
-            if (!tag) return false;
-            
-            // 检查是否是父类标签：父标签名是子标签名的前缀
-            const isParent = newTag.name.startsWith(tag.name + '.') || 
-                           (tag.name !== newTag.name && newTag.name.startsWith(tag.name));
-            
-            if (isParent) {
-                // 发现父类标签
-            }
-            
-            return isParent;
-        });
-        
-        // 如果有父类标签，将它们合并成子类
-        for (const parentTagId of parentTags) {
-            const parentTag = tagManager.getTagById(parentTagId);
-            if (!parentTag) continue;
-            
-            
-            // 从当前页面移除父标签
-            tagManager.removeTagFromPage(currentPage.id, parentTagId);
-            
-            // 将父标签设置为新标签的父标签
-            if (newTag.parent !== parentTagId) {
-                tagManager.updateTagParent(newTag.id, parentTagId);
-            }
-        }
-    }
+    // 父子合并逻辑已移除（不再需要层级）
 
     /**
      * 执行清空缓存操作的通用包装器
@@ -643,18 +712,8 @@ class OperationWrapper {
     static async executeDebugStorage(): Promise<void> {
         // 重新加载数据确保最新状态
         await tagManager.reloadFromStorage();
-        
-        const stats = tagManager.getDataStats();
-        const allTags = tagManager.getAllTags();
-        const allPages = tagManager.getTaggedPages();
-        
-        
-        // 检查Chrome存储
-        const storageData = await chrome.storage.local.get(['gameplay_tags', 'tagged_pages']);
-        
-        // 检查当前页面
-        if (currentPage) {
-        }
+        // 检查Chrome存储（仅确保无异常即可）
+        await chrome.storage.local.get(['gameplay_tags', 'tagged_pages']);
         
         // 执行存储测试
         await tagManager.testStorage();
@@ -715,8 +774,8 @@ class ErrorHandler {
 
     static async executeWithStatusUpdate<T>(
         operation: () => Promise<T>,
-        loadingMessage: string,
-        successMessage: string,
+        _loadingMessage: string,
+        _successMessage: string,
         errorMessage: string,
         context?: string
     ): Promise<T | null> {
@@ -738,11 +797,13 @@ class ErrorHandler {
 class AutocompleteHandler {
     private static selectedIndex = -1;
     private static currentMatches: GameplayTag[] = [];
+    private static currentQuery = '';
+    private static hasEcho = false;
 
     static init(input: HTMLInputElement, dropdown: HTMLDivElement) {
         input.addEventListener('input', (e) => {
             const query = (e.target as HTMLInputElement).value.trim();
-            this.handleInput(query, dropdown);
+            this.handleInput(input, query, dropdown);
         });
 
         input.addEventListener('keydown', (e) => {
@@ -756,12 +817,12 @@ class AutocompleteHandler {
 
         input.addEventListener('focus', () => {
             if (input.value.trim()) {
-                this.handleInput(input.value.trim(), dropdown);
+                this.handleInput(input, input.value.trim(), dropdown);
             }
         });
     }
 
-    private static handleInput(query: string, dropdown: HTMLDivElement) {
+    private static handleInput(input: HTMLInputElement, query: string, dropdown: HTMLDivElement) {
         if (!query) {
             this.hideDropdown(dropdown);
             return;
@@ -769,16 +830,17 @@ class AutocompleteHandler {
 
         const allTags = tagManager.getAllTags();
         this.currentMatches = allTags.filter(tag => 
-            tag.fullName.toLowerCase().includes(query.toLowerCase()) ||
             tag.name.toLowerCase().includes(query.toLowerCase())
         );
+        this.currentQuery = query;
+        this.hasEcho = (input === tagFilterInput) && !!query;
 
         if (this.currentMatches.length === 0) {
             this.hideDropdown(dropdown);
             return;
         }
 
-        this.showDropdown(dropdown, this.currentMatches);
+        this.showDropdown(input, dropdown, this.currentMatches, this.currentQuery);
         this.selectedIndex = -1;
     }
 
@@ -788,7 +850,10 @@ class AutocompleteHandler {
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
-                this.selectedIndex = Math.min(this.selectedIndex + 1, this.currentMatches.length - 1);
+                {
+                    const total = this.currentMatches.length + (this.hasEcho ? 1 : 0);
+                    this.selectedIndex = Math.min(this.selectedIndex + 1, total - 1);
+                }
                 this.updateSelection(dropdown);
                 break;
             case 'ArrowUp':
@@ -799,7 +864,38 @@ class AutocompleteHandler {
             case 'Enter':
                 e.preventDefault();
                 if (this.selectedIndex >= 0) {
-                    this.selectItem(this.currentMatches[this.selectedIndex], input, dropdown);
+                    if (this.hasEcho && this.selectedIndex === 0) {
+                        // 选择回显项：仅保留文本筛选
+                        activeDropdownStrictTag = null;
+                        tagFilterInput.value = this.currentQuery;
+                        ModeManager.filterPagesByInputs(
+                            filterSelectedTags.map(t => t.id),
+                            this.currentQuery,
+                            undefined
+                        );
+                        this.hideDropdown(dropdown);
+                    } else {
+                        const matchIndex = this.hasEcho ? this.selectedIndex - 1 : this.selectedIndex;
+                        if (matchIndex >= 0 && matchIndex < this.currentMatches.length) {
+                            this.selectItem(this.currentMatches[matchIndex], input, dropdown);
+                        }
+                    }
+                } else if (input === tagFilterInput && this.currentQuery) {
+                    // 没有选中项但有输入：保留文本筛选并关闭下拉
+                    activeDropdownStrictTag = null;
+                    tagFilterInput.value = this.currentQuery;
+                    ModeManager.filterPagesByInputs(
+                        filterSelectedTags.map(t => t.id),
+                        this.currentQuery,
+                        undefined
+                    );
+                    this.hideDropdown(dropdown);
+                }
+                // Tagging 输入框仍沿用原始回车创建逻辑
+                if (input === newTagNameInput) {
+                    if (typeof createTagBtn !== 'undefined' && createTagBtn) {
+                        createTagBtn.click();
+                    }
                 }
                 break;
             case 'Escape':
@@ -808,8 +904,28 @@ class AutocompleteHandler {
         }
     }
 
-    private static showDropdown(dropdown: HTMLDivElement, matches: GameplayTag[]) {
+    private static showDropdown(input: HTMLInputElement, dropdown: HTMLDivElement, matches: GameplayTag[], queryText?: string) {
         dropdown.innerHTML = '';
+        
+        // 对筛选输入，首先插入一个“回显输入文本”的 integrated 项
+        if (input === tagFilterInput && queryText) {
+            const echo = document.createElement('div');
+            echo.className = 'autocomplete-item echo-item';
+            echo.innerHTML = `
+                <div class="tag-name">${queryText}</div>
+            `;
+            echo.addEventListener('click', () => {
+                activeDropdownStrictTag = null;
+                tagFilterInput.value = queryText;
+                ModeManager.filterPagesByInputs(
+                    filterSelectedTags.map(t => t.id),
+                    queryText,
+                    undefined
+                );
+                this.hideDropdown(dropdown);
+            });
+            dropdown.appendChild(echo);
+        }
         
         matches.forEach((tag) => {
             const item = document.createElement('div');
@@ -817,17 +933,19 @@ class AutocompleteHandler {
             item.innerHTML = `
                 <div class="tag-color" style="background-color: ${tag.color}"></div>
                 <div class="tag-name">${tag.name}</div>
-                <div class="tag-fullname">${tag.fullName}</div>
             `;
             
             item.addEventListener('click', () => {
-                this.selectItem(tag, newTagNameInput, dropdown);
+                this.selectItem(tag, input, dropdown);
             });
             
             dropdown.appendChild(item);
         });
         
         dropdown.classList.add('show');
+        if (input === tagFilterInput) {
+            positionFilterDropdown();
+        }
     }
 
     private static hideDropdown(dropdown: HTMLDivElement) {
@@ -843,26 +961,35 @@ class AutocompleteHandler {
     }
 
     private static selectItem(tag: GameplayTag, input: HTMLInputElement, dropdown: HTMLDivElement) {
-        input.value = tag.name;
         this.hideDropdown(dropdown);
-        
-        // 如果是标签筛选输入框，触发筛选
         if (input === tagFilterInput) {
-            ModeManager.filterPagesByTag(tag.name);
+            // 方向键/点击选择：严格匹配预览（不立即提交成chip，直到回车或点击）
+            activeDropdownStrictTag = tag;
+            // 在输入框中显示名称便于用户确认
+            input.value = tag.name;
+            const strictId = getActiveStrictId();
+            ModeManager.filterPagesByInputs(
+                filterSelectedTags.map(t => t.id),
+                '',
+                strictId
+            );
+        } else {
+            // Tagging 区域沿用旧行为
+            input.value = tag.name;
         }
     }
 }
 
 // 初始化页面
 async function initializePage() {
-    const result = await ErrorHandler.executeWithStatusUpdate(
+    await ErrorHandler.executeWithStatusUpdate(
         async () => {
             // 首先初始化TagManager，确保数据从存储中加载
             await tagManager.initialize();
-            
-            // 获取当前标签页信息
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
+        
+        // 获取当前标签页信息
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
             if (!tab || !tab.id || !tab.url) {
                 throw new Error('无法获取当前页面信息');
             }
@@ -890,6 +1017,7 @@ async function initializePage() {
             
             // 初始化所有事件监听器
             InitializationHelper.initEventListeners();
+            updateFilterPlaceholder();
             
             // 显示数据加载状态
             const stats = tagManager.getDataStats();
@@ -928,97 +1056,44 @@ async function loadCurrentPageTags() {
     );
 }
 
-// 创建标签元素 - 使用WebGL渲染
+// 创建标签元素 - 纯CSS样式
 function createTagElement(tag: GameplayTag): HTMLDivElement {
-    
     const tagElement = document.createElement('div');
-    tagElement.className = 'tag-item-webgl selected';
+    tagElement.className = 'tag-item selected';
     
-    // 创建WebGL canvas
-    const canvas = document.createElement('canvas');
-    canvas.width = 120; // 固定宽度
-    canvas.height = 32; // 固定高度
-    canvas.style.width = '120px';
-    canvas.style.height = '32px';
-    canvas.style.borderRadius = '16px';
-    canvas.style.cursor = 'pointer';
+    // 文字
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = tag.name;
+    tagElement.appendChild(nameSpan);
     
-    // 配置WebGL渲染选项 - 玻璃质感
-    const renderOptions: TagRenderOptions = {
-        width: 120,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        textColor: '#ffffff',
-        text: tag.name,
-        fontSize: 12,
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    };
+    // 删除按钮
+    const removeSpan = document.createElement('span');
+    removeSpan.className = 'tag-remove';
+    removeSpan.textContent = '×';
+    removeSpan.title = '点击移除标签';
+    tagElement.appendChild(removeSpan);
     
-    // 使用WebGL渲染
-    const webglCanvas = tagWebGLRenderer.createTagElement(renderOptions);
-    webglCanvas.style.width = '120px';
-    webglCanvas.style.height = '32px';
-    webglCanvas.style.borderRadius = '16px';
-    webglCanvas.style.cursor = 'pointer';
-    webglCanvas.style.display = 'block';
-    webglCanvas.style.position = 'relative';
-    webglCanvas.style.zIndex = '1';
+    // 统一使用 CSS 的玻璃材质样式，不叠加随机颜色描边
     
-    // 添加点击事件来移除标签
+    // 点击整块移除
     tagElement.addEventListener('click', (e) => {
         e.stopPropagation();
         handleTagPageOperation('remove', tag.id);
     });
-    
-    tagElement.appendChild(webglCanvas);
-    tagElement.style.position = 'relative';
-    tagElement.style.display = 'inline-block';
-    tagElement.style.margin = '4px';
-    tagElement.style.transition = 'all 0.3s ease';
-    tagElement.style.border = '1px solid rgba(255, 255, 255, 0.3)';
-    tagElement.style.borderRadius = '18px';
-    tagElement.style.boxShadow = `
-        0 8px 32px rgba(0, 0, 0, 0.12),
-        0 2px 8px rgba(0, 0, 0, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2)
-    `;
-    tagElement.style.outline = 'none';
-    tagElement.style.overflow = 'hidden';
-    tagElement.style.backdropFilter = 'blur(12px) saturate(200%) brightness(110%)';
-    tagElement.style.background = 'rgba(255, 255, 255, 0.1)';
-    
-    // 添加悬停效果
-    tagElement.addEventListener('mouseenter', () => {
-        tagElement.style.transform = 'scale(1.02)';
-        tagElement.style.boxShadow = `
-            0 12px 40px rgba(0, 0, 0, 0.15),
-            0 4px 12px rgba(0, 0, 0, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.3)
-        `;
-        tagElement.style.backdropFilter = 'blur(16px) saturate(250%) brightness(120%)';
+    // 点击×移除（阻止冒泡）
+    removeSpan.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleTagPageOperation('remove', tag.id);
     });
     
-    tagElement.addEventListener('mouseleave', () => {
-        tagElement.style.transform = 'scale(1)';
-        tagElement.style.boxShadow = `
-            0 8px 32px rgba(0, 0, 0, 0.12),
-            0 2px 8px rgba(0, 0, 0, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2)
-        `;
-        tagElement.style.backdropFilter = 'blur(12px) saturate(200%) brightness(110%)';
-    });
-    
-    // 添加工具提示
     tagElement.title = '点击移除标签';
-    
     return tagElement;
 }
 
 
 // 添加标签到页面或从页面移除标签（统一接口）
 async function handleTagPageOperation(operation: 'add' | 'remove', tagId: string): Promise<void> {
-    const result = await OperationWrapper.executeTagOperation(
+    await OperationWrapper.executeTagOperation(
         operation,
         tagId,
         operation === 'add' ? '标签已添加' : '标签已移除',
@@ -1027,5 +1102,119 @@ async function handleTagPageOperation(operation: 'add' | 'remove', tagId: string
     // 状态更新已移除
 }
 
-// 初始化
-initializePage();
+export async function initializePopup(): Promise<void> {
+    bindDomElements();
+    await initializePage();
+}
+
+// —— Tagged 多标签筛选辅助 ——
+function renderFilterChips(): void {
+    if (!tagFilterContainer || !tagFilterInput) return;
+    // 清理已有chips（避免重复）
+    const existing = Array.from(tagFilterContainer.querySelectorAll('.filter-chip'));
+    existing.forEach(el => el.remove());
+
+    // 在输入框前依次插入
+    filterSelectedTags.forEach((tag, index) => {
+        const chip = document.createElement('div');
+        chip.className = 'tag-item selected filter-chip';
+        if (index === focusedFilterChipIndex) {
+            chip.classList.add('focused');
+        }
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = tag.name;
+        chip.appendChild(nameSpan);
+
+        const remove = document.createElement('span');
+        remove.className = 'tag-remove';
+        remove.textContent = '×';
+        remove.title = '移除筛选标签';
+        chip.appendChild(remove);
+
+        chip.addEventListener('click', (e) => {
+            e.stopPropagation();
+            focusedFilterChipIndex = index;
+            renderFilterChips();
+            tagFilterInput.focus();
+        });
+        remove.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filterSelectedTags.splice(index, 1);
+            focusedFilterChipIndex = -1;
+            ModeManager.filterPagesByInputs(
+                filterSelectedTags.map(t => t.id),
+                tagFilterInput.value,
+                activeDropdownStrictTag?.id
+            );
+            renderFilterChips();
+        });
+
+        tagFilterContainer.insertBefore(chip, tagFilterInput);
+    });
+
+    // 更新测量器与下拉位置
+    updateFilterMeasure();
+    positionFilterDropdown();
+    updateFilterPlaceholder();
+}
+
+function commitFilterTag(tag: GameplayTag): void {
+    // 若已存在则忽略
+    if (!filterSelectedTags.some(t => t.id === tag.id)) {
+        filterSelectedTags.push(tag);
+    }
+    activeDropdownStrictTag = null;
+    tagFilterInput.value = '';
+    focusedFilterChipIndex = -1;
+    renderFilterChips();
+    ModeManager.filterPagesByInputs(
+        filterSelectedTags.map(t => t.id),
+        '',
+        undefined
+    );
+}
+
+function updateFilterMeasure(): void {
+    if (!tagFilterMeasure || !tagFilterInput) return;
+    // 使用与输入框一致的文本，保持前缀定位（末尾插入零宽空格避免宽度为0）
+    const val = tagFilterInput.value || '';
+    tagFilterMeasure.textContent = val.length > 0 ? val : '\u200b';
+    // 绝对定位于输入框起点（使用 rect 相对容器计算），不参与布局
+    const containerRect = tagFilterContainer.getBoundingClientRect();
+    const inputRect = tagFilterInput.getBoundingClientRect();
+    tagFilterMeasure.style.left = (inputRect.left - containerRect.left) + 'px';
+    tagFilterMeasure.style.top = (inputRect.top - containerRect.top) + 'px';
+}
+
+function positionFilterDropdown(): void {
+    if (!tagFilterContainer || !tagFilterDropdown || !tagFilterMeasure) return;
+    if (!tagFilterDropdown.classList.contains('show')) return;
+    // 使用 rect 相对容器计算，避免布局流变动误差
+    const containerRect = tagFilterContainer.getBoundingClientRect();
+    const inputRect = tagFilterInput.getBoundingClientRect();
+    const measureRect = tagFilterMeasure.getBoundingClientRect();
+    const left = measureRect.right - containerRect.left; // 文本末端
+    const top = inputRect.bottom - containerRect.top;    // 输入框底部
+    tagFilterDropdown.style.left = left + 'px';
+    tagFilterDropdown.style.top = top + 'px';
+    // 占据剩余行宽，便于内部自动换行展示
+    tagFilterDropdown.style.right = '10px';
+}
+
+function updateFilterPlaceholder(): void {
+    if (!tagFilterInput) return;
+    const hasChips = filterSelectedTags.length > 0;
+    const hasText = (tagFilterInput.value || '').trim().length > 0;
+    tagFilterInput.placeholder = (hasChips || hasText) ? '' : tagFilterPlaceholderDefault;
+}
+
+// 视口变化时，若下拉打开则重算位置
+window.addEventListener('resize', () => {
+    positionFilterDropdown();
+});
+
+function getActiveStrictId(): string | undefined {
+    if (!activeDropdownStrictTag) return undefined;
+    return (activeDropdownStrictTag as GameplayTag).id;
+}

@@ -1,14 +1,13 @@
 // GameplayTag 系统类型定义
 export interface GameplayTag {
   id: string;
-  name: string;
-  fullName: string; // 完整路径，如 "Technology.Frontend.JavaScript"
-  parent?: string; // 父标签ID
-  children: string[]; // 子标签ID列表
+  name: string; // 允许包含空格
   description?: string;
   color?: string; // 标签颜色
   createdAt: number;
   updatedAt: number;
+  // 绑定关系：存储与本标签绑定的其他标签ID（双向绑定由管理器保证）
+  bindings: string[];
 }
 
 export interface TaggedPage {
@@ -23,7 +22,7 @@ export interface TaggedPage {
   description?: string;
 }
 
-export interface TagHierarchy {
+export interface TagsCollection {
   [tagId: string]: GameplayTag;
 }
 
