@@ -192,11 +192,15 @@ export class WebGLRenderer {
             return;
         }
 
+        // 首先检查浏览器是否支持WebGL
+        if (!this.isWebGLSupported()) {
+            return;
+        }
         
-        // 尝试WebGL2，然后WebGL1，使用正确的上下文属性
+        // 尝试WebGL2，然后WebGL1，使用适合扩展的上下文属性
         const contextAttributes = {
             alpha: true,
-            antialias: true,
+            antialias: false, // 在扩展中禁用抗锯齿以提高兼容性
             depth: false,
             failIfMajorPerformanceCaveat: false,
             powerPreference: 'default',
@@ -211,6 +215,7 @@ export class WebGLRenderer {
                      this.canvas.getContext('experimental-webgl', contextAttributes) as WebGLRenderingContext ||
                      this.canvas.getContext('webgl2', contextAttributes) as WebGLRenderingContext;
         } catch (error) {
+            console.warn('WebGL context creation failed:', error);
         }
         
         if (!this.gl) {
@@ -240,6 +245,42 @@ export class WebGLRenderer {
 
         this.createShaderProgram();
         this.setupGeometry();
+    }
+
+    private isWebGLSupported(): boolean {
+        try {
+            // 创建测试canvas
+            const testCanvas = document.createElement('canvas');
+            
+            // 尝试获取WebGL上下文
+            const gl = testCanvas.getContext('webgl') || 
+                      testCanvas.getContext('experimental-webgl') ||
+                      testCanvas.getContext('webgl2');
+            
+            if (!gl) {
+                return false;
+            }
+            
+            // 检查WebGL上下文是否有效
+            if (!(gl instanceof WebGLRenderingContext || gl instanceof WebGL2RenderingContext)) {
+                return false;
+            }
+            
+            // 检查基本的WebGL功能
+            const version = gl.getParameter(gl.VERSION);
+            const vendor = gl.getParameter(gl.VENDOR);
+            const renderer = gl.getParameter(gl.RENDERER);
+            
+            // 如果版本信息为空，可能WebGL被禁用
+            if (!version || !vendor || !renderer) {
+                return false;
+            }
+            
+            return true;
+        } catch (error) {
+            console.warn('WebGL support check failed:', error);
+            return false;
+        }
     }
 
     private setupGeometry(): void {

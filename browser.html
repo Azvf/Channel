@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Channel - 浏览器页面</title>
+    <style>
+        :root { --bg:#0b1220; --panel:rgba(255,255,255,.06); --border:rgba(255,255,255,.12); --text:#e8eefc; }
+        html, body { height: 100%; }
+        body { margin:0; background: linear-gradient(135deg,#0b1220 0%,#131c2e 100%); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+        .layout { display:grid; grid-template-columns: 280px 1fr; grid-template-rows: 64px 1fr; height:100%; }
+        header { grid-column: 1 / -1; display:flex; align-items:center; padding: 0 16px; border-bottom:1px solid var(--border); backdrop-filter: blur(8px); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); }
+        header h1 { font-size:16px; margin:0; letter-spacing:.3px; }
+        aside { border-right:1px solid var(--border); padding: 12px; overflow:auto; }
+        main { padding: 12px; overflow:auto; }
+        .panel { background: var(--panel); border:1px solid var(--border); border-radius: 12px; padding: 12px; }
+        .section-title { font-size:12px; color:rgba(255,255,255,.7); text-transform:uppercase; letter-spacing:.8px; margin: 0 0 8px 0; }
+        .controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 8px; }
+        input[type="text"], select { background: rgba(255,255,255,.08); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:8px 10px; outline:none; }
+        button { background: rgba(99,102,241,.9); color:#fff; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; }
+        button:hover { filter: brightness(1.05); }
+        .tags-container { position:relative; }
+        #tag-canvas { width: 100%; height: 480px; display:block; border-radius: 12px; border:1px solid var(--border); background: radial-gradient(1200px 600px at 10% 20%, rgba(99,102,241,.15), transparent), radial-gradient(1200px 600px at 80% 70%, rgba(56,189,248,.12), transparent), rgba(255,255,255,.03); }
+        .labels { position:absolute; inset:0; pointer-events:none; }
+        .label { position:absolute; transform: translate(-50%, -50%); color:#fff; font-weight:600; font-size:12px; text-shadow: 0 1px 2px rgba(0,0,0,.35); white-space:nowrap; }
+    </style>
+    <script>
+        // 简单数据源（后续可替换为从存储加载）
+        const mockTags = [
+            { id:'1', name:'Gameplay', color:'#60a5fa' },
+            { id:'2', name:'UI', color:'#34d399' },
+            { id:'3', name:'WebGPU', color:'#f472b6' },
+            { id:'4', name:'Performance', color:'#f59e0b' },
+            { id:'5', name:'Design', color:'#22d3ee' },
+            { id:'6', name:'Docs', color:'#a78bfa' }
+        ];
+
+        // 简单布局：把标签按行排列，并返回每个标签的中心坐标和大小
+        function layoutTags(tags, width, height) {
+            const paddingX = 20, paddingY = 20, gapX = 16, gapY = 16, pillH = 36;
+            let x = paddingX, y = paddingY;
+            const lineMaxW = width - paddingX * 2;
+            const items = [];
+            for (const tag of tags) {
+                const pillW = Math.min(180, Math.max(90, 16 + tag.name.length * 8));
+                if (x + pillW > lineMaxW) { x = paddingX; y += pillH + gapY; }
+                const cx = x + pillW / 2; const cy = y + pillH / 2;
+                items.push({ cx, cy, w: pillW, h: pillH, r: 18, color: tag.color, name: tag.name });
+                x += pillW + gapX;
+            }
+            return items;
+        }
+
+        // WebGPU 渲染（SDF 圆角矩形 + 玻璃质感渐变）
+        async function renderTagsWebGPU(tags) {
+            const canvas = document.getElementById('tag-canvas');
+            const labels = document.querySelector('.labels');
+            labels.innerHTML = '';
+
+            if (!('gpu' in navigator)) {
+                console.error('WebGPU not supported');
+                return;
+            }
+            const adapter = await navigator.gpu.requestAdapter();
+            const device = await adapter.requestDevice();
+            const context = canvas.getContext('webgpu');
+            const format = navigator.gpu.getPreferredCanvasFormat();
+            const devicePixelRatio = window.devicePixelRatio || 1;
+
+            function configure() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = Math.max(1, Math.floor(rect.width * devicePixelRatio));
+                canvas.height = Math.max(1, Math.floor(rect.height * devicePixelRatio));
+                context.configure({ device, format, alphaMode: 'premultiplied' });
+            }
+            configure();
+
+            const pipeline = await device.createRenderPipeline({
+                layout: 'auto',
+                vertex: {
+                    module: device.createShaderModule({
+                        code: `@vertex fn vs_main(@builtin(vertex_index) vid: u32) -> @builtin(position) vec4f {
+                            var pos = array<vec2f,6>(
+                                vec2f(-1.0, -1.0), vec2f( 1.0, -1.0), vec2f(-1.0,  1.0),
+                                vec2f(-1.0,  1.0), vec2f( 1.0, -1.0), vec2f( 1.0,  1.0)
+                            );
+                            return vec4f(pos[vid], 0.0, 1.0);
+                        }`
+                    }),
+                    entryPoint: 'vs_main'
+                },
+                fragment: {
+                    module: device.createShaderModule({
+                        code: `struct Pill { center: vec2f, size: vec2f, radius: f32, pad: f32, color: vec3f; };
+                               struct Scene { pillCount: u32; time: f32; viewport: vec2f; };
+                               @group(0) @binding(0) var<uniform> scene: Scene;
+                               @group(0) @binding(1) var<storage, read> pills: array<Pill>;
+
+                               fn sdRoundRect(p: vec2f, b: vec2f, r: f32) -> f32 {
+                                   let q = abs(p) - b + vec2f(r, r);
+                                   return length(max(q, vec2f(0))) - r + min(max(q.x, q.y), 0.0);
+                               }
+
+                               @fragment fn fs_main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
+                                   let uv = fragCoord.xy;
+                                   var col = vec3f(0.0);
+                                   var alpha = 0.0;
+                                   for (var i:u32 = 0u; i < scene.pillCount; i = i + 1u) {
+                                       let pill = pills[i];
+                                       let center = pill.center;
+                                       let size = pill.size * 0.5;
+                                       let p = uv - center;
+                                       var d = sdRoundRect(p, size, pill.radius);
+                                       let aa = 1.0; // 屏幕空间抗锯齿宽度
+                                       let m = clamp(0.5 - d/aa, 0.0, 1.0);
+                                       // 玻璃渐变：环境色 + 高光条
+                                       let base = mix(vec3f(1.0,1.0,1.0)*0.18, pill.color*0.9, 0.35);
+                                       let highlight = 0.12 * smoothstep(-size.y, size.y*0.2, p.y);
+                                       let gloss = 0.10 * smoothstep(size.x*0.6, size.x, abs(p.x));
+                                       col = mix(col, base + vec3f(highlight) + vec3f(gloss), m);
+                                       alpha = mix(alpha, 0.85, m);
+                                   }
+                                   return vec4f(col, alpha);
+                               }`
+                    }),
+                    entryPoint: 'fs_main',
+                    targets: [{ format }]
+                },
+                primitive: { topology: 'triangle-list' }
+            });
+
+            const sceneSize = 4 + 4 + 8; // u32 + f32 + vec2
+            const pillStride = 4*2 + 4*2 + 4 + 4 + 4*3; // center vec2 + size vec2 + radius + pad + color vec3
+            const sceneBuf = device.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+            const pillBuf = device.createBuffer({ size: pillStride * 256, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+
+            const bindGroup = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [
+                { binding:0, resource: { buffer: sceneBuf } },
+                { binding:1, resource: { buffer: pillBuf } }
+            ]});
+
+            function toDeviceSpace(x) { return x * devicePixelRatio; }
+
+            function updateAndDraw() {
+                const rect = canvas.getBoundingClientRect();
+                const items = layoutTags(tags, rect.width, rect.height);
+
+                // 写入标签数据
+                const pillData = new Float32Array(items.length * (pillStride/4));
+                for (let i = 0; i < items.length; i++) {
+                    const it = items[i];
+                    const base = i * (pillStride/4);
+                    pillData[base+0] = toDeviceSpace(it.cx);
+                    pillData[base+1] = toDeviceSpace(it.cy);
+                    pillData[base+2] = toDeviceSpace(it.w);
+                    pillData[base+3] = toDeviceSpace(it.h);
+                    pillData[base+4] = toDeviceSpace(it.r);
+                    pillData[base+5] = 0; // pad
+                    // color rgb
+                    const c = hexToRgb(it.color);
+                    pillData[base+6] = c[0]/255; pillData[base+7] = c[1]/255; pillData[base+8] = c[2]/255;
+                }
+                device.queue.writeBuffer(pillBuf, 0, pillData.buffer, pillData.byteOffset, pillData.byteLength);
+
+                const sceneData = new Float32Array([ items.length, 0, toDeviceSpace(rect.width), toDeviceSpace(rect.height) ]);
+                device.queue.writeBuffer(sceneBuf, 0, sceneData.buffer, sceneData.byteOffset, sceneData.byteLength);
+
+                // 文本标签
+                labels.innerHTML = '';
+                for (const it of items) {
+                    const div = document.createElement('div');
+                    div.className = 'label';
+                    div.textContent = it.name;
+                    div.style.left = `${it.cx}px`;
+                    div.style.top = `${it.cy}px`;
+                    labels.appendChild(div);
+                }
+
+                const encoder = device.createCommandEncoder();
+                const pass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: context.getCurrentTexture().createView(),
+                        clearValue: { r:0, g:0, b:0, a:0 },
+                        loadOp: 'clear', storeOp: 'store'
+                    }]
+                });
+                pass.setPipeline(pipeline);
+                pass.setBindGroup(0, bindGroup);
+                pass.draw(6, 1, 0, 0);
+                pass.end();
+                device.queue.submit([encoder.finish()]);
+            }
+
+            updateAndDraw();
+            window.addEventListener('resize', () => { configure(); updateAndDraw(); });
+        }
+
+        function hexToRgb(hex) {
+            const n = hex.replace('#','');
+            const bigint = parseInt(n, 16);
+            if (n.length === 6) return [(bigint>>16)&255, (bigint>>8)&255, bigint&255];
+            return [255,255,255];
+        }
+
+        async function initBrowserPage() {
+            // TODO: 可尝试从 chrome.storage.local 读取（若作为扩展页打开）
+            const tagData = mockTags;
+            await renderTagsWebGPU(tagData);
+        }
+        window.addEventListener('load', initBrowserPage);
+    </script>
+</head>
+<body>
+    <div class="layout">
+        <header>
+            <h1>Channel - 浏览器页面</h1>
+        </header>
+        <aside>
+            <div class="panel">
+                <div class="section-title">Filters</div>
+                <div class="controls">
+                    <input id="filter-input" type="text" placeholder="筛选标签 (占位)" />
+                    <button onclick="location.reload()">刷新</button>
+                </div>
+            </div>
+        </aside>
+        <main>
+            <div class="panel tags-container">
+                <canvas id="tag-canvas"></canvas>
+                <div class="labels"></div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
+
+
