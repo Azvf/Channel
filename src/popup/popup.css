@@ -236,24 +236,13 @@ main {
 
 /* 旧的渐入动画移除，避免切换时触发布局变化导致抖动 */
 
-.tag-section, .debug-section {
+.debug-section {
     background: rgba(255, 255, 255, 0.12);
     border-radius: 16px;
     padding: 20px;
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-/* 主功能区域扩展填充，调试区保留自然高度（两种模式通用） */
-.tag-section {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-}
-
-.debug-section {
     flex: 0 0 auto;
     margin-top: auto; /* 固定在底部，保持轻量占比 */
 }
@@ -285,25 +274,8 @@ main {
     min-width: 0; /* 防止溢出 */
 }
 
-.tag-input,
-.tag-select {
+.tag-input {
     height: 40px; /* Apple-like control height */
-}
-
-.btn {
-    height: 40px;
-    padding: 0 18px;
-    min-width: 84px; /* Compact but comfortable */
-    border-radius: 12px;
-}
-
-.input-group {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-}
-
-.tag-input, .tag-select {
     padding: 12px 16px;
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
@@ -315,15 +287,11 @@ main {
     outline: none;
 }
 
-.tag-input:focus, .tag-select:focus {
+.tag-input:focus {
     border-color: rgba(102, 126, 234, 0.6);
     background: rgba(255, 255, 255, 0.12);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     transform: translateY(-1px);
-}
-
-.autocomplete-input {
-    position: relative;
 }
 
 .tag-input::placeholder {
@@ -342,11 +310,13 @@ main {
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
+    z-index: 9999; /* 提高 z-index 确保显示在最上层 */
     max-height: 200px;
     overflow-y: auto;
     margin-top: 4px;
     display: none;
+    /* 确保创建新的层叠上下文 */
+    isolation: isolate;
 }
 
 /* 用于测量输入文字宽度以定位下拉，隐藏但占位 */
@@ -375,6 +345,8 @@ main {
 	border-radius: 12px;
 	background: rgba(255, 255, 255, 0.08);
 	min-height: 44px; /* 稳定高度，避免输入时跳动 */
+	/* 确保下拉框能够显示在最上层 */
+	z-index: 1;
 }
 
 #taggedMode .tag-filter .chip-input:focus-within {
@@ -453,22 +425,14 @@ main {
     text-overflow: ellipsis;
 }
 
-.autocomplete-item .tag-fullname {
-    font-size: 12px;
-    opacity: 0.7;
-    margin-left: auto;
-}
-
-.tag-select option {
-    background: #333;
-    color: white;
-}
 
 .btn {
+    height: 40px;
     padding: 0 18px;
+    min-width: 84px; /* Compact but comfortable */
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.14);
     border: 1px solid rgba(255, 255, 255, 0.38);
-    border-radius: 12px;
     color: white;
     font-size: 14px;
     font-weight: 600;
@@ -833,6 +797,8 @@ h4 {
     flex-direction: column;
     flex: 1;
     min-height: 0;
+    overflow-y: auto; /* 允许内部滚动 */
+    overflow-x: hidden; /* 防止横向溢出 */
 }
 
 /* 过滤结果容器占满可用空间，内部列表滚动（Tagged 模式） */
@@ -841,6 +807,8 @@ h4 {
     flex-direction: column;
     flex: 1;
     min-height: 0;
+    overflow-y: auto; /* 允许内部滚动 */
+    overflow-x: hidden; /* 防止横向溢出 */
 }
 
 .page-favicon {
@@ -981,41 +949,38 @@ h4 {
 /* —— Liquid Glass for tag-section（大尺寸容器适配） —— */
 .tag-section {
     position: relative;
-    overflow: hidden;
-    background-color: color-mix(in srgb, var(--c-glass) 22%, transparent);
-    backdrop-filter: blur(18px) saturate(calc(var(--saturation) * 0.9));
-    -webkit-backdrop-filter: blur(18px) saturate(calc(var(--saturation) * 0.9));
+    overflow: visible; /* 改为 visible 以允许下拉框显示 */
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    padding: 20px;
+    /* 完全覆盖基础样式，避免叠加导致的分层问题 */
+    background: color-mix(in srgb, var(--c-glass) 18%, transparent);
+    background-color: color-mix(in srgb, var(--c-glass) 18%, transparent);
+    background-image: none;
+    border: none;
+    backdrop-filter: blur(12px) saturate(var(--saturation));
+    -webkit-backdrop-filter: blur(12px) saturate(var(--saturation));
     border-radius: 16px;
     /* 加强但更舒展的液态玻璃内描边与体积光影（适配更大高度与面积） */
     box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.28),
-        inset 0 -1px 0 rgba(0,0,0,0.22),
-        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
-        inset 3px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
-        inset -2px 3px 4px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
-        inset -3px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 7%), transparent),
-        inset 0px -3px 2px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
-        inset -3px -10px 2px -7px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 6%), transparent),
-        0 10px 24px color-mix(in srgb, var(--c-dark) 22%, transparent);
+        inset 0 1px 0 rgba(255,255,255,0.24),
+        inset 0 -1px 0 rgba(0,0,0,0.18),
+        inset 0 0 0 1px rgba(255,255,255,0.08),
+        inset 3px 2px 0px -1px rgba(255,255,255,0.06),
+        inset -2px 3px 4px -1px rgba(0,0,0,0.24),
+        inset -3px -2px 0px -1px rgba(255,255,255,0.05),
+        inset 0px -3px 2px -1px rgba(0,0,0,0.20),
+        inset -3px -10px 2px -7px rgba(255,255,255,0.04),
+        0 10px 24px rgba(0,0,0,0.15);
     transform: translateZ(0);
     will-change: transform, box-shadow, background-color;
 }
 
 .tag-section::before {
-    content: '';
-    position: absolute;
-    top: -25%;
-    left: -25%;
-    width: 180%;
-    height: 160%;
-    background: radial-gradient(ellipse at top left,
-        rgba(255,255,255,0.22),
-        rgba(255,255,255,0.08) 30%,
-        transparent 60%);
-    filter: blur(2px);
-    pointer-events: none;
-    z-index: 1;
-    transition: transform 0.8s ease, opacity 0.4s ease;
+    /* radial-gradient 已移除 */
+    display: none;
 }
 
 .tag-section::after {
@@ -1034,36 +999,19 @@ h4 {
     pointer-events: none;
 }
 
-.tag-section:hover {
-    background-color: color-mix(in srgb, var(--c-glass) 26%, transparent);
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.32),
-        inset 0 -1px 0 rgba(0,0,0,0.20),
-        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-        inset 3px 3px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 9%), transparent),
-        inset -2px 3px 4px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 13%), transparent),
-        inset -3px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
-        inset 0px -3px 2px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 11%), transparent),
-        inset -3px -10px 2px -7px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 7%), transparent),
-        0 12px 26px color-mix(in srgb, var(--c-dark) 24%, transparent);
-}
-
-.tag-section:hover::before {
-    transform: translate(6%, -2%);
-}
-
-/* 移除 tag-section hover 流光效果 */
-.tag-section:hover::after {
-    /* 流光效果已移除 */
-}
+/* tag-section hover 效果已移除 */
 
 /* —— Liquid Glass for input-group（参考 switcher 的精致风格） —— */
 .input-group {
     position: relative;
+    display: flex;
+    flex-direction: column;
     border-radius: 12px;
     background-color: color-mix(in srgb, var(--c-glass) 12%, transparent);
     backdrop-filter: blur(8px) saturate(var(--saturation));
     -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+    /* 确保下拉框能够显示在最上层 */
+    z-index: 1;
     /* 参考 switcher 的细致 box-shadow，适配小尺寸 */
     box-shadow: 
         inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),

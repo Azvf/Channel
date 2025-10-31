@@ -16,8 +16,6 @@ let autocompleteDropdown: HTMLDivElement;
 
 // 模式切换相关元素
 let modeTitle: HTMLHeadingElement;
-let taggingMode: HTMLDivElement;
-let taggedMode: HTMLDivElement;
 let tagFilterInput: HTMLInputElement;
 let tagFilterDropdown: HTMLDivElement;
 let filteredPagesList: HTMLDivElement;
@@ -41,8 +39,6 @@ function bindDomElements(): void {
     autocompleteDropdown = document.getElementById('autocompleteDropdown') as HTMLDivElement;
 
     modeTitle = document.getElementById('modeTitle') as HTMLHeadingElement;
-    taggingMode = document.getElementById('taggingMode') as HTMLDivElement;
-    taggedMode = document.getElementById('taggedMode') as HTMLDivElement;
     tagFilterInput = document.getElementById('tagFilterInput') as HTMLInputElement;
     if (tagFilterInput && tagFilterInput.placeholder) {
         tagFilterPlaceholderDefault = tagFilterInput.placeholder;
@@ -64,9 +60,22 @@ function bindDomElements(): void {
 const tagManager = TagManager.getInstance();
 let currentPage: TaggedPage | null = null;
 
- 
+// ========== 工具函数 ==========
+/**
+ * 确保当前页面在 TagManager 中已注册
+ */
+async function ensureCurrentPageRegistered(): Promise<void> {
+    currentPage = await tagManager.ensurePageRegistered(currentPage?.id);
+}
 
-// 模式管理
+/**
+ * 统一的存储同步操作
+ */
+async function syncStorageToChrome(): Promise<void> {
+    await tagManager.syncToStorage();
+}
+
+// ========== 模式管理 ==========
 enum AppMode {
     TAGGING = 'tagging',
     TAGGED = 'tagged'
@@ -143,9 +152,6 @@ class ModeManager {
         }
     }
 
-    static getCurrentMode(): AppMode {
-        return this.currentMode;
-    }
 
     static loadAllTaggedPages() {
         const allPages = tagManager.getTaggedPages();
@@ -278,23 +284,6 @@ class PageUpdateHelper {
         }
         await loadCurrentPageTags();
     }
-
-    /**
-     * 执行操作后更新页面和存储
-     */
-    static async executeWithPageUpdate<T>(
-        operation: () => Promise<T>,
-        syncStorage = true
-    ): Promise<T> {
-        const result = await operation();
-        
-        if (syncStorage) {
-            await tagManager.syncToStorage();
-        }
-        
-        await this.updateCurrentPageAndReload();
-        return result;
-    }
 }
 
 // 通用操作结果处理接口
@@ -402,8 +391,7 @@ class InitializationHelper {
                 }
                 // 无严格项、无chip聚焦：若输入完全等于某标签名，则转为chip
                 if (partial) {
-                    const all = tagManager.getAllTags();
-                    const exact = all.find(t => t.name.toLowerCase() === partial.toLowerCase());
+                    const exact = tagManager.findTagByName(partial);
                     if (exact) {
                         commitFilterTag(exact);
                         e.preventDefault();
@@ -412,28 +400,19 @@ class InitializationHelper {
             }
         });
 
-        // 页面卸载和隐藏事件
-        window.addEventListener('beforeunload', async () => {
-            await ErrorHandler.executeWithErrorHandling(
-                async () => {
-                    // 同步到存储
-                    await tagManager.syncToStorage();
-                },
-                '页面卸载时保存数据失败',
-                '页面卸载'
+        // 页面卸载和隐藏事件 - 统一处理存储同步
+        const handleStorageSync = () => {
+            ErrorHandler.executeWithErrorHandling(
+                syncStorageToChrome,
+                '保存数据失败',
+                '存储同步'
             );
-        });
-
-        document.addEventListener('visibilitychange', async () => {
+        };
+        
+        window.addEventListener('beforeunload', handleStorageSync);
+        document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                await ErrorHandler.executeWithErrorHandling(
-                    async () => {
-                        // 同步到存储
-                        await tagManager.syncToStorage();
-                    },
-                    '页面隐藏时保存数据失败',
-                    '页面隐藏'
-                );
+                handleStorageSync();
             }
         });
 
@@ -448,8 +427,6 @@ class InitializationHelper {
                 '获取存储状态失败',
                 '存储状态调试'
             );
-            
-            // 状态更新已移除
         });
 
         // 清理未使用标签
@@ -494,8 +471,6 @@ class EventHandlerHelper {
                 `${context}失败`,
                 context
             );
-            
-            // 状态更新已移除
         };
     }
 
@@ -520,8 +495,6 @@ class EventHandlerHelper {
                     `${context}失败`,
                     context
                 );
-                
-                // 状态更新已移除
             }
         };
     }
@@ -565,9 +538,8 @@ class OperationWrapper {
             await onSuccess(result);
             
             // 页面更新和存储同步
-            await PageUpdateHelper.executeWithPageUpdate(async () => {
-                // 操作已在上面执行，这里不需要额外操作
-            });
+            await tagManager.syncToStorage();
+            await PageUpdateHelper.updateCurrentPageAndReload();
             
             // 返回成功消息
             const message = typeof successMessage === 'function' 
@@ -605,9 +577,13 @@ class OperationWrapper {
             async () => {
                 const opTimer = log.timeStart('op');
                 log.debug('executing', { operation, tagId, pageId: currentPage!.id });
-                const success = operation === 'add' 
-                    ? tagManager.addTagToPage(currentPage!.id, tagId)
-                    : tagManager.removeTagFromPage(currentPage!.id, tagId);
+                
+                // 使用 tagManager 的统一接口
+                const success = tagManager.toggleTagOnPage(
+                    currentPage!.id, 
+                    tagId, 
+                    operation === 'add'
+                );
                 
                 if (!success) {
                     log.warn('op returned false', { operation, tagId, pageId: currentPage!.id });
@@ -640,51 +616,31 @@ class OperationWrapper {
     log.debug('start', { tagName, pageId: currentPage?.id });
     const result = await this.executeTagOperationCore(
             // 验证
-            async () => {
-                if (!tagName || !tagName.trim()) {
-                    return { valid: false, error: '请输入标签名称' };
-                }
-                
-                const trimmedName = tagName.trim();
-                if (trimmedName.length === 0) {
-                    return { valid: false, error: '标签名称不能为空' };
-                }
-                
-                if (trimmedName.length > 50) {
-                    return { valid: false, error: '标签名称不能超过50个字符' };
-                }
-                
-                // 检查是否包含无效字符
-                if (!/^[a-zA-Z0-9\u4e00-\u9fa5._\- ]+$/.test(trimmedName)) {
-                    return { valid: false, error: '标签名称只能包含字母、数字、中文、点、下划线、连字符和空格' };
-                }
-                
-                return { valid: true };
-            },
+            async () => tagManager.validateTagName(tagName),
             // 执行操作
             async () => {
-            const trimmedName = tagName.trim();
-            log.debug('executing', { trimmedName });
-                // 先查找是否已存在同名标签（忽略大小写）
-                const allTags = tagManager.getAllTags();
-                const existing = allTags.find(t => t.name.toLowerCase() === trimmedName.toLowerCase());
-
-                if (existing) {
-                log.info('hit existing', { tagId: existing.id, name: existing.name });
-                    if (currentPage) {
-                        tagManager.addTagToPage(currentPage.id, existing.id);
-                    }
-                    return existing;
+                const trimmedName = tagName.trim();
+                log.debug('executing', { trimmedName });
+                
+                // 确保当前页面在 TagManager 中已注册
+                await ensureCurrentPageRegistered();
+                
+                // 此时 currentPage 一定不为 null
+                if (!currentPage) {
+                    throw new Error('无法获取当前页面');
                 }
-
-                // 创建新标签
-                const newTag = tagManager.createTag(trimmedName);
-            log.info('created', { tagId: newTag.id, name: newTag.name });
-                if (currentPage) {
-                    tagManager.addTagToPage(currentPage.id, newTag.id);
-                log.info('added to page', { pageId: currentPage.id, tagId: newTag.id });
-                }
-                return newTag;
+                
+                // 使用 tagManager 的高级方法创建标签并添加到页面
+                // 先检查是否存在同名标签用于日志记录
+                const existing = tagManager.findTagByName(trimmedName);
+                const tag = tagManager.createTagAndAddToPage(trimmedName, currentPage.id);
+                
+                // 判断是使用现有标签还是创建了新标签
+                log.info(existing && existing.id === tag.id ? 'hit existing' : 'created', 
+                    { tagId: tag.id, name: tag.name }
+                );
+                
+                return tag;
             },
             // 成功后处理
             async () => {
@@ -709,8 +665,6 @@ class OperationWrapper {
     log.debug('end', { result });
     return result;
     }
-
-    // 父子合并逻辑已移除（不再需要层级）
 
     /**
      * 执行清空缓存操作的通用包装器
@@ -761,20 +715,6 @@ class DOMOperationHandler {
             container.appendChild(element);
         });
     }
-
-    static updateSelectOptions(
-        select: HTMLSelectElement,
-        items: { id: string; name: string }[],
-        placeholder: string = '请选择...'
-    ): void {
-        select.innerHTML = `<option value="">${placeholder}</option>`;
-        items.forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = item.name;
-            select.appendChild(option);
-        });
-    }
 }
 
 // 通用错误处理处理器
@@ -788,7 +728,6 @@ class ErrorHandler {
             return await operation();
         } catch (error) {
             console.error(`${context ? `[${context}] ` : ''}${errorMessage}:`, error);
-            // 状态更新已移除
             return null;
         }
     }
@@ -800,15 +739,10 @@ class ErrorHandler {
         errorMessage: string,
         context?: string
     ): Promise<T | null> {
-        // 状态更新已移除
-        
         try {
-            const result = await operation();
-            // 状态更新已移除
-            return result;
+            return await operation();
         } catch (error) {
             console.error(`${context ? `[${context}] ` : ''}${errorMessage}:`, error);
-            // 状态更新已移除
             return null;
         }
     }
@@ -913,10 +847,8 @@ class AutocompleteHandler {
                     this.hideDropdown(dropdown);
                 }
                 // Tagging 输入框仍沿用原始回车创建逻辑
-                if (input === newTagNameInput) {
-                    if (typeof createTagBtn !== 'undefined' && createTagBtn) {
-                        createTagBtn.click();
-                    }
+                if (input === newTagNameInput && createTagBtn) {
+                    createTagBtn.click();
                 }
                 break;
             case 'Escape':
@@ -1008,21 +940,8 @@ async function initializePage() {
             // 首先初始化TagManager，确保数据从存储中加载
             await tagManager.initialize();
         
-        // 获取当前标签页信息
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        
-            if (!tab || !tab.id || !tab.url) {
-                throw new Error('无法获取当前页面信息');
-            }
-            
-            // 创建或更新页面记录
-            currentPage = tagManager.createOrUpdatePage(
-                tab.url,
-                tab.title || '无标题',
-                new URL(tab.url).hostname,
-                tab.favIconUrl
-            );
-            
+            // 获取当前标签页信息并创建页面记录
+            currentPage = await tagManager.getCurrentTabAndRegisterPage();
             
             // 加载所有数据
             await loadCurrentPageTags();
@@ -1045,12 +964,10 @@ async function initializePage() {
             return `加载完成 - 标签: ${stats.tagsCount}, 页面: ${stats.pagesCount}`;
         },
         '正在加载...',
-        '', // 成功消息将在操作中设置
+        '',
         '初始化失败',
         '页面初始化'
     );
-    
-    // 状态更新已移除
 }
 
 
@@ -1061,13 +978,11 @@ async function loadCurrentPageTags() {
         return;
     }
     
-    
     // 显示当前页面标题
     currentPageTitle.textContent = `${currentPage.title} (${currentPage.tags.length} 个标签)`;
     
     const allTags = tagManager.getAllTags();
-    const pageTags = allTags.filter(tag => currentPage!.tags.includes
-        (tag.id));
+    const pageTags = allTags.filter(tag => currentPage!.tags.includes(tag.id));
     
     // 只显示当前页面拥有的标签
     DOMOperationHandler.clearAndFill(
@@ -1094,8 +1009,6 @@ function createTagElement(tag: GameplayTag): HTMLDivElement {
     removeSpan.title = '点击移除标签';
     tagElement.appendChild(removeSpan);
     
-    // 统一使用 CSS 的玻璃材质样式，不叠加随机颜色描边
-    
     // 点击整块移除
     tagElement.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1120,7 +1033,6 @@ async function handleTagPageOperation(operation: 'add' | 'remove', tagId: string
         operation === 'add' ? '标签已添加' : '标签已移除',
         operation === 'add' ? '添加标签失败' : '移除标签失败'
     );
-    // 状态更新已移除
 }
 
 export async function initializePopup(): Promise<void> {

@@ -27,25 +27,13 @@ export class TagManager {
 
   // 标签管理（无父子层级）
   public createTag(name: string, description?: string, color?: string): GameplayTag {
-    // 验证标签名称
-    if (!name || !name.trim()) {
-      throw new Error('标签名称不能为空');
+    // 使用封装好的验证接口
+    const validation = this.validateTagName(name);
+    if (!validation.valid) {
+      throw new Error(validation.error || '标签名称验证失败');
     }
     
     const trimmedName = name.trim();
-    if (trimmedName.length === 0) {
-      throw new Error('标签名称不能为空');
-    }
-    
-    if (trimmedName.length > 50) {
-      throw new Error('标签名称不能超过50个字符');
-    }
-    
-    // 检查是否包含无效字符（允许空格）
-    if (!/^[a-zA-Z0-9\u4e00-\u9fa5._\- ]+$/.test(trimmedName)) {
-      throw new Error('标签名称只能包含字母、数字、中文、点、下划线、连字符和空格');
-    }
-
     const id = this.generateTagId(trimmedName);
     
     const tag: GameplayTag = {
@@ -100,6 +88,105 @@ export class TagManager {
 
   public getTagById(id: string): GameplayTag | undefined {
     return this.tags[id];
+  }
+
+  /**
+   * 根据名称查找标签（忽略大小写）
+   */
+  public findTagByName(name: string): GameplayTag | undefined {
+    if (!name) return undefined;
+    const trimmedName = name.trim().toLowerCase();
+    return this.getAllTags().find(tag => tag.name.toLowerCase() === trimmedName);
+  }
+
+  /**
+   * 验证标签名称
+   */
+  public validateTagName(name: string): { valid: boolean; error?: string } {
+    if (!name || !name.trim()) {
+      return { valid: false, error: '请输入标签名称' };
+    }
+    
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) {
+      return { valid: false, error: '标签名称不能为空' };
+    }
+    
+    if (trimmedName.length > 50) {
+      return { valid: false, error: '标签名称不能超过50个字符' };
+    }
+    
+    return { valid: true };
+  }
+
+  /**
+   * 创建标签并添加到页面（高级方法）
+   * 如果标签已存在同名，则使用现有标签并添加到页面
+   */
+  public createTagAndAddToPage(tagName: string, pageId: string): GameplayTag {
+    // 使用封装好的验证接口
+    const validation = this.validateTagName(tagName);
+    if (!validation.valid) {
+      throw new Error(validation.error || '标签名称验证失败');
+    }
+    
+    const trimmedName = tagName.trim();
+    
+    // 查找是否已存在同名标签（忽略大小写）
+    const existing = this.findTagByName(trimmedName);
+    
+    if (existing) {
+      // 使用现有标签并添加到页面
+      this.addTagToPage(pageId, existing.id);
+      return existing;
+    }
+    
+    // 创建新标签（内部会再次验证，但不会重复 trim）
+    const newTag = this.createTag(trimmedName);
+    this.addTagToPage(pageId, newTag.id);
+    return newTag;
+  }
+
+  /**
+   * 从 Chrome tabs API 获取当前标签页并注册页面
+   */
+  public async getCurrentTabAndRegisterPage(): Promise<TaggedPage> {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab || !tab.id || !tab.url) {
+      throw new Error('无法获取当前页面信息');
+    }
+    
+    return this.createOrUpdatePage(
+      tab.url,
+      tab.title || '无标题',
+      new URL(tab.url).hostname,
+      tab.favIconUrl
+    );
+  }
+
+  /**
+   * 确保页面已注册（如果不存在则创建）
+   */
+  public async ensurePageRegistered(pageId?: string): Promise<TaggedPage> {
+    if (pageId) {
+      const page = this.getPageById(pageId);
+      if (page) {
+        return page;
+      }
+    }
+    
+    // 页面不存在，从当前标签页创建
+    return await this.getCurrentTabAndRegisterPage();
+  }
+
+  /**
+   * 添加或移除标签到页面（统一接口）
+   */
+  public toggleTagOnPage(pageId: string, tagId: string, add: boolean): boolean {
+    return add 
+      ? this.addTagToPage(pageId, tagId)
+      : this.removeTagFromPage(pageId, tagId);
   }
 
   // 已移除层级相关API
