@@ -9,9 +9,10 @@ let newTagNameInput: HTMLInputElement;
 let createTagBtn: HTMLButtonElement;
 let currentPageTags: HTMLDivElement;
 let currentPageTitle: HTMLDivElement;
-let clearCacheBtn: HTMLButtonElement;
-let debugStorageBtn: HTMLButtonElement;
-let cleanupTagsBtn: HTMLButtonElement;
+let clearCacheBtn: HTMLButtonElement | null;
+let debugStorageBtn: HTMLButtonElement | null;
+let cleanupTagsBtn: HTMLButtonElement | null;
+let toggleDebugModeBtn: HTMLButtonElement | null;
 let autocompleteDropdown: HTMLDivElement;
 
 // 模式切换相关元素
@@ -33,9 +34,10 @@ function bindDomElements(): void {
     createTagBtn = document.getElementById('createTagBtn') as HTMLButtonElement;
     currentPageTags = document.getElementById('currentPageTags') as HTMLDivElement;
     currentPageTitle = document.getElementById('currentPageTitle') as HTMLDivElement;
-    clearCacheBtn = document.getElementById('clearCacheBtn') as HTMLButtonElement;
-    debugStorageBtn = document.getElementById('debugStorageBtn') as HTMLButtonElement;
-    cleanupTagsBtn = document.getElementById('cleanupTagsBtn') as HTMLButtonElement;
+    clearCacheBtn = document.getElementById('clearCacheBtn') as HTMLButtonElement | null;
+    debugStorageBtn = document.getElementById('debugStorageBtn') as HTMLButtonElement | null;
+    cleanupTagsBtn = document.getElementById('cleanupTagsBtn') as HTMLButtonElement | null;
+    toggleDebugModeBtn = document.getElementById('toggleDebugModeBtn') as HTMLButtonElement | null;
     autocompleteDropdown = document.getElementById('autocompleteDropdown') as HTMLDivElement;
 
     modeTitle = document.getElementById('modeTitle') as HTMLHeadingElement;
@@ -76,24 +78,27 @@ async function syncStorageToChrome(): Promise<void> {
 }
 
 // ========== 模式管理 ==========
-enum AppMode {
+export enum AppMode {
     TAGGING = 'tagging',
-    TAGGED = 'tagged'
+    TAGGED = 'tagged',
+    DEBUG = 'debug'
 }
+
+const MODE_STORAGE_KEY = 'app_mode';
 
 class ModeManager {
     private static currentMode: AppMode = AppMode.TAGGING;
-    private static readonly STORAGE_KEY = 'app_mode';
+    static readonly STORAGE_KEY = MODE_STORAGE_KEY;
 
-    static async init() {
+    static async init(initialMode: AppMode) {
         // 移除旧的事件监听器（如果存在）
         modeTitle.removeEventListener('click', this.handleTitleClick);
         
         // 标题点击切换模式
         modeTitle.addEventListener('click', this.handleTitleClick);
 
-        // 从存储中加载上次的模式
-        await this.loadModeFromStorage();
+        // 按传入的初始模式完成初始化，避免先显示默认模式再跳转
+        await this.setMode(initialMode, { skipStorageWrite: true });
     }
 
     private static handleTitleClick = async () => {
@@ -103,22 +108,6 @@ class ModeManager {
             console.error('Error in toggleMode:', error);
         }
     };
-
-    private static async loadModeFromStorage() {
-        try {
-            const result = await chrome.storage.local.get([this.STORAGE_KEY]);
-            const savedMode = result[this.STORAGE_KEY] as AppMode;
-            
-            if (savedMode && Object.values(AppMode).includes(savedMode)) {
-                await this.setMode(savedMode);
-            } else {
-                await this.setMode(AppMode.TAGGING);
-            }
-        } catch (error) {
-            console.error('加载模式失败:', error);
-            await this.setMode(AppMode.TAGGING);
-        }
-    }
 
     private static async saveModeToStorage() {
         try {
@@ -133,14 +122,22 @@ class ModeManager {
         await this.setMode(newMode);
     }
 
-    static async setMode(mode: AppMode) {
+    static async toggleDebugMode() {
+        const targetMode = this.currentMode === AppMode.DEBUG ? AppMode.TAGGING : AppMode.DEBUG;
+        await this.setMode(targetMode);
+    }
+
+    static getCurrentMode(): AppMode {
+        return this.currentMode;
+    }
+
+    static async setMode(mode: AppMode, options?: { skipStorageWrite?: boolean }) {
         this.currentMode = mode;
         
-        // 保存模式到存储
-        await this.saveModeToStorage();
-
-        // 更新标题文本（保留原有交互）
-        modeTitle.textContent = mode === AppMode.TAGGING ? 'Tagging' : 'Tagged';
+        if (!options?.skipStorageWrite) {
+            // 保存模式到存储
+            await this.saveModeToStorage();
+        }
 
         // 派发模式变更事件，由 Vue 层负责显隐与动效，避免布局抖动
         window.dispatchEvent(new CustomEvent('app:mode-changed', { detail: mode }));
@@ -270,6 +267,20 @@ class ModeManager {
 }
 
 
+export async function loadInitialAppMode(): Promise<AppMode> {
+    try {
+        const result = await chrome.storage.local.get([MODE_STORAGE_KEY]);
+        const savedMode = result[MODE_STORAGE_KEY] as AppMode;
+        if (savedMode && Object.values(AppMode).includes(savedMode)) {
+            return savedMode;
+        }
+    } catch (error) {
+        console.error('加载模式失败:', error);
+    }
+    return AppMode.TAGGING;
+}
+
+
 // 页面更新辅助函数
 class PageUpdateHelper {
     /**
@@ -313,12 +324,14 @@ class InitializationHelper {
         newTagNameInput.addEventListener('keydown', EventHandlerHelper.createEnterKeyHandler(createTagBtn));
 
         // 清空缓存
-        clearCacheBtn.addEventListener('click', EventHandlerHelper.createConfirmButtonHandler(
-            '确定要清空所有本地缓存数据吗？此操作不可撤销！',
-            () => OperationWrapper.executeClearCache(),
-            '正在清空缓存...',
-            '缓存清空'
-        ));
+        if (clearCacheBtn) {
+            clearCacheBtn.addEventListener('click', EventHandlerHelper.createConfirmButtonHandler(
+                '确定要清空所有本地缓存数据吗？此操作不可撤销！',
+                () => OperationWrapper.executeClearCache(),
+                '正在清空缓存...',
+                '缓存清空'
+            ));
+        }
 
         // 标签筛选：多标签 + 部分匹配
         tagFilterInput.addEventListener('input', (e) => {
@@ -417,36 +430,54 @@ class InitializationHelper {
         });
 
         // 调试存储状态
-        debugStorageBtn.addEventListener('click', async () => {
-            await ErrorHandler.executeWithErrorHandling(
-                async () => {
-                    await OperationWrapper.executeDebugStorage();
-                    const stats = tagManager.getDataStats();
-                    return `调试信息已输出到控制台 - 内存: 标签${stats.tagsCount}, 页面${stats.pagesCount}`;
-                },
-                '获取存储状态失败',
-                '存储状态调试'
-            );
-        });
+        if (debugStorageBtn) {
+            debugStorageBtn.addEventListener('click', async () => {
+                await ErrorHandler.executeWithErrorHandling(
+                    async () => {
+                        await OperationWrapper.executeDebugStorage();
+                        const stats = tagManager.getDataStats();
+                        return `调试信息已输出到控制台 - 内存: 标签${stats.tagsCount}, 页面${stats.pagesCount}`;
+                    },
+                    '获取存储状态失败',
+                    '存储状态调试'
+                );
+            });
+        }
+
+        // 调试模式切换
+        if (toggleDebugModeBtn) {
+            toggleDebugModeBtn.addEventListener('click', async () => {
+                await ErrorHandler.executeWithErrorHandling(
+                    async () => {
+                        await ModeManager.toggleDebugMode();
+                        return null;
+                    },
+                    '切换调试模式失败',
+                    '调试模式切换'
+                );
+            });
+        }
 
         // 清理未使用标签
-        cleanupTagsBtn.addEventListener('click', EventHandlerHelper.createConfirmButtonHandler(
-            '确定要清理所有未使用的标签吗？此操作将删除没有被任何页面使用的标签。',
-            async () => {
-                const beforeStats = tagManager.getDataStats();
-                tagManager.cleanupUnusedTags();
-                const afterStats = tagManager.getDataStats();
-                await tagManager.syncToStorage();
-                
-                const cleanedCount = beforeStats.tagsCount - afterStats.tagsCount;
-                return { 
-                    success: true, 
-                    message: `清理完成，删除了 ${cleanedCount} 个未使用的标签` 
-                };
-            },
-            '正在清理标签...',
-            '标签清理'
-        ));
+        if (cleanupTagsBtn) {
+            cleanupTagsBtn.addEventListener('click', EventHandlerHelper.createConfirmButtonHandler(
+                '确定要清理所有未使用的标签吗？此操作将删除没有被任何页面使用的标签。',
+                async () => {
+                    const beforeStats = tagManager.getDataStats();
+                    tagManager.cleanupUnusedTags();
+                    const afterStats = tagManager.getDataStats();
+                    await tagManager.syncToStorage();
+                    
+                    const cleanedCount = beforeStats.tagsCount - afterStats.tagsCount;
+                    return { 
+                        success: true, 
+                        message: `清理完成，删除了 ${cleanedCount} 个未使用的标签` 
+                    };
+                },
+                '正在清理标签...',
+                '标签清理'
+            ));
+        }
     }
 }
 
@@ -753,7 +784,6 @@ class AutocompleteHandler {
     private static selectedIndex = -1;
     private static currentMatches: GameplayTag[] = [];
     private static currentQuery = '';
-    private static hasEcho = false;
 
     static init(input: HTMLInputElement, dropdown: HTMLDivElement) {
         input.addEventListener('input', (e) => {
@@ -788,14 +818,13 @@ class AutocompleteHandler {
             tag.name.toLowerCase().includes(query.toLowerCase())
         );
         this.currentQuery = query;
-        this.hasEcho = (input === tagFilterInput) && !!query;
 
         if (this.currentMatches.length === 0) {
             this.hideDropdown(dropdown);
             return;
         }
 
-        this.showDropdown(input, dropdown, this.currentMatches, this.currentQuery);
+        this.showDropdown(input, dropdown, this.currentMatches);
         this.selectedIndex = -1;
     }
 
@@ -805,10 +834,7 @@ class AutocompleteHandler {
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
-                {
-                    const total = this.currentMatches.length + (this.hasEcho ? 1 : 0);
-                    this.selectedIndex = Math.min(this.selectedIndex + 1, total - 1);
-                }
+                this.selectedIndex = Math.min(this.selectedIndex + 1, this.currentMatches.length - 1);
                 this.updateSelection(dropdown);
                 break;
             case 'ArrowUp':
@@ -818,23 +844,12 @@ class AutocompleteHandler {
                 break;
             case 'Enter':
                 e.preventDefault();
-                if (this.selectedIndex >= 0) {
-                    if (this.hasEcho && this.selectedIndex === 0) {
-                        // 选择回显项：仅保留文本筛选
-                        activeDropdownStrictTag = null;
-                        tagFilterInput.value = this.currentQuery;
-                        ModeManager.filterPagesByInputs(
-                            filterSelectedTags.map(t => t.id),
-                            this.currentQuery,
-                            undefined
-                        );
-                        this.hideDropdown(dropdown);
-                    } else {
-                        const matchIndex = this.hasEcho ? this.selectedIndex - 1 : this.selectedIndex;
-                        if (matchIndex >= 0 && matchIndex < this.currentMatches.length) {
-                            this.selectItem(this.currentMatches[matchIndex], input, dropdown);
-                        }
-                    }
+                if (this.selectedIndex >= 0 && this.selectedIndex < this.currentMatches.length) {
+                    // 如果有选中项，调用 selectItem（它已经会处理创建标签的逻辑）
+                    this.selectItem(this.currentMatches[this.selectedIndex], input, dropdown);
+                    // 如果是 Tagging 页面且有选中项，selectItem 已经处理了创建，不需要再次调用
+                    // 直接返回，避免重复调用
+                    return;
                 } else if (input === tagFilterInput && this.currentQuery) {
                     // 没有选中项但有输入：保留文本筛选并关闭下拉
                     activeDropdownStrictTag = null;
@@ -846,7 +861,7 @@ class AutocompleteHandler {
                     );
                     this.hideDropdown(dropdown);
                 }
-                // Tagging 输入框仍沿用原始回车创建逻辑
+                // Tagging 输入框：没有选中项时才创建标签（有选中项的情况已经在上面处理）
                 if (input === newTagNameInput && createTagBtn) {
                     createTagBtn.click();
                 }
@@ -857,28 +872,8 @@ class AutocompleteHandler {
         }
     }
 
-    private static showDropdown(input: HTMLInputElement, dropdown: HTMLDivElement, matches: GameplayTag[], queryText?: string) {
+    private static showDropdown(input: HTMLInputElement, dropdown: HTMLDivElement, matches: GameplayTag[]) {
         dropdown.innerHTML = '';
-        
-        // 对筛选输入，首先插入一个“回显输入文本”的 integrated 项
-        if (input === tagFilterInput && queryText) {
-            const echo = document.createElement('div');
-            echo.className = 'autocomplete-item echo-item';
-            echo.innerHTML = `
-                <div class="tag-name">${queryText}</div>
-            `;
-            echo.addEventListener('click', () => {
-                activeDropdownStrictTag = null;
-                tagFilterInput.value = queryText;
-                ModeManager.filterPagesByInputs(
-                    filterSelectedTags.map(t => t.id),
-                    queryText,
-                    undefined
-                );
-                this.hideDropdown(dropdown);
-            });
-            dropdown.appendChild(echo);
-        }
         
         matches.forEach((tag) => {
             const item = document.createElement('div');
@@ -916,25 +911,20 @@ class AutocompleteHandler {
     private static selectItem(tag: GameplayTag, input: HTMLInputElement, dropdown: HTMLDivElement) {
         this.hideDropdown(dropdown);
         if (input === tagFilterInput) {
-            // 方向键/点击选择：严格匹配预览（不立即提交成chip，直到回车或点击）
-            activeDropdownStrictTag = tag;
-            // 在输入框中显示名称便于用户确认
-            input.value = tag.name;
-            const strictId = getActiveStrictId();
-            ModeManager.filterPagesByInputs(
-                filterSelectedTags.map(t => t.id),
-                '',
-                strictId
-            );
+            // Tagged 页面：点击下拉框中的 tag 时，直接提交为 chip（和按 Enter 一样）
+            commitFilterTag(tag);
         } else {
-            // Tagging 区域沿用旧行为
+            // Tagging 页面：点击下拉框中的 tag 时，直接创建标签（和按 Enter 一样）
             input.value = tag.name;
+            if (createTagBtn) {
+                createTagBtn.click();
+            }
         }
     }
 }
 
 // 初始化页面
-async function initializePage() {
+async function initializePage(initialMode?: AppMode) {
     await ErrorHandler.executeWithStatusUpdate(
         async () => {
             // 首先初始化TagManager，确保数据从存储中加载
@@ -950,7 +940,8 @@ async function initializePage() {
             AutocompleteHandler.init(newTagNameInput, autocompleteDropdown);
             
             // 初始化模式管理器
-            await ModeManager.init();
+            const resolvedMode = initialMode ?? ModeManager.getCurrentMode();
+            await ModeManager.init(resolvedMode);
             
             // 初始化标签筛选的自动完成功能
             AutocompleteHandler.init(tagFilterInput, tagFilterDropdown);
@@ -1035,9 +1026,9 @@ async function handleTagPageOperation(operation: 'add' | 'remove', tagId: string
     );
 }
 
-export async function initializePopup(): Promise<void> {
+export async function initializePopup(initialMode: AppMode): Promise<void> {
     bindDomElements();
-    await initializePage();
+    await initializePage(initialMode);
 }
 
 // —— Tagged 多标签筛选辅助 ——

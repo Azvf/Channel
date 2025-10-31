@@ -28,5 +28,8 @@
     "manifest-v3"
   ],
   "author": "Your Name",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "html2canvas": "^1.4.1"
+  }
 }
