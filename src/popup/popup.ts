@@ -1,4 +1,5 @@
 import { TagManager } from '../services/tagManager';
+import { logger } from '../services/logger';
 import { GameplayTag, TaggedPage } from '../types/gameplayTag';
 
 
@@ -588,25 +589,32 @@ class OperationWrapper {
         successMessage: string,
         errorMessage: string
     ): Promise<OperationResult> {
-        return this.executeTagOperationCore(
+    const log = logger('TagOp');
+    const t = log.timeStart('execute');
+    log.debug('start', { operation, tagId, pageId: currentPage?.id });
+    const result = await this.executeTagOperationCore(
             // 验证
             async () => {
                 if (!currentPage) {
+                log.error('no currentPage', { operation, tagId });
                     return { valid: false, error: '当前页面为空' };
                 }
                 return { valid: true };
             },
             // 执行操作
             async () => {
-                
+                const opTimer = log.timeStart('op');
+                log.debug('executing', { operation, tagId, pageId: currentPage!.id });
                 const success = operation === 'add' 
                     ? tagManager.addTagToPage(currentPage!.id, tagId)
                     : tagManager.removeTagFromPage(currentPage!.id, tagId);
                 
                 if (!success) {
+                    log.warn('op returned false', { operation, tagId, pageId: currentPage!.id });
                     throw new Error(`${operation === 'add' ? '添加' : '移除'}标签失败`);
                 }
                 
+                log.timeEnd(opTimer, { stage: 'op', operation, tagId, pageId: currentPage!.id });
                 return { success };
             },
             // 成功后处理
@@ -617,14 +625,20 @@ class OperationWrapper {
             successMessage,
             // 错误消息
             errorMessage
-        );
+    );
+    log.timeEnd(t, { stage: 'execute', operation, tagId, pageId: currentPage?.id });
+    log.debug('end', { result });
+    return result;
     }
 
     /**
      * 执行创建标签操作的通用包装器
      */
     static async executeCreateTag(tagName: string): Promise<OperationResult> {
-        return this.executeTagOperationCore(
+    const log = logger('CreateTag');
+    const t = log.timeStart('execute');
+    log.debug('start', { tagName, pageId: currentPage?.id });
+    const result = await this.executeTagOperationCore(
             // 验证
             async () => {
                 if (!tagName || !tagName.trim()) {
@@ -649,12 +663,14 @@ class OperationWrapper {
             },
             // 执行操作
             async () => {
-                const trimmedName = tagName.trim();
+            const trimmedName = tagName.trim();
+            log.debug('executing', { trimmedName });
                 // 先查找是否已存在同名标签（忽略大小写）
                 const allTags = tagManager.getAllTags();
                 const existing = allTags.find(t => t.name.toLowerCase() === trimmedName.toLowerCase());
 
                 if (existing) {
+                log.info('hit existing', { tagId: existing.id, name: existing.name });
                     if (currentPage) {
                         tagManager.addTagToPage(currentPage.id, existing.id);
                     }
@@ -663,8 +679,10 @@ class OperationWrapper {
 
                 // 创建新标签
                 const newTag = tagManager.createTag(trimmedName);
+            log.info('created', { tagId: newTag.id, name: newTag.name });
                 if (currentPage) {
                     tagManager.addTagToPage(currentPage.id, newTag.id);
+                log.info('added to page', { pageId: currentPage.id, tagId: newTag.id });
                 }
                 return newTag;
             },
@@ -674,7 +692,7 @@ class OperationWrapper {
                 newTagNameInput.value = '';
                 // 重新加载当前页面标签
                 if (currentPage) {
-                    loadCurrentPageTags();
+                await loadCurrentPageTags();
                 }
             },
             // 成功消息
@@ -686,7 +704,10 @@ class OperationWrapper {
             },
             // 错误消息
             '创建标签失败'
-        );
+    );
+    log.timeEnd(t, { stage: 'execute', tagName, pageId: currentPage?.id });
+    log.debug('end', { result });
+    return result;
     }
 
     // 父子合并逻辑已移除（不再需要层级）

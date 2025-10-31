@@ -1,4 +1,5 @@
 import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
+import { logger } from './logger';
 
 export class TagManager {
   private static instance: TagManager;
@@ -105,26 +106,33 @@ export class TagManager {
 
   // 页面管理
   public addTagToPage(pageId: string, tagId: string): boolean {
+    const log = logger('TagManager');
     if (!this.tags[tagId]) {
+      log.warn('addTagToPage: tag not found', { pageId, tagId });
       return false;
     }
 
     if (!this.pages[pageId]) {
+      log.warn('addTagToPage: page not found', { pageId, tagId });
       return false;
     }
 
     if (!this.pages[pageId].tags.includes(tagId)) {
       this.pages[pageId].tags.push(tagId);
       this.pages[pageId].updatedAt = Date.now();
+      log.debug('addTagToPage: added', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
       // 不在这里调用saveToStorage，让调用者处理
       return true;
     } else {
+      log.info('addTagToPage: already exists', { pageId, tagId });
       return false;
     }
   }
 
   public removeTagFromPage(pageId: string, tagId: string): boolean {
+    const log = logger('TagManager');
     if (!this.pages[pageId]) {
+      log.warn('removeTagFromPage: page not found', { pageId, tagId });
       return false;
     }
 
@@ -132,10 +140,12 @@ export class TagManager {
     if (index > -1) {
       this.pages[pageId].tags.splice(index, 1);
       this.pages[pageId].updatedAt = Date.now();
+      log.debug('removeTagFromPage: removed', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
       // 不在这里调用saveToStorage，让调用者处理
       
       return true;
     } else {
+      log.info('removeTagFromPage: not present', { pageId, tagId });
       return false;
     }
   }

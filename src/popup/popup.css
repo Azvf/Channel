@@ -421,7 +421,7 @@ main {
     gap: 8px;
 }
 
-.autocomplete-item:last-child {}
+
 
 .autocomplete-item:hover {
     background: rgba(102, 126, 234, 0.1);
@@ -556,101 +556,102 @@ main {
     display: inline-flex;
     align-items: center;
     padding: 8px 12px;
-	/* Liquid glass 基础（对齐 switcher 外观） */
-	background-color: color-mix(in srgb, var(--c-glass) 36%, transparent);
-	backdrop-filter: blur(8px) saturate(var(--saturation));
-	-webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
-	border-radius: 18px;
-	font-size: 14px;
-	font-weight: 600;
-	cursor: pointer;
-	transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, filter 0.3s ease, transform 0.25s ease;
-	border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent);
-	/* 参考 switcher 与其 ::after 的多层内/外阴影 */
-	box-shadow:
-		inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-		inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent),
-		inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
-		inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
-		inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
-		inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
-		0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
-	/* 柔和的 bloom 阴影，避免明显矩形边缘 */
-	filter: drop-shadow(0 6px 16px color-mix(in srgb, var(--c-dark) 20%, transparent));
-	position: relative;
-	overflow: hidden;
-	transform: translateZ(0);
-	will-change: transform, box-shadow, background, border-color, filter;
-}
-
-/* 确保文本内容在伪元素之上 */
-.tag-item > * {
+    background-color: color-mix(in srgb, var(--c-glass) 42%, transparent);
+    backdrop-filter: blur(10px) saturate(var(--saturation));
+    -webkit-backdrop-filter: blur(10px) saturate(var(--saturation));
+    border-radius: 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    /* 二分恢复：继续加回浅层细节 */
+    box-shadow:
+        /* 贴边角点：顶边细高光与底边细暗线，贴合圆角 */
+        inset 0 1px 0 rgba(255,255,255,0.30),
+        inset 0 -1px 0 rgba(0,0,0,0.24),
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+        inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 14%), transparent),
+        inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 7%), transparent),
+        inset 0px -2px 1px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+        inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 6%), transparent),
+        inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent),
+        inset 2.5px 1.5px 0px -1.5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 6%), transparent),
+        inset 0px -3px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 7%), transparent);
+    transition:
+        background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
+        box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1),
+        transform 400ms cubic-bezier(1, 0.0, 0.4, 1);
     position: relative;
-    z-index: 2;
+    overflow: hidden;
+    transform: translateZ(0);
+    will-change: transform, box-shadow, background-color;
+    filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--c-dark) 10%, transparent));
 }
 
-/* 玻璃表面液态高光与流光 */
+/* 恢复并优化液态高光与流光 */
 .tag-item::before {
-	content: '';
-	position: absolute;
-	top: -40%;
-	left: -60%;
-	width: 220%;
-	height: 180%;
-	background: radial-gradient(ellipse at top left, rgba(255,255,255,0.28), rgba(255,255,255,0.06) 35%, transparent 60%);
-	filter: blur(2px);
-	pointer-events: none;
-	z-index: 1;
-	transition: transform 0.8s ease, opacity 0.4s ease;
-	transform: translateX(0);
+    content: '';
+    position: absolute;
+    /* 更贴角：继续缩小并上移，靠近左上圆角 */
+    top: -16%;
+    left: -16%;
+    width: 140%;
+    height: 130%;
+    background: radial-gradient(ellipse at top left, rgba(255,255,255,0.34), rgba(255,255,255,0.10) 28%, transparent 56%);
+    filter: blur(1.2px);
+    pointer-events: none;
+    z-index: 1;
+    transition: transform 0.8s ease, opacity 0.4s ease;
+    transform: translateX(0);
 }
 
 .tag-item::after {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: -120%;
-	width: 60%;
-	height: 100%;
-	background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.22) 35%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.18) 65%, transparent 100%);
-	opacity: 0.0;
-	filter: blur(1px);
-	transform: skewX(-12deg);
-	transition: transform 0.8s ease, opacity 0.4s ease;
-	z-index: 2;
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.22) 35%, rgba(255,255,255,0.34) 50%, rgba(255,255,255,0.18) 65%, transparent 100%);
+    opacity: 0.0;
+    filter: blur(1px);
+    transform: skewX(-12deg);
+    transition: transform 0.8s ease, opacity 0.4s ease;
+    z-index: 2;
+    pointer-events: none;
 }
 
 .tag-item:hover {
     background-color: color-mix(in srgb, var(--c-glass) 42%, transparent);
-    backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.05));
-    -webkit-backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.05));
-    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 16%), transparent);
     box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.38),
+        inset 0 -1px 0 rgba(0,0,0,0.22),
+        /* 角点锚定：极轻微角上/角下点亮，增强贴合感 */
+        inset 1px 1px 0 rgba(255,255,255,0.10),
+        inset -1px -1px 0 rgba(0,0,0,0.10),
         inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 12%), transparent),
-        inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent),
-        inset -2px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
-        inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
-        inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
-        inset 0px -5px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
-        0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
-    filter: drop-shadow(0 10px 22px color-mix(in srgb, var(--c-dark) 22%, transparent));
-    transform: translateY(-1px) translateZ(0);
+        inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+        inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
+        inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 9%), transparent),
+        inset 0px -2px 1px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 9%), transparent),
+        inset 2.5px 1.5px 0px -1.5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset 0px -3px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 7%), transparent);
+    filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--c-dark) 10%, transparent));
+    transform: translateY(-0.3px) translateZ(0);
 }
 
 .tag-item:hover::before {
-	transform: translateX(6%);
+    transform: translate(8%, -2%);
 }
 
 .tag-item:hover::after {
-	transform: translateX(260%) skewX(-12deg);
-	opacity: 0.65;
+    transform: translateX(260%) skewX(-12deg);
+    opacity: 0.35;
 }
 
 .tag-item.selected {
     background-color: color-mix(in srgb, var(--c-glass) 42%, transparent);
-    backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.0));
-    -webkit-backdrop-filter: blur(10px) saturate(calc(var(--saturation) * 1.0));
-    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 16%), transparent);
     box-shadow:
         inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 12%), transparent),
         inset 2px 1.5px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 92%), transparent),
@@ -659,14 +660,10 @@ main {
         inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent),
         inset 0px -5px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
         0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
-    filter: drop-shadow(0 8px 20px color-mix(in srgb, var(--c-dark) 22%, transparent));
 }
 
 .tag-item.selected:hover {
     background-color: color-mix(in srgb, var(--c-glass) 46%, transparent);
-    backdrop-filter: blur(12px) saturate(calc(var(--saturation) * 1.08));
-    -webkit-backdrop-filter: blur(12px) saturate(calc(var(--saturation) * 1.08));
-    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 18%), transparent);
     box-shadow:
         inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 14%), transparent),
         inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 96%), transparent),
@@ -675,7 +672,7 @@ main {
         inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 22%), transparent),
         inset 0px -6px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 14%), transparent),
         0px 7px 18px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent);
-    filter: drop-shadow(0 12px 24px color-mix(in srgb, var(--c-dark) 26%, transparent));
+    transform: translateY(-0.5px) translateZ(0);
 }
 
 /* Tagged 模式下筛选 chips 的聚焦高亮 */
@@ -888,82 +885,205 @@ h4 {
 }
 
 .page-tag {
-	padding: 6px 10px;
-	/* Liquid glass 外观（与 .tag-item 一致，参考 switcher） */
-	position: relative;
-	background-color: color-mix(in srgb, var(--c-glass) 32%, transparent);
-	backdrop-filter: blur(8px) saturate(var(--saturation));
-	-webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
-	border-radius: 14px;
-	font-size: 12px;
-	font-weight: 600;
-	color: rgba(255, 255, 255, 0.95);
-	border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent);
-	box-shadow:
-		inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-		inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent),
-		inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
-		inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
-		inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
-		inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
-		0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
-	filter: drop-shadow(0 5px 14px color-mix(in srgb, var(--c-dark) 18%, transparent));
-	overflow: hidden;
-	transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, filter 0.25s ease, transform 0.2s ease;
-	transform: translateZ(0);
-	will-change: transform, box-shadow, background, border-color, filter;
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    position: relative;
+    background-color: color-mix(in srgb, var(--c-glass) 40%, transparent);
+    backdrop-filter: blur(10px) saturate(var(--saturation));
+    -webkit-backdrop-filter: blur(10px) saturate(var(--saturation));
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    border: none;
+    /* 第一步：仅恢复极细内描边，其他阴影仍禁用 */
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+        inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+        inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 7%), transparent),
+        inset 0px -2px 1px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent),
+        inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 6%), transparent),
+        inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 6%), transparent),
+        inset 2.5px 1.5px 0px -1.5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 6%), transparent),
+        inset 0px -3px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 5%), transparent);
+    transition:
+        background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
+        box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1),
+        transform 400ms cubic-bezier(1, 0.0, 0.4, 1);
+    transform: translateZ(0);
+    will-change: transform, box-shadow, background-color;
+    filter: drop-shadow(0 3px 10px color-mix(in srgb, var(--c-dark) 8%, transparent));
+    overflow: hidden; /* 关键：裁剪伪元素，避免跨标签视觉连续 */
+    isolation: isolate; /* 关键：新建层叠上下文，避免混合跨越兄弟元素 */
 }
 
 .page-tag::before {
-	content: '';
-	position: absolute;
-	top: -40%;
-	left: -60%;
-	width: 220%;
-	height: 180%;
-	background: radial-gradient(ellipse at top left, rgba(255,255,255,0.24), rgba(255,255,255,0.06) 35%, transparent 60%);
-	filter: blur(2px);
-	pointer-events: none;
-	z-index: 1;
-	transition: transform 0.8s ease, opacity 0.4s ease;
-	transform: translateX(0);
+    content: '';
+    position: absolute;
+    top: -40%;
+    left: -60%;
+    width: 220%;
+    height: 180%;
+    background: radial-gradient(ellipse at top left, rgba(255,255,255,0.26), rgba(255,255,255,0.06) 35%, transparent 60%);
+    filter: blur(2px);
+    pointer-events: none;
+    z-index: 1;
+    transition: transform 0.8s ease, opacity 0.4s ease;
+    transform: translateX(0);
 }
 
 .page-tag::after {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: -120%;
-	width: 60%;
-	height: 100%;
-	background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.18) 35%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.16) 65%, transparent 100%);
-	opacity: 0.0;
-	filter: blur(1px);
-	transform: skewX(-12deg);
-	transition: transform 0.8s ease, opacity 0.4s ease;
-	z-index: 2;
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.20) 35%, rgba(255,255,255,0.30) 50%, rgba(255,255,255,0.16) 65%, transparent 100%);
+    opacity: 0.0;
+    filter: blur(1px);
+    transform: skewX(-12deg);
+    transition: transform 0.8s ease, opacity 0.4s ease;
+    z-index: 2;
+    pointer-events: none;
 }
 
 .page-tag:hover {
-    background-color: color-mix(in srgb, var(--c-glass) 38%, transparent);
-    border-color: color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 16%), transparent);
+    background-color: color-mix(in srgb, var(--c-glass) 44%, transparent);
+    /* hover 略微增强内描边与高光 */
     box-shadow:
         inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 12%), transparent),
-        inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent),
-        inset -2px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent),
-        inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent),
-        inset -1px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent),
-        inset 0px -5px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
-        0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
-    filter: drop-shadow(0 8px 18px color-mix(in srgb, var(--c-dark) 22%, transparent));
-    transform: translateY(-1px) translateZ(0);
+        inset 2px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+        inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
+        inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 9%), transparent),
+        inset 0px -2px 1px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+        inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent),
+        inset 2.5px 1.5px 0px -1.5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset 0px -3px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 7%), transparent);
+    filter: drop-shadow(0 4px 11px color-mix(in srgb, var(--c-dark) 10%, transparent));
+    transform: translateY(-0.5px) translateZ(0);
 }
 
 .page-tag:hover::before {
-	transform: translateX(6%);
+    transform: translateX(6%);
 }
 
 .page-tag:hover::after {
-	transform: translateX(260%) skewX(-12deg);
-	opacity: 0.6;
+    transform: translateX(260%) skewX(-12deg);
+    opacity: 0.35;
 }
+
+/* 去重：保留上面的 hover 流光定义 */
+
+/* —— Liquid Glass for tag-section（大尺寸容器适配） —— */
+.tag-section {
+    position: relative;
+    overflow: hidden;
+    background-color: color-mix(in srgb, var(--c-glass) 22%, transparent);
+    backdrop-filter: blur(18px) saturate(calc(var(--saturation) * 0.9));
+    -webkit-backdrop-filter: blur(18px) saturate(calc(var(--saturation) * 0.9));
+    border-radius: 16px;
+    /* 加强但更舒展的液态玻璃内描边与体积光影（适配更大高度与面积） */
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.28),
+        inset 0 -1px 0 rgba(0,0,0,0.22),
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset 3px 2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset -2px 3px 4px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent),
+        inset -3px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 7%), transparent),
+        inset 0px -3px 2px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent),
+        inset -3px -10px 2px -7px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 6%), transparent),
+        0 10px 24px color-mix(in srgb, var(--c-dark) 22%, transparent);
+    transform: translateZ(0);
+    will-change: transform, box-shadow, background-color;
+}
+
+.tag-section::before {
+    content: '';
+    position: absolute;
+    top: -25%;
+    left: -25%;
+    width: 180%;
+    height: 160%;
+    background: radial-gradient(ellipse at top left,
+        rgba(255,255,255,0.22),
+        rgba(255,255,255,0.08) 30%,
+        transparent 60%);
+    filter: blur(2px);
+    pointer-events: none;
+    z-index: 1;
+    transition: transform 0.8s ease, opacity 0.4s ease;
+}
+
+.tag-section::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 45%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.16) 35%, rgba(255,255,255,0.26) 50%, rgba(255,255,255,0.12) 65%, transparent 100%);
+    opacity: 0.0;
+    filter: blur(1.5px);
+    transform: skewX(-10deg);
+    transition: transform 0.9s ease, opacity 0.45s ease;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.tag-section:hover {
+    background-color: color-mix(in srgb, var(--c-glass) 26%, transparent);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.32),
+        inset 0 -1px 0 rgba(0,0,0,0.20),
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+        inset 3px 3px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 9%), transparent),
+        inset -2px 3px 4px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 13%), transparent),
+        inset -3px -2px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 8%), transparent),
+        inset 0px -3px 2px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 11%), transparent),
+        inset -3px -10px 2px -7px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 7%), transparent),
+        0 12px 26px color-mix(in srgb, var(--c-dark) 24%, transparent);
+}
+
+.tag-section:hover::before {
+    transform: translate(6%, -2%);
+}
+
+/* 移除 tag-section hover 流光效果 */
+.tag-section:hover::after {
+    /* 流光效果已移除 */
+}
+
+/* —— Liquid Glass for input-group（参考 switcher 的精致风格） —— */
+.input-group {
+    position: relative;
+    border-radius: 12px;
+    background-color: color-mix(in srgb, var(--c-glass) 12%, transparent);
+    backdrop-filter: blur(8px) saturate(var(--saturation));
+    -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+    /* 参考 switcher 的细致 box-shadow，适配小尺寸 */
+    box-shadow: 
+        inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+        inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+        inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
+        inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
+        inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
+        inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+        inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+        inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+        0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+        0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+    transition: 
+        background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
+        box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1);
+}
+
+.input-group:hover {
+    background-color: color-mix(in srgb, var(--c-glass) 14%, transparent);
+}
+
+/* 保持内部输入框的原有样式，不额外修改 */
+
