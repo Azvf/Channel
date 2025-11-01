@@ -1,5 +1,10 @@
 <template>
   <div id="debugMode" class="mode-panel">
+    <div class="debug-controls">
+      <button id="getVideoTimestampBtn" class="btn btn-primary">
+        获取当前视频时间戳
+      </button>
+    </div>
   </div>
 </template>
 

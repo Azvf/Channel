@@ -196,7 +196,7 @@ main {
     min-height: 0; /* 允许内部滚动 */
 }
 
-/* 模式面板（组件根）采用绝对定位叠层，仅切换透明度，不改尺寸流 */
+/* 模式面板（组件根）采用绝对定位叠层，切换时做轻量淡入与位移动画，避免布局抖动 */
 .mode-panel {
     position: absolute;
     inset: 0;
@@ -204,13 +204,25 @@ main {
     flex-direction: column;
     gap: 20px;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.2s ease;
+    transform: translateY(10px) scale(0.985);
+    transition:
+        opacity 0.36s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1),
+        visibility 0s linear 0.36s;
+    will-change: opacity, transform;
 }
 
 .mode-panel.active {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
+    transform: translateY(0) scale(1);
+    transition:
+        opacity 0.36s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1),
+        visibility 0s;
 }
 
 /* —— 通用模块结构（纯布局，无视觉差异） —— */

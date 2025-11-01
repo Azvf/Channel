@@ -150,17 +150,19 @@ export class TagManager {
   /**
    * 从 Chrome tabs API 获取当前标签页并注册页面
    */
-  public async getCurrentTabAndRegisterPage(): Promise<TaggedPage> {
+  public async getCurrentTabAndRegisterPage(resolvedUrl?: string): Promise<TaggedPage> {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
     if (!tab || !tab.id || !tab.url) {
       throw new Error('无法获取当前页面信息');
     }
     
+    const pageUrl = resolvedUrl || tab.url;
+
     return this.createOrUpdatePage(
-      tab.url,
+      pageUrl,
       tab.title || '无标题',
-      new URL(tab.url).hostname,
+      new URL(pageUrl).hostname,
       tab.favIconUrl
     );
   }
@@ -304,7 +306,40 @@ export class TagManager {
 
   // 私有方法
   private generateTagId(name: string): string {
-    return name.toLowerCase().trim().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '_');
+    const trimmedName = name.trim();
+    const hasNonAscii = /[^\x00-\x7F]/.test(trimmedName);
+
+    if (hasNonAscii) {
+      try {
+        return `tag_${this.encodeToBase64(trimmedName)}`;
+      } catch (error) {
+        console.error('Base64 编码失败，回退到安全字符编码:', error);
+      }
+    }
+
+    return trimmedName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '_');
+  }
+
+  private encodeToBase64(value: string): string {
+    if (typeof globalThis !== 'undefined') {
+      const globalRef: any = globalThis as any;
+
+      if (typeof globalRef.TextEncoder !== 'undefined' && typeof globalRef.btoa === 'function') {
+        const encoder = new globalRef.TextEncoder();
+        const bytes = encoder.encode(value);
+        let binary = '';
+        bytes.forEach((byte: number) => {
+          binary += String.fromCharCode(byte);
+        });
+        return globalRef.btoa(binary);
+      }
+
+      if (typeof globalRef.Buffer !== 'undefined') {
+        return globalRef.Buffer.from(value, 'utf-8').toString('base64');
+      }
+    }
+
+    throw new Error('Base64 encoding is not supported in the current environment');
   }
 
   private generatePageId(url: string): string {
