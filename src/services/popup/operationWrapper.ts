@@ -166,10 +166,35 @@ export class OperationWrapper {
     }
   }
 
+  static async executeCleanupUnusedTags(): Promise<OperationResult> {
+    const context = requireContext()
+    try {
+      const beforeStats = tagManager.getDataStats()
+      tagManager.cleanupUnusedTags()
+      const afterStats = tagManager.getDataStats()
+      await tagManager.syncToStorage()
+      await context.updateCurrentPageAndReload()
+
+      const cleanedCount = beforeStats.tagsCount - afterStats.tagsCount
+      return {
+        success: true,
+        message: `清理完成，删除了 ${cleanedCount} 个未使用的标签`
+      }
+    } catch (error) {
+      console.error('清理未使用标签失败:', error)
+      return { success: false, message: '清理未使用标签失败', isError: true }
+    }
+  }
+
   static async executeDebugStorage(): Promise<void> {
     await tagManager.reloadFromStorage()
     await chrome.storage.local.get(['gameplay_tags', 'tagged_pages'])
     await tagManager.testStorage()
+    const stats = tagManager.getDataStats()
+    console.info('[Debug] 存储状态', {
+      tagsCount: stats.tagsCount,
+      pagesCount: stats.pagesCount
+    })
   }
 
   static async fetchCurrentVideoTimestamp(): Promise<string | null> {
