@@ -465,5 +465,284 @@ describe('TagManager', () => {
       expect(tagManager.getTagById(tag.id)).toBeDefined();
     });
   });
+
+  describe('导入导出功能', () => {
+    beforeEach(() => {
+      // 初始化一些测试数据
+      const tag1 = tagManager.createTag('前端', '前端开发相关', '#FF5733');
+      const tag2 = tagManager.createTag('后端', '后端开发相关', '#33FF57');
+      tagManager.bindTags(tag1.id, tag2.id);
+      
+      const page1 = tagManager.createOrUpdatePage(
+        'https://github.com',
+        'GitHub',
+        'github.com',
+        'https://github.com/favicon.ico'
+      );
+      const page2 = tagManager.createOrUpdatePage(
+        'https://stackoverflow.com',
+        'Stack Overflow',
+        'stackoverflow.com'
+      );
+      
+      tagManager.addTagToPage(page1.id, tag1.id);
+      tagManager.addTagToPage(page2.id, tag1.id);
+    });
+
+    it('应该导出所有数据为 JSON 字符串', () => {
+      const exportData = tagManager.exportData();
+      
+      expect(exportData).toBeDefined();
+      expect(typeof exportData).toBe('string');
+      
+      const parsed = JSON.parse(exportData);
+      expect(parsed.tags).toBeDefined();
+      expect(parsed.pages).toBeDefined();
+      expect(parsed.version).toBe('1.0');
+      expect(parsed.exportDate).toBeDefined();
+      
+      expect(Object.keys(parsed.tags).length).toBe(2);
+      expect(Object.keys(parsed.pages).length).toBe(2);
+    });
+
+    it('导出的数据应该包含所有标签属性', () => {
+      const exportData = tagManager.exportData();
+      const parsed = JSON.parse(exportData);
+      const firstTag = Object.values(parsed.tags)[0] as any;
+      
+      expect(firstTag.id).toBeDefined();
+      expect(firstTag.name).toBeDefined();
+      expect(firstTag.bindings).toBeDefined();
+      expect(firstTag.color).toBeDefined();
+      expect(firstTag.createdAt).toBeDefined();
+      expect(firstTag.updatedAt).toBeDefined();
+    });
+
+    it('导出的数据应该包含所有页面属性', () => {
+      const exportData = tagManager.exportData();
+      const parsed = JSON.parse(exportData);
+      const firstPage = Object.values(parsed.pages)[0] as any;
+      
+      expect(firstPage.id).toBeDefined();
+      expect(firstPage.url).toBeDefined();
+      expect(firstPage.title).toBeDefined();
+      expect(firstPage.domain).toBeDefined();
+      expect(firstPage.tags).toBeDefined();
+      expect(firstPage.createdAt).toBeDefined();
+      expect(firstPage.updatedAt).toBeDefined();
+    });
+
+    it('应该导入并覆盖现有数据', async () => {
+      const exportData = tagManager.exportData();
+      
+      // 清空数据
+      tagManager.clearAllData();
+      expect(tagManager.getDataStats().tagsCount).toBe(0);
+      
+      // 导入数据（覆盖模式）
+      const result = await tagManager.importData(exportData, false);
+      
+      expect(result.success).toBe(true);
+      expect(result.imported).toBeDefined();
+      expect(result.imported?.tagsCount).toBe(2);
+      expect(result.imported?.pagesCount).toBe(2);
+      
+      const stats = tagManager.getDataStats();
+      expect(stats.tagsCount).toBe(2);
+      expect(stats.pagesCount).toBe(2);
+    });
+
+    it('应该导入并合并到现有数据', async () => {
+      const originalExportData = tagManager.exportData();
+      
+      // 清空并重新创建一些数据
+      tagManager.clearAllData();
+      const newTag = tagManager.createTag('数据库');
+      const newPage = tagManager.createOrUpdatePage(
+        'https://mongodb.com',
+        'MongoDB',
+        'mongodb.com'
+      );
+      tagManager.addTagToPage(newPage.id, newTag.id);
+      
+      // 导入原始数据（合并模式）
+      const result = await tagManager.importData(originalExportData, true);
+      
+      expect(result.success).toBe(true);
+      
+      // 应该有原来的2个标签 + 新添加的1个标签 = 3个
+      expect(tagManager.getDataStats().tagsCount).toBe(3);
+      // 应该有原来的2个页面 + 新添加的1个页面 = 3个
+      expect(tagManager.getDataStats().pagesCount).toBe(3);
+      
+      // 验证新添加的数据还在
+      expect(tagManager.findTagByName('数据库')).toBeDefined();
+    });
+
+    it('合并模式应该不覆盖现有数据', async () => {
+      // 创建一些初始数据
+      tagManager.clearAllData();
+      const tag1 = tagManager.createTag('前端', '原始描述', '#FF0000');
+      const page = tagManager.createOrUpdatePage(
+        'https://github.com',
+        'GitHub Original',
+        'github.com'
+      );
+      tagManager.addTagToPage(page.id, tag1.id);
+      
+      const initialStats = tagManager.getDataStats();
+      expect(initialStats.tagsCount).toBe(1);
+      expect(initialStats.pagesCount).toBe(1);
+      
+      // 准备导入数据（包含不同的标签和页面）
+      // 注意：导入数据的键必须是实际的tag ID，以模拟真实导出数据
+      const importData = JSON.stringify({
+        tags: {
+          [tag1.id]: {
+            id: tag1.id, // 相同的ID（键也是ID）
+            name: '前端',
+            description: '新描述', // 不同的描述
+            color: '#00FF00', // 不同的颜色
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            bindings: []
+          },
+          'tag2_new': {
+            id: 'tag2_new',
+            name: '后端',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            bindings: []
+          }
+        },
+        pages: {
+          'page_new': {
+            id: 'page_new',
+            url: 'https://stackoverflow.com',
+            title: 'Stack Overflow',
+            domain: 'stackoverflow.com',
+            tags: ['tag2_new'],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          }
+        },
+        version: '1.0',
+        exportDate: new Date().toISOString()
+      }, null, 2);
+      
+      // 导入（合并模式）
+      await tagManager.importData(importData, true);
+      
+      // 应该保留原始的标签（不覆盖）
+      const preservedTag = tagManager.getTagById(tag1.id);
+      expect(preservedTag?.description).toBe('原始描述');
+      expect(preservedTag?.color).toBe('#FF0000');
+      
+      // 应该添加新的标签
+      expect(tagManager.findTagByName('后端')).toBeDefined();
+      
+      // 最终应该有2个标签（1个原始 + 1个新添加）
+      expect(tagManager.getDataStats().tagsCount).toBe(2);
+    });
+
+    it('应该拒绝导入无效的 JSON 格式', async () => {
+      const invalidJson = '这不是有效的JSON{';
+      const result = await tagManager.importData(invalidJson, false);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('应该拒绝导入缺少必需字段的数据', async () => {
+      const invalidData = JSON.stringify({
+        tags: {}
+        // 缺少 pages 字段
+      });
+      
+      const result = await tagManager.importData(invalidData, false);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('缺少 tags 或 pages 字段');
+    });
+
+    it('应该拒绝导入字段类型错误的数据', async () => {
+      const invalidData = JSON.stringify({
+        tags: '这不是对象',
+        pages: []
+      });
+      
+      const result = await tagManager.importData(invalidData, false);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('必须是对象');
+    });
+
+    it('导入成功后应该持久化到存储', async () => {
+      const exportData = tagManager.exportData();
+      tagManager.clearAllData();
+      
+      await tagManager.importData(exportData, false);
+      
+      // 验证 syncToStorage 应该被调用
+      // 注意：这是在内存中测试，实际持久化需要chrome.storage mock
+      expect(tagManager.getDataStats().tagsCount).toBeGreaterThan(0);
+    });
+
+    it('应该在导入时保持标签绑定关系', async () => {
+      const exportData = tagManager.exportData();
+      tagManager.clearAllData();
+      
+      await tagManager.importData(exportData, false);
+      
+      // 验证标签绑定仍然存在
+      const allTags = tagManager.getAllTags();
+      const tagWithBindings = allTags.find(tag => tag.bindings.length > 0);
+      
+      expect(tagWithBindings).toBeDefined();
+      if (tagWithBindings) {
+        expect(tagWithBindings.bindings.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('应该在导入时保持页面标签关联', async () => {
+      const exportData = tagManager.exportData();
+      tagManager.clearAllData();
+      
+      await tagManager.importData(exportData, false);
+      
+      // 验证页面标签关联仍然存在
+      const taggedPages = tagManager.getTaggedPages();
+      expect(taggedPages.length).toBeGreaterThan(0);
+      
+      const pageWithTags = taggedPages[0];
+      expect(pageWithTags.tags.length).toBeGreaterThan(0);
+    });
+
+    it('完整的导出导入流程应该保持数据一致性', async () => {
+      const originalStats = tagManager.getDataStats();
+      
+      // 导出
+      const exportData = tagManager.exportData();
+      
+      // 清空并重新导入
+      tagManager.clearAllData();
+      const importResult = await tagManager.importData(exportData, false);
+      
+      expect(importResult.success).toBe(true);
+      
+      // 验证数据统计一致
+      const newStats = tagManager.getDataStats();
+      expect(newStats.tagsCount).toBe(originalStats.tagsCount);
+      expect(newStats.pagesCount).toBe(originalStats.pagesCount);
+      
+      // 验证所有标签都存在
+      const parsed = JSON.parse(exportData);
+      for (const tagId in parsed.tags) {
+        const importedTag = tagManager.getTagById(tagId);
+        expect(importedTag).toBeDefined();
+        expect(importedTag?.name).toBe(parsed.tags[tagId].name);
+      }
+    });
+  });
 });
 

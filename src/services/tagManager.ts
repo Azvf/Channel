@@ -1,14 +1,11 @@
 import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
 import { logger } from './logger';
+import { storageService, STORAGE_KEYS } from './storageService';
 
 export class TagManager {
   private static instance: TagManager;
   private tags: TagsCollection = {};
   private pages: PageCollection = {};
-  private readonly STORAGE_KEYS = {
-    TAGS: 'gameplay_tags',
-    PAGES: 'tagged_pages'
-  };
 
   private constructor() {
     // 构造函数中不进行异步操作，改为在首次使用时加载
@@ -151,20 +148,45 @@ export class TagManager {
    * 从 Chrome tabs API 获取当前标签页并注册页面
    */
   public async getCurrentTabAndRegisterPage(resolvedUrl?: string): Promise<TaggedPage> {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (!tab || !tab.id || !tab.url) {
-      throw new Error('无法获取当前页面信息');
-    }
-    
-    const pageUrl = resolvedUrl || tab.url;
+    try {
+      // 检查 chrome.tabs API 是否可用
+      if (!chrome.tabs || !chrome.tabs.query) {
+        throw new Error('Chrome tabs API 不可用');
+      }
 
-    return this.createOrUpdatePage(
-      pageUrl,
-      tab.title || '无标题',
-      new URL(pageUrl).hostname,
-      tab.favIconUrl
-    );
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (!tabs || tabs.length === 0) {
+        throw new Error('无法获取当前标签页：没有活动的标签页');
+      }
+
+      const tab = tabs[0];
+      
+      if (!tab || !tab.id) {
+        throw new Error('无法获取当前标签页：标签页 ID 无效');
+      }
+
+      // 检查 URL 是否有效（某些页面如 chrome:// 可能没有 URL）
+      if (!tab.url) {
+        throw new Error('无法获取当前页面：页面 URL 不可用（可能是 Chrome 内部页面）');
+      }
+      
+      const pageUrl = resolvedUrl || tab.url;
+
+      return this.createOrUpdatePage(
+        pageUrl,
+        tab.title || '无标题',
+        new URL(pageUrl).hostname,
+        tab.favIconUrl
+      );
+    } catch (error) {
+      const log = logger('TagManager');
+      log.error('getCurrentTabAndRegisterPage failed', { error });
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`获取当前页面失败: ${String(error)}`);
+    }
   }
 
   /**
@@ -292,6 +314,29 @@ export class TagManager {
     return this.pages[pageId];
   }
 
+  /**
+   * 更新页面标题
+   */
+  public updatePageTitle(pageId: string, title: string): boolean {
+    const page = this.pages[pageId];
+    if (!page) {
+      return false;
+    }
+    
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      return false;
+    }
+    
+    this.pages[pageId] = {
+      ...page,
+      title: trimmedTitle,
+      updatedAt: Date.now()
+    };
+    
+    return true;
+  }
+
   public clearAllData(): void {
     this.tags = {};
     this.pages = {};
@@ -358,13 +403,13 @@ export class TagManager {
 
   private async loadFromStorage(): Promise<void> {
     try {
-      const storageData = await chrome.storage.local.get([
-        this.STORAGE_KEYS.TAGS,
-        this.STORAGE_KEYS.PAGES
+      const storageData = await storageService.getMultiple([
+        STORAGE_KEYS.TAGS,
+        STORAGE_KEYS.PAGES
       ]);
 
-      this.tags = storageData[this.STORAGE_KEYS.TAGS] || {};
-      this.pages = storageData[this.STORAGE_KEYS.PAGES] || {};
+      this.tags = (storageData[STORAGE_KEYS.TAGS] as TagsCollection | null) || {};
+      this.pages = (storageData[STORAGE_KEYS.PAGES] as PageCollection | null) || {};
       
     } catch (error) {
       console.error('加载存储数据失败:', error);
@@ -374,14 +419,11 @@ export class TagManager {
   private async saveToStorage(): Promise<void> {
     try {
       const dataToSave = {
-        [this.STORAGE_KEYS.TAGS]: this.tags,
-        [this.STORAGE_KEYS.PAGES]: this.pages
+        [STORAGE_KEYS.TAGS]: this.tags,
+        [STORAGE_KEYS.PAGES]: this.pages
       };
       
-      await chrome.storage.local.set(dataToSave);
-      
-      // 验证保存是否成功
-      const verification = await chrome.storage.local.get([this.STORAGE_KEYS.TAGS, this.STORAGE_KEYS.PAGES]);
+      await storageService.setMultiple(dataToSave);
     } catch (error) {
       console.error('保存存储数据失败:', error);
     }
@@ -397,15 +439,90 @@ export class TagManager {
     await this.loadFromStorage();
   }
 
+  /**
+   * 导出所有标签和页面数据为 JSON 字符串
+   * @returns 包含所有标签和页面数据的 JSON 字符串
+   */
+  public exportData(): string {
+    const exportData = {
+      tags: this.tags,
+      pages: this.pages,
+      version: '1.0',
+      exportDate: new Date().toISOString()
+    };
+    
+    return JSON.stringify(exportData, null, 2);
+  }
+
+  /**
+   * 从 JSON 字符串导入标签和页面数据
+   * @param jsonData JSON 字符串
+   * @param mergeMode 是否合并模式（true: 合并到现有数据, false: 覆盖现有数据）
+   * @returns 导入结果
+   */
+  public async importData(jsonData: string, mergeMode: boolean = false): Promise<{ success: boolean; error?: string; imported?: { tagsCount: number; pagesCount: number } }> {
+    try {
+      const imported = JSON.parse(jsonData);
+      
+      // 验证数据结构
+      if (!imported.tags || !imported.pages) {
+        return { success: false, error: '无效的数据格式：缺少 tags 或 pages 字段' };
+      }
+
+      if (typeof imported.tags !== 'object' || typeof imported.pages !== 'object') {
+        return { success: false, error: '无效的数据格式：tags 和 pages 必须是对象' };
+      }
+
+      if (mergeMode) {
+        // 合并模式：合并到现有数据
+        const mergedTags = { ...this.tags };
+        const mergedPages = { ...this.pages };
+
+        // 合并标签，如果ID相同则保留现有的
+        for (const [tagId, tag] of Object.entries(imported.tags)) {
+          if (!mergedTags[tagId]) {
+            mergedTags[tagId] = tag as GameplayTag;
+          }
+        }
+
+        // 合并页面，如果ID相同则保留现有的
+        for (const [pageId, page] of Object.entries(imported.pages)) {
+          if (!mergedPages[pageId]) {
+            mergedPages[pageId] = page as TaggedPage;
+          }
+        }
+
+        this.tags = mergedTags;
+        this.pages = mergedPages;
+      } else {
+        // 覆盖模式：完全替换现有数据
+        this.tags = imported.tags;
+        this.pages = imported.pages;
+      }
+
+      // 保存到存储
+      await this.saveToStorage();
+
+      return {
+        success: true,
+        imported: {
+          tagsCount: Object.keys(imported.tags).length,
+          pagesCount: Object.keys(imported.pages).length
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '导入数据解析失败'
+      };
+    }
+  }
+
   // 测试存储功能
   public async testStorage(): Promise<void> {
-    
     // 保存当前状态
     await this.saveToStorage();
-    
-    // 验证保存
-    const verification = await chrome.storage.local.get([this.STORAGE_KEYS.TAGS, this.STORAGE_KEYS.PAGES]);
-    
+    // 存储服务会自动处理保存，无需验证
   }
 
   // Tag生命周期管理

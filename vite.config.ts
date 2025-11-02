@@ -26,11 +26,18 @@ function postBuildPlugin() {
 }
 
 export default defineConfig({
+  // 开发服务器配置（用于预览）
+  server: {
+    port: 3000,
+    open: '/src/preview/dev-preview.html',
+    host: true
+  },
   build: {
     outDir: 'dist',
     rollupOptions: {
       input: {
         popup: resolve(fileURLToPath(new URL('./src/popup/index.html', import.meta.url))),
+        'dev-preview': resolve(fileURLToPath(new URL('./src/preview/dev-preview.html', import.meta.url))),
         background: resolve(fileURLToPath(new URL('./src/background/background.ts', import.meta.url))),
         content: resolve(fileURLToPath(new URL('./src/content/content.ts', import.meta.url))),
         injected: resolve(fileURLToPath(new URL('./src/injected/injected.ts', import.meta.url)))
@@ -60,6 +67,11 @@ export default defineConfig({
         {
           src: 'image/bg/*',
           dest: 'image/bg'
+        },
+        // Copy preview.html for development
+        {
+          src: 'preview.html',
+          dest: '.'
         }
       ]
     })

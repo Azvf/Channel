@@ -4,6 +4,123 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GameplayTag Extension</title>
+    <!-- 关键：使用静态 script 在 CSS 注入前立即执行，直接设置 body 的 style 属性 -->
+    <script>
+      (function() {
+        // 立即读取主题，不等待任何异步操作
+        const theme = localStorage.getItem('theme') || 'light';
+        
+        // 主题变量映射
+        const themeVars = {
+          light: {
+            '--c-glass': '#bbbbbc',
+            '--c-light': '#fff',
+            '--c-dark': '#000',
+            '--c-content': '#224',
+            '--c-action': '#0052f5',
+            '--c-bg': '#E8E8E9',
+            '--glass-reflex-dark': '1',
+            '--glass-reflex-light': '1',
+            '--saturation': '150%'
+          },
+          dark: {
+            '--c-glass': '#bbbbbc',
+            '--c-light': '#fff',
+            '--c-dark': '#000',
+            '--c-content': '#e1e1e1',
+            '--c-action': '#03d5ff',
+            '--c-bg': '#1b1b1d',
+            '--glass-reflex-dark': '2',
+            '--glass-reflex-light': '0.3',
+            '--saturation': '150%'
+          },
+          dim: {
+            '--c-light': '#99deff',
+            '--c-dark': '#20001b',
+            '--c-glass': 'hsl(335 250% 74% / 1)',
+            '--c-content': '#d5dbe2',
+            '--c-action': '#ff48a9',
+            '--c-bg': '#152433',
+            '--glass-reflex-dark': '2',
+            '--glass-reflex-light': '0.7',
+            '--saturation': '200%'
+          }
+        };
+        
+        const vars = themeVars[theme] || themeVars.light;
+        
+        // 方法1: 在 :root 上设置变量（最高优先级）
+        const rootStyle = document.createElement('style');
+        rootStyle.id = 'theme-inline-root';
+        let rootCss = ':root{';
+        for (const [key, value] of Object.entries(vars)) {
+          rootCss += key + ':' + value + '!important;';
+        }
+        rootCss += '}';
+        rootStyle.textContent = rootCss;
+        document.head.appendChild(rootStyle);
+        
+        // 方法2: 直接在 body 上设置（当 body 可用时）
+        // style 属性具有最高优先级，即使 CSS 文件后加载也会生效
+        function applyToBody() {
+          if (document.body) {
+            // 先设置 data 属性和 transition: none 避免闪烁（必须在设置变量之前）
+            document.body.setAttribute('data-theme-no-transition', 'true');
+            document.body.style.setProperty('transition', 'none', 'important');
+            
+            // 然后设置所有 CSS 变量（使用 important 确保优先级）
+            for (const [key, value] of Object.entries(vars)) {
+              document.body.style.setProperty(key, value, 'important');
+            }
+            
+            // 创建主题 input（用于 CSS :has() 选择器）
+            const existingInputs = document.body.querySelectorAll('input[name="theme-persist"]');
+            existingInputs.forEach(input => input.remove());
+            
+            const themeInput = document.createElement('input');
+            themeInput.type = 'radio';
+            themeInput.name = 'theme-persist';
+            themeInput.value = theme;
+            themeInput.checked = true;
+            themeInput.style.cssText = 'position:absolute;opacity:0;pointer-events:none;width:0;height:0;';
+            document.body.appendChild(themeInput);
+            
+            return true;
+          }
+          return false;
+        }
+        
+        // 使用 MutationObserver 监控 body 元素的创建，一旦出现立即应用
+        // 这比 setInterval 更高效和可靠
+        if (!applyToBody()) {
+          const observer = new MutationObserver(function(mutations, obs) {
+            if (document.body && applyToBody()) {
+              obs.disconnect();
+            }
+          });
+          
+          // 开始观察 document
+          observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true
+          });
+          
+          // 备用方案：DOMContentLoaded
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+              applyToBody();
+              observer.disconnect();
+            });
+          }
+          
+          // 超时清理（安全措施）
+          setTimeout(function() {
+            observer.disconnect();
+            applyToBody(); // 最后尝试一次
+          }, 100);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

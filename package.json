@@ -6,6 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
+    "preview": "vite --open /src/preview/dev-preview.html",
+    "preview:build": "npm run build && vite preview --open /dev-preview.html",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
@@ -52,6 +54,7 @@
   "license": "MIT",
   "dependencies": {
     "html2canvas": "^1.4.1",
+    "lucide-react": "^0.552.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   }

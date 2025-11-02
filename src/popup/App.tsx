@@ -1,46 +1,52 @@
-import React from 'react';
+import { useState } from "react";
+import { TaggingPage } from "./components/TaggingPage";
+import { TaggedPage } from "./components/TaggedPage";
+import { ThemeSwitcher } from "./components/ThemeSwitcher";
+import { TabSwitcher } from "./components/TabSwitcher";
+import { storageService, STORAGE_KEYS } from "../services/storageService";
+import type { AppInitialState } from "../services/appInitService";
 
-const App: React.FC = () => {
+interface AppProps {
+  initialState: AppInitialState;
+}
+
+export default function App({ initialState }: AppProps) {
+  // 使用初始状态，避免页面闪烁
+  const [activeTab, setActiveTab] = useState<"tagging" | "tagged">(initialState.activeTab);
+
+  // 保存标签页状态
+  const handleTabChange = async (tab: "tagging" | "tagged") => {
+    setActiveTab(tab);
+    try {
+      await storageService.set(STORAGE_KEYS.ACTIVE_TAB, tab);
+    } catch (error) {
+      console.error('保存标签页状态失败:', error);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-8">
-          <div className="uppercase tracking-wide text-sm text-indigo-500 font-semibold mb-4">
-            GameplayTag Extension
+    <div className="min-h-screen relative">
+      {/* Theme Switcher - Hidden in bottom right */}
+      <ThemeSwitcher initialTheme={initialState.theme} />
+      
+      {/* Main content container */}
+      <div className="relative z-10">
+        <div className="container mx-auto px-6 max-w-5xl">
+          {/* Tab navigation with glass effect - moved to top with minimal spacing */}
+          <div className="pt-12 pb-8 max-w-md mx-auto w-full">
+            <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">
-            欢迎使用标签管理系统
-          </h1>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0 w-2 h-2 bg-green-400 rounded-full"></div>
-              <p className="text-gray-600">
-                基于 React + TypeScript + Tailwind 构建
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0 w-2 h-2 bg-blue-400 rounded-full"></div>
-              <p className="text-gray-600">
-                保留底层核心功能模块
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0 w-2 h-2 bg-purple-400 rounded-full"></div>
-              <p className="text-gray-600">
-                准备就绪，等待开发
-              </p>
-            </div>
-          </div>
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-500 text-center">
-              Version 1.0.0
-            </p>
+
+          {/* Tab content */}
+          <div>
+            {activeTab === "tagging" ? (
+              <TaggingPage initialPageSettings={initialState.pageSettings} />
+            ) : (
+              <TaggedPage />
+            )}
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default App;
-
+}

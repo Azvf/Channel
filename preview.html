@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GameplayTag Extension - 预览</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #1a1a1a;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+      }
+      #preview-container {
+        width: 400px;
+        height: 600px;
+        border: 2px solid #333;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        background: #fff;
+      }
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="preview-container">
+      <iframe id="preview-frame" src="./dist/popup.html"></iframe>
+    </div>
+    <script>
+      // 自动刷新功能
+      const iframe = document.getElementById('preview-frame');
+      const originalSrc = iframe.src;
+      
+      // 监听文件变化（通过轮询检查）
+      let lastModified = null;
+      
+      setInterval(() => {
+        fetch(originalSrc, { method: 'HEAD', cache: 'no-cache' })
+          .then(response => {
+            const modified = response.headers.get('last-modified');
+            if (modified && modified !== lastModified) {
+              if (lastModified !== null) {
+                // 重新加载 iframe
+                iframe.src = originalSrc + '?t=' + Date.now();
+              }
+              lastModified = modified;
+            }
+          })
+          .catch(() => {
+            // 忽略错误，可能文件还未构建
+          });
+      }, 1000);
+    </script>
+  </body>
+</html>
+
