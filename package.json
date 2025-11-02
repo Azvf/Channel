@@ -2,24 +2,45 @@
   "name": "edge-extension",
   "version": "1.0.0",
   "description": "A modern Edge browser extension",
+  "type": "module",
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix"
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.23.7",
+    "@babel/preset-react": "^7.23.3",
+    "@babel/preset-typescript": "^7.23.3",
+    "@jest/globals": "^29.7.0",
+    "@testing-library/jest-dom": "^6.1.6",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
     "@types/chrome": "^0.0.246",
+    "@types/jest": "^29.5.12",
     "@types/node": "^24.9.2",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
-    "@vitejs/plugin-vue": "^4.6.2",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "babel-jest": "^29.7.0",
     "eslint": "^8.45.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.1.2",
     "typescript": "^5.1.6",
     "vite": "^4.4.9",
-    "vite-plugin-static-copy": "^0.15.0",
-    "vue": "^3.5.22"
+    "vite-plugin-static-copy": "^0.15.0"
   },
   "keywords": [
     "browser-extension",
@@ -30,6 +51,8 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   }
 }

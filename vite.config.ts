@@ -1,15 +1,36 @@
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 import { fileURLToPath, URL } from 'url'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { writeFileSync, readFileSync, existsSync } from 'fs'
+
+// 自定义插件：在构建后处理 HTML 文件
+function postBuildPlugin() {
+  return {
+    name: 'post-build-plugin',
+    closeBundle() {
+      const htmlPath = resolve(process.cwd(), 'dist/src/popup/index.html')
+      const outputPath = resolve(process.cwd(), 'dist/popup.html')
+      
+      if (existsSync(htmlPath)) {
+        let content = readFileSync(htmlPath, 'utf-8')
+        // 修复路径引用
+        content = content.replace(/src="\/popup\.js"/g, 'src="./popup.js"')
+        content = content.replace(/href="\/index\.css"/g, 'href="./index.css"')
+        writeFileSync(outputPath, content, 'utf-8')
+        console.log('✓ Created popup.html')
+      }
+    }
+  }
+}
 
 export default defineConfig({
   build: {
     outDir: 'dist',
     rollupOptions: {
       input: {
-        popup: resolve(fileURLToPath(new URL('./src/popup/main.ts', import.meta.url))),
+        popup: resolve(fileURLToPath(new URL('./src/popup/index.html', import.meta.url))),
         background: resolve(fileURLToPath(new URL('./src/background/background.ts', import.meta.url))),
         content: resolve(fileURLToPath(new URL('./src/content/content.ts', import.meta.url))),
         injected: resolve(fileURLToPath(new URL('./src/injected/injected.ts', import.meta.url)))
@@ -22,30 +43,19 @@ export default defineConfig({
     }
   },
   plugins: [
-    vue(),
+    react(),
+    postBuildPlugin(),
     viteStaticCopy({
       targets: [
         {
           src: 'manifest.json',
           dest: '.'
         },
-        // Copy popup HTML and CSS so the extension can load them from dist root
-        {
-          src: 'src/popup/index.html',
-          dest: '.',
-          rename: 'popup.html'
-        },
-        {
-          src: 'src/popup/popup.css',
-          dest: '.',
-          rename: 'popup.css'
-        },
         // Copy extension icon used by notifications and UI
         {
           src: 'icon.png',
           dest: '.'
-        }
-        ,
+        },
         // Copy background images and any static assets under image/
         {
           src: 'image/bg/*',
