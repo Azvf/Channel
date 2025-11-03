@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Tag } from "./Tag";
 import { ChevronDown } from "lucide-react";
+import { useAnimatedHeight } from "../utils/useAnimatedHeight";
 
 interface TagInputProps {
   tags: string[];
@@ -26,7 +27,11 @@ export function TagInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const contentWrapperRef = useRef<HTMLDivElement>(null);
+  // 使用可复用的高度动画 Hook
+  const contentWrapperRef = useAnimatedHeight({
+    duration: 200,
+    easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)'
+  });
   const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]); // 下拉菜单按钮的引用数组
   const wasShowingRef = useRef(false);
   const manuallyOpenedRef = useRef(false); // 跟踪是否是手动展开的
@@ -40,115 +45,7 @@ export function TagInput({
     prevTagsLengthRef.current = tags.length;
   }, [tags.length]);
 
-  // 监听内容容器高度变化，添加平滑过渡
-  useEffect(() => {
-    const wrapper = contentWrapperRef.current;
-    if (!wrapper) return;
-
-    let rafId: number;
-    let timeoutId: NodeJS.Timeout;
-    let isUpdating = false;
-
-    // 更新高度的函数
-    const updateHeight = () => {
-      if (isUpdating) return;
-      
-      // 获取当前渲染的高度（如果已设置固定值）
-      const currentHeight = wrapper.offsetHeight;
-      
-      // 关键优化：使用临时克隆来测量新高度，避免影响实际布局
-      // 创建一个临时的测量容器来获取新高度，而不改变实际容器的高度
-      const tempWrapper = wrapper.cloneNode(true) as HTMLElement;
-      
-      // 复制计算样式，确保测量准确
-      const computedStyle = window.getComputedStyle(wrapper);
-      tempWrapper.style.cssText = computedStyle.cssText;
-      
-      // 设置临时容器的样式用于测量
-      tempWrapper.style.position = 'absolute';
-      tempWrapper.style.visibility = 'hidden';
-      tempWrapper.style.height = 'auto';
-      tempWrapper.style.width = `${wrapper.offsetWidth}px`;
-      tempWrapper.style.top = '-9999px';
-      tempWrapper.style.left = '0';
-      tempWrapper.style.transition = 'none';
-      tempWrapper.style.willChange = 'auto';
-      
-      // 添加到DOM中进行测量（需要添加到body或父元素）
-      const parent = wrapper.parentElement;
-      if (parent) {
-        parent.appendChild(tempWrapper);
-        // 强制重排以获取准确的scrollHeight
-        void tempWrapper.offsetHeight;
-        const newHeight = tempWrapper.scrollHeight;
-        parent.removeChild(tempWrapper);
-        
-        // 如果高度没有变化，直接返回
-        if (Math.abs(currentHeight - newHeight) < 1) {
-          return;
-        }
-        
-        isUpdating = true;
-        
-        // 使用双requestAnimationFrame确保浏览器完成当前渲染周期后再触发过渡
-        rafId = requestAnimationFrame(() => {
-          rafId = requestAnimationFrame(() => {
-            // 现在启用transition并设置新高度
-            wrapper.style.transition = 'height 200ms cubic-bezier(0.25, 0.1, 0.25, 1)';
-            wrapper.style.height = `${newHeight}px`;
-            
-            // 过渡完成后重置isUpdating
-            const handleTransitionEnd = (e: TransitionEvent) => {
-              // 确保是height属性的过渡结束
-              if (e.propertyName === 'height' && e.target === wrapper) {
-                isUpdating = false;
-                wrapper.removeEventListener('transitionend', handleTransitionEnd);
-              }
-            };
-            wrapper.addEventListener('transitionend', handleTransitionEnd);
-          });
-        });
-      }
-    };
-
-    // 触发更新（防抖）
-    const scheduleUpdate = () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      timeoutId = setTimeout(updateHeight, 16);
-    };
-
-    // 使用ResizeObserver监听wrapper内容区域的大小变化
-    const resizeObserver = new ResizeObserver(scheduleUpdate);
-    resizeObserver.observe(wrapper);
-
-    // 使用MutationObserver监听内部DOM结构变化（tags的添加/删除）
-    const mutationObserver = new MutationObserver(scheduleUpdate);
-    mutationObserver.observe(wrapper, {
-      childList: true,
-      subtree: true,
-      attributes: false,
-      characterData: false
-    });
-
-    // 初始化：设置初始高度并启用过渡
-    const initHeight = wrapper.scrollHeight;
-    wrapper.style.height = `${initHeight}px`;
-    wrapper.style.transition = 'height 200ms cubic-bezier(0.25, 0.1, 0.25, 1)';
-
-    return () => {
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-      isUpdating = false;
-    };
-  }, []);
+  // 注意：高度动画现在由 useAnimatedHeight Hook 自动处理，无需额外的 useEffect
 
   useEffect(() => {
     // 检测是否是添加tag导致的状态变化：
@@ -353,6 +250,22 @@ export function TagInput({
         e.preventDefault();
         addTag(inputValue);
       }
+    } else if (e.key === 'Tab' && filteredSuggestions.length > 0 && showSuggestions) {
+      // Handle Tab key to autocomplete first suggestion
+      e.preventDefault();
+      const autocompleteValue = filteredSuggestions[0];
+      setInputValue(autocompleteValue);
+      setShowSuggestions(false);
+      setShouldShowDropdown(false);
+      manuallyOpenedRef.current = false;
+      setSelectedIndex(-1);
+      // 设置光标位置到文本末尾并保持焦点
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(autocompleteValue.length, autocompleteValue.length);
+        }
+      }, 0);
     } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
       e.preventDefault();
       removeTag(tags.length - 1);

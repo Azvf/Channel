@@ -7,6 +7,7 @@ import { Plus, FileText, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
 import type { PageSettingsHook } from "../../popup/utils/usePageSettings";
+import { AnimatedHeightWrapper } from "./AnimatedHeightWrapper";
 
 interface TaggingPageProps {
   className?: string;
@@ -29,9 +30,8 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
   const { settings, updateSyncVideoTimestamp } = pageSettings;
   const syncVideoTimestamp = settings.syncVideoTimestamp;
 
-  // Animation states
+  // Animation states - 只保留进入动画
   const [enteringTagIds, setEnteringTagIds] = useState<Set<string>>(new Set());
-  const [exitingTagIds, setExitingTagIds] = useState<Set<string>>(new Set());
   const prevTagIdsRef = useRef<Set<string>>(new Set());
   const isInitialMountRef = useRef(true);
 
@@ -57,11 +57,10 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
     }
   }, [allTags]);
 
-  // 检测标签变化并设置动画状态
+  // 检测标签变化并设置进入动画状态（已移除退出动画）
   useEffect(() => {
     if (!currentPage) {
       prevTagIdsRef.current = new Set();
-      setExitingTagIds(new Set());
       setEnteringTagIds(new Set());
       return;
     }
@@ -70,7 +69,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
     if (isInitialMountRef.current) {
       isInitialMountRef.current = false;
       prevTagIdsRef.current = new Set(currentPage.tags);
-      setExitingTagIds(new Set());
       setEnteringTagIds(new Set());
       return;
     }
@@ -81,26 +79,16 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
     // 如果prevTagIds为空，说明是重置状态，直接更新
     if (prevTagIds.size === 0) {
       prevTagIdsRef.current = new Set(currentTagIds);
-      setExitingTagIds(new Set());
       setEnteringTagIds(new Set());
       return;
     }
 
     const entering = new Set<string>();
-    const exiting = new Set<string>();
 
     // 找出新添加的tags（只在当前列表中，不在之前的列表中）
     currentTagIds.forEach(tagId => {
       if (!prevTagIds.has(tagId)) {
         entering.add(tagId);
-      }
-    });
-
-    // 找出被删除的tags（只在之前的列表中，不在当前列表中）
-    // 但只包括那些不在当前exitingTagIds中的tags（避免重复）
-    prevTagIds.forEach(tagId => {
-      if (!currentTagIds.has(tagId)) {
-        exiting.add(tagId);
       }
     });
 
@@ -120,28 +108,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
       }, 300);
     }
 
-    if (exiting.size > 0) {
-      setExitingTagIds(prev => {
-        const next = new Set(prev);
-        // 只添加新的exiting tags，避免重复
-        exiting.forEach(id => {
-          if (!prev.has(id)) {
-            next.add(id);
-          }
-        });
-        return next;
-      });
-      // 淡出动画完成后从状态中移除
-      setTimeout(() => {
-        setExitingTagIds(prev => {
-          const next = new Set(prev);
-          exiting.forEach(id => next.delete(id));
-          return next;
-        });
-      }, 250);
-    }
-
-    // 更新prevTagIdsRef为当前的tags列表（不包括正在淡出的，因为它们已经在exitingTagIds中管理了）
+    // 更新prevTagIdsRef为当前的tags列表
     prevTagIdsRef.current = new Set(currentTagIds);
   }, [currentPage?.tags.length, currentPage?.tags.join(',')]);
 
@@ -236,7 +203,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
       {/* Add Tag Section */}
       <div>
         <GlassCard className="p-8">
-          <div className="space-y-5">
+          <AnimatedHeightWrapper innerClassName="space-y-5">
             {/* Section Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -291,55 +258,36 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
               }}
               placeholder="Enter a tag..."
               suggestions={suggestions}
+              excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter((name): name is string => !!name) : []}
               autoFocus={true}
             />
 
             {/* Tags Display */}
-            <div style={{ marginTop: currentPage && (currentPage.tags.length > 0 || exitingTagIds.size > 0) ? '0.75rem' : '0' }}>
-              {(currentPage && (currentPage.tags.length > 0 || exitingTagIds.size > 0)) ? (
-                <div 
-                  className="flex flex-wrap items-start"
-                  style={{
-                    gap: '0.875rem 0.875rem',
-                    alignContent: 'flex-start',
-                    rowGap: '0.875rem'
-                  }}
-                >
-                  {/* 渲染当前的tags - 排除正在淡出的tags */}
-                  {currentPage.tags
-                    .filter(tagId => !exitingTagIds.has(tagId))
-                    .map((tagId) => {
-                      const tag = allTags.find(t => t.id === tagId);
-                      if (!tag) return null;
-                      const isEntering = enteringTagIds.has(tagId);
-                      return (
-                        <div
-                          key={tagId}
-                          className={isEntering ? 'tag-enter' : ''}
-                        >
-                          <Tag label={tag.name} onRemove={() => handleRemoveTag(tagId)} />
-                        </div>
-                      );
-                    })}
-                  {/* 渲染正在淡出的tags - 保留X按钮以保持尺寸一致 */}
-                  {Array.from(exitingTagIds)
-                    .filter(tagId => !currentPage.tags.includes(tagId))
-                    .map((tagId) => {
-                      const tag = allTags.find(t => t.id === tagId);
-                      if (!tag) return null;
-                      return (
-                        <div
-                          key={`exiting-${tagId}`}
-                          className="tag-exit"
-                          style={{ pointerEvents: 'none' }}
-                        >
-                          <Tag label={tag.name} onRemove={() => {}} />
-                        </div>
-                      );
-                    })}
-                </div>
-              ) : null}
-            </div>
+            {currentPage && currentPage.tags.length > 0 ? (
+              <div 
+                className="flex flex-wrap items-start"
+                style={{
+                  gap: '0.875rem 0.875rem',
+                  alignContent: 'flex-start',
+                  rowGap: '0.875rem',
+                  marginTop: '0.75rem'
+                }}
+              >
+                {currentPage.tags.map((tagId) => {
+                  const tag = allTags.find(t => t.id === tagId);
+                  if (!tag) return null;
+                  const isEntering = enteringTagIds.has(tagId);
+                  return (
+                    <div
+                      key={tagId}
+                      className={isEntering ? 'tag-enter' : ''}
+                    >
+                      <Tag label={tag.name} onRemove={() => handleRemoveTag(tagId)} />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
 
             {/* Settings 分割线 */}
             <div
@@ -379,7 +327,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                 <span>同步视频时间戳到 URL</span>
               </label>
             </div>
-          </div>
+          </AnimatedHeightWrapper>
         </GlassCard>
       </div>
 

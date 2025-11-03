@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 
 interface GlassInputProps {
@@ -8,6 +9,7 @@ interface GlassInputProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   placeholder?: string;
   suggestions?: string[];
+  excludeTags?: string[]; // 需要过滤掉的标签列表（可选）
   className?: string;
   autoFocus?: boolean;
 }
@@ -19,6 +21,7 @@ export function GlassInput({
   onKeyDown,
   placeholder = "", 
   suggestions = [],
+  excludeTags = [],
   className = "",
   autoFocus = false
 }: GlassInputProps) {
@@ -26,6 +29,8 @@ export function GlassInput({
   const [isAnimating, setIsAnimating] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1); // 当前选中的下拉菜单选项索引
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [isPositionReady, setIsPositionReady] = useState(false); // 位置是否已计算好
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -35,7 +40,9 @@ export function GlassInput({
   useEffect(() => {
     if (value && suggestions.length > 0) {
       const filtered = suggestions.filter(s => 
-        s.toLowerCase().includes(value.toLowerCase()) && s !== value
+        s.toLowerCase().includes(value.toLowerCase()) && 
+        s !== value &&
+        !excludeTags.includes(s)
       );
       setFilteredSuggestions(filtered);
       // 重置选中索引，因为列表变化了
@@ -47,15 +54,58 @@ export function GlassInput({
         setShowSuggestions(false);
       }
     } else {
-      setFilteredSuggestions(suggestions);
+      const filtered = suggestions.filter(s => !excludeTags.includes(s));
+      setFilteredSuggestions(filtered);
       setSelectedIndex(-1);
       setShowSuggestions(false);
     }
-  }, [value, suggestions]);
+  }, [value, suggestions, excludeTags]);
+
+  // 计算dropdown位置 - 使用useLayoutEffect在浏览器绘制前计算，彻底避免从(0,0)插值
+  useLayoutEffect(() => {
+    if (showSuggestions && containerRef.current) {
+      // 同步计算位置，在浏览器绘制之前完成
+      const rect = containerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + (window.scrollY || 0) + 8, // 0.5rem = 8px
+        left: rect.left + (window.scrollX || 0),
+        width: rect.width
+      });
+      setIsPositionReady(true);
+    } else if (!showSuggestions) {
+      // 当关闭时重置位置准备状态
+      setIsPositionReady(false);
+    }
+  }, [showSuggestions]);
+
+  // 监听窗口变化，更新位置
+  useEffect(() => {
+    if (showSuggestions && containerRef.current) {
+      const updatePosition = () => {
+        if (containerRef.current) {
+          const rect = containerRef.current.getBoundingClientRect();
+          setDropdownPosition({
+            top: rect.bottom + (window.scrollY || 0) + 8,
+            left: rect.left + (window.scrollX || 0),
+            width: rect.width
+          });
+        }
+      };
+      
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true);
+      
+      return () => {
+        window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('scroll', updatePosition, true);
+      };
+    }
+  }, [showSuggestions]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node) &&
+          dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
         setSelectedIndex(-1);
       }
@@ -78,8 +128,8 @@ export function GlassInput({
   useEffect(() => {
     const element = dropdownRef.current;
     
-    if (showSuggestions) {
-      // 显示时：确保 isAnimating 为 true 以渲染元素并触发显示动画
+    if (showSuggestions && isPositionReady) {
+      // 显示时：只有在位置准备好后才触发动画
       setIsAnimating(true);
       wasShowingRef.current = true;
     } else if (wasShowingRef.current) {
@@ -99,7 +149,7 @@ export function GlassInput({
         return () => element.removeEventListener('transitionend', handleTransitionEnd);
       }
     }
-  }, [showSuggestions]);
+  }, [showSuggestions, isPositionReady]);
 
   const handleSelect = (suggestion: string) => {
     if (onSelect) {
@@ -161,9 +211,17 @@ export function GlassInput({
     } else if (e.key === 'Tab' && filteredSuggestions.length > 0 && showSuggestions) {
       // Handle Tab key to autocomplete first suggestion
       e.preventDefault();
-      onChange(filteredSuggestions[0]);
+      const autocompleteValue = filteredSuggestions[0];
+      onChange(autocompleteValue);
       setShowSuggestions(false);
       setSelectedIndex(-1);
+      // 设置光标位置到文本末尾并保持焦点
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.setSelectionRange(autocompleteValue.length, autocompleteValue.length);
+        }
+      }, 0);
     } else {
       // 其他按键输入时，重置选中索引
       setSelectedIndex(-1);
@@ -234,15 +292,22 @@ export function GlassInput({
         </div>
       </div>
 
-      {/* Dropdown suggestions */}
-      {(showSuggestions || isAnimating) && filteredSuggestions.length > 0 && (
+      {/* Dropdown suggestions - 使用Portal渲染到body以避免被overflow裁剪 */}
+      {/* 只有在位置准备好后才渲染，避免从(0,0)位置插值 */}
+      {/* 渲染条件：有内容 && (显示状态 && 位置已准备好) || (动画中 && 位置已准备好) */}
+      {filteredSuggestions.length > 0 && ((showSuggestions && isPositionReady) || (isAnimating && isPositionReady)) && createPortal(
         <div 
           ref={dropdownRef}
-          className={`absolute top-[calc(100%+0.5rem)] left-0 right-0 z-50 transition-all duration-300 ease-out ${
-            showSuggestions 
+          className={`fixed z-50 transition-all duration-300 ease-out ${
+            showSuggestions && isPositionReady
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 -translate-y-2 pointer-events-none'
           }`}
+          style={{
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`,
+            width: `${dropdownPosition.width}px`
+          }}
         >
           <div 
             className="liquidGlass-wrapper"
@@ -301,7 +366,8 @@ export function GlassInput({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

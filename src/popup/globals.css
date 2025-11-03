@@ -928,23 +928,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   }
 }
 
-/* Fade out animation for tags */
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.95);
-  }
-}
-
-/* Tag animation classes */
+/* Tag animation classes - 只保留进入动画 */
 .tag-enter {
   animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-.tag-exit {
-  animation: fadeOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
