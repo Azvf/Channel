@@ -34,6 +34,9 @@ npm run dev
 
 # 生产构建
 npm run build
+
+# 生产构建（含代码混淆保护）
+npm run build:prod
 ```
 
 构建输出到 `dist/` 目录，在 Edge 中加载该目录即可。
@@ -85,3 +88,36 @@ npm run test:coverage
 - Lint 检查
 - 测试套件
 - 覆盖率报告
+
+## 安全与防护
+
+### 防破解保护
+
+项目集成了多层安全防护机制：
+
+- ✅ **代码混淆** - 使用 javascript-obfuscator 保护源代码
+- ✅ **Source Maps 控制** - 生产环境禁用调试映射
+- ✅ **代码压缩** - 移除注释和调试信息
+- ✅ **构建分离** - 开发和生产构建独立
+
+### 快速开始
+
+```bash
+# 生产构建（含完整防护）
+npm run build:prod
+
+# 仅混淆已构建的文件
+npm run obfuscate
+```
+
+### 详细文档
+
+- 📖 [快速开始指南](./docs/ANTI_CRACK_QUICKSTART.md) - 5分钟上手
+- 📚 [完整防护指南](./docs/ANTI_CRACK_GUIDE.md) - 全面安全策略
+  - License 验证
+  - 服务器端保护
+  - 运行时检测
+  - 持续监控
+  - 法律保护
+
+⚠️ **重要提示**：完全防止破解是不可能的，这些措施旨在**增加破解成本**，而不是绝对安全。

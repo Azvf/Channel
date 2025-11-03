@@ -8,6 +8,19 @@ import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../types/pageSettings';
 // 初始化 TagManager
 const tagManager = TagManager.getInstance();
 
+/**
+ * 获取页面设置（与 appInitService 保持一致的逻辑）
+ * 确保初始化方式和验证逻辑完全一致
+ */
+async function getPageSettings(): Promise<PageSettings> {
+    const pageSettings = await storageService.get<PageSettings>(STORAGE_KEYS.PAGE_SETTINGS);
+    return {
+        syncVideoTimestamp: typeof pageSettings?.syncVideoTimestamp === 'boolean' 
+            ? pageSettings.syncVideoTimestamp 
+            : DEFAULT_PAGE_SETTINGS.syncVideoTimestamp,
+    };
+}
+
 // 插件安装时的初始化
 chrome.runtime.onInstalled.addListener(async (_details) => {
     // 初始化 TagManager
@@ -172,11 +185,9 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void) {
         
         let resolvedUrl = tabUrl;
         
-        // 检查是否启用了视频时间戳同步
-        const pageSettings = await storageService.get<PageSettings>(STORAGE_KEYS.PAGE_SETTINGS);
-        const syncVideoTimestamp = typeof pageSettings?.syncVideoTimestamp === 'boolean' 
-            ? pageSettings.syncVideoTimestamp 
-            : DEFAULT_PAGE_SETTINGS.syncVideoTimestamp;
+        // 检查是否启用了视频时间戳同步（使用统一的初始化方式）
+        const pageSettings = await getPageSettings();
+        const syncVideoTimestamp = pageSettings.syncVideoTimestamp;
         
         if (syncVideoTimestamp) {
             try {

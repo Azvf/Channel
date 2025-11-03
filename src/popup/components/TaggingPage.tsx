@@ -6,15 +6,15 @@ import { Checkbox } from "./ui/checkbox";
 import { Plus, FileText, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
-import { storageService, STORAGE_KEYS } from "../../services/storageService";
-import { PageSettings, DEFAULT_PAGE_SETTINGS } from "../../types/pageSettings";
+import type { PageSettingsHook } from "../../popup/utils/usePageSettings";
 
 interface TaggingPageProps {
   className?: string;
-  initialPageSettings?: PageSettings;
+  // 使用统一的页面设置管理接口，而不是直接传入设置值
+  pageSettings: PageSettingsHook;
 }
 
-export function TaggingPage({ className = "", initialPageSettings }: TaggingPageProps) {
+export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) {
   const [currentPage, setCurrentPage] = useState<TaggedPage | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [allTags, setAllTags] = useState<GameplayTag[]>([]);
@@ -24,11 +24,10 @@ export function TaggingPage({ className = "", initialPageSettings }: TaggingPage
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
 
-  // Settings - 使用传入的初始设置，如果没有则使用默认值
-  // initialPageSettings 已经在 appInitService 中经过验证，确保值正确
-  const [syncVideoTimestamp, setSyncVideoTimestamp] = useState(
-    initialPageSettings?.syncVideoTimestamp ?? DEFAULT_PAGE_SETTINGS.syncVideoTimestamp
-  );
+  // 使用统一的页面设置管理接口
+  // pageSettings 在 App 组件层面统一管理，切换页面时不会重新初始化，避免闪烁
+  const { settings, updateSyncVideoTimestamp } = pageSettings;
+  const syncVideoTimestamp = settings.syncVideoTimestamp;
 
   // Animation states
   const [enteringTagIds, setEnteringTagIds] = useState<Set<string>>(new Set());
@@ -42,23 +41,13 @@ export function TaggingPage({ className = "", initialPageSettings }: TaggingPage
     loadAllTags();
   }, []);
 
-  // 保存页面设置
-  const savePageSettings = async (updates: Partial<PageSettings>) => {
-    try {
-      const currentSettings: PageSettings = {
-        syncVideoTimestamp,
-        ...updates,
-      };
-      await storageService.set(STORAGE_KEYS.PAGE_SETTINGS, currentSettings);
-    } catch (error) {
-      console.error('保存页面设置失败:', error);
-    }
-  };
-
-  // 处理视频时间戳同步设置变更
+  // 处理视频时间戳同步设置变更（使用统一的更新接口）
   const handleSyncVideoTimestampChange = async (checked: boolean) => {
-    setSyncVideoTimestamp(checked);
-    await savePageSettings({ syncVideoTimestamp: checked });
+    try {
+      await updateSyncVideoTimestamp(checked);
+    } catch (error) {
+      console.error('更新视频时间戳同步设置失败:', error);
+    }
   };
 
   // 加载所有标签建议

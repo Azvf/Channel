@@ -82,6 +82,7 @@ export function loadAppInitialStateSync(): AppInitialState {
         pageSettings = {
           syncVideoTimestamp: typeof parsed.syncVideoTimestamp === 'boolean' 
             ? parsed.syncVideoTimestamp 
+            
             : DEFAULT_PAGE_SETTINGS.syncVideoTimestamp,
         };
       } catch {

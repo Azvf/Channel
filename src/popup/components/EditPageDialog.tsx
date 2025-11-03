@@ -70,8 +70,8 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           left: '50%',
           top: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '90%',
-          maxWidth: '520px',
+          width: 'calc(100% - 48px)',
+          maxWidth: '320px',
           background: 'color-mix(in srgb, var(--c-bg) 96%, transparent)',
           backdropFilter: 'blur(24px) saturate(180%)',
           borderColor: 'color-mix(in srgb, var(--c-glass) 45%, transparent)',
@@ -88,7 +88,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
       >
         {/* Header */}
         <div
-          className="px-6 py-4 flex items-center justify-between"
+          className="px-4 py-3 flex items-center justify-between"
           style={{
             borderBottom: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)'
           }}
@@ -96,7 +96,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           <h2
             style={{
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '1.1rem',
+              fontSize: '0.95rem',
               fontWeight: 700,
               color: 'var(--c-content)',
               letterSpacing: '-0.02em',
@@ -129,34 +129,34 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         </div>
 
         {/* Content */}
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-4 py-3.5 space-y-3.5">
           {/* URL Display (Read-only) */}
           <div>
             <label
-              className="block mb-2"
+              className="block mb-1.5"
               style={{
                 fontFamily: '"DM Sans", sans-serif',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase'
-              }}
-            >
-              URL
-            </label>
-            <div
-              className="px-4 py-2.5 rounded-xl"
-              style={{
-                background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                fontFamily: '"DM Sans", sans-serif',
-                fontSize: '0.85rem',
-                color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
-                fontWeight: 500,
-                wordBreak: 'break-all'
-              }}
-            >
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
+              letterSpacing: '0.02em',
+              textTransform: 'uppercase'
+            }}
+          >
+            URL
+          </label>
+          <div
+            className="px-3 py-1.5 rounded-xl"
+            style={{
+              background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
+              fontFamily: '"DM Sans", sans-serif',
+              fontSize: '0.75rem',
+              color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
+              fontWeight: 500,
+              wordBreak: 'break-all'
+            }}
+          >
               {page.url}
             </div>
           </div>
@@ -164,18 +164,18 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           {/* Title Input */}
           <div>
             <label
-              className="block mb-2"
+              className="block mb-1.5"
               style={{
                 fontFamily: '"DM Sans", sans-serif',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase'
-              }}
-            >
-              Title
-            </label>
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
+              letterSpacing: '0.02em',
+              textTransform: 'uppercase'
+            }}
+          >
+            Title
+          </label>
             <GlassInput
               value={editedTitle}
               onChange={(e) => setEditedTitle(e.target.value)}
@@ -186,18 +186,18 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           {/* Tags Input */}
           <div>
             <label
-              className="block mb-2"
+              className="block mb-1.5"
               style={{
                 fontFamily: '"DM Sans", sans-serif',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase'
-              }}
-            >
-              Tags
-            </label>
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
+              letterSpacing: '0.02em',
+              textTransform: 'uppercase'
+            }}
+          >
+            Tags
+          </label>
             <TagInput
               tags={editedTags}
               onTagsChange={setEditedTags}
@@ -208,20 +208,20 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
 
         {/* Footer */}
         <div
-          className="px-6 py-4 flex items-center justify-end gap-3"
+          className="px-4 py-3 flex items-center justify-end gap-2"
           style={{
             borderTop: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)'
           }}
         >
           <button
             onClick={handleCancel}
-            className="px-4 py-2 rounded-lg transition-all"
+            className="px-3 py-1.5 rounded-lg transition-all"
             style={{
               background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
               color: 'var(--c-content)',
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.85rem',
+              fontSize: '0.75rem',
               fontWeight: 600,
               letterSpacing: '0.01em',
               cursor: 'pointer'
@@ -240,13 +240,13 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
 
           <button
             onClick={handleSave}
-            className="px-4 py-2 rounded-lg transition-all flex items-center gap-2"
+            className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
             style={{
               background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
               border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
               color: 'var(--c-bg)',
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.85rem',
+              fontSize: '0.75rem',
               fontWeight: 600,
               letterSpacing: '0.01em',
               cursor: 'pointer',
@@ -263,7 +263,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               e.currentTarget.style.boxShadow = '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)';
             }}
           >
-            <Save className="w-4 h-4" />
+            <Save className="w-3.5 h-3.5" />
             Save Changes
           </button>
         </div>

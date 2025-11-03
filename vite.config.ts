@@ -25,7 +25,7 @@ function postBuildPlugin() {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   // 开发服务器配置（用于预览）
   server: {
     port: 3000,
@@ -34,6 +34,10 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    // 生产环境禁用 source maps（防止逆向工程）
+    sourcemap: mode === 'development',
+    // 使用 esbuild 压缩（更快，但 terser 更强）
+    minify: 'esbuild',
     rollupOptions: {
       input: {
         popup: resolve(fileURLToPath(new URL('./src/popup/index.html', import.meta.url))),
@@ -76,4 +80,4 @@ export default defineConfig({
       ]
     })
   ]
-})
+}))
