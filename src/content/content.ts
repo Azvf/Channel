@@ -69,7 +69,7 @@ function handleHighlightText(text: string, sendResponse: (response: any) => void
         let node;
         let found = false;
         
-        while (node = walker.nextNode()) {
+        while ((node = walker.nextNode()) !== null) {
             if (node.textContent?.includes(text)) {
                 const parent = node.parentElement;
                 if (parent) {
@@ -135,6 +135,7 @@ function initializeContentScript() {
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.type === 'childList') {
+                // TODO: 处理子节点变化逻辑
             }
         });
     });

@@ -412,9 +412,11 @@ async function handleUpdatePageTitle(data: any, sendResponse: (response: any) =>
 // 监听标签页更新
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
+        // TODO: 处理标签页更新逻辑
     }
 });
 
 // 监听存储变化
 chrome.storage.onChanged.addListener((_changes, _namespace) => {
+    // TODO: 处理存储变化逻辑
 });

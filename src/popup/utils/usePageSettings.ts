@@ -81,7 +81,6 @@ export function usePageSettings(initialSettings?: PageSettings) {
     return () => {
       isMounted = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 只在挂载时执行一次，initialSettings 在 App 组件中是固定值，不会改变
 
   // 更新设置

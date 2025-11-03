@@ -373,6 +373,7 @@ export class TagManager {
   // 私有方法
   private generateTagId(name: string): string {
     const trimmedName = name.trim();
+    // eslint-disable-next-line no-control-regex
     const hasNonAscii = /[^\x00-\x7F]/.test(trimmedName);
 
     if (hasNonAscii) {
