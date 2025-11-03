@@ -27,10 +27,8 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
     await storageService.set(STORAGE_KEYS.THEME, newTheme);
     applyThemeToBody(newTheme);
     
-    // --- 关键修改 ---
-    // 选择主题后自动关闭
-    setIsExpanded(false); 
-    // ---------------
+    // 展开状态下切换主题时，保持展开状态，不自动关闭
+    // 用户可以继续选择其他主题，或者点击 backdrop 关闭
   };
 
   const getCurrentOption = () => {
