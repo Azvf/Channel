@@ -18,7 +18,8 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
     setTheme(newTheme);
     await storageService.set(STORAGE_KEYS.THEME, newTheme);
     applyThemeToBody(newTheme);
-    setIsExpanded(false);
+    // 注意：点击选项后不再自动关闭，交由 backdrop 处理
+    // setIsExpanded(false);
   };
 
   const getCurrentOption = () => {
@@ -37,135 +38,136 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
 
   return (
     <div className="theme-switcher-container">
-      {/* Collapsed button */}
-      {!isExpanded && (
-        <button
-          onClick={() => setIsExpanded(true)}
-          className="theme-switcher-trigger"
-          aria-label="Change theme"
-        >
-          {getCurrentIcon()}
-        </button>
-      )}
-
-      {/* Expanded switcher */}
+      {/* 1. Backdrop 仍然按需渲染 */}
       {isExpanded && (
-        <>
-          <div 
-            className="theme-switcher-backdrop"
-            onClick={() => setIsExpanded(false)}
-          />
-          <fieldset 
-            className="switcher theme-switcher-expanded"
-            data-previous={previousTheme}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <legend className="switcher__legend">Choose a theme</legend>
-
-            <label className="switcher__option">
-              <input
-                className="switcher__input"
-                type="radio"
-                name="theme"
-                value="light"
-                data-option="1"
-                checked={theme === "light"}
-                onChange={(e) => handleThemeChange(e.target.value)}
-              />
-              <Sun className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-            </label>
-
-            <label className="switcher__option">
-              <input
-                className="switcher__input"
-                type="radio"
-                name="theme"
-                value="dark"
-                data-option="2"
-                checked={theme === "dark"}
-                onChange={(e) => handleThemeChange(e.target.value)}
-              />
-              <Moon className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-            </label>
-
-            <label className="switcher__option">
-              <input
-                className="switcher__input"
-                type="radio"
-                name="theme"
-                value="dim"
-                data-option="3"
-                checked={theme === "dim"}
-                onChange={(e) => handleThemeChange(e.target.value)}
-              />
-              <Sparkles className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-            </label>
-
-            <svg className="switcher__filter" aria-hidden="true">
-              <defs>
-                <filter
-                  id="switcher"
-                  x="-50%"
-                  y="-50%"
-                  width="200%"
-                  height="200%"
-                  filterUnits="objectBoundingBox"
-                >
-                  <feTurbulence
-                    type="fractalNoise"
-                    baseFrequency="0.01 0.008"
-                    numOctaves="2"
-                    seed="4"
-                    result="turbulence"
-                  />
-                  <feComponentTransfer in="turbulence" result="mapped">
-                    <feFuncR type="gamma" amplitude="0.8" exponent="8" offset="0.5" />
-                    <feFuncG type="gamma" amplitude="0.4" exponent="8" offset="0.5" />
-                    <feFuncB type="gamma" amplitude="0" exponent="1" offset="0" />
-                  </feComponentTransfer>
-                  <feGaussianBlur in="mapped" stdDeviation="2.5" result="softMap" />
-                  <feSpecularLighting
-                    in="softMap"
-                    surfaceScale="1.5"
-                    specularConstant="1"
-                    specularExponent="120"
-                    lightingColor="white"
-                    result="specLight"
-                  >
-                    <fePointLight x="-100" y="-100" z="250" />
-                  </feSpecularLighting>
-                  <feComposite
-                    in="specLight"
-                    operator="arithmetic"
-                    k1="0"
-                    k2="0.5"
-                    k3="1"
-                    k4="0"
-                    result="litImage"
-                  />
-                  <feDisplacementMap
-                    in="SourceGraphic"
-                    in2="softMap"
-                    scale="25"
-                    xChannelSelector="R"
-                    yChannelSelector="G"
-                    result="displaced"
-                  />
-                  <feComposite
-                    in="displaced"
-                    in2="litImage"
-                    operator="arithmetic"
-                    k1="0"
-                    k2="1"
-                    k3="0.08"
-                    k4="0"
-                  />
-                </filter>
-              </defs>
-            </svg>
-          </fieldset>
-        </>
+        <div 
+          className="theme-switcher-backdrop"
+          onClick={() => setIsExpanded(false)}
+        />
       )}
+
+      {/* 2. Trigger (Button) - 始终渲染 */}
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="theme-switcher-trigger"
+        aria-label="Change theme"
+        data-expanded={isExpanded} // 使用 data 属性传递状态
+      >
+        {getCurrentIcon()}
+      </button>
+
+      {/* 3. Switcher (Fieldset) - 始终渲染 */}
+      <fieldset 
+        className="switcher theme-switcher-expanded"
+        data-previous={previousTheme}
+        data-expanded={isExpanded} // 使用 data 属性传递状态
+        onClick={(e) => e.stopPropagation()} // 阻止点击穿透到 backdrop
+        aria-hidden={!isExpanded}
+      >
+        <legend className="switcher__legend">Choose a theme</legend>
+
+        <label className="switcher__option">
+          <input
+            className="switcher__input"
+            type="radio"
+            name="theme"
+            value="light"
+            data-option="1"
+            checked={theme === "light"}
+            onChange={(e) => handleThemeChange(e.target.value)}
+          />
+          <Sun className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
+        </label>
+
+        <label className="switcher__option">
+          <input
+            className="switcher__input"
+            type="radio"
+            name="theme"
+            value="dark"
+            data-option="2"
+            checked={theme === "dark"}
+            onChange={(e) => handleThemeChange(e.target.value)}
+          />
+          <Moon className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
+        </label>
+
+        <label className="switcher__option">
+          <input
+            className="switcher__input"
+            type="radio"
+            name="theme"
+            value="dim"
+            data-option="3"
+            checked={theme === "dim"}
+            onChange={(e) => handleThemeChange(e.target.value)}
+          />
+          <Sparkles className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
+        </label>
+
+        <svg className="switcher__filter" aria-hidden="true">
+          <defs>
+            <filter
+              id="switcher"
+              x="-50%"
+              y="-50%"
+              width="200%"
+              height="200%"
+              filterUnits="objectBoundingBox"
+            >
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.01 0.008"
+                numOctaves="2"
+                seed="4"
+                result="turbulence"
+              />
+              <feComponentTransfer in="turbulence" result="mapped">
+                <feFuncR type="gamma" amplitude="0.8" exponent="8" offset="0.5" />
+                <feFuncG type="gamma" amplitude="0.4" exponent="8" offset="0.5" />
+                <feFuncB type="gamma" amplitude="0" exponent="1" offset="0" />
+              </feComponentTransfer>
+              <feGaussianBlur in="mapped" stdDeviation="2.5" result="softMap" />
+              <feSpecularLighting
+                in="softMap"
+                surfaceScale="1.5"
+                specularConstant="1"
+                specularExponent="120"
+                lightingColor="white"
+                result="specLight"
+              >
+                <fePointLight x="-100" y="-100" z="250" />
+              </feSpecularLighting>
+              <feComposite
+                in="specLight"
+                operator="arithmetic"
+                k1="0"
+                k2="0.5"
+                k3="1"
+                k4="0"
+                result="litImage"
+              />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="softMap"
+                scale="25"
+                xChannelSelector="R"
+                yChannelSelector="G"
+                result="displaced"
+              />
+              <feComposite
+                in="displaced"
+                in2="litImage"
+                operator="arithmetic"
+                k1="0"
+                k2="1"
+                k3="0.08"
+                k4="0"
+              />
+            </filter>
+          </defs>
+        </svg>
+      </fieldset>
     </div>
   );
 }

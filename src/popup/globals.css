@@ -421,8 +421,18 @@ html {
     0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
   color: var(--c-content);
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.5, 0, 0, 1);
+  /* 添加 transition 属性 */
+  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 200ms cubic-bezier(0.4, 0, 0.2, 1), 
+              visibility 200ms,
+              all 200ms cubic-bezier(0.5, 0, 0, 1);
+  /* 默认状态 (collapsed) */
   opacity: 0.6;
+  transform: scale(1);
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1001; /* 确保在折叠时在最上层 */
+  position: relative;
 }
 
 .theme-switcher-trigger:hover {
@@ -431,32 +441,50 @@ html {
   color: var(--c-action);
 }
 
+/* Trigger 在展开时的样式 */
+.theme-switcher-trigger[data-expanded="true"] {
+  opacity: 0;
+  transform: scale(0.75);
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .theme-switcher-backdrop {
   position: fixed;
   inset: 0;
   background: transparent;
-  z-index: 999;
+  z-index: 1000; /* 确保在 Trigger 和 Switcher 之间 */
   pointer-events: auto;
+  /* 添加一个简单的 fade-in 动画 */
+  animation: fadeIn 200ms ease-out;
 }
 
 .theme-switcher-expanded {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  z-index: 1001;
-  pointer-events: auto;
-  animation: expandThemeSwitcher 300ms ease;
+  z-index: 1000; /* 在折叠时位于 trigger 下方 */
+  pointer-events: none;
+  /* 移除 keyframe 动画 */
+  /* 添加 transition 属性 */
+  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 300ms cubic-bezier(0.4, 0, 0.2, 1), 
+              visibility 300ms;
+  /* 默认状态 (collapsed) */
+  opacity: 0;
+  transform: scale(0.75); /* 从一个较小的状态开始 */
+  visibility: hidden;
+  /* 定义变换的原点，让它从右下角展开 */
+  transform-origin: bottom right;
 }
 
-@keyframes expandThemeSwitcher {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* Switcher 在展开时的样式 */
+.theme-switcher-expanded[data-expanded="true"] {
+  opacity: 1;
+  transform: scale(1);
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1001; /* 展开时到最上层 */
 }
 
 /* Base switcher styles */
