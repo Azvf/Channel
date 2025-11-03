@@ -7,103 +7,88 @@ interface ThemeSwitcherProps {
   initialTheme: string;
 }
 
+// 定义主题选项以便于映射
+const themeOptions = [
+  { value: 'light', icon: Sun, option: '1' },
+  { value: 'dark', icon: Moon, option: '2' },
+  { value: 'dim', icon: Sparkles, option: '3' }
+];
+
 export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
-  // 使用初始主题，避免主题闪烁
   const [theme, setTheme] = useState(initialTheme);
   const [previousTheme, setPreviousTheme] = useState("1");
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleThemeChange = async (newTheme: string) => {
+    // 立即更新状态以触发滑块动画
     setPreviousTheme(getCurrentOption());
     setTheme(newTheme);
+    // 异步保存
     await storageService.set(STORAGE_KEYS.THEME, newTheme);
     applyThemeToBody(newTheme);
-    // 注意：点击选项后不再自动关闭，交由 backdrop 处理
-    // setIsExpanded(false);
+    
+    // --- 关键修改 ---
+    // 选择主题后自动关闭
+    setIsExpanded(false); 
+    // ---------------
   };
 
   const getCurrentOption = () => {
-    if (theme === "light") return "1";
-    if (theme === "dark") return "2";
-    if (theme === "dim") return "3";
-    return "1";
-  };
-
-  const getCurrentIcon = () => {
-    if (theme === "light") return <Sun className="w-4 h-4" strokeWidth={1.5} />;
-    if (theme === "dark") return <Moon className="w-4 h-4" strokeWidth={1.5} />;
-    if (theme === "dim") return <Sparkles className="w-4 h-4" strokeWidth={1.5} />;
-    return <Sun className="w-4 h-4" strokeWidth={1.5} />;
+    return themeOptions.find(t => t.value === theme)?.option || "1";
   };
 
   return (
-    <div className="theme-switcher-container">
-      {/* 1. Backdrop 仍然按需渲染 */}
-      {isExpanded && (
-        <div 
-          className="theme-switcher-backdrop"
-          onClick={() => setIsExpanded(false)}
-        />
-      )}
+    // 1. 容器现在控制展开状态
+    <div 
+      className="theme-switcher-container" 
+      data-expanded={isExpanded}
+    >
+      {/* 1. Backdrop 现在将通过 CSS 控制，而不是 React 条件渲染 */}
+      <div 
+        className="theme-switcher-backdrop"
+        onClick={() => setIsExpanded(false)}
+      />
 
-      {/* 2. Trigger (Button) - 始终渲染 */}
-      <button
-        onClick={() => setIsExpanded(true)}
-        className="theme-switcher-trigger"
-        aria-label="Change theme"
-        data-expanded={isExpanded} // 使用 data 属性传递状态
-      >
-        {getCurrentIcon()}
-      </button>
-
-      {/* 3. Switcher (Fieldset) - 始终渲染 */}
+      {/* 3. Fieldset 是唯一的显示元素 */}
       <fieldset 
         className="switcher theme-switcher-expanded"
-        data-previous={previousTheme}
-        data-expanded={isExpanded} // 使用 data 属性传递状态
-        onClick={(e) => e.stopPropagation()} // 阻止点击穿透到 backdrop
+        data-previous={previousTheme} 
         aria-hidden={!isExpanded}
+        // 移除 pointerEvents 限制，允许 hover 效果
+        // 点击行为由 label 的 pointerEvents 控制
       >
         <legend className="switcher__legend">Choose a theme</legend>
 
-        <label className="switcher__option">
-          <input
-            className="switcher__input"
-            type="radio"
-            name="theme"
-            value="light"
-            data-option="1"
-            checked={theme === "light"}
-            onChange={(e) => handleThemeChange(e.target.value)}
-          />
-          <Sun className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-        </label>
-
-        <label className="switcher__option">
-          <input
-            className="switcher__input"
-            type="radio"
-            name="theme"
-            value="dark"
-            data-option="2"
-            checked={theme === "dark"}
-            onChange={(e) => handleThemeChange(e.target.value)}
-          />
-          <Moon className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-        </label>
-
-        <label className="switcher__option">
-          <input
-            className="switcher__input"
-            type="radio"
-            name="theme"
-            value="dim"
-            data-option="3"
-            checked={theme === "dim"}
-            onChange={(e) => handleThemeChange(e.target.value)}
-          />
-          <Sparkles className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-        </label>
+        {themeOptions.map(item => {
+          const isActive = theme === item.value;
+          const IconComponent = item.icon;
+          return (
+            <label 
+              key={item.value}
+              className="switcher__option"
+              // 4. 关键：只有当"未展开"时，点击才有效
+              onClick={!isExpanded ? () => setIsExpanded(true) : undefined}
+              style={{
+                // 5. 当未展开时，只允许激活的图标响应（为了 cursor）
+                pointerEvents: !isExpanded && !isActive ? 'none' : 'auto',
+                cursor: !isExpanded ? 'pointer' : (isExpanded ? 'pointer' : 'default')
+              }}
+            >
+              <input
+                className="switcher__input"
+                type="radio"
+                name="theme"
+                value={item.value}
+                data-option={item.option}
+                checked={isActive}
+                onChange={(e) => handleThemeChange(e.target.value)}
+                // 7. 当未展开时，禁用 input 功能
+                disabled={!isExpanded} 
+              />
+              <IconComponent className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
+            </label>
+          );
+        })}
 
         <svg className="switcher__filter" aria-hidden="true">
           <defs>

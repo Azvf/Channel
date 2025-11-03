@@ -399,98 +399,95 @@ html {
   bottom: 2rem;
   right: 2rem;
   z-index: 1000;
+  transform-origin: bottom right; /* 动画基点 */
 }
 
-.theme-switcher-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 99em;
-  border: none;
-  background-color: color-mix(in srgb, var(--c-glass) 20%, transparent);
-  backdrop-filter: blur(8px) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
-  box-shadow: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
-    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
-    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
-    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
-    0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
-  color: var(--c-content);
-  cursor: pointer;
-  /* 添加 transition 属性 */
-  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1), 
-              transform 200ms cubic-bezier(0.4, 0, 0.2, 1), 
-              visibility 200ms,
-              all 200ms cubic-bezier(0.5, 0, 0, 1);
-  /* 默认状态 (collapsed) */
-  opacity: 0.6;
-  transform: scale(1);
-  visibility: visible;
-  pointer-events: auto;
-  z-index: 1001; /* 确保在折叠时在最上层 */
-  position: relative;
-}
-
-.theme-switcher-trigger:hover {
-  opacity: 1;
-  transform: scale(1.05);
-  color: var(--c-action);
-}
-
-/* Trigger 在展开时的样式 */
-.theme-switcher-trigger[data-expanded="true"] {
-  opacity: 0;
-  transform: scale(0.75);
-  visibility: hidden;
-  pointer-events: none;
-}
-
+/* 3. 背景遮罩 (Backdrop) */
 .theme-switcher-backdrop {
   position: fixed;
   inset: 0;
   background: transparent;
-  z-index: 1000; /* 确保在 Trigger 和 Switcher 之间 */
-  pointer-events: auto;
-  /* 添加一个简单的 fade-in 动画 */
-  animation: fadeIn 200ms ease-out;
-}
-
-.theme-switcher-expanded {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  z-index: 1000; /* 在折叠时位于 trigger 下方 */
+  z-index: 1000; /* 在 Switcher 后面 */
   pointer-events: none;
-  /* 移除 keyframe 动画 */
-  /* 添加 transition 属性 */
-  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1), 
-              transform 300ms cubic-bezier(0.4, 0, 0.2, 1), 
-              visibility 300ms;
-  /* 默认状态 (collapsed) */
   opacity: 0;
-  transform: scale(0.75); /* 从一个较小的状态开始 */
-  visibility: hidden;
-  /* 定义变换的原点，让它从右下角展开 */
-  transform-origin: bottom right;
+  /* 使用更平滑的 'ease-out' 曲线，持续 300ms
+     使用 'will-change' 提示浏览器为 opacity 创建合成层 
+  */
+  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity;
 }
 
-/* Switcher 在展开时的样式 */
-.theme-switcher-expanded[data-expanded="true"] {
-  opacity: 1;
-  transform: scale(1);
-  visibility: visible;
+.theme-switcher-container[data-expanded="true"] .theme-switcher-backdrop {
   pointer-events: auto;
-  z-index: 1001; /* 展开时到最上层 */
+  opacity: 1;
+}
+
+/* 4. 主体 (Fieldset) */
+.theme-switcher-expanded {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  overflow: hidden;
+  z-index: 1001; /* 在 Backdrop 上面 */
+  transform-origin: bottom right;
+  will-change: width, height, padding, transform;
+
+  /*
+    动画:
+    - 统一使用 'ease-in-out' 曲线
+    - 统一使用 300ms 持续时间
+    - transform 动画用于 :hover 效果 (200ms)
+  */
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              padding 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* 移除可能冲突的 margin，因为使用 absolute 定位 */
+  margin: 0;
+}
+
+/* 5. 主体 - 折叠态 (Collapsed) */
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded {
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border-radius: 99em; /* Force circle */
+  cursor: pointer;
+  transform: scale(1);
+  /* 在折叠态，使用 justify-content: center 确保激活选项居中 */
+  justify-content: center;
+  gap: 0;
+  /* 确保 hover 过渡平滑 */
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              padding 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              gap 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              justify-content 300ms; /* 平滑过渡对齐方式 */
+}
+
+/* 折叠态的 :hover 效果 */
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded:hover {
+  transform: scale(1.1); /* 悬停时轻微放大 */
+}
+
+/* 6. 主体 - 展开态 (Expanded) */
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded {
+  width: 12.2rem;
+  height: 3.5rem;
+  padding: 0.4rem 0.6rem 0.5rem;
+  border-radius: 99em;
+  cursor: default;
+  transform: scale(1);
 }
 
 /* Base switcher styles */
 .switcher {
   display: flex;
   align-items: center;
+  justify-content: flex-start; /* 默认左对齐 */
   gap: 0.4rem;
   width: 12.2rem;
   max-width: 12.2rem;
@@ -603,7 +600,9 @@ html {
 .switcher__icon {
   display: block;
   width: 100%;
-  transition: scale 200ms cubic-bezier(0.5, 0, 0, 1);
+  /* 添加颜色过渡，确保 hover 时颜色平滑变化 */
+  transition: color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              scale 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .switcher__filter {
@@ -613,30 +612,110 @@ html {
   z-index: -1;
 }
 
+/* 7. 内部选项 (Label) */
 .switcher__option {
   --c: var(--c-content);
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0 0.8rem;
-  width: 3.4rem;
-  height: 100%;
   box-sizing: border-box;
+  overflow: hidden;
   border-radius: 99em;
-  opacity: 1;
-  transition: all 160ms;
-  user-select: none;
+  z-index: 10; /* 确保图标在 ::after 滑块之上 */
+  position: relative;
+  
+  /*
+    动画:
+    - 动画 width, opacity, 和 transform
+    - transform 实现了你想要的"从右侧滑入"
+    - 添加颜色过渡，确保 hover 时颜色平滑变化
+  */
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width, opacity, transform;
 }
 
-.switcher__option:hover {
+/* 展开时图标的 :hover 效果 - 仅影响 theme-switcher */
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option:hover {
   --c: var(--c-action);
   cursor: pointer;
 }
 
-.switcher__option:hover .switcher__icon {
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option:hover .switcher__icon {
   scale: 1.2;
 }
 
+/* 折叠态图标的 :hover 效果 - 仅影响 theme-switcher */
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:hover {
+  --c: var(--c-action);
+  cursor: pointer;
+}
+
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:hover .switcher__icon {
+  scale: 1.15; /* 折叠态稍微小一点的缩放 */
+}
+
+/* 8. 内部选项 - 展开态 - 仅影响 theme-switcher */
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option {
+  width: 3.4rem;
+  height: 100%;
+  padding: 0 0.8rem;
+  opacity: 1;
+  /* 
+    关键：所有图标都从右侧滑入到中心位置
+    匹配展开方向（从右向左）
+    - 非激活图标：从 translateX(100%) 滑入到 translateX(0)
+    - 激活图标：保持在 translateX(0)
+  */
+  transform: translateX(0);
+  /*
+    TIMING:
+    - 延迟 100ms，等待容器先展开
+  */
+  transition-delay: 100ms; 
+}
+
+/* 9. 内部选项 - 折叠态 (Default) - 仅影响 theme-switcher */
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option {
+  width: 0;
+  height: 3rem; /* Match container */
+  padding: 0;
+  opacity: 0;
+  /*
+    关键修复：非激活图标从右侧开始
+    匹配展开方向（从右向左展开）
+  */
+  transform: translateX(100%); 
+  /*
+    TIMING:
+    - 收起时，非激活图标立即 (0ms) 开始淡出和收缩
+  */
+  transition-duration: 200ms;
+  transition-delay: 0ms;
+}
+
+/* 10. 折叠态的 *激活* 选项 - 仅影响 theme-switcher */
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:has(input:checked) {
+  width: 3rem; /* 充满容器 */
+  height: 3rem; /* 确保高度匹配 */
+  opacity: 1; /* 保持可见 */
+  /* 激活图标保持在中心位置，不移动 */
+  transform: translateX(0); 
+  /* 确保图标完美居中 - 无论哪个theme都居中 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0; /* 无内边距，确保居中 */
+  margin: 0; /* 确保无外边距 */
+  flex-shrink: 0; /* 防止被压缩 */
+  transition-delay: 0ms;
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1), /* 动画 width */
+              transform 300ms cubic-bezier(0.4, 0, 0.2, 1), /* 动画 transform */
+              opacity 0ms; /* 保持可见，无过渡 */
+}
+
+/* 移除通用的 hover，已在上面的展开态中定义 */
 .switcher__option:has(input:checked) {
   --c: var(--c-content);
   cursor: auto;
@@ -646,17 +725,16 @@ html {
   scale: 1;
 }
 
+/*
+  FIX 1: "两层玻璃" (::after)
+*/
 .switcher::after {
   content: '';
   position: absolute;
-  left: 0.2rem;
-  top: 0.2rem;
   display: block;
-  width: 4.2rem;
-  height: calc(100% - 0.5rem);
   border-radius: 99em;
   background-color: color-mix(in srgb, var(--c-glass) 36%, transparent);
-  z-index: -1;
+  z-index: 1; /* 提高 z-index，但在 icon (z-index: 10) 之下 */
   box-shadow: 
     inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
     inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
@@ -665,44 +743,79 @@ html {
     inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
     inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
     0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+  
+  /*
+    动画:
+    - 我们动画所有属性，以实现平滑形变
+    - translate 动画是关键，确保滑块从右侧滑入到目标位置
+  */
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              translate 400ms cubic-bezier(0.4, 0, 0.2, 1), /* 平移稍慢，更平滑 */
+              opacity 200ms cubic-bezier(0.4, 0, 0.2, 1); /* 添加 opacity 动画 */
+  will-change: width, height, translate, opacity;
 }
 
-/* Theme switcher animations (3 options) */
-.theme-switcher-expanded:has(input[data-option="1"]:checked)::after {
+/* 12. 滑块 - 折叠态 - 仅影响 theme-switcher */
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded::after {
+  /*
+    关键修复：折叠时，滑块完全透明并消失
+    这解决了"两层玻璃"问题。
+    容器 (fieldset) 本身在折叠时就是那个 3rem 的毛玻璃按钮。
+  */
+  width: 3rem;
+  height: 3rem;
+  left: 0;
+  top: 0;
+  /* 折叠时滑块位置不重要，因为它被隐藏了 */
   translate: 0 0;
-  transform-origin: right;
-  transition: 
-    background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    translate 400ms cubic-bezier(1, 0.0, 0.4, 1);
-  animation: scaleToggle 440ms ease; 
+  border-radius: 99em;
+  opacity: 0; /* 隐藏 */
+  visibility: hidden;
+  transition-delay: 0ms; /* 立即隐藏 */
 }
 
-.theme-switcher-expanded:has(input[data-option="2"]:checked)::after {
+/* 13. 滑块 - 展开态基础样式 - 仅影响 theme-switcher */
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded::after {
+  width: 4.2rem;
+  height: calc(100% - 0.5rem);
+  left: 0.2rem;
+  top: 0.2rem;
+  border-radius: 99em; /* 保持胶囊形 */
+  opacity: 1; /* 出现 */
+  visibility: visible;
+  /*
+    关键修复：展开时滑块从右侧开始滑入
+    初始位置设置为右侧边缘（匹配展开方向从右向左）
+    容器宽度 12.2rem，padding 0.6rem，所以滑块从右侧边缘滑入
+  */
+  /* 初始位置：从最右侧开始（对应 option 3 的位置，7.6rem）或更右侧 */
+  translate: 11rem 0; /* 从右侧边缘滑入 */
+  /*
+    TIMING:
+    - 延迟 100ms，与图标一起出现
+    - translate 动画会平滑过渡到目标位置（由下面的 :has() 规则控制）
+  */
+  transition-delay: 100ms;
+}
+
+/*
+  15. 替换为基于 *当前* 选中项的 translate 动画
+  关键修复：滑块从右侧滑入到目标位置，匹配展开方向（从右向左）
+*/
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="1"]:checked)::after {
+  /* option 1 在左侧，从右侧滑入 */
+  translate: 0 0;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="2"]:checked)::after {
+  /* option 2 在中间，从右侧滑入 */
   translate: 3.8rem 0;
-  transition: 
-    background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    translate 400ms cubic-bezier(1, 0.0, 0.4, 1);
-  animation: scaleToggle2 440ms ease; 
 }
 
-.theme-switcher-expanded[data-previous="1"]:has(input[data-option="2"]:checked)::after {
-  transform-origin: left;
-}
-
-.theme-switcher-expanded[data-previous="3"]:has(input[data-option="2"]:checked)::after {
-  transform-origin: right;
-}
-
-.theme-switcher-expanded:has(input[data-option="3"]:checked)::after {
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="3"]:checked)::after {
+  /* option 3 在右侧，从右侧滑入 */
   translate: 7.6rem 0;
-  transform-origin: left;
-  transition: 
-    background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    translate 400ms cubic-bezier(1, 0.0, 0.4, 1);
-  animation: scaleToggle3 440ms ease; 
 }
 
 /* Tab switcher animations (2 options) */
