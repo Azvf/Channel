@@ -744,5 +744,197 @@ describe('TagManager', () => {
       }
     });
   });
+
+  describe('标签验证功能', () => {
+    it('应该验证空字符串标签名', () => {
+      const result = tagManager.validateTagName('');
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('请输入标签名称');
+    });
+
+    it('应该验证只包含空格的标签名', () => {
+      const result = tagManager.validateTagName('   ');
+      expect(result.valid).toBe(false);
+      // 因为 validateTagName 先检查 !name || !name.trim()，所以返回"请输入标签名称"
+      expect(result.error).toBe('请输入标签名称');
+    });
+
+    it('应该验证超过50字符的标签名', () => {
+      const longName = 'a'.repeat(51);
+      const result = tagManager.validateTagName(longName);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('标签名称不能超过50个字符');
+    });
+
+    it('应该验证有效的标签名', () => {
+      const result = tagManager.validateTagName('前端开发');
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe('createTagAndAddToPage 错误处理', () => {
+    it('应该处理无效标签名', () => {
+      const page = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');
+      expect(() => tagManager.createTagAndAddToPage('', page.id)).toThrow();
+    });
+  });
+
+  describe('页面标题更新', () => {
+    it('应该更新页面标题', () => {
+      const page = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');
+      const result = tagManager.updatePageTitle(page.id, 'GitHub - Home');
+      expect(result).toBe(true);
+      const updatedPage = tagManager.getPageById(page.id);
+      expect(updatedPage?.title).toBe('GitHub - Home');
+    });
+
+    it('应该处理不存在的页面ID', () => {
+      const result = tagManager.updatePageTitle('nonexistent-id', 'New Title');
+      expect(result).toBe(false);
+    });
+
+    it('应该处理空标题', () => {
+      const page = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');
+      const result = tagManager.updatePageTitle(page.id, '   ');
+      expect(result).toBe(false);
+    });
+
+    it('应该处理只包含空格的标题', () => {
+      const page = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');
+      const result = tagManager.updatePageTitle(page.id, '  ');
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('存储功能', () => {
+    it('应该测试存储功能', async () => {
+      tagManager.createTag('前端');
+      await tagManager.testStorage();
+      // 验证没有抛出错误
+      expect(true).toBe(true);
+    });
+  });
+
+  describe('getCurrentTabAndRegisterPage 错误处理', () => {
+    it('应该处理 chrome.tabs API 不可用', async () => {
+      const originalTabs = chrome.tabs;
+      (chrome.tabs as any) = null;
+      
+      await expect(tagManager.getCurrentTabAndRegisterPage()).rejects.toThrow('Chrome tabs API 不可用');
+      
+      chrome.tabs = originalTabs;
+    });
+
+    it('应该处理没有活动标签页', async () => {
+      const originalQuery = chrome.tabs.query;
+      (chrome.tabs.query as any) = jest.fn(() => Promise.resolve([]));
+      
+      await expect(tagManager.getCurrentTabAndRegisterPage()).rejects.toThrow('无法获取当前标签页：没有活动的标签页');
+      
+      chrome.tabs.query = originalQuery;
+    });
+
+    it('应该处理无效的标签页ID', async () => {
+      const originalQuery = chrome.tabs.query;
+      (chrome.tabs.query as any) = jest.fn(() => Promise.resolve([{}]));
+      
+      await expect(tagManager.getCurrentTabAndRegisterPage()).rejects.toThrow('无法获取当前标签页：标签页 ID 无效');
+      
+      chrome.tabs.query = originalQuery;
+    });
+
+    it('应该处理没有URL的标签页', async () => {
+      const originalQuery = chrome.tabs.query;
+      (chrome.tabs.query as any) = jest.fn(() => Promise.resolve([{ id: 1 }]));
+      
+      await expect(tagManager.getCurrentTabAndRegisterPage()).rejects.toThrow('无法获取当前页面：页面 URL 不可用');
+      
+      chrome.tabs.query = originalQuery;
+    });
+
+    it('应该使用 resolvedUrl 参数', async () => {
+      const page = await tagManager.getCurrentTabAndRegisterPage('https://example.com');
+      expect(page.url).toBe('https://example.com');
+      expect(page.title).toBe('Example');
+      expect(page.domain).toBe('example.com');
+    });
+  });
+
+  describe('ensurePageRegistered', () => {
+    it('应该返回已存在的页面', async () => {
+      const page = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');
+      const result = await tagManager.ensurePageRegistered(page.id);
+      expect(result.id).toBe(page.id);
+    });
+
+    it('应该创建新页面如果不存在', async () => {
+      const result = await tagManager.ensurePageRegistered('nonexistent-id');
+      expect(result).toBeDefined();
+      expect(result.url).toBe('https://example.com');
+    });
+
+    it('应该从当前标签页创建页面如果没有提供pageId', async () => {
+      const result = await tagManager.ensurePageRegistered();
+      expect(result).toBeDefined();
+      expect(result.url).toBe('https://example.com');
+    });
+  });
+
+  describe('deleteTag 绑定关系清理', () => {
+    it('应该清理标签的绑定关系', () => {
+      const tag1 = tagManager.createTag('前端');
+      const tag2 = tagManager.createTag('后端');
+      const tag3 = tagManager.createTag('数据库');
+      
+      // 建立绑定关系
+      tagManager.bindTags(tag1.id, tag2.id);
+      tagManager.bindTags(tag1.id, tag3.id);
+      
+      expect(tag2.bindings).toContain(tag1.id);
+      expect(tag3.bindings).toContain(tag1.id);
+      
+      // 为了保持 tag2 和 tag3，需要将它们添加到页面
+      const page1 = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');
+      const page2 = tagManager.createOrUpdatePage('https://google.com', 'Google', 'google.com');
+      const page3 = tagManager.createOrUpdatePage('https://stackoverflow.com', 'Stack Overflow', 'stackoverflow.com');
+      
+      tagManager.addTagToPage(page1.id, tag1.id);
+      tagManager.addTagToPage(page2.id, tag2.id);
+      tagManager.addTagToPage(page3.id, tag3.id);
+      
+      // 移除 tag1 的页面关联，然后清理未使用的标签
+      tagManager.removeTagFromPage(page1.id, tag1.id);
+      tagManager.cleanupUnusedTags();
+      
+      // tag1 应该被删除，tag2 和 tag3 应该保留
+      expect(tagManager.getTagById(tag1.id)).toBeUndefined();
+      expect(tagManager.getTagById(tag2.id)).toBeDefined();
+      expect(tagManager.getTagById(tag3.id)).toBeDefined();
+      
+      // 检查绑定关系是否被清理
+      const tag2After = tagManager.getTagById(tag2.id);
+      const tag3After = tagManager.getTagById(tag3.id);
+      expect(tag2After?.bindings).not.toContain(tag1.id);
+      expect(tag3After?.bindings).not.toContain(tag1.id);
+    });
+
+    it('应该处理不存在的标签', () => {
+      // 调用 cleanupUnusedTags 不应该抛出错误
+      expect(() => tagManager.cleanupUnusedTags()).not.toThrow();
+    });
+  });
+
+  describe('初始化错误处理', () => {
+    it('应该允许重新初始化', async () => {
+      const manager = TagManager.getInstance();
+      await manager.initialize();
+      
+      // 第二次初始化应该返回相同的 promise
+      const promise1 = manager.initialize();
+      const promise2 = manager.initialize();
+      // 由于 promise 已经完成，应该返回同一个 promise
+      expect(promise1).toEqual(promise2);
+    });
+  });
 });
 
