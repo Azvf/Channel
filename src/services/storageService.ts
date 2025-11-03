@@ -102,9 +102,12 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async get<T = unknown>(key: StorageKey): Promise<T | null> {
     try {
+      // 不再使用 new Promise，直接 await
       const items = await this.storage.get([key]);
+      // MV3/Promise API 会在出错时 throw
       return (items?.[key] as T | undefined) ?? null;
     } catch (error) {
       console.warn(`[StorageService] Failed to read "${key}" from ${this.storageType}:`, (error as Error).message);
@@ -112,8 +115,10 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async getMultiple<T = unknown>(keys: StorageKey[]): Promise<Record<string, T | null>> {
     try {
+      // 直接 await
       const items = await this.storage.get(keys);
       const result: Record<string, T | null> = {};
       for (const key of keys) {
@@ -126,9 +131,13 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async set<T = unknown>(key: StorageKey, value: T): Promise<void> {
+    // 先同步写入 localStorage 作为缓存
     this.syncToLocalStorage(key, value);
+    
     try {
+      // 直接 await
       await this.storage.set({ [key]: value });
     } catch (error) {
       console.warn(`[StorageService] Failed to write "${key}" to ${this.storageType}:`, (error as Error).message);
@@ -136,7 +145,9 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async setMultiple(data: Record<string, unknown>): Promise<void> {
+    // 先同步写入 localStorage 作为缓存
     try {
       if (typeof localStorage !== 'undefined') {
         for (const [key, value] of Object.entries(data)) {
@@ -148,6 +159,7 @@ class ChromeStorageWrapper implements IStorageService {
     }
     
     try {
+      // 直接 await
       await this.storage.set(data);
     } catch (error) {
       console.warn(`[StorageService] Failed to write multiple keys to ${this.storageType}:`, (error as Error).message);
@@ -155,8 +167,10 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async remove(key: StorageKey): Promise<void> {
     try {
+      // 直接 await
       await this.storage.remove(key);
     } catch (error) {
       console.warn(`[StorageService] Failed to remove "${key}" from ${this.storageType}:`, (error as Error).message);
@@ -164,8 +178,10 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async removeMultiple(keys: StorageKey[]): Promise<void> {
     try {
+      // 直接 await
       await this.storage.remove(keys);
     } catch (error) {
       console.warn(`[StorageService] Failed to remove multiple keys from ${this.storageType}:`, (error as Error).message);
@@ -173,8 +189,10 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async clear(): Promise<void> {
     try {
+      // 直接 await
       await this.storage.clear();
     } catch (error) {
       console.warn(`[StorageService] Failed to clear ${this.storageType}:`, (error as Error).message);
@@ -182,19 +200,21 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async getAllKeys(): Promise<string[]> {
     try {
+      // .get(null) 获取所有
       const items = await this.storage.get(null);
       return items ? Object.keys(items) : [];
     } catch (error) {
-      console.warn(`[StorageService] Failed to get all keys from ${this.storageType}:`, (error as Error).message);
-      return [];
+       console.warn(`[StorageService] Failed to get all keys from ${this.storageType}:`, (error as Error).message);
+       return [];
     }
   }
 }
 
 /**
- * LocalStorage 包装器
+ * LocalStorage 包装器 (保持不变)
  */
 class LocalStorageWrapper implements IStorageService {
   async get<T = unknown>(key: StorageKey): Promise<T | null> {
@@ -266,8 +286,7 @@ class LocalStorageWrapper implements IStorageService {
 }
 
 /**
- * 统一存储服务
- * 根据运行环境自动选择合适的存储后端
+ * 统一存储服务 (保持不变)
  */
 class StorageService implements IStorageService {
   private wrapper: IStorageService;
