@@ -38,6 +38,9 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
   // 彻底防止底层页面滚动：在document级别拦截所有滚动事件
   useEffect(() => {
     if (isOpen) {
+      // 添加属性标记对话框打开状态
+      document.body.setAttribute('data-edit-dialog-open', 'true');
+      
       // 保存原始状态
       const originalBodyOverflow = document.body.style.overflow;
       const originalHtmlOverflow = document.documentElement.style.overflow;
@@ -152,6 +155,9 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
       document.addEventListener('keydown', handleKeyDown, options);
       
       return () => {
+        // 移除属性标记
+        document.body.removeAttribute('data-edit-dialog-open');
+        
         // 恢复原始状态
         document.body.style.overflow = originalBodyOverflow;
         document.documentElement.style.overflow = originalHtmlOverflow;
@@ -162,6 +168,9 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         document.removeEventListener('scroll', handleScroll, options as any);
         document.removeEventListener('keydown', handleKeyDown, options as any);
       };
+    } else {
+      // dialog 关闭时也移除属性标记
+      document.body.removeAttribute('data-edit-dialog-open');
     }
   }, [isOpen]);
 
