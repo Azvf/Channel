@@ -15,11 +15,12 @@ function postBuildPlugin() {
       
       if (existsSync(htmlPath)) {
         let content = readFileSync(htmlPath, 'utf-8')
-        // 修复路径引用
-        content = content.replace(/src="\/popup\.js"/g, 'src="./popup.js"')
-        content = content.replace(/href="\/index\.css"/g, 'href="./index.css"')
+        // 修复路径引用（处理双引号和单引号的情况）
+        content = content.replace(/src=["']\/theme-loader\.js["']/g, 'src="./theme-loader.js"')
+        content = content.replace(/src=["']\/popup\.js["']/g, 'src="./popup.js"')
+        content = content.replace(/href=["']\/index\.css["']/g, 'href="./index.css"')
         writeFileSync(outputPath, content, 'utf-8')
-        console.log('✓ Created popup.html')
+        console.log('✓ Created popup.html with fixed paths')
       }
     }
   }
@@ -42,6 +43,7 @@ export default defineConfig(({ mode }) => ({
       input: {
         popup: resolve(fileURLToPath(new URL('./src/popup/index.html', import.meta.url))),
         'dev-preview': resolve(fileURLToPath(new URL('./src/preview/dev-preview.html', import.meta.url))),
+        'theme-loader': resolve(fileURLToPath(new URL('./src/popup/theme-loader.ts', import.meta.url))),
         background: resolve(fileURLToPath(new URL('./src/background/background.ts', import.meta.url))),
         content: resolve(fileURLToPath(new URL('./src/content/content.ts', import.meta.url))),
         injected: resolve(fileURLToPath(new URL('./src/injected/injected.ts', import.meta.url)))

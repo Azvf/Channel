@@ -3,6 +3,9 @@
   "name": "GameplayTag Extension",
   "version": "1.0.0",
   "description": "智能页面标签管理系统 - 基于Unreal Engine GameplayTag设计",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
+  },
   "permissions": [
     "activeTab",
     "storage",

@@ -3,26 +3,38 @@
 
 
 // 监听来自background script的消息
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    
+    // 用于标记是否需要异步响应
+    let isAsync = false;
     
     switch (message.action) {
         case 'getPageInfo':
             handleGetPageInfo(sendResponse);
+            isAsync = true; // 标记为异步
             break;
             
         case 'highlightText':
             handleHighlightText(message.text, sendResponse);
+            isAsync = true; // 标记为异步
             break;
             
         case 'addCustomStyle':
             handleAddCustomStyle(message.css, sendResponse);
+            isAsync = true; // 标记为异步
             break;
             
         default:
-            sendResponse({ error: '未知操作' });
+            // ** 关键修复 **
+            // 消息不是发给我的，忽略它。
+            // 不要调用 sendResponse()，也不要返回 true。
+            // 这允许 background.ts 有机会处理这个消息。
+            isAsync = false;
+            break;
     }
     
-    return true; // 保持消息通道开放
+    // 只有当我们明确处理了某个 case 并需要异步响应时，才返回 true。
+    return isAsync;
 });
 
 // 获取页面信息

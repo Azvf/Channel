@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { GlassInput } from "./GlassInput";
 import { TagInput } from "./TagInput";
-import { GlassButton } from "./GlassButton";
 import { X, Save } from "lucide-react";
 
 interface EditPageDialogProps {
@@ -26,12 +26,144 @@ interface EditPageDialogProps {
 export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialogProps) {
   const [editedTitle, setEditedTitle] = useState(page.title);
   const [editedTags, setEditedTags] = useState<string[]>(page.tags);
+  const scrollableContentRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Reset form when page changes or dialog opens
   useEffect(() => {
     setEditedTitle(page.title);
     setEditedTags(page.tags);
   }, [page, isOpen]);
+
+  // 彻底防止底层页面滚动：在document级别拦截所有滚动事件
+  useEffect(() => {
+    if (isOpen) {
+      // 保存原始状态
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      
+      // 禁用body和html的滚动
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      
+      // 检查元素是否在对话框的可滚动内容区域内
+      const isInScrollableArea = (target: EventTarget | null): boolean => {
+        if (!target || !scrollableContentRef.current) return false;
+        const element = target as HTMLElement;
+        return scrollableContentRef.current.contains(element) || scrollableContentRef.current === element;
+      };
+
+      // 检查元素是否在对话框内（包括header和footer）
+      const isInDialog = (target: EventTarget | null): boolean => {
+        if (!target || !dialogRef.current) return false;
+        const element = target as HTMLElement;
+        return dialogRef.current.contains(element) || dialogRef.current === element;
+      };
+
+      // 检查可滚动内容区域是否可以继续滚动
+      const canScroll = (deltaY: number): boolean => {
+        if (!scrollableContentRef.current) return false;
+        const { scrollTop, scrollHeight, clientHeight } = scrollableContentRef.current;
+        const isAtTop = scrollTop <= 0;
+        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+        
+        // 如果已经在顶部/底部且还要继续滚动，不允许
+        if ((isAtTop && deltaY < 0) || (isAtBottom && deltaY > 0)) {
+          return false;
+        }
+        return true;
+      };
+
+      // 在捕获阶段拦截滚轮事件
+      const handleWheel = (e: WheelEvent) => {
+        const target = e.target as HTMLElement;
+        
+        // 如果在对话框的可滚动内容区域内，且可以滚动，则允许
+        if (isInScrollableArea(target)) {
+          if (canScroll(e.deltaY)) {
+            // 允许滚动，但阻止事件继续冒泡到底层
+            e.stopPropagation();
+          } else {
+            // 不能继续滚动，阻止默认行为和冒泡
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          }
+        } else {
+          // 不在可滚动区域内，完全阻止
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        }
+      };
+
+      // 拦截触摸滚动事件
+      const handleTouchMove = (e: TouchEvent) => {
+        const target = e.target as HTMLElement;
+        
+        // 只有在可滚动内容区域内才允许触摸滚动
+        if (!isInScrollableArea(target)) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        } else {
+          e.stopPropagation();
+        }
+      };
+
+      // 拦截滚动事件（防止通过其他方式滚动）
+      const handleScroll = (e: Event) => {
+        const target = e.target as HTMLElement;
+        
+        // 如果滚动发生在对话框外，阻止
+        if (!isInDialog(target)) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        } else {
+          e.stopPropagation();
+        }
+      };
+
+      // 使用捕获阶段，确保在事件到达目标之前拦截
+      const options = { passive: false, capture: true };
+      document.addEventListener('wheel', handleWheel, options);
+      document.addEventListener('touchmove', handleTouchMove, options);
+      document.addEventListener('scroll', handleScroll, options);
+      
+      // 也阻止键盘滚动（空格、方向键等）
+      const handleKeyDown = (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement;
+        const scrollKeys = [' ', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'];
+        
+        if (scrollKeys.includes(e.key)) {
+          // 如果不在对话框内，阻止键盘滚动
+          if (!isInDialog(target)) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          } else if (!isInScrollableArea(target)) {
+            // 在对话框内但不在可滚动区域，也阻止
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown, options);
+      
+      return () => {
+        // 恢复原始状态
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+        
+        // 移除所有事件监听器
+        document.removeEventListener('wheel', handleWheel, options as any);
+        document.removeEventListener('touchmove', handleTouchMove, options as any);
+        document.removeEventListener('scroll', handleScroll, options as any);
+        document.removeEventListener('keydown', handleKeyDown, options as any);
+      };
+    }
+  }, [isOpen]);
 
   const handleSave = () => {
     onSave({
@@ -50,28 +182,41 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
 
   if (!isOpen) return null;
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[200]"
-        style={{
-          background: 'color-mix(in srgb, var(--c-glass) 40%, transparent)',
-          backdropFilter: 'blur(8px)',
-          animation: 'fadeIn 200ms ease-out'
-        }}
-        onClick={handleCancel}
-      />
+  const backdropElement = (
+    <div
+      className="fixed z-[200]"
+      style={{
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
+        backdropFilter: 'blur(4px)',
+        animation: 'fadeIn 200ms ease-out',
+        margin: 0,
+        padding: 0
+      }}
+      onClick={handleCancel}
+    />
+  );
 
+  const dialogElement = (
+    <>
       {/* Dialog */}
       <div
-        className="fixed z-[201] rounded-2xl border overflow-hidden"
+        ref={dialogRef}
+        className="fixed z-[201] rounded-xl border overflow-hidden"
         style={{
           left: '50%',
           top: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 'calc(100% - 48px)',
-          maxWidth: '320px',
+          width: 'calc(100% - 32px)',
+          maxWidth: '360px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           background: 'color-mix(in srgb, var(--c-bg) 96%, transparent)',
           backdropFilter: 'blur(24px) saturate(180%)',
           borderColor: 'color-mix(in srgb, var(--c-glass) 45%, transparent)',
@@ -86,9 +231,9 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           animation: 'dialogSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1)'
         }}
       >
-        {/* Header */}
+        {/* Header - Fixed */}
         <div
-          className="px-4 py-3 flex items-center justify-between"
+          className="px-4 py-3 flex items-center justify-between flex-shrink-0"
           style={{
             borderBottom: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)'
           }}
@@ -96,7 +241,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           <h2
             style={{
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.95rem',
+              fontSize: '1rem',
               fontWeight: 700,
               color: 'var(--c-content)',
               letterSpacing: '-0.02em',
@@ -128,15 +273,22 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           </button>
         </div>
 
-        {/* Content */}
-        <div className="px-4 py-3.5 space-y-3.5">
+        {/* Content - Scrollable */}
+        <div 
+          ref={scrollableContentRef}
+          className="px-3 py-2.5 space-y-2.5 flex-1 overflow-y-auto"
+          style={{
+            minHeight: 0,
+            maxHeight: 'calc(90vh - 140px)'
+          }}
+        >
           {/* URL Display (Read-only) */}
           <div>
             <label
-              className="block mb-1.5"
+              className="block mb-1"
               style={{
                 fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.75rem',
+              fontSize: '0.7rem',
               fontWeight: 600,
               color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
               letterSpacing: '0.02em',
@@ -146,12 +298,12 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
             URL
           </label>
           <div
-            className="px-3 py-1.5 rounded-xl"
+            className="px-2.5 py-1 rounded-lg"
             style={{
               background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.75rem',
+              fontSize: '0.7rem',
               color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
               fontWeight: 500,
               wordBreak: 'break-all'
@@ -164,10 +316,10 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           {/* Title Input */}
           <div>
             <label
-              className="block mb-1.5"
+              className="block mb-1"
               style={{
                 fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.75rem',
+              fontSize: '0.7rem',
               fontWeight: 600,
               color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
               letterSpacing: '0.02em',
@@ -178,7 +330,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           </label>
             <GlassInput
               value={editedTitle}
-              onChange={(e) => setEditedTitle(e.target.value)}
+              onChange={(value) => setEditedTitle(value)}
               placeholder="Enter page title"
             />
           </div>
@@ -186,10 +338,10 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           {/* Tags Input */}
           <div>
             <label
-              className="block mb-1.5"
+              className="block mb-1"
               style={{
                 fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.75rem',
+              fontSize: '0.7rem',
               fontWeight: 600,
               color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
               letterSpacing: '0.02em',
@@ -206,22 +358,22 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer - Fixed */}
         <div
-          className="px-4 py-3 flex items-center justify-end gap-2"
+          className="px-4 py-3 flex items-center justify-end gap-2 flex-shrink-0"
           style={{
             borderTop: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)'
           }}
         >
           <button
             onClick={handleCancel}
-            className="px-3 py-1.5 rounded-lg transition-all"
+            className="px-4 py-2 rounded-lg transition-all"
             style={{
               background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
               color: 'var(--c-content)',
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.75rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               letterSpacing: '0.01em',
               cursor: 'pointer'
@@ -240,13 +392,13 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
 
           <button
             onClick={handleSave}
-            className="px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
+            className="px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
             style={{
               background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
               border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
               color: 'var(--c-bg)',
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.75rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               letterSpacing: '0.01em',
               cursor: 'pointer',
@@ -263,8 +415,8 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               e.currentTarget.style.boxShadow = '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)';
             }}
           >
-            <Save className="w-3.5 h-3.5" />
-            Save Changes
+            <Save className="w-4 h-4" />
+            Save
           </button>
         </div>
       </div>
@@ -288,6 +440,14 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           }
         `}
       </style>
+    </>
+  );
+
+  // 使用Portal将backdrop和dialog渲染到body下，确保覆盖整个视口
+  return (
+    <>
+      {typeof document !== 'undefined' && createPortal(backdropElement, document.body)}
+      {typeof document !== 'undefined' && createPortal(dialogElement, document.body)}
     </>
   );
 }

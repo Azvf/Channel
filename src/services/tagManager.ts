@@ -7,8 +7,11 @@ export class TagManager {
   private tags: TagsCollection = {};
   private pages: PageCollection = {};
 
+  // 添加一个 promise 来跟踪初始化状态
+  private initPromise: Promise<void> | null = null;
+
   private constructor() {
-    // 构造函数中不进行异步操作，改为在首次使用时加载
+    // 构造函数中不进行异步操作
   }
 
   public static getInstance(): TagManager {
@@ -18,8 +21,26 @@ export class TagManager {
     return TagManager.instance;
   }
 
+  // 修改 initialize 方法使其幂等
   public async initialize(): Promise<void> {
-    await this.loadFromStorage();
+    if (this.initPromise) {
+      // 如果已经在初始化中，或已完成，则直接等待
+      return this.initPromise;
+    }
+    
+    // 开始初始化，并保存 promise
+    this.initPromise = (async () => {
+      try {
+        await this.loadFromStorage();
+      } catch (error) {
+        // 如果失败，重置 promise 允许重试
+        this.initPromise = null;
+        console.error('TagManager 初始化失败:', error);
+        throw error; // 重新抛出错误
+      }
+    })();
+    
+    return this.initPromise;
   }
 
   // 标签管理（无父子层级）

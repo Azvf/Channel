@@ -5,100 +5,134 @@ import { TagManager } from '../services/tagManager';
 import { syncStorageService, storageService, STORAGE_KEYS } from '../services/storageService';
 import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../types/pageSettings';
 
-// 初始化 TagManager
 const tagManager = TagManager.getInstance();
+let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
 
-/**
- * 获取页面设置（与 appInitService 保持一致的逻辑）
- * 确保初始化方式和验证逻辑完全一致
- */
-async function getPageSettings(): Promise<PageSettings> {
-    const pageSettings = await storageService.get<PageSettings>(STORAGE_KEYS.PAGE_SETTINGS);
-    return {
-        syncVideoTimestamp: typeof pageSettings?.syncVideoTimestamp === 'boolean' 
-            ? pageSettings.syncVideoTimestamp 
-            : DEFAULT_PAGE_SETTINGS.syncVideoTimestamp,
-    };
-}
-
-// 插件安装时的初始化
-chrome.runtime.onInstalled.addListener(async (_details) => {
-    // 初始化 TagManager
-    await tagManager.initialize();
+// 1. 创建一个单一的、共享的、惰性启动的初始化 Promise
+//    我们使用一个 IIFE 来创建一个闭包
+const getInitializationPromise = (() => {
+    let initPromise: Promise<void> | null = null;
     
-    // 设置默认配置
-    await syncStorageService.setMultiple({
-        [STORAGE_KEYS.EXTENSION_ENABLED]: true,
-        [STORAGE_KEYS.THEME]: 'default',
-        [STORAGE_KEYS.LAST_USED]: Date.now()
-    });
-});
-
-// 插件启动时的初始化（MV3 service worker）
-(async () => {
-    await tagManager.initialize();
+    return () => {
+        if (initPromise) {
+            return initPromise; // 如果已在进行或已完成，返回它
+        }
+        
+        // 启动初始化
+        initPromise = (async () => {
+            try {
+                console.log('Background: 启动初始化...');
+                
+                // tagManager.initialize() 已经是幂等的，但我们在这里再次确保
+                await tagManager.initialize();
+                
+                const pageSettings = await storageService.get<PageSettings>(STORAGE_KEYS.PAGE_SETTINGS);
+                currentPageSettings = {
+                    syncVideoTimestamp: typeof pageSettings?.syncVideoTimestamp === 'boolean' 
+                        ? pageSettings.syncVideoTimestamp 
+                        : DEFAULT_PAGE_SETTINGS.syncVideoTimestamp,
+                };
+                console.log('Background: 初始化完成。');
+            } catch (e) {
+                console.error('Background: 初始化失败:', e);
+                initPromise = null; // 失败时允许重试
+                throw e; // 抛出错误
+            }
+        })();
+        
+        return initPromise;
+    };
 })();
 
-// 监听来自popup的消息
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    
-    switch (message.action) {
-        case 'getTabInfo':
-            handleGetTabInfo(sender.tab?.id, sendResponse);
-            return true; // 保持消息通道开放以进行异步响应
-            
-        case 'changePageColor':
-            handleChangePageColor(sender.tab?.id, sendResponse);
-            return true;
-            
-        case 'showNotification':
-            handleShowNotification(sendResponse);
-            return true;
+// 2. getPageSettings 保持同步（它依赖于在初始化时设置的缓存）
+async function getPageSettings(): Promise<PageSettings> {
+    return currentPageSettings;
+}
+
+// 3. onInstalled 逻辑
+chrome.runtime.onInstalled.addListener(async (_details) => {
+    try {
+        // 确保安装时初始化完成
+        await getInitializationPromise();
         
-        // TagManager 相关消息
-        case 'getCurrentPage':
-            handleGetCurrentPage(sendResponse);
-            return true;
-            
-        case 'getAllTags':
-            handleGetAllTags(sendResponse);
-            return true;
-            
-        case 'getAllTaggedPages':
-            handleGetAllTaggedPages(sendResponse);
-            return true;
-            
-        case 'createTag':
-            handleCreateTag(message.data, sendResponse);
-            return true;
-            
-        case 'addTagToPage':
-            handleAddTagToPage(message.data, sendResponse);
-            return true;
-            
-        case 'createTagAndAddToPage':
-            handleCreateTagAndAddToPage(message.data, sendResponse);
-            return true;
-            
-        case 'removeTagFromPage':
-            handleRemoveTagFromPage(message.data, sendResponse);
-            return true;
-            
-        case 'updatePageTitle':
-            handleUpdatePageTitle(message.data, sendResponse);
-            return true;
-            
-        default:
-            sendResponse({ error: '未知操作' });
+        await syncStorageService.setMultiple({
+            [STORAGE_KEYS.EXTENSION_ENABLED]: true,
+            [STORAGE_KEYS.THEME]: 'default',
+            [STORAGE_KEYS.LAST_USED]: Date.now()
+        });
+        console.log('Background: 插件已安装并设置默认值。');
+    } catch (e) {
+        console.error('Background: onInstalled 失败:', e);
     }
 });
 
-// 处理获取标签页信息
+// 4. *** 关键 ***
+//    在顶层同步注册 onMessage 监听器
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // 5. 使用一个 async IIFE 来处理 Promise，同时同步返回 true
+    (async () => {
+        try {
+            // 6. **在所有操作之前**，等待共享的初始化 Promise 完成
+            await getInitializationPromise();
+
+            // 7. 初始化完成后，安全地分发消息
+            switch (message.action) {
+                case 'getTabInfo':
+                    await handleGetTabInfo(sender.tab?.id, sendResponse);
+                    break;
+                case 'changePageColor':
+                    await handleChangePageColor(sender.tab?.id, sendResponse);
+                    break;
+                case 'showNotification':
+                    await handleShowNotification(sendResponse);
+                    break;
+                
+                // TagManager cases
+                case 'getCurrentPage':
+                    await handleGetCurrentPage(sendResponse);
+                    break;
+                case 'getAllTags':
+                    await handleGetAllTags(sendResponse);
+                    break;
+                case 'getAllTaggedPages':
+                    await handleGetAllTaggedPages(sendResponse);
+                    break;
+                case 'createTag':
+                    await handleCreateTag(message.data, sendResponse);
+                    break;
+                case 'addTagToPage':
+                    await handleAddTagToPage(message.data, sendResponse);
+                    break;
+                case 'createTagAndAddToPage':
+                    await handleCreateTagAndAddToPage(message.data, sendResponse);
+                    break;
+                case 'removeTagFromPage':
+                    await handleRemoveTagFromPage(message.data, sendResponse);
+                    break;
+                case 'updatePageTitle':
+                    await handleUpdatePageTitle(message.data, sendResponse);
+                    break;
+                    
+                default:
+                    sendResponse({ error: '未知操作' });
+            }
+        } catch (initError) {
+            const errorMessage = initError instanceof Error ? initError.message : String(initError);
+            console.error('Background: 处理器执行失败 (可能由于初始化失败):', errorMessage);
+            sendResponse({ success: false, error: `Background 处理器失败: ${errorMessage}` });
+        }
+    })();
+    
+    // 8. **立即**同步返回 true，以保持消息通道开放
+    return true;
+});
+
+// --- 9. 所有处理器不再需要调用 initialize() ---
+
 async function handleGetTabInfo(tabId: number | undefined, sendResponse: (response: any) => void) {
     try {
         if (!tabId) {
-            sendResponse({ error: '无法获取标签页ID' });
-            return;
+            throw new Error('无法获取标签页ID');
         }
         
         const tab = await chrome.tabs.get(tabId);
@@ -116,7 +150,6 @@ async function handleGetTabInfo(tabId: number | undefined, sendResponse: (respon
     }
 }
 
-// 处理改变页面颜色
 async function handleChangePageColor(tabId: number | undefined, sendResponse: (response: any) => void) {
     try {
         if (!tabId) {
@@ -138,7 +171,6 @@ async function handleChangePageColor(tabId: number | undefined, sendResponse: (r
     }
 }
 
-// 处理显示通知
 async function handleShowNotification(sendResponse: (response: any) => void) {
     try {
         // 注意：需要在manifest.json中添加notifications权限
@@ -159,53 +191,35 @@ async function handleShowNotification(sendResponse: (response: any) => void) {
     }
 }
 
-// TagManager 相关处理函数
 async function handleGetCurrentPage(sendResponse: (response: any) => void) {
     try {
-        // 确保 TagManager 已初始化
-        await tagManager.initialize();
-        
-        // 获取当前标签页信息
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tabs || tabs.length === 0 || !tabs[0].id || !tabs[0].url) {
-            const page = await tagManager.getCurrentTabAndRegisterPage();
-            sendResponse({ success: true, data: page });
-            return;
+        if (!tabs || tabs.length === 0) {
+            throw new Error('无法获取当前标签页');
         }
-        
+
         const tab = tabs[0];
-        const tabId = tab.id;
-        const tabUrl = tab.url;
-        
-        if (!tabId || !tabUrl) {
-            const page = await tagManager.getCurrentTabAndRegisterPage();
-            sendResponse({ success: true, data: page });
-            return;
+        if (!tab || !tab.id || !tab.url) {
+            throw new Error('无效的标签页');
         }
         
-        let resolvedUrl = tabUrl;
-        
-        // 检查是否启用了视频时间戳同步（使用统一的初始化方式）
-        const pageSettings = await getPageSettings();
+        let resolvedUrl = tab.url;
+        const pageSettings = await getPageSettings(); // (现在从缓存读取，很快)
         const syncVideoTimestamp = pageSettings.syncVideoTimestamp;
-        
+
         if (syncVideoTimestamp) {
             try {
-                // 在页面中检测视频控件并获取时间戳
                 const results = await chrome.scripting.executeScript({
-                    target: { tabId: tabId },
+                    target: { tabId: tab.id },
                     func: detectVideoTimestamp
                 });
-                
                 if (results && results.length > 0 && results[0].result) {
                     const timestamp = results[0].result as number;
                     if (timestamp > 0) {
-                        // 将时间戳添加到 URL 中
-                        resolvedUrl = addTimestampToUrl(tabUrl, timestamp);
+                        resolvedUrl = addTimestampToUrl(tab.url, timestamp);
                     }
                 }
             } catch (error) {
-                // 如果执行脚本失败（可能是权限问题），忽略错误，继续使用原始 URL
                 console.warn('检测视频时间戳失败:', error);
             }
         }
