@@ -102,57 +102,49 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
+  // --- 重构为原生 Promise ---
   async get<T = unknown>(key: StorageKey): Promise<T | null> {
-    return new Promise((resolve) => {
-      this.storage.get([key], (items) => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to read "${key}" from ${this.storageType}:`, error.message);
-          resolve(null);
-          return;
-        }
-        resolve((items?.[key] as T | undefined) ?? null);
-      });
-    });
+    try {
+      // 不再使用 new Promise，直接 await
+      const items = await this.storage.get([key]);
+      // MV3/Promise API 会在出错时 throw，而不是设置 lastError
+      return (items?.[key] as T | undefined) ?? null;
+    } catch (error) {
+      console.warn(`[StorageService] Failed to read "${key}" from ${this.storageType}:`, (error as Error).message);
+      return null;
+    }
   }
 
+  // --- 重构为原生 Promise ---
   async getMultiple<T = unknown>(keys: StorageKey[]): Promise<Record<string, T | null>> {
-    return new Promise((resolve) => {
-      this.storage.get(keys, (items) => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to read multiple keys from ${this.storageType}:`, error.message);
-          resolve({});
-          return;
-        }
-        const result: Record<string, T | null> = {};
-        for (const key of keys) {
-          result[key] = (items?.[key] as T | undefined) ?? null;
-        }
-        resolve(result);
-      });
-    });
+    try {
+      // 直接 await
+      const items = await this.storage.get(keys);
+      const result: Record<string, T | null> = {};
+      for (const key of keys) {
+        result[key] = (items?.[key] as T | undefined) ?? null;
+      }
+      return result;
+    } catch (error) {
+      console.warn(`[StorageService] Failed to read multiple keys from ${this.storageType}:`, (error as Error).message);
+      return {};
+    }
   }
 
+  // --- 重构为原生 Promise ---
   async set<T = unknown>(key: StorageKey, value: T): Promise<void> {
-    // 先同步写入 localStorage 作为缓存
     this.syncToLocalStorage(key, value);
-    
-    return new Promise((resolve, reject) => {
-      this.storage.set({ [key]: value }, () => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to write "${key}" to ${this.storageType}:`, error.message);
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    try {
+      // 直接 await
+      await this.storage.set({ [key]: value });
+    } catch (error) {
+      console.warn(`[StorageService] Failed to write "${key}" to ${this.storageType}:`, (error as Error).message);
+      throw error;
+    }
   }
 
+  // --- 重构为原生 Promise ---
   async setMultiple(data: Record<string, unknown>): Promise<void> {
-    // 先同步写入 localStorage 作为缓存
     try {
       if (typeof localStorage !== 'undefined') {
         for (const [key, value] of Object.entries(data)) {
@@ -160,76 +152,61 @@ class ChromeStorageWrapper implements IStorageService {
         }
       }
     } catch (error) {
-      // 忽略 localStorage 写入错误，不影响主流程
+      // 忽略
     }
     
-    return new Promise((resolve, reject) => {
-      this.storage.set(data, () => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to write multiple keys to ${this.storageType}:`, error.message);
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    try {
+      // 直接 await
+      await this.storage.set(data);
+    } catch (error) {
+      console.warn(`[StorageService] Failed to write multiple keys to ${this.storageType}:`, (error as Error).message);
+      throw error;
+    }
   }
 
+  // --- 重构为原生 Promise ---
   async remove(key: StorageKey): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.storage.remove(key, () => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to remove "${key}" from ${this.storageType}:`, error.message);
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    try {
+      // 直接 await
+      await this.storage.remove(key);
+    } catch (error) {
+      console.warn(`[StorageService] Failed to remove "${key}" from ${this.storageType}:`, (error as Error).message);
+      throw error;
+    }
   }
 
+  // --- 重构为原生 Promise ---
   async removeMultiple(keys: StorageKey[]): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.storage.remove(keys, () => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to remove multiple keys from ${this.storageType}:`, error.message);
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    try {
+      // 直接 await
+      await this.storage.remove(keys);
+    } catch (error) {
+      console.warn(`[StorageService] Failed to remove multiple keys from ${this.storageType}:`, (error as Error).message);
+      throw error;
+    }
   }
 
+  // --- 重构为原生 Promise ---
   async clear(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.storage.clear(() => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to clear ${this.storageType}:`, error.message);
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    try {
+      // 直接 await
+      await this.storage.clear();
+    } catch (error) {
+      console.warn(`[StorageService] Failed to clear ${this.storageType}:`, (error as Error).message);
+      throw error;
+    }
   }
 
+  // --- 重构为原生 Promise ---
   async getAllKeys(): Promise<string[]> {
-    return new Promise((resolve) => {
-      this.storage.get(null, (items) => {
-        const error = chrome.runtime?.lastError;
-        if (error) {
-          console.warn(`[StorageService] Failed to get all keys from ${this.storageType}:`, error.message);
-          resolve([]);
-          return;
-        }
-        resolve(items ? Object.keys(items) : []);
-      });
-    });
+    try {
+      // .get(null) 获取所有
+      const items = await this.storage.get(null);
+      return items ? Object.keys(items) : [];
+    } catch (error) {
+      console.warn(`[StorageService] Failed to get all keys from ${this.storageType}:`, (error as Error).message);
+      return [];
+    }
   }
 }
 

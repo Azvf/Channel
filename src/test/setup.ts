@@ -4,14 +4,18 @@ import '@testing-library/jest-dom';
 global.chrome = {
   storage: {
     local: {
-      get: jest.fn((_keys, callback) => callback({})),
-      set: jest.fn((_items, callback) => callback?.()),
-      remove: jest.fn((_keys, callback) => callback?.()),
-      clear: jest.fn((callback) => callback?.()),
+      // --- 修改为返回 Promise ---
+      get: jest.fn((_keys) => Promise.resolve({})),
+      set: jest.fn(() => Promise.resolve()),
+      remove: jest.fn(() => Promise.resolve()),
+      clear: jest.fn(() => Promise.resolve()),
+      // --- 结束 ---
     },
     sync: {
-      get: jest.fn((_keys, callback) => callback({})),
-      set: jest.fn((_items, callback) => callback?.()),
+      // --- 修改为返回 Promise ---
+      get: jest.fn((_keys) => Promise.resolve({})),
+      set: jest.fn(() => Promise.resolve()),
+      // --- 结束 ---
     },
   },
   tabs: {
@@ -34,7 +38,9 @@ global.chrome = {
     },
     onMessage: {
       addListener: jest.fn(),
+      hasListener: jest.fn(() => true), // 添加这个
     },
+    lastError: undefined, // 确保 lastError 为 undefined
   },
   scripting: {
     executeScript: jest.fn(() => Promise.resolve([{ result: null }])),
