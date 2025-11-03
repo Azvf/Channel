@@ -7,8 +7,7 @@ export class TagManager {
   private tags: TagsCollection = {};
   private pages: PageCollection = {};
 
-  // 添加一个 promise 来跟踪初始化状态
-  private initPromise: Promise<void> | null = null;
+  private isInitialized = false;
 
   private constructor() {
     // 构造函数中不进行异步操作
@@ -21,26 +20,24 @@ export class TagManager {
     return TagManager.instance;
   }
 
-  // 修改 initialize 方法使其幂等
-  public async initialize(): Promise<void> {
-    if (this.initPromise) {
-      // 如果已经在初始化中，或已完成，则直接等待
-      return this.initPromise;
+  /**
+   * (重构) 使用传入的数据同步初始化 TagManager
+   * 保持幂等性（防止重复初始化）
+   */
+  public initialize(data: { tags?: TagsCollection | null; pages?: PageCollection | null }): void {
+    if (this.isInitialized) {
+      return; // 已经初始化
     }
     
-    // 开始初始化，并保存 promise
-    this.initPromise = (async () => {
-      try {
-        await this.loadFromStorage();
-      } catch (error) {
-        // 如果失败，重置 promise 允许重试
-        this.initPromise = null;
-        console.error('TagManager 初始化失败:', error);
-        throw error; // 重新抛出错误
-      }
-    })();
-    
-    return this.initPromise;
+    try {
+      this.tags = data.tags || {};
+      this.pages = data.pages || {};
+      this.isInitialized = true; // 标记为已初始化
+    } catch (error) {
+      console.error('TagManager 初始化失败:', error);
+      this.isInitialized = false; // 失败时重置
+      throw error;
+    }
   }
 
   // 标签管理（无父子层级）
@@ -423,20 +420,7 @@ export class TagManager {
 
   // 已移除层级递归收集
 
-  private async loadFromStorage(): Promise<void> {
-    try {
-      const storageData = await storageService.getMultiple([
-        STORAGE_KEYS.TAGS,
-        STORAGE_KEYS.PAGES
-      ]);
-
-      this.tags = (storageData[STORAGE_KEYS.TAGS] as TagsCollection | null) || {};
-      this.pages = (storageData[STORAGE_KEYS.PAGES] as PageCollection | null) || {};
-      
-    } catch (error) {
-      console.error('加载存储数据失败:', error);
-    }
-  }
+  // loadFromStorage 已移除，数据加载现在在 background.ts 中完成
 
   private async saveToStorage(): Promise<void> {
     try {
@@ -458,7 +442,20 @@ export class TagManager {
 
   // 重新加载存储数据
   public async reloadFromStorage(): Promise<void> {
-    await this.loadFromStorage();
+    // 此方法现在必须获取数据并重新初始化
+    try {
+      const storageData = await storageService.getMultiple([
+        STORAGE_KEYS.TAGS,
+        STORAGE_KEYS.PAGES
+      ]);
+      this.isInitialized = false; // 强制重新初始化
+      this.initialize({
+        tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,
+        pages: storageData[STORAGE_KEYS.PAGES] as PageCollection | null
+      });
+    } catch (error) {
+      console.error('重新加载存储数据失败:', error);
+    }
   }
 
   /**

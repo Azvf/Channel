@@ -4,6 +4,7 @@
 import { TagManager } from '../services/tagManager';
 import { syncStorageService, storageService, STORAGE_KEYS } from '../services/storageService';
 import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../types/pageSettings';
+import { TagsCollection, PageCollection } from '../types/gameplayTag';
 
 const tagManager = TagManager.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
@@ -15,7 +16,7 @@ const getInitializationPromise = (() => {
     
     return () => {
         if (initPromise) {
-            return initPromise; // 如果已在进行或已完成，返回它
+            return initPromise; // 返回已有的 promise
         }
         
         // 启动初始化
@@ -23,15 +24,27 @@ const getInitializationPromise = (() => {
             try {
                 console.log('Background: 启动初始化...');
                 
-                // tagManager.initialize() 已经是幂等的，但我们在这里再次确保
-                await tagManager.initialize();
+                // 在一个并行的 Promise.all 中获取所有数据
+                const data = await storageService.getMultiple([
+                  STORAGE_KEYS.TAGS,
+                  STORAGE_KEYS.PAGES,
+                  STORAGE_KEYS.PAGE_SETTINGS
+                ]);
+
+                // 1. 同步初始化 TagManager
+                tagManager.initialize({
+                  tags: data[STORAGE_KEYS.TAGS] as TagsCollection | null,
+                  pages: data[STORAGE_KEYS.PAGES] as PageCollection | null
+                });
                 
-                const pageSettings = await storageService.get<PageSettings>(STORAGE_KEYS.PAGE_SETTINGS);
+                // 2. 同步设置 PageSettings
+                const pageSettings = data[STORAGE_KEYS.PAGE_SETTINGS] as PageSettings | null;
                 currentPageSettings = {
                     syncVideoTimestamp: typeof pageSettings?.syncVideoTimestamp === 'boolean' 
                         ? pageSettings.syncVideoTimestamp 
                         : DEFAULT_PAGE_SETTINGS.syncVideoTimestamp,
                 };
+
                 console.log('Background: 初始化完成。');
             } catch (e) {
                 console.error('Background: 初始化失败:', e);
@@ -70,7 +83,7 @@ chrome.runtime.onInstalled.addListener(async (_details) => {
 //    在顶层同步注册 onMessage 监听器（不能有任何顶层 await）
 //    注意：顶层代码必须只包含同步操作，所有 await 必须在事件处理器内部
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    // 5. 使用一个 async IIFE 来处理 Promise，同时同步返回 true
+    // 5. 使用 IIFE 来处理异步操作，同时保持消息通道开放
     (async () => {
         try {
             // 6. **在所有操作之前**，等待共享的初始化 Promise 完成
@@ -115,7 +128,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     break;
                     
                 default:
-                    sendResponse({ error: '未知操作' });
+                    sendResponse({ success: false, error: '未知操作' });
             }
         } catch (initError) {
             const errorMessage = initError instanceof Error ? initError.message : String(initError);
@@ -124,7 +137,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     })();
     
-    // 8. **立即**同步返回 true，以保持消息通道开放
+    // 8. **返回 true 保持消息通道开放**
     return true;
 });
 
@@ -150,14 +163,15 @@ async function handleGetTabInfo(tabId: number | undefined, sendResponse: (respon
         });
     } catch (error) {
         console.error('获取标签页信息失败:', error);
-        sendResponse({ error: '获取标签页信息失败' });
+        const errorMessage = error instanceof Error ? error.message : '获取标签页信息失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
 async function handleChangePageColor(tabId: number | undefined, sendResponse: (response: any) => void) {
     try {
         if (!tabId) {
-            sendResponse({ error: '无法获取标签页ID' });
+            sendResponse({ success: false, error: '无法获取标签页ID' });
             return;
         }
         
@@ -171,7 +185,8 @@ async function handleChangePageColor(tabId: number | undefined, sendResponse: (r
         sendResponse({ success: true, message: '页面颜色已改变' });
     } catch (error) {
         console.error('改变页面颜色失败:', error);
-        sendResponse({ error: '改变页面颜色失败' });
+        const errorMessage = error instanceof Error ? error.message : '改变页面颜色失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
@@ -187,23 +202,31 @@ async function handleShowNotification(sendResponse: (response: any) => void) {
             });
             sendResponse({ success: true, message: '通知已发送' });
         } else {
-            sendResponse({ error: '通知功能不可用' });
+            sendResponse({ success: false, error: '通知功能不可用' });
         }
     } catch (error) {
         console.error('显示通知失败:', error);
-        sendResponse({ error: '显示通知失败' });
+        const errorMessage = error instanceof Error ? error.message : '显示通知失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
 async function handleGetCurrentPage(sendResponse: (response: any) => void) {
+    console.log('[handleGetCurrentPage] 开始处理请求');
     try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        console.log('[handleGetCurrentPage] 查询到标签页数量:', tabs?.length);
+        
         if (!tabs || tabs.length === 0) {
+            console.error('[handleGetCurrentPage] 没有找到活动标签页');
             throw new Error('无法获取当前标签页');
         }
 
         const tab = tabs[0];
+        console.log('[handleGetCurrentPage] 活动标签页 URL:', tab.url);
+        
         if (!tab || !tab.id || !tab.url) {
+            console.error('[handleGetCurrentPage] 无效的标签页信息');
             throw new Error('无效的标签页');
         }
         
@@ -228,11 +251,15 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void) {
             }
         }
         
+        console.log('[handleGetCurrentPage] 准备调用 tagManager.getCurrentTabAndRegisterPage');
         const page = await tagManager.getCurrentTabAndRegisterPage(resolvedUrl);
+        console.log('[handleGetCurrentPage] 成功获取页面，准备发送响应');
         sendResponse({ success: true, data: page });
+        console.log('[handleGetCurrentPage] 响应已发送');
     } catch (error) {
-        console.error('获取当前页面失败:', error);
+        console.error('[handleGetCurrentPage] 发生错误:', error);
         const errorMessage = error instanceof Error ? error.message : '获取当前页面失败';
+        console.error('[handleGetCurrentPage] 发送错误响应:', errorMessage);
         sendResponse({ success: false, error: errorMessage });
     }
 }
@@ -303,7 +330,8 @@ async function handleGetAllTags(sendResponse: (response: any) => void) {
         sendResponse({ success: true, data: tags });
     } catch (error) {
         console.error('获取所有标签失败:', error);
-        sendResponse({ error: '获取所有标签失败' });
+        const errorMessage = error instanceof Error ? error.message : '获取所有标签失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
@@ -313,14 +341,15 @@ async function handleGetAllTaggedPages(sendResponse: (response: any) => void) {
         sendResponse({ success: true, data: pages });
     } catch (error) {
         console.error('获取所有标签页失败:', error);
-        sendResponse({ error: '获取所有标签页失败' });
+        const errorMessage = error instanceof Error ? error.message : '获取所有标签页失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
 async function handleCreateTag(data: any, sendResponse: (response: any) => void) {
     try {
         if (!data.name) {
-            sendResponse({ error: '标签名称不能为空' });
+            sendResponse({ success: false, error: '标签名称不能为空' });
             return;
         }
         
@@ -329,14 +358,15 @@ async function handleCreateTag(data: any, sendResponse: (response: any) => void)
         sendResponse({ success: true, data: tag });
     } catch (error) {
         console.error('创建标签失败:', error);
-        sendResponse({ error: error instanceof Error ? error.message : '创建标签失败' });
+        const errorMessage = error instanceof Error ? error.message : '创建标签失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
 async function handleAddTagToPage(data: any, sendResponse: (response: any) => void) {
     try {
         if (!data.pageId || !data.tagId) {
-            sendResponse({ error: '页面ID和标签ID不能为空' });
+            sendResponse({ success: false, error: '页面ID和标签ID不能为空' });
             return;
         }
         
@@ -345,18 +375,19 @@ async function handleAddTagToPage(data: any, sendResponse: (response: any) => vo
             await tagManager.syncToStorage();
             sendResponse({ success: true });
         } else {
-            sendResponse({ error: '添加标签到页面失败' });
+            sendResponse({ success: false, error: '添加标签到页面失败' });
         }
     } catch (error) {
         console.error('添加标签到页面失败:', error);
-        sendResponse({ error: '添加标签到页面失败' });
+        const errorMessage = error instanceof Error ? error.message : '添加标签到页面失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
 async function handleCreateTagAndAddToPage(data: any, sendResponse: (response: any) => void) {
     try {
         if (!data.tagName || !data.pageId) {
-            sendResponse({ error: '标签名称和页面ID不能为空' });
+            sendResponse({ success: false, error: '标签名称和页面ID不能为空' });
             return;
         }
         
@@ -365,14 +396,15 @@ async function handleCreateTagAndAddToPage(data: any, sendResponse: (response: a
         sendResponse({ success: true, data: tag });
     } catch (error) {
         console.error('创建标签并添加到页面失败:', error);
-        sendResponse({ error: error instanceof Error ? error.message : '创建标签并添加到页面失败' });
+        const errorMessage = error instanceof Error ? error.message : '创建标签并添加到页面失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
 async function handleRemoveTagFromPage(data: any, sendResponse: (response: any) => void) {
     try {
         if (!data.pageId || !data.tagId) {
-            sendResponse({ error: '页面ID和标签ID不能为空' });
+            sendResponse({ success: false, error: '页面ID和标签ID不能为空' });
             return;
         }
         
@@ -381,18 +413,19 @@ async function handleRemoveTagFromPage(data: any, sendResponse: (response: any) 
             await tagManager.syncToStorage();
             sendResponse({ success: true });
         } else {
-            sendResponse({ error: '从页面移除标签失败' });
+            sendResponse({ success: false, error: '从页面移除标签失败' });
         }
     } catch (error) {
         console.error('从页面移除标签失败:', error);
-        sendResponse({ error: '从页面移除标签失败' });
+        const errorMessage = error instanceof Error ? error.message : '从页面移除标签失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 
 async function handleUpdatePageTitle(data: any, sendResponse: (response: any) => void) {
     try {
         if (!data.pageId || !data.title) {
-            sendResponse({ error: '页面ID和标题不能为空' });
+            sendResponse({ success: false, error: '页面ID和标题不能为空' });
             return;
         }
         
@@ -401,11 +434,12 @@ async function handleUpdatePageTitle(data: any, sendResponse: (response: any) =>
             await tagManager.syncToStorage();
             sendResponse({ success: true });
         } else {
-            sendResponse({ error: '更新页面标题失败' });
+            sendResponse({ success: false, error: '更新页面标题失败' });
         }
     } catch (error) {
         console.error('更新页面标题失败:', error);
-        sendResponse({ error: '更新页面标题失败' });
+        const errorMessage = error instanceof Error ? error.message : '更新页面标题失败';
+        sendResponse({ success: false, error: errorMessage });
     }
 }
 

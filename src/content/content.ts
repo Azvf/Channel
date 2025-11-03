@@ -4,37 +4,28 @@
 
 // 监听来自background script的消息
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    
-    // 用于标记是否需要异步响应
-    let isAsync = false;
-    
     switch (message.action) {
         case 'getPageInfo':
             handleGetPageInfo(sendResponse);
-            isAsync = true; // 标记为异步
-            break;
+            return true; // 标记为异步
             
         case 'highlightText':
             handleHighlightText(message.text, sendResponse);
-            isAsync = true; // 标记为异步
-            break;
+            return true; // 标记为异步
             
         case 'addCustomStyle':
             handleAddCustomStyle(message.css, sendResponse);
-            isAsync = true; // 标记为异步
-            break;
+            return true; // 标记为异步
             
         default:
-            // ** 关键修复 **
-            // 消息不是发给我的，忽略它。
-            // 不要调用 sendResponse()，也不要返回 true。
-            // 这允许 background.ts 有机会处理这个消息。
-            isAsync = false;
+            // ** 修复：消息不是发给我的，忽略它 **
+            // 通过不返回任何值（返回 undefined）来表明不处理此消息
+            // 这允许 background.ts 有机会处理这个消息
             break;
     }
     
-    // 只有当我们明确处理了某个 case 并需要异步响应时，才返回 true。
-    return isAsync;
+    // 如果没有匹配到任何 case，函数默认返回 undefined
+    // 这是正确的行为，表示消息未被此监听器处理
 });
 
 // 获取页面信息

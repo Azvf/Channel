@@ -40,7 +40,8 @@ export const testHelpers = {
    */
   async initTagManager(): Promise<TagManager> {
     const tagManager = TagManager.getInstance();
-    await tagManager.initialize();
+    // (重构) 使用空数据同步调用 initialize
+    tagManager.initialize({ tags: {}, pages: {} });
     return tagManager;
   },
 };
