@@ -25,9 +25,11 @@ export function GlassInput({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(-1); // 当前选中的下拉菜单选项索引
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]); // 下拉菜单按钮的引用数组
   const wasShowingRef = useRef(false);
 
   useEffect(() => {
@@ -36,6 +38,8 @@ export function GlassInput({
         s.toLowerCase().includes(value.toLowerCase()) && s !== value
       );
       setFilteredSuggestions(filtered);
+      // 重置选中索引，因为列表变化了
+      setSelectedIndex(-1);
       if (filtered.length > 0) {
         // 使用 setTimeout 确保 DOM 更新后再触发动画
         setTimeout(() => setShowSuggestions(true), 10);
@@ -44,6 +48,7 @@ export function GlassInput({
       }
     } else {
       setFilteredSuggestions(suggestions);
+      setSelectedIndex(-1);
       setShowSuggestions(false);
     }
   }, [value, suggestions]);
@@ -52,6 +57,7 @@ export function GlassInput({
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+        setSelectedIndex(-1);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -102,14 +108,65 @@ export function GlassInput({
       onChange(suggestion);
     }
     setShowSuggestions(false);
+    setSelectedIndex(-1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Handle Tab key to autocomplete first suggestion
-    if (e.key === 'Tab' && filteredSuggestions.length > 0 && showSuggestions) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (filteredSuggestions.length > 0) {
+        // 如果下拉菜单没有显示，先显示它
+        if (!showSuggestions) {
+          setTimeout(() => setShowSuggestions(true), 10);
+        }
+        // 移动到下一个选项（循环）
+        setSelectedIndex((prev) => {
+          const nextIndex = prev < filteredSuggestions.length - 1 ? prev + 1 : 0;
+          // 滚动到可见区域
+          setTimeout(() => {
+            suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
+              block: 'nearest',
+              behavior: 'smooth'
+            });
+          }, 0);
+          return nextIndex;
+        });
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filteredSuggestions.length > 0) {
+        // 如果下拉菜单没有显示，先显示它
+        if (!showSuggestions) {
+          setTimeout(() => setShowSuggestions(true), 10);
+        }
+        // 移动到上一个选项（循环）
+        setSelectedIndex((prev) => {
+          const nextIndex = prev > 0 ? prev - 1 : filteredSuggestions.length - 1;
+          // 滚动到可见区域
+          setTimeout(() => {
+            suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
+              block: 'nearest',
+              behavior: 'smooth'
+            });
+          }, 0);
+          return nextIndex;
+        });
+      }
+    } else if (e.key === "Enter") {
+      if (selectedIndex >= 0 && selectedIndex < filteredSuggestions.length && showSuggestions) {
+        // 如果有选中的选项，使用选中的选项
+        e.preventDefault();
+        handleSelect(filteredSuggestions[selectedIndex]);
+      }
+    } else if (e.key === 'Tab' && filteredSuggestions.length > 0 && showSuggestions) {
+      // Handle Tab key to autocomplete first suggestion
       e.preventDefault();
       onChange(filteredSuggestions[0]);
       setShowSuggestions(false);
+      setSelectedIndex(-1);
+    } else {
+      // 其他按键输入时，重置选中索引
+      setSelectedIndex(-1);
     }
     
     // Call parent's onKeyDown handler if provided
@@ -206,24 +263,36 @@ export function GlassInput({
                 {filteredSuggestions.map((suggestion, index) => (
                   <button
                     key={index}
+                    ref={(el) => {
+                      suggestionButtonsRef.current[index] = el;
+                    }}
                     onClick={() => handleSelect(suggestion)}
                     className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2"
                     style={{ 
-                      color: 'var(--c-content)',
+                      color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
                       fontFamily: '"DM Sans", sans-serif',
                       fontSize: '0.9rem',
                       fontWeight: 400,
                       letterSpacing: '0.01em',
                       width: 'calc(100% - 1rem)',
-                      background: 'transparent'
+                      background: selectedIndex === index 
+                        ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
+                        : 'transparent'
                     }}
                     onMouseEnter={(e) => {
+                      setSelectedIndex(index);
                       e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
                       e.currentTarget.style.color = 'var(--c-action)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--c-content)';
+                      // 注意：这里不重置selectedIndex，保持键盘导航的状态
+                      // 只有当鼠标悬停时才更新索引，但离开时不重置
+                      e.currentTarget.style.background = selectedIndex === index 
+                        ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
+                        : 'transparent';
+                      e.currentTarget.style.color = selectedIndex === index 
+                        ? 'var(--c-action)' 
+                        : 'var(--c-content)';
                     }}
                   >
                     {suggestion}

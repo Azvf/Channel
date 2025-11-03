@@ -33,7 +33,7 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
     }
   }, [forceClose]);
 
-  // (V5) 核心定位逻辑 (Proximity First, Center Fallback)
+  // (V6) 核心定位逻辑 (Proximity First, Fallback Chain)
   useEffect(() => {
     if (showPreview && faviconRef.current && previewCardRef.current) {
       
@@ -68,32 +68,44 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
       } else {
         // 优先级3: 放在视口中心
         left = (viewportWidth / 2) - (previewWidth / 2);
-        // 并再次钳制 (以防视口过窄)
         left = Math.max(VIEWPORT_MARGIN, Math.min(left, viewportWidth - previewWidth - VIEWPORT_MARGIN));
       }
 
-      // --- 2. (V5 核心修复) 垂直定位 (Proximity First, Center Fallback) ---
+      // --- 2. (V6 核心修复) 垂直定位 (Proximity First, Fallback Chain) ---
       
-      // 优先级1: 尝试将卡片中线与图标中线对齐
+      // P1: 尝试将卡片中线与图标中线对齐
       const idealTop = iconRect.top + (iconRect.height / 2) - (previewHeight / 2);
-      
-      // 检查这个理想位置是否*完全*适合屏幕 (在边距内)
-      const fitsVertically = (idealTop > VIEWPORT_MARGIN) && 
+      const idealTopFits = (idealTop > VIEWPORT_MARGIN) && 
                              (idealTop + previewHeight < viewportHeight - VIEWPORT_MARGIN);
 
+      // P2: 尝试放在图标下方
+      const topBelow = iconRect.bottom + ICON_GAP;
+      const fitsBelow = (topBelow + previewHeight < viewportHeight - VIEWPORT_MARGIN);
+
+      // P3: 尝试放在图标上方
+      const topAbove = iconRect.top - previewHeight - ICON_GAP;
+      const fitsAbove = (topAbove > VIEWPORT_MARGIN);
+
       let top = 0;
-      if (fitsVertically) {
+      
+      if (idealTopFits) {
         // P1 成功: 位置完美，直接使用
         top = idealTop;
+      } else if (fitsBelow) {
+        // P2 成功: P1 失败 (图标靠上), 回退到下方
+        top = topBelow;
+      } else if (fitsAbove) {
+        // P3 成功: P1/P2 失败 (图标靠下), 回退到上方
+        // 这将修复你遇到的 "靠近底部时飞到中心" 的问题
+        top = topAbove;
       } else {
-        // P1 失败: (图标太靠上或太靠下)
-        // 放弃 P1，回退到 P2：视口绝对居中
+        // P4 失败: P1/P2/P3 都失败 (屏幕太小), 回退到视口居中
         top = (viewportHeight / 2) - (previewHeight / 2);
-        
-        // 仍然要对 P2 进行钳制，以防视口比卡片还小
-        top = Math.max(VIEWPORT_MARGIN, top);
-        top = Math.min(top, viewportHeight - previewHeight - VIEWPORT_MARGIN);
       }
+      
+      // P5: 最终安全钳制 (确保 P4 也不会溢出)
+      top = Math.max(VIEWPORT_MARGIN, top);
+      top = Math.min(top, viewportHeight - previewHeight - VIEWPORT_MARGIN);
       
       setPreviewPosition({ top, left });
     }
@@ -113,7 +125,7 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
   const handleMouseEnter = () => {
     hoverTimerRef.current = setTimeout(() => {
       setShowPreview(true);
-    }, 500);
+    }, 300);
   };
 
   const handleMouseLeave = () => {

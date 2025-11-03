@@ -22,10 +22,12 @@ export function TagInput({
   const [isAnimating, setIsAnimating] = useState(false);
   const [shouldShowDropdown, setShouldShowDropdown] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(-1); // 当前选中的下拉菜单选项索引
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const contentWrapperRef = useRef<HTMLDivElement>(null);
+  const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]); // 下拉菜单按钮的引用数组
   const wasShowingRef = useRef(false);
   const manuallyOpenedRef = useRef(false); // 跟踪是否是手动展开的
   const prevInputValueRef = useRef<string>(inputValue); // 跟踪上一次的inputValue
@@ -166,6 +168,8 @@ export function TagInput({
       // 重置标记（已完成添加tag的检测）
       isAddingTagRef.current = false;
       inputValueBeforeTagAddRef.current = "";
+      // 重置选中索引
+      setSelectedIndex(-1);
       // 更新refs后返回
       prevInputValueRef.current = inputValue;
       return;
@@ -184,6 +188,8 @@ export function TagInput({
         !tags.includes(s)
       );
       setFilteredSuggestions(filtered);
+      // 重置选中索引，因为列表变化了
+      setSelectedIndex(-1);
       if (filtered.length > 0) {
         setShowSuggestions(true);
         manuallyOpenedRef.current = false; // 自动展开，不是手动
@@ -198,12 +204,15 @@ export function TagInput({
       // 输入框为空：只有手动展开时才显示所有可用的suggestions
       const filtered = suggestions.filter(s => !tags.includes(s));
       setFilteredSuggestions(filtered);
+      // 重置选中索引，因为列表变化了
+      setSelectedIndex(-1);
       // 如果之前是手动展开的，保持展开；否则关闭
       if (!manuallyOpenedRef.current) {
         setShowSuggestions(false);
       }
     } else {
       setFilteredSuggestions([]);
+      setSelectedIndex(-1);
       if (!manuallyOpenedRef.current) {
         setShowSuggestions(false);
       }
@@ -220,6 +229,7 @@ export function TagInput({
         setShowSuggestions(false);
         setShouldShowDropdown(false);
         manuallyOpenedRef.current = false;
+        setSelectedIndex(-1);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -291,12 +301,64 @@ export function TagInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && inputValue.trim()) {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      addTag(inputValue);
+      if (filteredSuggestions.length > 0) {
+        // 如果下拉菜单没有显示，先显示它
+        if (!showSuggestions) {
+          setShowSuggestions(true);
+          manuallyOpenedRef.current = false;
+        }
+        // 移动到下一个选项（循环）
+        setSelectedIndex((prev) => {
+          const nextIndex = prev < filteredSuggestions.length - 1 ? prev + 1 : 0;
+          // 滚动到可见区域
+          setTimeout(() => {
+            suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
+              block: 'nearest',
+              behavior: 'smooth'
+            });
+          }, 0);
+          return nextIndex;
+        });
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filteredSuggestions.length > 0) {
+        // 如果下拉菜单没有显示，先显示它
+        if (!showSuggestions) {
+          setShowSuggestions(true);
+          manuallyOpenedRef.current = false;
+        }
+        // 移动到上一个选项（循环）
+        setSelectedIndex((prev) => {
+          const nextIndex = prev > 0 ? prev - 1 : filteredSuggestions.length - 1;
+          // 滚动到可见区域
+          setTimeout(() => {
+            suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
+              block: 'nearest',
+              behavior: 'smooth'
+            });
+          }, 0);
+          return nextIndex;
+        });
+      }
+    } else if (e.key === "Enter") {
+      if (selectedIndex >= 0 && selectedIndex < filteredSuggestions.length && showSuggestions) {
+        // 如果有选中的选项，使用选中的选项
+        e.preventDefault();
+        handleSelect(filteredSuggestions[selectedIndex]);
+      } else if (inputValue.trim()) {
+        // 否则，使用输入框的值
+        e.preventDefault();
+        addTag(inputValue);
+      }
     } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
       e.preventDefault();
       removeTag(tags.length - 1);
+    } else {
+      // 其他按键输入时，重置选中索引
+      setSelectedIndex(-1);
     }
   };
 
@@ -305,6 +367,8 @@ export function TagInput({
     setShowSuggestions(false);
     setShouldShowDropdown(false);
     manuallyOpenedRef.current = false;
+    // 重置选中索引
+    setSelectedIndex(-1);
     // 然后添加tag（addTag会按正确顺序更新状态，useEffect会检测到是添加tag并保持menu关闭）
     addTag(suggestion);
     inputRef.current?.focus();
@@ -318,77 +382,84 @@ export function TagInput({
         <div className="liquidGlass-content">
           <div 
             ref={contentWrapperRef}
-            className="flex flex-wrap gap-2 items-center px-5 py-3 min-h-[3.2rem]"
+            className="min-h-[3.2rem]" // 移除 flex 样式，只保留 min-h
             style={{
               willChange: 'height', // 提示浏览器优化高度变化
-              backfaceVisibility: 'hidden' // 防止重绘问题
+              backfaceVisibility: 'hidden', // 防止重绘问题
+              overflow: 'hidden' // 关键：添加 overflow: hidden 来裁切内部内容
             }}
           >
-            {tags.map((tag, index) => (
-              <Tag 
-                key={`${tag}-${index}`}
-                label={tag} 
-                onRemove={() => removeTag(index)}
-              />
-            ))}
-            
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => {
-                // 只有当输入框有内容时才自动显示下拉菜单
-                if (suggestions.length > 0 && inputValue.trim() && !isAddingTagRef.current) {
-                  setShowSuggestions(true);
-                  manuallyOpenedRef.current = false;
-                }
-              }}
-              placeholder={tags.length === 0 ? placeholder : ""}
-              className="flex-1 min-w-[140px] bg-transparent outline-none"
-              style={{ 
-                color: 'var(--c-content)',
-                fontFamily: '"DM Sans", sans-serif',
-                fontSize: '0.9rem',
-                fontWeight: 400,
-                letterSpacing: '0.01em'
-              }}
-            />
-            
-            {/* Dropdown indicator */}
-            {suggestions.length > 0 && (
-              <button
-                onClick={() => {
-                  const newShowState = !showSuggestions;
-                  setShowSuggestions(newShowState);
-                  manuallyOpenedRef.current = newShowState; // 手动点击按钮展开/关闭
-                  if (!newShowState) {
-                    // 关闭时重置状态
-                    setShouldShowDropdown(false);
+            {/* 创建新的内部 flex 容器 */}
+            <div
+              className="flex flex-wrap gap-2 items-center px-5 py-3" // 将所有 flex 和 padding 样式移到这里
+              style={{ height: 'auto' }} // 确保内部容器高度始终自动
+            >
+              {tags.map((tag, index) => (
+                <Tag 
+                  key={`${tag}-${index}`}
+                  label={tag} 
+                  onRemove={() => removeTag(index)}
+                />
+              ))}
+              
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onFocus={() => {
+                  // 只有当输入框有内容时才自动显示下拉菜单
+                  if (suggestions.length > 0 && inputValue.trim() && !isAddingTagRef.current) {
+                    setShowSuggestions(true);
+                    manuallyOpenedRef.current = false;
                   }
                 }}
-                className="p-1.5 rounded-full flex-shrink-0 transition-all"
+                placeholder={tags.length === 0 ? placeholder : ""}
+                className="flex-1 min-w-[140px] bg-transparent outline-none"
                 style={{ 
-                  color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
-                  background: showSuggestions ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' : 'transparent'
+                  color: 'var(--c-content)',
+                  fontFamily: '"DM Sans", sans-serif',
+                  fontSize: '0.9rem',
+                  fontWeight: 400,
+                  letterSpacing: '0.01em'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--c-action)';
-                  if (!showSuggestions) {
-                    e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 60%, transparent)';
-                  if (!showSuggestions) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-              >
-                <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
-              </button>
-            )}
+              />
+              
+              {/* Dropdown indicator */}
+              {suggestions.length > 0 && (
+                <button
+                  onClick={() => {
+                    const newShowState = !showSuggestions;
+                    setShowSuggestions(newShowState);
+                    manuallyOpenedRef.current = newShowState; // 手动点击按钮展开/关闭
+                    if (!newShowState) {
+                      // 关闭时重置状态
+                      setShouldShowDropdown(false);
+                    }
+                  }}
+                  className="p-1.5 rounded-full flex-shrink-0 transition-all"
+                  style={{ 
+                    color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+                    background: showSuggestions ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' : 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--c-action)';
+                    if (!showSuggestions) {
+                      e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 60%, transparent)';
+                    if (!showSuggestions) {
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -422,24 +493,36 @@ export function TagInput({
                 {filteredSuggestions.map((suggestion, index) => (
                   <button
                     key={index}
+                    ref={(el) => {
+                      suggestionButtonsRef.current[index] = el;
+                    }}
                     onClick={() => handleSelect(suggestion)}
                     className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2"
                     style={{ 
-                      color: 'var(--c-content)',
+                      color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
                       fontFamily: '"DM Sans", sans-serif',
                       fontSize: '0.9rem',
                       fontWeight: 400,
                       letterSpacing: '0.01em',
                       width: 'calc(100% - 1rem)',
-                      background: 'transparent'
+                      background: selectedIndex === index 
+                        ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
+                        : 'transparent'
                     }}
                     onMouseEnter={(e) => {
+                      setSelectedIndex(index);
                       e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
                       e.currentTarget.style.color = 'var(--c-action)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = 'var(--c-content)';
+                      // 注意：这里不重置selectedIndex，保持键盘导航的状态
+                      // 只有当鼠标悬停时才更新索引，但离开时不重置
+                      e.currentTarget.style.background = selectedIndex === index 
+                        ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
+                        : 'transparent';
+                      e.currentTarget.style.color = selectedIndex === index 
+                        ? 'var(--c-action)' 
+                        : 'var(--c-content)';
                     }}
                   >
                     {suggestion}
