@@ -42,5 +42,7 @@ export default {
   },
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
   testTimeout: 10000,
+  coverageReporters: ['text', 'lcov', 'html'],
+  coverageDirectory: 'coverage',
 };
 
