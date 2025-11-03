@@ -81,7 +81,7 @@ export interface IStorageService {
 }
 
 /**
- * Chrome Storage 包装器
+ * Chrome Storage 包装器 (使用原生 Promise)
  */
 class ChromeStorageWrapper implements IStorageService {
   constructor(
@@ -102,12 +102,9 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async get<T = unknown>(key: StorageKey): Promise<T | null> {
     try {
-      // 不再使用 new Promise，直接 await
       const items = await this.storage.get([key]);
-      // MV3/Promise API 会在出错时 throw，而不是设置 lastError
       return (items?.[key] as T | undefined) ?? null;
     } catch (error) {
       console.warn(`[StorageService] Failed to read "${key}" from ${this.storageType}:`, (error as Error).message);
@@ -115,10 +112,8 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async getMultiple<T = unknown>(keys: StorageKey[]): Promise<Record<string, T | null>> {
     try {
-      // 直接 await
       const items = await this.storage.get(keys);
       const result: Record<string, T | null> = {};
       for (const key of keys) {
@@ -131,11 +126,9 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async set<T = unknown>(key: StorageKey, value: T): Promise<void> {
     this.syncToLocalStorage(key, value);
     try {
-      // 直接 await
       await this.storage.set({ [key]: value });
     } catch (error) {
       console.warn(`[StorageService] Failed to write "${key}" to ${this.storageType}:`, (error as Error).message);
@@ -143,7 +136,6 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async setMultiple(data: Record<string, unknown>): Promise<void> {
     try {
       if (typeof localStorage !== 'undefined') {
@@ -152,11 +144,10 @@ class ChromeStorageWrapper implements IStorageService {
         }
       }
     } catch (error) {
-      // 忽略
+      // 忽略 localStorage 写入错误，不影响主流程
     }
     
     try {
-      // 直接 await
       await this.storage.set(data);
     } catch (error) {
       console.warn(`[StorageService] Failed to write multiple keys to ${this.storageType}:`, (error as Error).message);
@@ -164,10 +155,8 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async remove(key: StorageKey): Promise<void> {
     try {
-      // 直接 await
       await this.storage.remove(key);
     } catch (error) {
       console.warn(`[StorageService] Failed to remove "${key}" from ${this.storageType}:`, (error as Error).message);
@@ -175,10 +164,8 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async removeMultiple(keys: StorageKey[]): Promise<void> {
     try {
-      // 直接 await
       await this.storage.remove(keys);
     } catch (error) {
       console.warn(`[StorageService] Failed to remove multiple keys from ${this.storageType}:`, (error as Error).message);
@@ -186,10 +173,8 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async clear(): Promise<void> {
     try {
-      // 直接 await
       await this.storage.clear();
     } catch (error) {
       console.warn(`[StorageService] Failed to clear ${this.storageType}:`, (error as Error).message);
@@ -197,10 +182,8 @@ class ChromeStorageWrapper implements IStorageService {
     }
   }
 
-  // --- 重构为原生 Promise ---
   async getAllKeys(): Promise<string[]> {
     try {
-      // .get(null) 获取所有
       const items = await this.storage.get(null);
       return items ? Object.keys(items) : [];
     } catch (error) {
@@ -363,4 +346,3 @@ export const syncStorageService = StorageService.create('sync');
 
 // 导出类以便测试或特殊用途
 export { StorageService };
-
