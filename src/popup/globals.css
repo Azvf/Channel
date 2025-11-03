@@ -22,6 +22,15 @@
     
     --saturation: 150%;
     
+    /* 动画时间变量 */
+    --transition-fast: 200ms;
+    --transition-base: 300ms;
+    --transition-slow: 400ms;
+    
+    /* 缓动函数变量 */
+    --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-glass: cubic-bezier(1, 0.0, 0.4, 1);
+    
     font-size: 20px;
     font-family: "DM Sans", sans-serif;
     font-optical-sizing: auto;
@@ -35,7 +44,8 @@
   
   /* 只有当 body 有 data-theme-ready 属性时才启用过渡效果 */
   body[data-theme-ready] {
-    transition: background 400ms cubic-bezier(1, 0.0, 0.4, 1), color 400ms cubic-bezier(1, 0.0, 0.4, 1);
+    transition: background var(--transition-slow) var(--ease-glass), 
+                color var(--transition-slow) var(--ease-glass);
   }
   
   /* 如果 body 上有 data-theme-no-transition，强制禁用过渡 */
@@ -303,6 +313,29 @@ html {
 }
 
 /* ========================================
+   UTILITY CLASSES - 可复用样式
+   ======================================== */
+
+/* 防止选中文本 - 可复用类 */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* 可复用的过渡动画 */
+.transition-smooth {
+  transition: color var(--transition-fast) var(--ease-smooth),
+              scale var(--transition-fast) var(--ease-smooth);
+}
+
+.transition-glass {
+  transition: background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+}
+
+/* ========================================
    PREMIUM GLASS EFFECT STYLES
    Based on switcher design system
    ======================================== */
@@ -327,9 +360,8 @@ html {
     inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
     0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
     0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
-  transition: 
-    background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1);
+  transition: background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
 }
 
 .liquidGlass-content {
@@ -360,7 +392,7 @@ html {
     inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
     inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
     0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
-  transition: all 200ms cubic-bezier(0.5, 0, 0, 1);
+  transition: all var(--transition-fast) var(--ease-smooth);
 }
 
 .glass-button:hover {
@@ -413,7 +445,7 @@ html {
   /* 使用更平滑的 'ease-out' 曲线，持续 300ms
      使用 'will-change' 提示浏览器为 opacity 创建合成层 
   */
-  transition: opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity var(--transition-base) var(--ease-smooth);
   will-change: opacity;
 }
 
@@ -439,10 +471,10 @@ html {
     - 统一使用 300ms 持续时间
     - transform 动画用于 :hover 效果 (200ms)
   */
-  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              height 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              padding 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width var(--transition-base) var(--ease-smooth),
+              height var(--transition-base) var(--ease-smooth),
+              padding var(--transition-base) var(--ease-smooth),
+              transform var(--transition-fast) var(--ease-smooth);
   
   /* 移除可能冲突的 margin，因为使用 absolute 定位 */
   margin: 0;
@@ -460,12 +492,12 @@ html {
   justify-content: center;
   gap: 0;
   /* 确保 hover 过渡平滑 */
-  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              height 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              padding 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
-              gap 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              justify-content 300ms; /* 平滑过渡对齐方式 */
+  transition: width var(--transition-base) var(--ease-smooth),
+              height var(--transition-base) var(--ease-smooth),
+              padding var(--transition-base) var(--ease-smooth),
+              transform var(--transition-fast) var(--ease-smooth),
+              gap var(--transition-base) var(--ease-smooth),
+              justify-content var(--transition-base); /* 平滑过渡对齐方式 */
 }
 
 /* 折叠态的 :hover 效果 */
@@ -511,12 +543,14 @@ html {
     inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
     0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
     0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
-  transition: 
-    background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1);
+  transition: background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
 }
 
-/* Tab switcher specific styles */
+/* ========================================
+   TAB SWITCHER STYLES - 完全隔离
+   ======================================== */
+
 .tab-switcher {
   position: relative;
   width: 100%;
@@ -532,6 +566,15 @@ html {
   padding: 0 1.5rem;
 }
 
+.tab-switcher .switcher__option,
+.tab-switcher .switcher__icon-wrapper,
+.tab-switcher .switcher__label {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
 .tab-switcher .switcher__icon-wrapper {
   display: flex;
   align-items: center;
@@ -543,10 +586,27 @@ html {
 .tab-switcher .switcher__icon {
   width: 1.1rem;
   height: 1.1rem;
+  transition: color var(--transition-fast) var(--ease-smooth),
+              scale var(--transition-fast) var(--ease-smooth);
+}
+
+/* Tab switcher hover 动效 - 仅影响 tab-switcher */
+.tab-switcher .switcher__option:hover:not(:has(input:checked)) {
+  --c: var(--c-action);
+  cursor: pointer;
+}
+
+.tab-switcher .switcher__option:hover:not(:has(input:checked)) .switcher__icon {
+  scale: 1.15;
+}
+
+.tab-switcher .switcher__option:hover:not(:has(input:checked)) .switcher__label {
+  color: var(--c-action);
 }
 
 .tab-switcher .switcher__label {
-  transition: color 160ms;
+  transition: color var(--transition-fast);
+  pointer-events: none; /* 文字不可被点击，点击事件穿透到父级 label */
 }
 
 /* Override the ::after element for tab-switcher - restore sliding effect */
@@ -572,6 +632,12 @@ html {
     inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 4%), transparent), 
     0px 2px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 3%), transparent),
     0px 1px 2px 0px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
+  /* Tab switcher 滑块动画 - 使用变量 */
+  transition: left var(--transition-slow) var(--ease-smooth),
+              translate var(--transition-slow) var(--ease-smooth),
+              background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+  will-change: left, translate;
 }
 
 .switcher__legend {
@@ -600,9 +666,9 @@ html {
 .switcher__icon {
   display: block;
   width: 100%;
-  /* 添加颜色过渡，确保 hover 时颜色平滑变化 */
-  transition: color 200ms cubic-bezier(0.4, 0, 0.2, 1),
-              scale 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* 通用图标过渡 - theme-switcher 和 tab-switcher 都会继承 */
+  transition: color var(--transition-fast) var(--ease-smooth),
+              scale var(--transition-fast) var(--ease-smooth);
 }
 
 .switcher__filter {
@@ -625,31 +691,24 @@ html {
   position: relative;
   
   /*
-    动画:
+    动画 - 通用选项过渡（theme-switcher 使用）
     - 动画 width, opacity, 和 transform
-    - transform 实现了你想要的"从右侧滑入"
-    - 添加颜色过渡，确保 hover 时颜色平滑变化
+    - transform 实现了从右侧滑入效果
   */
-  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1), 
-              opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
-              transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width var(--transition-base) var(--ease-smooth), 
+              opacity var(--transition-fast) var(--ease-smooth),
+              transform var(--transition-base) var(--ease-smooth);
   will-change: width, opacity, transform;
 }
 
-/* 展开时图标的 :hover 效果 - 仅影响 theme-switcher */
-.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option:hover {
+/* Theme switcher hover 动效 - 完全隔离，不影响 tab-switcher */
+.theme-switcher-container .theme-switcher-expanded .switcher__option:hover {
   --c: var(--c-action);
   cursor: pointer;
 }
 
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option:hover .switcher__icon {
   scale: 1.2;
-}
-
-/* 折叠态图标的 :hover 效果 - 仅影响 theme-switcher */
-.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:hover {
-  --c: var(--c-action);
-  cursor: pointer;
 }
 
 .theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:hover .switcher__icon {
@@ -710,8 +769,8 @@ html {
   margin: 0; /* 确保无外边距 */
   flex-shrink: 0; /* 防止被压缩 */
   transition-delay: 0ms;
-  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1), /* 动画 width */
-              transform 300ms cubic-bezier(0.4, 0, 0.2, 1), /* 动画 transform */
+  transition: width var(--transition-base) var(--ease-smooth),
+              transform var(--transition-base) var(--ease-smooth),
               opacity 0ms; /* 保持可见，无过渡 */
 }
 
@@ -749,10 +808,11 @@ html {
     - 我们动画所有属性，以实现平滑形变
     - translate 动画是关键，确保滑块从右侧滑入到目标位置
   */
-  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              height 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              translate 400ms cubic-bezier(0.4, 0, 0.2, 1), /* 平移稍慢，更平滑 */
-              opacity 200ms cubic-bezier(0.4, 0, 0.2, 1); /* 添加 opacity 动画 */
+  /* Theme switcher 滑块动画 - 使用变量 */
+  transition: width var(--transition-base) var(--ease-smooth),
+              height var(--transition-base) var(--ease-smooth),
+              translate var(--transition-slow) var(--ease-smooth), /* 平移稍慢，更平滑 */
+              opacity var(--transition-fast) var(--ease-smooth);
   will-change: width, height, translate, opacity;
 }
 
@@ -818,53 +878,36 @@ html {
   translate: 7.6rem 0;
 }
 
-/* Tab switcher animations (2 options) */
-.tab-switcher:has(input[data-option="1"]:checked)::after {
+/* Tab switcher 滑块位置动画 - 使用变量 */
+.tab-switcher:has(input[data-option="1"]:checked)::after,
+.tab-switcher:has(input[data-option="2"]:checked)::after {
   width: calc((100% - 0.8rem) / 2);
+  translate: 0 0;
+  transition: left var(--transition-slow) var(--ease-smooth),
+              width var(--transition-slow) var(--ease-smooth),
+              translate var(--transition-slow) var(--ease-smooth),
+              background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+}
+
+.tab-switcher:has(input[data-option="1"]:checked)::after {
   left: 0.4rem;
   transform-origin: right;
-  transition: 
-    background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    width 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    left 400ms cubic-bezier(1, 0.0, 0.4, 1);
 }
 
 .tab-switcher:has(input[data-option="2"]:checked)::after {
-  width: calc((100% - 0.8rem) / 2);
+  /* 计算右侧 tab 的位置：left = padding + 一个 tab 的宽度 */
   left: calc((100% - 0.8rem) / 2 + 0.4rem);
   transform-origin: left;
-  transition: 
-    background-color 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    box-shadow 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    width 400ms cubic-bezier(1, 0.0, 0.4, 1),
-    left 400ms cubic-bezier(1, 0.0, 0.4, 1);
 }
 
+/* 基于 previous 状态优化动画方向 - 确保从正确方向滑入 */
 .tab-switcher[data-previous="1"]:has(input[data-option="2"]:checked)::after {
   transform-origin: left;
 }
 
 .tab-switcher[data-previous="2"]:has(input[data-option="1"]:checked)::after {
   transform-origin: right;
-}
-
-@keyframes scaleToggle {
-  0% { scale: 1 1; }
-  50% { scale: 1.1 1; }
-  100% { scale: 1 1; }
-}
-
-@keyframes scaleToggle2 {
-  0% { scale: 1 1; }
-  50% { scale: 1.2 1; }
-  100% { scale: 1 1; }
-} 
-
-@keyframes scaleToggle3 {
-  0% { scale: 1 1; }
-  50% { scale: 1.1 1; }
-  100% { scale: 1 1; }
 }
 
 /* Fade in animation for tags */
