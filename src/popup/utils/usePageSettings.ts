@@ -89,14 +89,16 @@ export function usePageSettings(initialSettings?: PageSettings) {
     try {
       setError(null);
       
-      // 使用函数式更新获取当前状态并计算新设置
-      let newSettings: PageSettings;
-      setSettings((currentSettings) => {
-        newSettings = {
-          ...currentSettings,
-          ...updates,
-        };
-        return newSettings;
+      // 计算新设置并更新状态
+      const newSettings = await new Promise<PageSettings>((resolve) => {
+        setSettings((currentSettings) => {
+          const updated = {
+            ...currentSettings,
+            ...updates,
+          };
+          resolve(updated);
+          return updated;
+        });
       });
 
       // 保存到存储（等待完成以确保数据一致性）

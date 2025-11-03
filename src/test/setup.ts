@@ -4,14 +4,14 @@ import '@testing-library/jest-dom';
 global.chrome = {
   storage: {
     local: {
-      get: jest.fn((keys, callback) => callback({})),
-      set: jest.fn((items, callback) => callback?.()),
-      remove: jest.fn((keys, callback) => callback?.()),
+      get: jest.fn((_keys, callback) => callback({})),
+      set: jest.fn((_items, callback) => callback?.()),
+      remove: jest.fn((_keys, callback) => callback?.()),
       clear: jest.fn((callback) => callback?.()),
     },
     sync: {
-      get: jest.fn((keys, callback) => callback({})),
-      set: jest.fn((items, callback) => callback?.()),
+      get: jest.fn((_keys, callback) => callback({})),
+      set: jest.fn((_items, callback) => callback?.()),
     },
   },
   tabs: {

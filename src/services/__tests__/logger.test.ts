@@ -3,7 +3,6 @@ import { logger } from '../logger';
 
 describe('Logger', () => {
   let originalConsole: typeof console;
-  let logSpy: jest.SpiedFunction<typeof console.log>;
   let errorSpy: jest.SpiedFunction<typeof console.error>;
   let warnSpy: jest.SpiedFunction<typeof console.warn>;
   let infoSpy: jest.SpiedFunction<typeof console.info>;
@@ -14,11 +13,11 @@ describe('Logger', () => {
     originalConsole = { ...console };
     
     // 创建spy
-    logSpy = jest.spyOn(console, 'log').mockImplementation();
-    errorSpy = jest.spyOn(console, 'error').mockImplementation();
-    warnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    infoSpy = jest.spyOn(console, 'info').mockImplementation();
-    debugSpy = jest.spyOn(console, 'debug').mockImplementation();
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+    debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {});
   });
 
   afterEach(() => {

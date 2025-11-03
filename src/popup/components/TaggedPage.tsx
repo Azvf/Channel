@@ -4,7 +4,7 @@ import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
 import { PagePreview } from "./PagePreview";
 import { EditPageDialog } from "./EditPageDialog";
-import { Search, Inbox, Pencil, Layers } from "lucide-react";
+import { Search, Inbox, Pencil } from "lucide-react";
 
 const MOCK_SUGGESTIONS = [
   "React",

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { TagManager } from '../tagManager';
 import type { GameplayTag } from '../../types/gameplayTag';
-import { testHelpers, testFixtures } from '../../test/helpers';
+import { testHelpers } from '../../test/helpers';
 
 describe('TagManager', () => {
   let tagManager: TagManager;
@@ -228,7 +228,7 @@ describe('TagManager', () => {
 
     it('应该返回所有带标签的页面', () => {
       const page1 = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');
-      const page2 = tagManager.createOrUpdatePage('https://google.com', 'Google', 'google.com');
+      tagManager.createOrUpdatePage('https://google.com', 'Google', 'google.com');
       
       // 只为第一个页面添加标签
       const tag = tagManager.createTag('开源');
@@ -374,7 +374,7 @@ describe('TagManager', () => {
     });
 
     it('应该从存储加载数据', async () => {
-      const tag = tagManager.createTag('前端');
+      tagManager.createTag('前端');
       await tagManager.syncToStorage();
       
       // 重新初始化以加载数据
@@ -436,8 +436,8 @@ describe('TagManager', () => {
   describe('清理功能', () => {
     it('应该清理未使用的标签', () => {
       const tag1 = tagManager.createTag('前端');
-      const tag2 = tagManager.createTag('后端');
-      const tag3 = tagManager.createTag('数据库');
+      tagManager.createTag('后端');
+      tagManager.createTag('数据库');
       
       // 只为tag1创建页面关联
       const page = tagManager.createOrUpdatePage('https://github.com', 'GitHub', 'github.com');

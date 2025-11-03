@@ -90,7 +90,6 @@ export function TagInput({
                 key={index} 
                 label={tag} 
                 onRemove={() => removeTag(index)}
-                variant="input"
               />
             ))}
             <input

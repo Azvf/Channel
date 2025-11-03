@@ -67,7 +67,8 @@ chrome.runtime.onInstalled.addListener(async (_details) => {
 });
 
 // 4. *** 关键 ***
-//    在顶层同步注册 onMessage 监听器
+//    在顶层同步注册 onMessage 监听器（不能有任何顶层 await）
+//    注意：顶层代码必须只包含同步操作，所有 await 必须在事件处理器内部
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // 5. 使用一个 async IIFE 来处理 Promise，同时同步返回 true
     (async () => {
@@ -126,6 +127,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // 8. **立即**同步返回 true，以保持消息通道开放
     return true;
 });
+
+// 注意：这里没有任何顶层的 await 调用（如 initializeExtension()）
+// 所有初始化都在 onMessage 事件处理器内部通过 getInitializationPromise() 触发
 
 // --- 9. 所有处理器不再需要调用 initialize() ---
 

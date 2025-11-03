@@ -3,11 +3,10 @@ import { X } from "lucide-react";
 interface TagProps {
   label: string;
   onRemove?: () => void;
-  variant?: "default" | "input";
   className?: string;
 }
 
-export function Tag({ label, onRemove, variant = "default", className = "" }: TagProps) {
+export function Tag({ label, onRemove, className = "" }: TagProps) {
   return (
     <div className={`inline-flex ${className}`}>
       <div 

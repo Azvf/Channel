@@ -547,18 +547,6 @@ export class TagManager {
   }
 
   // Tag生命周期管理
-  /**
-   * 检查并清理未使用的标签
-   */
-  private checkAndCleanupUnusedTag(tagId: string): void {
-    // 检查标签是否还被任何页面使用
-    const isTagUsed = Object.values(this.pages).some(page => page.tags.includes(tagId));
-    
-    if (!isTagUsed) {
-      this.deleteTag(tagId);
-    } else {
-    }
-  }
 
   /**
    * 删除标签及其所有子标签
