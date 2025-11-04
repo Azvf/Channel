@@ -146,63 +146,67 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
       <motion.div layout>
         <GlassCard className="p-8">
           <AnimatedHeightWrapper innerClassName="space-y-5">
-            {/* Section Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plus className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
-                <span 
-                  style={{ 
-                    color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                    fontFamily: '"DM Sans", sans-serif',
-                    fontWeight: 500,
-                    fontSize: '0.75rem',
-                    letterSpacing: '0.05em',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Add Tags
-                </span>
-              </div>
-              
-              {/* Current Page Info */}
-              {currentPage && (
-                <div className="flex items-center gap-2 max-w-[50%]">
-                  <FileText className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} 
-                    style={{ color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))' }} 
-                  />
+            {/* Section Header：使用 layout="position" 只动画位置，不淡入淡出 */}
+            <motion.div layout="position">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
                   <span 
-                    className="truncate"
                     style={{ 
-                      color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
+                      color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
                       fontFamily: '"DM Sans", sans-serif',
+                      fontWeight: 500,
                       fontSize: '0.75rem',
-                      fontWeight: 400,
-                      letterSpacing: '0.01em'
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase'
                     }}
-                    title={currentPage.title}
                   >
-                    {currentPage.title}
+                    Add Tags
                   </span>
                 </div>
-              )}
-            </div>
+                
+                {/* Current Page Info */}
+                {currentPage && (
+                  <div className="flex items-center gap-2 max-w-[50%]">
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} 
+                      style={{ color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))' }} 
+                    />
+                    <span 
+                      className="truncate"
+                      style={{ 
+                        color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
+                        fontFamily: '"DM Sans", sans-serif',
+                        fontSize: '0.75rem',
+                        fontWeight: 400,
+                        letterSpacing: '0.01em'
+                      }}
+                      title={currentPage.title}
+                    >
+                      {currentPage.title}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
 
-            {/* Input */}
-            <GlassInput
-              value={tagInput}
-              onChange={setTagInput}
-              onSelect={handleAddTag}
-              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === "Enter" && tagInput.trim()) {
-                  e.preventDefault();
-                  handleAddTag();
-                }
-              }}
-              placeholder="Enter a tag..."
-              suggestions={suggestions}
-              excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter((name): name is string => !!name) : []}
-              autoFocus={true}
-            />
+            {/* Input：使用 layout="position" 只动画位置，不淡入淡出 */}
+            <motion.div layout="position">
+              <GlassInput
+                value={tagInput}
+                onChange={setTagInput}
+                onSelect={handleAddTag}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter" && tagInput.trim()) {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="Enter a tag..."
+                suggestions={suggestions}
+                excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter((name): name is string => !!name) : []}
+                autoFocus={true}
+              />
+            </motion.div>
 
             {/* Tags Display */}
             {currentPage && currentPage.tags.length > 0 ? (
@@ -223,7 +227,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
 
             {/* Settings 分割线 */}
             <motion.div
-              layout
+              layout="position" // 只动画位置，不淡入淡出
               style={{
                 height: '1px',
                 backgroundColor: 'color-mix(in srgb, var(--c-glass) 20%, transparent)',
@@ -234,7 +238,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
 
             {/* Settings Checkbox */}
             <motion.div 
-              layout
+              layout="position" // 只动画位置，不淡入淡出
               className="flex flex-wrap gap-x-6 gap-y-2.5"
             >
               <label

@@ -2,13 +2,11 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 
-// 定义动画变体，使其可复用
+// 定义动画变体，移除 initial 变体（不再需要进入动画）
 
 const itemVariants = {
-
-  initial: { opacity: 0, y: 5, scale: 0.9 },
 
   animate: { opacity: 1, y: 0, scale: 1 },
 
@@ -106,117 +104,63 @@ export function AnimatedFlipList<T>({
 
   const MotionContainer = motion(ContainerTag);
 
-  // 跟踪已经渲染过的元素 ID，避免已存在的元素重新播放进入动画
-
-  const renderedIdsRef = useRef<Set<string | number>>(new Set());
-
-  const isInitialMountRef = useRef(true);
-
   
-
-  // 在首次渲染前，预先标记所有初始元素为已渲染，避免首次加载时所有元素都播放进入动画
-
-  if (isInitialMountRef.current && items.length > 0) {
-
-    items.forEach(item => renderedIdsRef.current.add(item.id));
-
-    isInitialMountRef.current = false;
-
-  }
-
-  
-
-  // 更新已渲染的 ID 集合
-
-  useEffect(() => {
-
-    // 创建当前 items 的 ID 集合
-
-    const currentIds = new Set(items.map(item => item.id));
-
-    
-
-    // 移除已删除的 ID
-
-    renderedIdsRef.current.forEach(id => {
-
-      if (!currentIds.has(id)) {
-
-        renderedIdsRef.current.delete(id);
-
-      }
-
-    });
-
-    
-
-    // 添加新的 ID（在渲染时已经检查过，这里只是确保同步）
-
-    items.forEach(item => {
-
-      if (!renderedIdsRef.current.has(item.id)) {
-
-        renderedIdsRef.current.add(item.id);
-
-      }
-
-    });
-
-  }, [items]);
 
   return (
 
     <MotionContainer 
+
       className={className} 
+
       style={style}
+
       // 移除容器的 layout，避免与内部 item 的 layout 冲突导致抖动
+
       // 内部每个 item 已经有 layout，它们会触发父级的布局更新
+
     >
 
       <AnimatePresence mode="popLayout" initial={false}>
 
-        {items.map((item) => {
+        {items.map((item) => (
 
-          // 只对新添加的元素播放进入动画
+          <motion.div
 
-          const isNew = !renderedIdsRef.current.has(item.id);
+            key={item.id}
 
-          
+            layout // FLIP 动画：只负责平滑的位置移动
 
-          return (
+            variants={itemVariants}
 
-            <motion.div
+            initial={false} // 彻底修复：禁用进入动画，新元素立即以 animate 状态出现
 
-              key={item.id}
+            animate="animate"
 
-              layout // FLIP 动画
+            exit="exit"
 
-              variants={itemVariants} // 使用统一定义的动画
+            transition={{
 
-              initial={isNew ? "initial" : false} // 只有新元素才播放进入动画
+              ...itemTransition,
 
-              animate="animate"
+              // layout 动画独立配置，只改变位置，不影响透明度
 
-              exit="exit"
+              layout: {
 
-              transition={{
-                ...itemTransition,
-                // layout 动画应该快速且不改变透明度，避免渐入渐出效果
-                layout: {
-                  duration: 0.3,
-                  ease: [0.4, 0, 0.2, 1]
-                }
-              }}
+                duration: 0.3,
 
-            >
+                ease: [0.4, 0, 0.2, 1]
 
-              {renderItem(item)}
+              }
 
-            </motion.div>
+            }}
 
-          );
+          >
 
-        })}
+            {renderItem(item)}
+
+          </motion.div>
+
+        ))}
 
       </AnimatePresence>
 
@@ -225,4 +169,3 @@ export function AnimatedFlipList<T>({
   );
 
 }
-
