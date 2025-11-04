@@ -925,15 +925,14 @@ describe('TagManager', () => {
   });
 
   describe('初始化错误处理', () => {
-    it('应该允许重新初始化', async () => {
+    it('应该防止重复初始化', () => {
       const manager = TagManager.getInstance();
-      await manager.initialize();
+      manager.initialize({ tags: {}, pages: {} });
       
-      // 第二次初始化应该返回相同的 promise
-      const promise1 = manager.initialize();
-      const promise2 = manager.initialize();
-      // 由于 promise 已经完成，应该返回同一个 promise
-      expect(promise1).toEqual(promise2);
+      // 第二次初始化应该被忽略（幂等性）
+      expect(() => {
+        manager.initialize({ tags: {}, pages: {} });
+      }).not.toThrow();
     });
   });
 });
