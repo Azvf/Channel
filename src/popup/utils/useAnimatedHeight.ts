@@ -1,36 +1,43 @@
 /**
- * 高度动画 Hook - 使用 React Spring
+ * 高度动画 Hook
  * 
- * 提供基于 React Spring 的平滑高度过渡动画，自动响应内容变化。
+ * 用于实现平滑的高度过渡动画，同时避免布局抖动问题。
+ * 通过分离动画容器和布局容器，确保布局只发生一次，动画平滑流畅。
  * 
  * @param options - 配置选项
- * @returns ref 对象和动画值，需要绑定到容器上
+ * @returns ref 对象，需要绑定到外层容器上
  * 
  * @example
  * ```tsx
- * const { ref, style, innerRef } = useAnimatedHeight({ 
- *   config: { duration: 200 }
+ * const wrapperRef = useAnimatedHeight({ 
+ *   duration: 200,
+ *   easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)'
  * });
  * 
  * return (
- *   <animated.div ref={ref} style={style}>
- *     <div ref={innerRef} style={{ height: 'auto' }}>
+ *   <div ref={wrapperRef} style={{ overflow: 'hidden' }}>
+ *     <div style={{ height: 'auto' }}>
  *       你的内容
  *     </div>
- *   </animated.div>
+ *   </div>
  * );
  * ```
  */
 
-import { useEffect, useLayoutEffect, RefObject, useRef } from 'react';
-import { useSpring, SpringConfig } from '@react-spring/web';
+import { useEffect, RefObject, useRef } from 'react';
 
 export interface UseAnimatedHeightOptions {
   /**
-   * React Spring 配置选项
-   * @default { duration: 300 }
+   * 动画持续时间（毫秒）
+   * @default 200
    */
-  config?: Partial<SpringConfig>;
+  duration?: number;
+  
+  /**
+   * CSS 过渡缓动函数
+   * @default 'cubic-bezier(0.25, 0.1, 0.25, 1)'
+   */
+  easing?: string;
   
   /**
    * 高度变化的最小阈值（像素），小于此值不会触发动画
@@ -55,168 +62,145 @@ export interface UseAnimatedHeightOptions {
    * @default true
    */
   observeResize?: boolean;
-  
-  /**
-   * 是否初始禁用动画
-   * @default false
-   */
-  immediate?: boolean;
-}
-
-export interface UseAnimatedHeightReturn {
-  /**
-   * ref 对象，需要绑定到外层容器上
-   */
-  ref: RefObject<HTMLDivElement>;
-  
-  /**
-   * 内层容器的 ref，用于监听实际内容变化
-   */
-  innerRef: RefObject<HTMLDivElement>;
-  
-  /**
-   * React Spring 动画样式对象（只包含 height）
-   */
-  style: any;
-  
-  /**
-   * 用于直接操作动画的方法
-   */
-  api: {
-    start: (config?: Partial<SpringConfig>) => void;
-    stop: () => void;
-    pause: () => void;
-    resume: () => void;
-  };
 }
 
 /**
  * 高度动画 Hook
  * 
- * 返回一个 ref 和动画样式，需要绑定到外层容器元素上。
- * 
- * React Spring 的优势：
- * - 基于物理的动画，更自然流畅
- * - 自动插值，性能更好
- * - 丰富的配置选项和生命周期钩子
- * - 支持手势和交互式动画
+ * 返回一个 ref，需要绑定到外层容器元素上。该容器应该：
+ * 1. 设置 overflow: hidden 来裁切内容
+ * 2. 内部包含一个高度为 auto 的内容容器
+ * 3. 不要在外层容器上设置 flex 等布局样式（应该在内层容器上设置）
  */
 export function useAnimatedHeight(
   options: UseAnimatedHeightOptions = {}
-): UseAnimatedHeightReturn {
+): RefObject<HTMLDivElement> {
   const {
-    config = { duration: 300 },
+    duration = 200,
+    easing = 'cubic-bezier(0.25, 0.1, 0.25, 1)',
     threshold = 1,
     debounceMs = 16,
     observeMutations = true,
     observeResize = true,
-    immediate = false,
   } = options;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-  const isInitialMountRef = useRef(true);
-  const timeoutIdRef = useRef<NodeJS.Timeout>();
-  const currentTargetHeightRef = useRef<number | null>(null); // 记录当前目标高度
-
-  // 使用 React Spring 管理高度动画
-  const [style, api] = useSpring(() => ({
-    height: 0,
-    config: config,
-    immediate: true, // 初始为 immediate，避免闪烁
-  }));
-
-  // 更新高度的函数
-  const updateHeight = () => {
-    const wrapper = wrapperRef.current;
-    const inner = innerRef.current;
-    if (!wrapper || !inner) return;
-
-    // 获取内层容器的实际高度（这是真实内容高度）
-    const newHeight = inner.scrollHeight;
-    
-    // 获取上次的目标高度
-    const currentTarget = currentTargetHeightRef.current;
-
-    // 如果高度没有变化，直接返回
-    if (currentTarget !== null && Math.abs(currentTarget - newHeight) < threshold) {
-      return;
-    }
-
-    // 首次挂载时不使用动画
-    const shouldImmediate = isInitialMountRef.current || immediate;
-    isInitialMountRef.current = false;
-
-    // 更新目标高度记录
-    currentTargetHeightRef.current = newHeight;
-
-    // 使用 React Spring 更新高度（使用数字类型，React Spring 会自动添加 px 单位）
-    api.start({
-      height: newHeight,
-      immediate: shouldImmediate,
-      config: shouldImmediate ? undefined : config,
-    });
-  };
-
-  // 触发更新（防抖）
-  const scheduleUpdate = () => {
-    if (timeoutIdRef.current) {
-      clearTimeout(timeoutIdRef.current);
-    }
-    timeoutIdRef.current = setTimeout(updateHeight, debounceMs);
-  };
-
-  // 使用 useLayoutEffect 在 DOM 更新后同步设置初始高度
-  useLayoutEffect(() => {
-    const wrapper = wrapperRef.current;
-    const inner = innerRef.current;
-    if (!wrapper || !inner) return;
-
-    // 初始化：设置初始高度（无需动画）
-    const initHeight = inner.scrollHeight;
-    currentTargetHeightRef.current = initHeight;
-    api.set({ height: initHeight });
-  }, []); // 只在挂载时执行一次
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
-    const inner = innerRef.current;
-    if (!wrapper || !inner) return;
+    if (!wrapper) return;
+
+    let rafId: number;
+    let timeoutId: NodeJS.Timeout;
+    let isUpdating = false;
+
+    // 更新高度的函数
+    const updateHeight = () => {
+      if (isUpdating) return;
+      
+      // 获取当前渲染的高度（如果已设置固定值）
+      const currentHeight = wrapper.offsetHeight;
+      
+      // 关键优化：使用临时克隆来测量新高度，避免影响实际布局
+      // 创建一个临时的测量容器来获取新高度，而不改变实际容器的高度
+      const tempWrapper = wrapper.cloneNode(true) as HTMLElement;
+      
+      // 复制计算样式，确保测量准确
+      const computedStyle = window.getComputedStyle(wrapper);
+      tempWrapper.style.cssText = computedStyle.cssText;
+      
+      // 设置临时容器的样式用于测量
+      tempWrapper.style.position = 'absolute';
+      tempWrapper.style.visibility = 'hidden';
+      tempWrapper.style.height = 'auto';
+      tempWrapper.style.width = `${wrapper.offsetWidth}px`;
+      tempWrapper.style.top = '-9999px';
+      tempWrapper.style.left = '0';
+      tempWrapper.style.transition = 'none';
+      tempWrapper.style.willChange = 'auto';
+      
+      // 添加到DOM中进行测量（需要添加到body或父元素）
+      const parent = wrapper.parentElement;
+      if (parent) {
+        parent.appendChild(tempWrapper);
+        // 强制重排以获取准确的scrollHeight
+        void tempWrapper.offsetHeight;
+        const newHeight = tempWrapper.scrollHeight;
+        parent.removeChild(tempWrapper);
+        
+        // 如果高度没有变化，直接返回
+        if (Math.abs(currentHeight - newHeight) < threshold) {
+          return;
+        }
+        
+        isUpdating = true;
+        
+        // 使用双requestAnimationFrame确保浏览器完成当前渲染周期后再触发过渡
+        rafId = requestAnimationFrame(() => {
+          rafId = requestAnimationFrame(() => {
+            // 现在启用transition并设置新高度
+            wrapper.style.transition = `height ${duration}ms ${easing}`;
+            wrapper.style.height = `${newHeight}px`;
+            
+            // 过渡完成后重置isUpdating
+            const handleTransitionEnd = (e: TransitionEvent) => {
+              // 确保是height属性的过渡结束
+              if (e.propertyName === 'height' && e.target === wrapper) {
+                isUpdating = false;
+                wrapper.removeEventListener('transitionend', handleTransitionEnd);
+              }
+            };
+            wrapper.addEventListener('transitionend', handleTransitionEnd);
+          });
+        });
+      }
+    };
+
+    // 触发更新（防抖）
+    const scheduleUpdate = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(updateHeight, debounceMs);
+    };
 
     const observers: Array<{ disconnect: () => void }> = [];
 
-    // 使用ResizeObserver监听内层容器的大小变化（这是真实的内容高度）
+    // 使用ResizeObserver监听wrapper内容区域的大小变化
     if (observeResize) {
       const resizeObserver = new ResizeObserver(scheduleUpdate);
-      resizeObserver.observe(inner);
+      resizeObserver.observe(wrapper);
       observers.push(resizeObserver);
     }
 
-    // 使用MutationObserver监听内层DOM结构变化
+    // 使用MutationObserver监听内部DOM结构变化
     if (observeMutations) {
       const mutationObserver = new MutationObserver(scheduleUpdate);
-      mutationObserver.observe(inner, {
+      mutationObserver.observe(wrapper, {
         childList: true,
         subtree: true,
         attributes: false,
-        characterData: false,
+        characterData: false
       });
       observers.push(mutationObserver);
     }
 
+    // 初始化：设置初始高度并启用过渡
+    const initHeight = wrapper.scrollHeight;
+    wrapper.style.height = `${initHeight}px`;
+    wrapper.style.transition = `height ${duration}ms ${easing}`;
+
     return () => {
-      if (timeoutIdRef.current) {
-        clearTimeout(timeoutIdRef.current);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
       observers.forEach(observer => observer.disconnect());
+      isUpdating = false;
     };
-  }, []); // 只在挂载和卸载时执行
+  }, [duration, easing, threshold, debounceMs, observeMutations, observeResize]);
 
-  // 返回 ref、样式和 API
-  return {
-    ref: wrapperRef,
-    innerRef: innerRef,
-    style: style, // React Spring 动画样式，需要配合 animated.div 使用
-    api: api,
-  };
+  return wrapperRef;
 }

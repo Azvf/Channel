@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Tag } from "./Tag";
 import { ChevronDown } from "lucide-react";
-import { animated } from '@react-spring/web';
 import { useAnimatedHeight } from "../utils/useAnimatedHeight";
 
 interface TagInputProps {
@@ -29,8 +28,9 @@ export function TagInput({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // 使用可复用的高度动画 Hook
-  const { ref: contentWrapperRef, innerRef, style: animatedStyle } = useAnimatedHeight({
-    config: { duration: 300 }
+  const contentWrapperRef = useAnimatedHeight({
+    duration: 200,
+    easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)'
   });
   const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]); // 下拉菜单按钮的引用数组
   const wasShowingRef = useRef(false);
@@ -293,19 +293,17 @@ export function TagInput({
       <div className="liquidGlass-wrapper relative">
         {/* Content layer */}
         <div className="liquidGlass-content">
-          <animated.div 
+          <div 
             ref={contentWrapperRef}
             className="min-h-[3.2rem]" // 移除 flex 样式，只保留 min-h
             style={{
-              ...animatedStyle,
-              overflow: 'hidden', // 关键：添加 overflow: hidden 来裁切内部内容
-              willChange: 'height',
-              backfaceVisibility: 'hidden'
-            } as any}
+              willChange: 'height', // 提示浏览器优化高度变化
+              backfaceVisibility: 'hidden', // 防止重绘问题
+              overflow: 'hidden' // 关键：添加 overflow: hidden 来裁切内部内容
+            }}
           >
             {/* 创建新的内部 flex 容器 */}
             <div
-              ref={innerRef}
               className="flex flex-wrap gap-2 items-center px-5 py-3" // 将所有 flex 和 padding 样式移到这里
               style={{ height: 'auto' }} // 确保内部容器高度始终自动
             >
@@ -375,7 +373,7 @@ export function TagInput({
                 </button>
               )}
             </div>
-          </animated.div>
+          </div>
         </div>
       </div>
 
