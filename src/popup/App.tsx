@@ -42,10 +42,10 @@ export default function App({ initialState }: AppProps) {
       
       {/* Main content container */}
       <div className="relative z-10">
-        <div className="container mx-auto px-3 max-w-5xl">
+        <div className="container mx-auto px-4 max-w-5xl">
           
           {/* Header with Title and Settings */}
-          <div className="pt-6 pb-2 px-1 flex justify-between items-center">
+          <div className="pt-6 pb-2 flex justify-between items-center">
             <h1 
               className="m-0"
               style={{
@@ -86,7 +86,7 @@ export default function App({ initialState }: AppProps) {
           </div>
 
           {/* Tab navigation with glass effect - moved to top with minimal spacing */}
-          <div className="pt-2 pb-4 max-w-md mx-auto w-full">
+          <div className="pt-2 pb-4 w-full">
             <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
           </div>
 

@@ -13,8 +13,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html, body {
+  /* 设定一个更舒适的宽度 */
+  min-width: 380px;
+  width: 380px;
+  /* 设定最大高度，防止窗口过长 */
+  max-height: 600px;
+  /* 确保 body 不滚动，由 #root 滚动 */
+  overflow-y: hidden;
+  /* 覆盖 globals.css 中的 overflow-y: scroll */
+  overflow-x: hidden;
+}
+
+/* 覆盖 globals.css 中 html 的 overflow-y: scroll */
+html {
+  overflow-y: hidden !important;
+}
+
 #root {
-  width: 360px;
-  min-height: 350px;
+  width: 100%;
+  /* 关键：让 #root 成为可滚动容器 */
+  min-height: 100vh;
+  max-height: 600px;
+  /* 使用 auto 让滚动条在需要时显示，更符合现代浏览器标准 */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 

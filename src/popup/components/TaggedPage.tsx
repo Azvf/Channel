@@ -6,6 +6,7 @@ import { PagePreview } from "./PagePreview";
 import { EditPageDialog } from "./EditPageDialog";
 import { Search, Inbox, Pencil, Trash2, Copy } from "lucide-react";
 import { ContextMenu } from "./ContextMenu";
+import { AnimatedFlipList } from "./AnimatedFlipList";
 
 const MOCK_SUGGESTIONS = [
   "React",
@@ -123,7 +124,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
     <div className={`space-y-4 pb-12 ${className}`}>
       {/* Unified Card: Search + Results */}
       <div>
-        <GlassCard className="p-6">
+        <GlassCard className="p-4">
           <div className="space-y-5">
             {/* Search Section */}
             <div className="space-y-5">
@@ -212,9 +213,11 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
             {/* Results Section */}
             <div>
               {filteredPages.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredPages.map((page) => {
-                    
+                <AnimatedFlipList
+                  items={filteredPages}
+                  as="div"
+                  className="space-y-3"
+                  renderItem={(page) => {
                     // Context Menu Items for Page
                     const pageMenuItems = [
                       {
@@ -226,7 +229,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                         label: "Copy URL",
                         icon: <Copy />,
                         onClick: () => {
-                          // Placeholder
                           console.log("Copy:", page.url);
                           navigator.clipboard.writeText(page.url).catch(console.error);
                         },
@@ -235,7 +237,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                         label: "Delete",
                         icon: <Trash2 />,
                         onClick: () => {
-                           // Placeholder
                           console.log("Delete:", page.id);
                           setPages(prev => prev.filter(p => p.id !== page.id));
                         },
@@ -243,14 +244,14 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                     ];
 
                     return (
-                      <ContextMenu menuItems={pageMenuItems} key={page.id}>
+                      <ContextMenu menuItems={pageMenuItems}>
                         <div 
                           className="rounded-2xl transition-all relative"
                           style={{
                             background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
                             border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
                             padding: '0.8rem 1.1rem',
-                            cursor: 'context-menu' // Changed cursor
+                            cursor: 'context-menu'
                           }}
                           onMouseEnter={(e) => {
                             setHoveredCardId(page.id);
@@ -314,14 +315,14 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               style={{ textDecoration: 'none' }}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <h3 
+                              <h2  /* [7] 语义从 h3 提升为 h2 */
                                 style={{ 
                                   fontFamily: '"DM Sans", sans-serif',
                                   color: 'var(--c-content)',
                                   fontWeight: 600,
-                                  fontSize: '0.95rem',
-                                  letterSpacing: '-0.015em',
-                                  lineHeight: 1.4,
+                                  fontSize: '1.1rem', // [7] 匹配 TaggingPage 标题
+                                  letterSpacing: '-0.015em', // [7] 匹配 TaggingPage 标题
+                                  lineHeight: 1.35, // [7] 匹配 TaggingPage 标题
                                   transition: 'color 200ms ease',
                                   margin: 0
                                 }}
@@ -333,7 +334,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                 }}
                               >
                                 {page.title}
-                              </h3>
+                              </h2>
                             </a>
 
                             {/* Icon + URL Row */}
@@ -349,10 +350,10 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               <p 
                                 className="truncate flex-1"
                                 style={{ 
-                                  color: 'color-mix(in srgb, var(--c-content) 48%, var(--c-bg))',
+                                  color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))', // [8] 匹配 TaggingPage URL
                                   fontFamily: '"DM Sans", sans-serif',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 400,
+                                  fontSize: '0.8rem', // [8] 匹配 TaggingPage URL
+                                  fontWeight: 400, // [8] 匹配 TaggingPage URL
                                   letterSpacing: '0.005em',
                                   margin: 0
                                 }}
@@ -362,13 +363,11 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                             </div>
 
                             {/* Tags - WITH LIQUID GLASS MATCHING EFFECT */}
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-2.5"> {/* [9] 匹配 TaggingPage Tag 间距 (6px -> 10px) */}
                               {page.tags.map((tag, tagIndex) => (
                                 searchTags.includes(tag) ? (
-                                  // Matched tag - Full liquid glass effect
                                   <Tag key={tagIndex} label={tag} />
                                 ) : (
-                                  // Regular tag - Simple style
                                   <span 
                                     key={tagIndex}
                                     className="inline-flex items-center px-2.5 py-1 rounded-lg"
@@ -392,8 +391,8 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                         </div>
                       </ContextMenu>
                     );
-                  })}
-                </div>
+                  }}
+                />
               ) : (
                 // Empty State
                 <div 
