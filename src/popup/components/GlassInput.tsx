@@ -12,6 +12,7 @@ interface GlassInputProps {
   excludeTags?: string[]; // 需要过滤掉的标签列表（可选）
   className?: string;
   autoFocus?: boolean;
+  disabled?: boolean;
 }
 
 export function GlassInput({ 
@@ -23,7 +24,8 @@ export function GlassInput({
   suggestions = [],
   excludeTags = [],
   className = "",
-  autoFocus = false
+  autoFocus = false,
+  disabled = false
 }: GlassInputProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -252,13 +254,16 @@ export function GlassInput({
               }
             }}
             placeholder={placeholder}
+            disabled={disabled}
             className="flex-1 min-w-0 px-4 py-2 bg-transparent outline-none relative z-10"
             style={{ 
               color: 'var(--c-content)',
               fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.85rem',
               fontWeight: 400,
-              letterSpacing: '0.01em'
+              letterSpacing: '0.01em',
+              opacity: disabled ? 0.5 : 1,
+              cursor: disabled ? 'not-allowed' : 'text'
             }}
           />
 

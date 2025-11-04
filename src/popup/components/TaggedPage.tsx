@@ -4,7 +4,8 @@ import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
 import { PagePreview } from "./PagePreview";
 import { EditPageDialog } from "./EditPageDialog";
-import { Search, Inbox, Pencil } from "lucide-react";
+import { Search, Inbox, Pencil, Trash2, Copy } from "lucide-react";
+import { ContextMenu } from "./ContextMenu";
 
 const MOCK_SUGGESTIONS = [
   "React",
@@ -212,155 +213,186 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
             <div>
               {filteredPages.length > 0 ? (
                 <div className="space-y-3">
-                  {filteredPages.map((page) => (
-                    <div 
-                      key={page.id}
-                      className="rounded-2xl transition-all relative"
-                      style={{
-                        background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-                        border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
-                        padding: '0.8rem 1.1rem',
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => {
-                        setHoveredCardId(page.id);
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
-                      }}
-                      onMouseLeave={(e) => {
-                        setHoveredCardId(null);
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-                        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-                      }}
-                    >
-                      {/* Edit Button Hover Area - Larger hover zone in top right */}
-                      <div 
-                        className="absolute top-0 right-0 group/edit"
-                        style={{
-                          width: '120px',
-                          height: '80px',
-                          pointerEvents: 'none'
-                        }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditPage(page);
-                          }}
-                          className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0 group-hover/edit:opacity-100 transition-all"
+                  {filteredPages.map((page) => {
+                    
+                    // Context Menu Items for Page
+                    const pageMenuItems = [
+                      {
+                        label: "Edit",
+                        icon: <Pencil />,
+                        onClick: () => handleEditPage(page),
+                      },
+                      {
+                        label: "Copy URL",
+                        icon: <Copy />,
+                        onClick: () => {
+                          // Placeholder
+                          console.log("Copy:", page.url);
+                          navigator.clipboard.writeText(page.url).catch(console.error);
+                        },
+                      },
+                      {
+                        label: "Delete",
+                        icon: <Trash2 />,
+                        onClick: () => {
+                           // Placeholder
+                          console.log("Delete:", page.id);
+                          setPages(prev => prev.filter(p => p.id !== page.id));
+                        },
+                      },
+                    ];
+
+                    return (
+                      <ContextMenu menuItems={pageMenuItems} key={page.id}>
+                        <div 
+                          className="rounded-2xl transition-all relative"
                           style={{
-                            background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
-                            backdropFilter: 'blur(8px)',
-                            border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
-                            color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
-                            cursor: 'pointer',
-                            pointerEvents: 'auto'
+                            background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
+                            border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
+                            padding: '0.8rem 1.1rem',
+                            cursor: 'context-menu' // Changed cursor
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 20%, transparent)';
-                            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-action) 45%, transparent)';
-                            e.currentTarget.style.color = 'var(--c-action)';
-                            e.currentTarget.style.transform = 'scale(1.05)';
+                            setHoveredCardId(page.id);
+                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
+                            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 18%, transparent)';
-                            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
-                            e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
-                            e.currentTarget.style.transform = 'scale(1)';
+                            setHoveredCardId(null);
+                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
+                            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
                           }}
                         >
-                          <Pencil className="w-4 h-4" strokeWidth={1.5} />
-                        </button>
-                      </div>
-
-                      {/* Content - No Padding, Edit Button is Absolute */}
-                      <div className="space-y-3.5">
-                        {/* Title - Full Width, No Icons */}
-                        <a
-                          href={page.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block"
-                          style={{ textDecoration: 'none' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <h3 
-                            style={{ 
-                              fontFamily: '"DM Sans", sans-serif',
-                              color: 'var(--c-content)',
-                              fontWeight: 600,
-                              fontSize: '0.95rem',
-                              letterSpacing: '-0.015em',
-                              lineHeight: 1.4,
-                              transition: 'color 200ms ease',
-                              margin: 0
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = 'var(--c-action)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = 'var(--c-content)';
+                          {/* Edit Button Hover Area - Larger hover zone in top right */}
+                          <div 
+                            className="absolute top-0 right-0 group/edit"
+                            style={{
+                              width: '120px',
+                              height: '80px',
+                              pointerEvents: 'none'
                             }}
                           >
-                            {page.title}
-                          </h3>
-                        </a>
-
-                        {/* Icon + URL Row */}
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex-shrink-0">
-                            <PagePreview 
-                              url={page.url}
-                              screenshot={page.screenshot}
-                              title={page.title}
-                              forceClose={hoveredCardId !== page.id}
-                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditPage(page);
+                              }}
+                              className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0 group-hover/edit:opacity-100 transition-all"
+                              style={{
+                                background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
+                                backdropFilter: 'blur(8px)',
+                                border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
+                                color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
+                                cursor: 'pointer',
+                                pointerEvents: 'auto'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 20%, transparent)';
+                                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-action) 45%, transparent)';
+                                e.currentTarget.style.color = 'var(--c-action)';
+                                e.currentTarget.style.transform = 'scale(1.05)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 18%, transparent)';
+                                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
+                                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
+                                e.currentTarget.style.transform = 'scale(1)';
+                              }}
+                            >
+                              <Pencil className="w-4 h-4" strokeWidth={1.5} />
+                            </button>
                           </div>
-                          <p 
-                            className="truncate flex-1"
-                            style={{ 
-                              color: 'color-mix(in srgb, var(--c-content) 48%, var(--c-bg))',
-                              fontFamily: '"DM Sans", sans-serif',
-                              fontSize: '0.75rem',
-                              fontWeight: 400,
-                              letterSpacing: '0.005em',
-                              margin: 0
-                            }}
-                          >
-                            {page.url}
-                          </p>
-                        </div>
 
-                        {/* Tags - WITH LIQUID GLASS MATCHING EFFECT */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {page.tags.map((tag, tagIndex) => (
-                            searchTags.includes(tag) ? (
-                              // Matched tag - Full liquid glass effect
-                              <Tag key={tagIndex} label={tag} />
-                            ) : (
-                              // Regular tag - Simple style
-                              <span 
-                                key={tagIndex}
-                                className="inline-flex items-center px-2.5 py-1 rounded-lg"
+                          {/* Content - No Padding, Edit Button is Absolute */}
+                          <div className="space-y-3.5">
+                            {/* Title - Full Width, No Icons */}
+                            <a
+                              href={page.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block"
+                              style={{ textDecoration: 'none' }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <h3 
                                 style={{ 
-                                  color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
-                                  background: 'color-mix(in srgb, var(--c-glass) 10%, transparent)',
                                   fontFamily: '"DM Sans", sans-serif',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 500,
-                                  letterSpacing: '0.01em',
-                                  border: '1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)',
-                                  transition: 'all 200ms ease'
+                                  color: 'var(--c-content)',
+                                  fontWeight: 600,
+                                  fontSize: '0.95rem',
+                                  letterSpacing: '-0.015em',
+                                  lineHeight: 1.4,
+                                  transition: 'color 200ms ease',
+                                  margin: 0
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.color = 'var(--c-action)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.color = 'var(--c-content)';
                                 }}
                               >
-                                {tag}
-                              </span>
-                            )
-                          ))}
+                                {page.title}
+                              </h3>
+                            </a>
+
+                            {/* Icon + URL Row */}
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex-shrink-0">
+                                <PagePreview 
+                                  url={page.url}
+                                  screenshot={page.screenshot}
+                                  title={page.title}
+                                  forceClose={hoveredCardId !== page.id}
+                                />
+                              </div>
+                              <p 
+                                className="truncate flex-1"
+                                style={{ 
+                                  color: 'color-mix(in srgb, var(--c-content) 48%, var(--c-bg))',
+                                  fontFamily: '"DM Sans", sans-serif',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 400,
+                                  letterSpacing: '0.005em',
+                                  margin: 0
+                                }}
+                              >
+                                {page.url}
+                              </p>
+                            </div>
+
+                            {/* Tags - WITH LIQUID GLASS MATCHING EFFECT */}
+                            <div className="flex flex-wrap gap-1.5">
+                              {page.tags.map((tag, tagIndex) => (
+                                searchTags.includes(tag) ? (
+                                  // Matched tag - Full liquid glass effect
+                                  <Tag key={tagIndex} label={tag} />
+                                ) : (
+                                  // Regular tag - Simple style
+                                  <span 
+                                    key={tagIndex}
+                                    className="inline-flex items-center px-2.5 py-1 rounded-lg"
+                                    style={{ 
+                                      color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
+                                      background: 'color-mix(in srgb, var(--c-glass) 10%, transparent)',
+                                      fontFamily: '"DM Sans", sans-serif',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 500,
+                                      letterSpacing: '0.01em',
+                                      border: '1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)',
+                                      transition: 'all 200ms ease'
+                                    }}
+                                  >
+                                    {tag}
+                                  </span>
+                                )
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      </ContextMenu>
+                    );
+                  })}
                 </div>
               ) : (
                 // Empty State

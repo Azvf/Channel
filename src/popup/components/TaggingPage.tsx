@@ -1,10 +1,11 @@
+// src/popup/components/TaggingPage.tsx
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { GlassCard } from "./GlassCard";
 import { GlassInput } from "./GlassInput";
 import { Tag } from "./Tag";
 import { Checkbox } from "./ui/checkbox";
-import { Plus, FileText, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
 import type { PageSettingsHook } from "../../popup/utils/usePageSettings";
@@ -13,7 +14,6 @@ import { AnimatedFlipList } from "./AnimatedFlipList";
 
 interface TaggingPageProps {
   className?: string;
-  // 使用统一的页面设置管理接口，而不是直接传入设置值
   pageSettings: PageSettingsHook;
 }
 
@@ -27,27 +27,14 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
 
-  // 使用统一的页面设置管理接口
-  // pageSettings 在 App 组件层面统一管理，切换页面时不会重新初始化，避免闪烁
   const { settings, updateSyncVideoTimestamp } = pageSettings;
   const syncVideoTimestamp = settings.syncVideoTimestamp;
 
-  // 加载当前页面信息和所有标签
   useEffect(() => {
     loadCurrentPage();
     loadAllTags();
   }, []);
 
-  // 处理视频时间戳同步设置变更（使用统一的更新接口）
-  const handleSyncVideoTimestampChange = async (checked: boolean) => {
-    try {
-      await updateSyncVideoTimestamp(checked);
-    } catch (error) {
-      console.error('更新视频时间戳同步设置失败:', error);
-    }
-  };
-
-  // 加载所有标签建议
   useEffect(() => {
     if (allTags.length > 0) {
       setSuggestions(allTags.map(tag => tag.name));
@@ -105,8 +92,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
   };
 
   const handleAddTag = async (tagName?: string) => {
-    // 如果提供了tagName（来自下拉框选择），使用它；否则使用input中的值
-    // 确保 tagName 和 tagInput 都是字符串类型
     const tagValue = tagName ?? tagInput;
     if (typeof tagValue !== 'string') {
       console.error('handleAddTag: tagName must be a string', { tagName, tagInput });
@@ -117,12 +102,11 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
 
     try {
       const tag = await currentPageService.createTagAndAddToPage(trimmedTag, currentPage.id);
-      // 如果标签不在列表中，添加到列表
       if (!allTags.find(t => t.id === tag.id)) {
         setAllTags(prev => [...prev, tag]);
       }
       setTagInput("");
-      loadCurrentPage(); // 重新加载当前页面以获取最新标签
+      loadCurrentPage();
     } catch (error) {
       console.error('添加标签失败:', error);
     }
@@ -133,200 +117,78 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
 
     try {
       await currentPageService.removeTagFromPage(currentPage.id, tagId);
-      loadCurrentPage(); // 重新加载当前页面
+      loadCurrentPage();
     } catch (error) {
       console.error('移除标签失败:', error);
     }
   };
 
+  const handleSyncVideoTimestampChange = (checked: boolean) => {
+    updateSyncVideoTimestamp(checked);
+  };
 
   return (
-    <div className={`space-y-3 pb-12 ${className}`}>
-      {/* Add Tag Section */}
-      <motion.div layout> {/* <--- 这个 layout 动画现在可以正确测量了 */}
-        {/* p-5 提供了所有内边距 */}
+    <div className={`pb-12 ${className}`}>
+      {/* --- 
+        单个统一的 GlassCard，包含所有内容 
+        --- */}
+      <motion.div layout>
         <GlassCard className="p-5">
-          {/* AnimatedHeightWrapper 现在是一个纯粹的 overflow:hidden 容器。
-            我们将 'space-y-5' 移动到 innerClassName，
-            这样布局就在内部 div 上，高度可以被正确测量。
-          */}
+          {/* 动画高度包装器包裹所有内容 */}
           <AnimatedHeightWrapper 
-            innerClassName="space-y-5" // <--- 将 space-y-5 移到这里
+            innerClassName="space-y-5" // 内部元素使用 space-y-5 布局
             wrapperProps={{
-              // 提示浏览器优化高度动画
               style: { willChange: 'height' } 
             }}
           >
-            {/* Section Header：使用 layout="position" 只动画位置，不淡入淡出 */}
+            {/* --- 
+              SECTION 1: 核心操作 - 添加标签标题
+              --- */}
             <motion.div layout="position">
               <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plus className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
-                <span 
-                  style={{ 
-                    color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                    fontFamily: '"DM Sans", sans-serif',
-                    fontWeight: 500,
-                    fontSize: '0.7rem',
-                    letterSpacing: '0.05em',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Add Tags
-                </span>
-              </div>
-                
-                {/* Current Page Info */}
-                {currentPage && (
-                  <div className="flex items-center gap-2 max-w-[50%]">
-                    <FileText className="w-3.5 h-3.5 flex-shrink-0" strokeWidth={1.5} 
-                      style={{ color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))' }} 
+                <div className="flex items-center gap-2">
+                  <Plus className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
+                  <span 
+                    style={{ 
+                      color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
+                      fontFamily: '"DM Sans", sans-serif',
+                      fontWeight: 500,
+                      fontSize: '0.7rem',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    Add Tags
+                  </span>
+                </div>
+                {/* 刷新按钮移到主操作区 */}
+                {(error || loading) && (
+                  <button
+                    onClick={loadCurrentPage}
+                    disabled={loading}
+                    className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50"
+                    style={{
+                      background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
+                    }}
+                    title="刷新"
+                  >
+                    <RefreshCw 
+                      className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
+                      strokeWidth={1.5}
+                      style={{ color: 'var(--c-action)' }}
                     />
-                    <span 
-                      className="truncate"
-                      style={{ 
-                        color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
-                        fontFamily: '"DM Sans", sans-serif',
-                        fontSize: '0.75rem',
-                        fontWeight: 400,
-                        letterSpacing: '0.01em'
-                      }}
-                      title={currentPage.title}
-                    >
-                      {currentPage.title}
-                    </span>
-                  </div>
+                  </button>
                 )}
               </div>
             </motion.div>
 
-            {/* Input：使用 layout="position" 只动画位置，不淡入淡出 */}
+            {/* --- 
+              SECTION 0: 可编辑标题 
+              --- */}
             <motion.div layout="position">
-              <GlassInput
-                value={tagInput}
-                onChange={setTagInput}
-                onSelect={handleAddTag}
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === "Enter" && tagInput.trim()) {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
-                placeholder="Enter a tag..."
-                suggestions={suggestions}
-                excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter((name): name is string => !!name) : []}
-                autoFocus={true}
-              />
-            </motion.div>
-
-            {/* Tags Display */}
-            {currentPage && currentPage.tags.length > 0 ? (
-              <AnimatedFlipList
-                items={currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)).filter(Boolean) as (GameplayTag & { id: string })[]}
-                renderItem={(tag) => (
-                  <Tag label={tag.name} onRemove={() => handleRemoveTag(tag.id)} />
-                )}
-                className="flex flex-wrap items-start"
-                style={{
-                  gap: '0.875rem 0.875rem',
-                  alignContent: 'flex-start',
-                  rowGap: '0.875rem',
-                  marginTop: '0.75rem'
-                }}
-              />
-            ) : null}
-
-            {/* Settings 分割线 */}
-            <motion.div
-              layout="position" // 只动画位置，不淡入淡出
-              style={{
-                height: '1px',
-                backgroundColor: 'color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                marginTop: currentPage && currentPage.tags.length > 0 ? '1rem' : '1.75rem',
-                marginBottom: '0.75rem'
-              }}
-            />
-
-            {/* Settings Checkbox */}
-            <motion.div 
-              layout="position" // 只动画位置，不淡入淡出
-              className="flex flex-wrap gap-x-6 gap-y-2.5"
-            >
-              <label
-                htmlFor="sync-video-timestamp"
-                className="flex items-center gap-2 cursor-pointer select-none"
-                style={{
-                  color: 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))',
-                  fontFamily: '"DM Sans", sans-serif',
-                  fontSize: '0.75rem',
-                  fontWeight: 400,
-                  letterSpacing: '0.01em',
-                  transition: 'color 200ms ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--c-content)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))';
-                }}
-              >
-                <Checkbox
-                  id="sync-video-timestamp"
-                  checked={syncVideoTimestamp}
-                  onCheckedChange={handleSyncVideoTimestampChange}
-                />
-                <span>同步视频时间戳到 URL</span>
-              </label>
-            </motion.div>
-          </AnimatedHeightWrapper>
-        </GlassCard>
-      </motion.div>
-
-      {/* Current Page Info */}
-      <div>
-        <GlassCard className="p-8">
-          <div className="space-y-4">
-            {/* Section label */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
-                <span 
-                  style={{ 
-                    color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                    fontFamily: '"DM Sans", sans-serif',
-                    fontWeight: 500,
-                    fontSize: '0.75rem',
-                    letterSpacing: '0.05em',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Current Page
-                </span>
-              </div>
-              {(error || loading) && (
-                <button
-                  onClick={loadCurrentPage}
-                  disabled={loading}
-                  className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50"
-                  style={{
-                    background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
-                  }}
-                  title="刷新"
-                >
-                  <RefreshCw 
-                    className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
-                    strokeWidth={1.5}
-                    style={{ color: 'var(--c-action)' }}
-                  />
-                </button>
-              )}
-            </div>
-
-            <div className="space-y-2.5">
-              {/* Title container - 使用固定容器，两个状态都绝对定位，完全重叠 */}
               <div className="relative" style={{ minHeight: '2.8rem', width: '100%' }}>
-                {/* 可编辑状态 - 完全透明，无样式，与 URL 样式一致 */}
+                {/* 可编辑状态 */}
                 <textarea
                   value={titleValue}
                   onChange={(e) => setTitleValue(e.target.value)}
@@ -370,10 +232,8 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                     boxSizing: 'border-box'
                   }}
                   onBlur={() => handleTitleChange(titleValue)}
-                  autoFocus={editingTitle}
                 />
-
-                {/* 不可编辑状态 - 使用相同的布局和 padding，绝对定位避免布局变化 */}
+                {/* 不可编辑状态 */}
                 <div
                   style={{
                     position: 'absolute',
@@ -424,6 +284,54 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                   </h2>
                 </div>
               </div>
+            </motion.div>
+
+            {/* --- 
+              输入框 
+              --- */}
+            <motion.div layout="position">
+              <GlassInput
+                value={tagInput}
+                onChange={setTagInput}
+                onSelect={handleAddTag}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                  if (e.key === "Enter" && tagInput.trim()) {
+                    e.preventDefault();
+                    handleAddTag();
+                  }
+                }}
+                placeholder="Enter a tag..."
+                suggestions={suggestions}
+                excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter((name): name is string => !!name) : []}
+                autoFocus={true}
+                disabled={loading || !!error} // 加载或出错时禁用
+              />
+            </motion.div>
+
+            {/* --- 
+              SECTION 2: 当前标签 (操作反馈) 
+              --- */}
+            {currentPage && currentPage.tags.length > 0 && (
+              <AnimatedFlipList
+                items={currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)).filter(Boolean) as (GameplayTag & { id: string })[]}
+                renderItem={(tag) => (
+                  <Tag label={tag.name} onRemove={() => handleRemoveTag(tag.id)} />
+                )}
+                className="flex flex-wrap items-start"
+                style={{
+                  gap: '0.875rem 0.875rem',
+                  alignContent: 'flex-start',
+                  rowGap: '0.875rem',
+                  marginTop: '0.75rem'
+                }}
+              />
+            )}
+
+            {/* --- 
+              SECTION 3: 页面信息 (上下文) 
+              --- */}
+            <motion.div layout="position">
+              {/* URL */}
               <p 
                 style={{ 
                   color: 'color-mix(in srgb, var(--c-content) 40%, var(--c-bg))',
@@ -442,11 +350,55 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
               >
                 {error ? '请检查浏览器控制台获取详细信息' : currentPage?.url || ''}
               </p>
-              </div>
-          </div>
-        </GlassCard>
-      </div>
+            </motion.div>
 
+            {/* --- 
+              SECTION 4: 设置 (次要) 
+              --- */}
+            <motion.div
+              layout="position" // 分割线
+              style={{
+                height: '1px',
+                backgroundColor: 'color-mix(in srgb, var(--c-glass) 20%, transparent)',
+                marginTop: '0.75rem',
+                marginBottom: '0.75rem'
+              }}
+            />
+
+            <motion.div 
+              layout="position" // Checkbox
+              className="flex flex-wrap gap-x-6 gap-y-2.5"
+            >
+              <label
+                htmlFor="sync-video-timestamp"
+                className="flex items-center gap-2 cursor-pointer select-none"
+                style={{
+                  color: 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))',
+                  fontFamily: '"DM Sans", sans-serif',
+                  fontSize: '0.75rem',
+                  fontWeight: 400,
+                  letterSpacing: '0.01em',
+                  transition: 'color 200ms ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--c-content)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))';
+                }}
+              >
+                <Checkbox
+                  id="sync-video-timestamp"
+                  checked={syncVideoTimestamp}
+                  onCheckedChange={handleSyncVideoTimestampChange}
+                />
+                <span>同步视频时间戳到 URL</span>
+              </label>
+            </motion.div>
+            
+          </AnimatedHeightWrapper>
+        </GlassCard>
+      </motion.div>
     </div>
   );
 }
