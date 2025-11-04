@@ -46,11 +46,11 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
   }, []);
 
   const handleMouseLeave = () => {
-    // 设置 150ms 延迟关闭
+    // 设置 80ms 延迟关闭
     closeTimerRef.current = setTimeout(() => {
       setIsExpanded(false);
       closeTimerRef.current = null;
-    }, 150);
+    }, 80);
   };
 
   const handleMouseEnter = () => {
