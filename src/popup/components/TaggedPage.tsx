@@ -121,13 +121,13 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
   };
 
   return (
-    <div className={`space-y-4 pb-12 ${className}`}>
+    <div className={`space-y-4 ${className}`}>
       {/* Unified Card: Search + Results */}
       <div>
         <GlassCard className="p-4">
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Search Section */}
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* Section Label */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

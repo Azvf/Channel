@@ -33,72 +33,82 @@ export default function App({ initialState }: AppProps) {
   };
 
   return (
-    <div className="min-h-screen relative">
+    <div 
+      className="relative flex h-full flex-col" 
+      style={{ 
+        width: '360px',
+        height: '560px',
+        background: 'transparent'
+      }}
+    >
       {/* Theme Switcher - Hidden in bottom right */}
       <ThemeSwitcher initialTheme={initialState.theme} />
       
       {/* Settings Modal - Rendered via Portal */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       
-      {/* Main content container */}
-      <div className="relative z-10">
-        <div className="container mx-auto px-4 max-w-5xl">
-          
-          {/* Header with Title and Settings */}
-          <div className="pt-6 pb-2 flex justify-between items-center">
-            <h1 
-              className="m-0"
-              style={{
-                fontFamily: '"DM Sans", sans-serif',
-                fontSize: '1.25rem',
-                fontWeight: 700,
-                color: 'var(--c-content)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Channel
-            </h1>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="rounded-lg p-2 transition-all"
-              style={{
-                background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
-                backdropFilter: 'blur(8px)',
-                border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
-                color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 20%, transparent)';
-                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-action) 45%, transparent)';
-                e.currentTarget.style.color = 'var(--c-action)';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 18%, transparent)';
-                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
-                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              <Settings className="w-4 h-4" strokeWidth={2} />
-            </button>
-          </div>
+      {/* 设置按钮 (Trigger) - 浮动在右上角 */}
+      <button
+        onClick={() => setIsSettingsOpen(true)}
+        className="absolute top-4 right-4 z-50 rounded-lg p-2 transition-all"
+        style={{
+          background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
+          backdropFilter: 'blur(8px)',
+          border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
+          color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
+          cursor: 'pointer'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 20%, transparent)';
+          e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-action) 45%, transparent)';
+          e.currentTarget.style.color = 'var(--c-action)';
+          e.currentTarget.style.transform = 'scale(1.05)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 18%, transparent)';
+          e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
+          e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        <Settings className="w-4 h-4" strokeWidth={2} />
+      </button>
 
-          {/* Tab navigation with glass effect - moved to top with minimal spacing */}
-          <div className="pt-2 pb-4 w-full">
-            <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
-          </div>
-
-          {/* Tab content */}
-          <div>
-            {activeTab === "tagging" ? (
-              <TaggingPage pageSettings={pageSettings} />
-            ) : (
-              <TaggedPage />
-            )}
-          </div>
+      {/* Tab 切换器：绝对定位，浮动在内容之上 */}
+      <div 
+        className="absolute top-0 left-0 right-0 tab-switcher-container" 
+        style={{ 
+          pointerEvents: 'none',
+          zIndex: 10,
+          paddingTop: '1.5rem',
+          paddingLeft: '1rem',
+          paddingRight: '1rem',
+          display: 'flex',
+          justifyContent: 'center'
+        }}
+      >
+        <div 
+          className="w-full max-w-md" 
+          style={{ pointerEvents: 'auto' }}
+        >
+          <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
         </div>
+      </div>
+
+      {/* Tab 内容区：占据全部空间并可滚动，顶部留出 TabSwitcher 的空间 */}
+      <div 
+        className="relative flex-1 px-4 pb-4" 
+        style={{ 
+          minHeight: 0, 
+          overflowY: 'auto',
+          paddingTop: '5.5rem'
+        }}
+      >
+        {activeTab === "tagging" ? (
+          <TaggingPage pageSettings={pageSettings} />
+        ) : (
+          <TaggedPage />
+        )}
       </div>
     </div>
   );

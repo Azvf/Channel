@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Sun, Moon, Sparkles } from "lucide-react";
 import { applyThemeToBody } from "../utils/theme";
 import { storageService, STORAGE_KEYS } from "../../services/storageService";
@@ -18,6 +18,7 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
   const [theme, setTheme] = useState(initialTheme);
   const [previousTheme, setPreviousTheme] = useState("1");
   const [isExpanded, setIsExpanded] = useState(false);
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleThemeChange = async (newTheme: string) => {
     // 立即更新状态以触发滑块动画
@@ -33,6 +34,31 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
 
   const getCurrentOption = () => {
     return themeOptions.find(t => t.value === theme)?.option || "1";
+  };
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleMouseLeave = () => {
+    // 设置 150ms 延迟关闭
+    closeTimerRef.current = setTimeout(() => {
+      setIsExpanded(false);
+      closeTimerRef.current = null;
+    }, 150);
+  };
+
+  const handleMouseEnter = () => {
+    // 如果鼠标移回，取消关闭定时器
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
   };
 
   return (
@@ -52,6 +78,8 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
         className="switcher theme-switcher-expanded"
         data-previous={previousTheme} 
         aria-hidden={!isExpanded}
+        onMouseLeave={handleMouseLeave}
+        onMouseEnter={handleMouseEnter}
         // 移除 pointerEvents 限制，允许 hover 效果
         // 点击行为由 label 的 pointerEvents 控制
       >

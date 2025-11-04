@@ -128,7 +128,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
   };
 
   return (
-    <div className={`pb-12 ${className}`}>
+    <div className={className}>
       {/* --- 
         单个统一的 GlassCard，包含所有内容 
         --- */}
@@ -184,7 +184,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
             </motion.div>
 
             {/* --- 
-              SECTION 0: 可编辑标题 
+              SECTION 2: 可编辑标题 (主要)
               --- */}
             <motion.div layout="position">
               <div className="relative" style={{ minHeight: '2.7rem', width: '100%' }}>
@@ -216,13 +216,13 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                     fontFamily: '"DM Sans", sans-serif',
                     color: 'var(--c-content)',
                     fontWeight: 600,
-                    fontSize: '1.1rem', // [2] 增大标题字号
-                    letterSpacing: '-0.015em', // [2] 优化字间距
-                    lineHeight: 1.35, // [2] 减小行高
-                    maxHeight: '2.7rem', // [2] 匹配 2 行 * 1.35
+                    fontSize: '1.1rem',
+                    letterSpacing: '-0.015em',
+                    lineHeight: 1.35,
+                    maxHeight: '2.7rem',
                     overflow: 'auto',
-                    minHeight: '2.7rem', // [2] 匹配 2 行 * 1.35
-                    padding: '0.5rem 0', // [3] 减小垂直 padding
+                    minHeight: '2.7rem',
+                    padding: '0.25rem 0',
                     background: 'transparent',
                     border: 'none',
                     outline: 'none',
@@ -245,8 +245,8 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                     pointerEvents: editingTitle ? 'none' : 'auto',
                     zIndex: editingTitle ? 1 : 10,
                     transition: 'opacity 0.2s ease-in-out',
-                    padding: '0.5rem 0', // [3] 减小垂直 padding
-                    minHeight: '2.7rem', // [2] 匹配
+                    padding: '0.25rem 0',
+                    minHeight: '2.7rem',
                     display: 'flex',
                     alignItems: 'flex-start',
                     boxSizing: 'border-box'
@@ -262,12 +262,12 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                       fontFamily: '"DM Sans", sans-serif',
                       color: 'var(--c-content)',
                       fontWeight: 600,
-                      fontSize: '1.1rem', // [2] 增大标题字号
-                      letterSpacing: '-0.015em', // [2] 优化字间距
-                      lineHeight: 1.35, // [2] 减小行高
+                      fontSize: '1.1rem',
+                      letterSpacing: '-0.015em',
+                      lineHeight: 1.35,
                       cursor: loading || error || !currentPage ? 'default' : 'text',
-                      maxHeight: '2.7rem', // [2] 匹配 2 行
-                      overflow: 'hidden', // [4] 优化多行显示
+                      maxHeight: '2.7rem',
+                      overflow: 'hidden',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: 'vertical' as any,
@@ -287,6 +287,32 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                   </h2>
                 </div>
               </div>
+            </motion.div>
+
+            {/* --- 
+              SECTION 3: URL (附注) - 移到标题下方
+              --- */}
+            <motion.div layout="position">
+              <p 
+                style={{ 
+                  color: 'color-mix(in srgb, var(--c-content) 40%, var(--c-bg))',
+                  fontFamily: '"DM Sans", sans-serif',
+                  fontSize: '0.7rem',
+                  fontWeight: 300,
+                  letterSpacing: '0.01em',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical' as any,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  wordBreak: 'break-all',
+                  lineHeight: 1.4,
+                  margin: 0,
+                  marginTop: '-0.5rem'
+                } as React.CSSProperties}
+              >
+                {error ? '请检查浏览器控制台获取详细信息' : currentPage?.url || ''}
+              </p>
             </motion.div>
 
             {/* --- 
@@ -312,7 +338,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
             </motion.div>
 
             {/* --- 
-              SECTION 2: 当前标签 (操作反馈) 
+              SECTION 4: 当前标签 (操作反馈) 
               --- */}
             {currentPage && currentPage.tags.length > 0 && (
               <AnimatedFlipList
@@ -322,40 +348,15 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                 )}
                 className="flex flex-wrap items-start"
                 style={{
-                  gap: '0.625rem', // [5] 减小 Tag 之间的间距 (14px -> 10px)
+                  gap: '0.75rem',
                   alignContent: 'flex-start',
-                  rowGap: '0.625rem' // [4] 移除多余的 margin
+                  rowGap: '0.75rem'
                 }}
               />
             )}
 
             {/* --- 
-              SECTION 3: 页面信息 (上下文) 
-              --- */}
-            <motion.div layout="position">
-              {/* URL */}
-              <p 
-                style={{ 
-                  color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))', // [6] 提高对比度
-                  fontFamily: '"DM Sans", sans-serif',
-                  fontSize: '0.8rem', // [6] 增大 URL 字号
-                  fontWeight: 400, // [6] 增加 URL 字重
-                  letterSpacing: '0.01em',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical' as any,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  wordBreak: 'break-all',
-                  lineHeight: 1.4
-                } as React.CSSProperties}
-              >
-                {error ? '请检查浏览器控制台获取详细信息' : currentPage?.url || ''}
-              </p>
-            </motion.div>
-
-            {/* --- 
-              SECTION 4: 设置 (次要) 
+              SECTION 5: 设置 (次要) 
               --- */}
             <motion.div
               layout="position" // 分割线
