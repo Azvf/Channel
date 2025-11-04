@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { GlassCard } from "./GlassCard";
 import { GlassInput } from "./GlassInput";
 import { Tag } from "./Tag";
@@ -8,6 +9,7 @@ import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
 import type { PageSettingsHook } from "../../popup/utils/usePageSettings";
 import { AnimatedHeightWrapper } from "./AnimatedHeightWrapper";
+import { AnimatedFlipList } from "./AnimatedFlipList";
 
 interface TaggingPageProps {
   className?: string;
@@ -30,11 +32,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
   const { settings, updateSyncVideoTimestamp } = pageSettings;
   const syncVideoTimestamp = settings.syncVideoTimestamp;
 
-  // Animation states - 只保留进入动画
-  const [enteringTagIds, setEnteringTagIds] = useState<Set<string>>(new Set());
-  const prevTagIdsRef = useRef<Set<string>>(new Set());
-  const isInitialMountRef = useRef(true);
-
   // 加载当前页面信息和所有标签
   useEffect(() => {
     loadCurrentPage();
@@ -56,61 +53,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
       setSuggestions(allTags.map(tag => tag.name));
     }
   }, [allTags]);
-
-  // 检测标签变化并设置进入动画状态（已移除退出动画）
-  useEffect(() => {
-    if (!currentPage) {
-      prevTagIdsRef.current = new Set();
-      setEnteringTagIds(new Set());
-      return;
-    }
-
-    // 跳过初始加载，避免所有tags都播放动画
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      prevTagIdsRef.current = new Set(currentPage.tags);
-      setEnteringTagIds(new Set());
-      return;
-    }
-
-    const currentTagIds = new Set(currentPage.tags);
-    const prevTagIds = prevTagIdsRef.current;
-    
-    // 如果prevTagIds为空，说明是重置状态，直接更新
-    if (prevTagIds.size === 0) {
-      prevTagIdsRef.current = new Set(currentTagIds);
-      setEnteringTagIds(new Set());
-      return;
-    }
-
-    const entering = new Set<string>();
-
-    // 找出新添加的tags（只在当前列表中，不在之前的列表中）
-    currentTagIds.forEach(tagId => {
-      if (!prevTagIds.has(tagId)) {
-        entering.add(tagId);
-      }
-    });
-
-    if (entering.size > 0) {
-      setEnteringTagIds(prev => {
-        const next = new Set(prev);
-        entering.forEach(id => next.add(id));
-        return next;
-      });
-      // 动画完成后清除标记
-      setTimeout(() => {
-        setEnteringTagIds(prev => {
-          const next = new Set(prev);
-          entering.forEach(id => next.delete(id));
-          return next;
-        });
-      }, 300);
-    }
-
-    // 更新prevTagIdsRef为当前的tags列表
-    prevTagIdsRef.current = new Set(currentTagIds);
-  }, [currentPage?.tags.length, currentPage?.tags.join(',')]);
 
   const loadCurrentPage = async () => {
     setLoading(true);
@@ -201,7 +143,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
   return (
     <div className={`space-y-6 pb-12 ${className}`}>
       {/* Add Tag Section */}
-      <div>
+      <motion.div layout>
         <GlassCard className="p-8">
           <AnimatedHeightWrapper innerClassName="space-y-5">
             {/* Section Header */}
@@ -264,7 +206,11 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
 
             {/* Tags Display */}
             {currentPage && currentPage.tags.length > 0 ? (
-              <div 
+              <AnimatedFlipList
+                items={currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)).filter(Boolean) as (GameplayTag & { id: string })[]}
+                renderItem={(tag) => (
+                  <Tag label={tag.name} onRemove={() => handleRemoveTag(tag.id)} />
+                )}
                 className="flex flex-wrap items-start"
                 style={{
                   gap: '0.875rem 0.875rem',
@@ -272,25 +218,12 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                   rowGap: '0.875rem',
                   marginTop: '0.75rem'
                 }}
-              >
-                {currentPage.tags.map((tagId) => {
-                  const tag = allTags.find(t => t.id === tagId);
-                  if (!tag) return null;
-                  const isEntering = enteringTagIds.has(tagId);
-                  return (
-                    <div
-                      key={tagId}
-                      className={isEntering ? 'tag-enter' : ''}
-                    >
-                      <Tag label={tag.name} onRemove={() => handleRemoveTag(tagId)} />
-                    </div>
-                  );
-                })}
-              </div>
+              />
             ) : null}
 
             {/* Settings 分割线 */}
-            <div
+            <motion.div
+              layout
               style={{
                 height: '1px',
                 backgroundColor: 'color-mix(in srgb, var(--c-glass) 20%, transparent)',
@@ -300,7 +233,10 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
             />
 
             {/* Settings Checkbox */}
-            <div className="flex flex-wrap gap-x-6 gap-y-2.5">
+            <motion.div 
+              layout
+              className="flex flex-wrap gap-x-6 gap-y-2.5"
+            >
               <label
                 htmlFor="sync-video-timestamp"
                 className="flex items-center gap-2 cursor-pointer select-none"
@@ -326,10 +262,10 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                 />
                 <span>同步视频时间戳到 URL</span>
               </label>
-            </div>
+            </motion.div>
           </AnimatedHeightWrapper>
         </GlassCard>
-      </div>
+      </motion.div>
 
       {/* Current Page Info */}
       <div>

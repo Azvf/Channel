@@ -57,6 +57,7 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.552.0",
     "react": "^18.2.0",
