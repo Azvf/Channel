@@ -43,13 +43,13 @@ export function TabSwitcher({ activeTab, onTabChange }: TabSwitcherProps) {
           onChange={() => handleTabChange("tagging")}
         />
         <div className="switcher__icon-wrapper">
-          <Tags className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
+          <Tags className="switcher__icon w-3.5 h-3.5" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
           <span 
             className="switcher__label"
             style={{ 
               fontFamily: '"DM Sans", sans-serif', 
               fontWeight: 500,
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               letterSpacing: '0.01em',
               color: 'var(--c)'
             }}
@@ -70,13 +70,13 @@ export function TabSwitcher({ activeTab, onTabChange }: TabSwitcherProps) {
           onChange={() => handleTabChange("tagged")}
         />
         <div className="switcher__icon-wrapper">
-          <Search className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
+          <Search className="switcher__icon w-3.5 h-3.5" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
           <span 
             className="switcher__label"
             style={{ 
               fontFamily: '"DM Sans", sans-serif', 
               fontWeight: 500,
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               letterSpacing: '0.01em',
               color: 'var(--c)'
             }}

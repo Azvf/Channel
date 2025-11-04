@@ -295,7 +295,7 @@ export function TagInput({
         <div className="liquidGlass-content">
           <div 
             ref={contentWrapperRef}
-            className="min-h-[3.2rem]" // 移除 flex 样式，只保留 min-h
+            className="min-h-[2.6rem]" // 移除 flex 样式，只保留 min-h
             style={{
               willChange: 'height', // 提示浏览器优化高度变化
               backfaceVisibility: 'hidden', // 防止重绘问题
@@ -304,7 +304,7 @@ export function TagInput({
           >
             {/* 创建新的内部 flex 容器 */}
             <div
-              className="flex flex-wrap gap-2 items-center px-5 py-3" // 将所有 flex 和 padding 样式移到这里
+              className="flex flex-wrap gap-2 items-center px-4 py-2" // 将所有 flex 和 padding 样式移到这里
               style={{ height: 'auto' }} // 确保内部容器高度始终自动
             >
               {tags.map((tag, index) => (
@@ -333,7 +333,7 @@ export function TagInput({
                 style={{ 
                   color: 'var(--c-content)',
                   fontFamily: '"DM Sans", sans-serif',
-                  fontSize: '0.9rem',
+                  fontSize: '0.85rem',
                   fontWeight: 400,
                   letterSpacing: '0.01em'
                 }}
@@ -414,7 +414,7 @@ export function TagInput({
                     style={{ 
                       color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
                       fontFamily: '"DM Sans", sans-serif',
-                      fontSize: '0.9rem',
+                      fontSize: '0.85rem',
                       fontWeight: 400,
                       letterSpacing: '0.01em',
                       width: 'calc(100% - 1rem)',

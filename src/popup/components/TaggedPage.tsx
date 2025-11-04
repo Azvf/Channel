@@ -119,23 +119,23 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
   };
 
   return (
-    <div className={`space-y-6 pb-12 ${className}`}>
+    <div className={`space-y-4 pb-12 ${className}`}>
       {/* Unified Card: Search + Results */}
       <div>
-        <GlassCard className="p-8">
+        <GlassCard className="p-6">
           <div className="space-y-5">
             {/* Search Section */}
             <div className="space-y-5">
               {/* Section Label */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Search className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
+                  <Search className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
                   <span 
                     style={{ 
                       color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
                       fontFamily: '"DM Sans", sans-serif',
                       fontWeight: 500,
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       letterSpacing: '0.05em',
                       textTransform: 'uppercase'
                     }}
@@ -174,7 +174,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                   style={{ 
                     color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))', 
                     fontFamily: '"DM Sans", sans-serif',
-                    fontSize: '0.8rem',
+                    fontSize: '0.75rem',
                     fontWeight: 400,
                     letterSpacing: '0.005em'
                   }}
@@ -219,7 +219,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                       style={{
                         background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
                         border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
-                        padding: '1.25rem 1.5rem',
+                        padding: '0.8rem 1.1rem',
                         cursor: 'pointer'
                       }}
                       onMouseEnter={(e) => {
@@ -289,7 +289,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               fontFamily: '"DM Sans", sans-serif',
                               color: 'var(--c-content)',
                               fontWeight: 600,
-                              fontSize: '1.05rem',
+                              fontSize: '0.95rem',
                               letterSpacing: '-0.015em',
                               lineHeight: 1.4,
                               transition: 'color 200ms ease',
@@ -321,7 +321,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                             style={{ 
                               color: 'color-mix(in srgb, var(--c-content) 48%, var(--c-bg))',
                               fontFamily: '"DM Sans", sans-serif',
-                              fontSize: '0.8rem',
+                              fontSize: '0.75rem',
                               fontWeight: 400,
                               letterSpacing: '0.005em',
                               margin: 0

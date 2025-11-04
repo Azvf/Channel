@@ -6,7 +6,7 @@ interface CheckboxProps {
 
 export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
   return (
-    <div className="relative flex items-center justify-center w-4 h-4">
+    <div className="relative flex items-center justify-center w-3.5 h-3.5">
       <input
         type="checkbox"
         id={id}
@@ -15,7 +15,7 @@ export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
         className="absolute opacity-0 cursor-pointer w-full h-full"
       />
       <div
-        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+        className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-all ${
           checked 
             ? "border-color: 'var(--c-action)' bg-color: 'var(--c-action)'" 
             : "border-color-mix(in srgb, var(--c-content) 30%, transparent)"
@@ -31,8 +31,8 @@ export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
       >
         {checked && (
           <svg
-            width="10"
-            height="10"
+            width="9"
+            height="9"
             viewBox="0 0 12 12"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"

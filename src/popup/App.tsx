@@ -36,9 +36,9 @@ export default function App({ initialState }: AppProps) {
       
       {/* Main content container */}
       <div className="relative z-10">
-        <div className="container mx-auto px-6 max-w-5xl">
+        <div className="container mx-auto px-3 max-w-5xl">
           {/* Tab navigation with glass effect - moved to top with minimal spacing */}
-          <div className="pt-12 pb-8 max-w-md mx-auto w-full">
+          <div className="pt-6 pb-4 max-w-md mx-auto w-full">
             <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
           </div>
 

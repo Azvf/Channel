@@ -252,11 +252,11 @@ export function GlassInput({
               }
             }}
             placeholder={placeholder}
-            className="flex-1 min-w-0 px-6 py-3 bg-transparent outline-none relative z-10"
+            className="flex-1 min-w-0 px-4 py-2 bg-transparent outline-none relative z-10"
             style={{ 
               color: 'var(--c-content)',
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               fontWeight: 400,
               letterSpacing: '0.01em'
             }}
@@ -336,7 +336,7 @@ export function GlassInput({
                     style={{ 
                       color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
                       fontFamily: '"DM Sans", sans-serif',
-                      fontSize: '0.9rem',
+                      fontSize: '0.85rem',
                       fontWeight: 400,
                       letterSpacing: '0.01em',
                       width: 'calc(100% - 1rem)',

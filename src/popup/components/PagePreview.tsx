@@ -240,7 +240,7 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
         ref={faviconRef}
       >
         <div 
-          className="w-6 h-6 rounded-lg flex items-center justify-center overflow-hidden transition-all"
+          className="w-5 h-5 rounded-lg flex items-center justify-center overflow-hidden transition-all"
           style={{
             background: 'color-mix(in srgb, var(--c-glass) 12%, transparent)',
             border: '1.5px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
@@ -250,13 +250,13 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
             <img
               src={faviconUrl}
               alt=""
-              className="w-4 h-4"
+              className="w-3.5 h-3.5"
               onError={() => setFaviconError(true)}
               style={{ objectFit: 'contain' }}
             />
           ) : (
             <div 
-              className="w-3.5 h-3.5 rounded"
+              className="w-3 h-3 rounded"
               style={{
                 background: 'color-mix(in srgb, var(--c-action) 50%, transparent)'
               }}

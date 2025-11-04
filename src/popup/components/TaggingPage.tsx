@@ -141,29 +141,40 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
 
 
   return (
-    <div className={`space-y-6 pb-12 ${className}`}>
+    <div className={`space-y-3 pb-12 ${className}`}>
       {/* Add Tag Section */}
-      <motion.div layout>
-        <GlassCard className="p-8">
-          <AnimatedHeightWrapper innerClassName="space-y-5">
+      <motion.div layout> {/* <--- 这个 layout 动画现在可以正确测量了 */}
+        {/* p-5 提供了所有内边距 */}
+        <GlassCard className="p-5">
+          {/* AnimatedHeightWrapper 现在是一个纯粹的 overflow:hidden 容器。
+            我们将 'space-y-5' 移动到 innerClassName，
+            这样布局就在内部 div 上，高度可以被正确测量。
+          */}
+          <AnimatedHeightWrapper 
+            innerClassName="space-y-5" // <--- 将 space-y-5 移到这里
+            wrapperProps={{
+              // 提示浏览器优化高度动画
+              style: { willChange: 'height' } 
+            }}
+          >
             {/* Section Header：使用 layout="position" 只动画位置，不淡入淡出 */}
             <motion.div layout="position">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
-                  <span 
-                    style={{ 
-                      color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                      fontFamily: '"DM Sans", sans-serif',
-                      fontWeight: 500,
-                      fontSize: '0.75rem',
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase'
-                    }}
-                  >
-                    Add Tags
-                  </span>
-                </div>
+              <div className="flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
+                <span 
+                  style={{ 
+                    color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
+                    fontFamily: '"DM Sans", sans-serif',
+                    fontWeight: 500,
+                    fontSize: '0.7rem',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase'
+                  }}
+                >
+                  Add Tags
+                </span>
+              </div>
                 
                 {/* Current Page Info */}
                 {currentPage && (
@@ -247,7 +258,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                 style={{
                   color: 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))',
                   fontFamily: '"DM Sans", sans-serif',
-                  fontSize: '0.8rem',
+                  fontSize: '0.75rem',
                   fontWeight: 400,
                   letterSpacing: '0.01em',
                   transition: 'color 200ms ease'
@@ -278,7 +289,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
             {/* Section label */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
+                <FileText className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
                 <span 
                   style={{ 
                     color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
@@ -314,7 +325,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
 
             <div className="space-y-2.5">
               {/* Title container - 使用固定容器，两个状态都绝对定位，完全重叠 */}
-              <div className="relative" style={{ minHeight: '3.5rem', width: '100%' }}>
+              <div className="relative" style={{ minHeight: '2.8rem', width: '100%' }}>
                 {/* 可编辑状态 - 完全透明，无样式，与 URL 样式一致 */}
                 <textarea
                   value={titleValue}
@@ -343,12 +354,12 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                     fontFamily: '"DM Sans", sans-serif',
                     color: 'var(--c-content)',
                     fontWeight: 600,
-                    fontSize: '1.2rem',
+                    fontSize: '1.0rem',
                     letterSpacing: '-0.01em',
                     lineHeight: 1.4,
-                    maxHeight: '3.5rem',
+                    maxHeight: '2.8rem',
                     overflow: 'auto',
-                    minHeight: '3.5rem',
+                    minHeight: '2.8rem',
                     padding: '0.75rem 0',
                     background: 'transparent',
                     border: 'none',
@@ -375,7 +386,7 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                     zIndex: editingTitle ? 1 : 10,
                     transition: 'opacity 0.2s ease-in-out',
                     padding: '0.75rem 0',
-                    minHeight: '3.5rem',
+                    minHeight: '2.8rem',
                     display: 'flex',
                     alignItems: 'flex-start',
                     boxSizing: 'border-box'
@@ -391,11 +402,11 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                       fontFamily: '"DM Sans", sans-serif',
                       color: 'var(--c-content)',
                       fontWeight: 600,
-                      fontSize: '1.2rem',
+                      fontSize: '1.0rem',
                       letterSpacing: '-0.01em',
                       lineHeight: 1.4,
                       cursor: loading || error || !currentPage ? 'default' : 'text',
-                      maxHeight: '3.5rem',
+                      maxHeight: '2.8rem',
                       overflow: 'hidden',
                       wordBreak: 'break-word',
                       margin: 0,

@@ -561,7 +561,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   position: relative;
   width: 100%;
   max-width: 28rem;
-  height: 4rem;
+  height: 3.25rem;
   padding: 0.4rem 0.4rem 0.4rem;
   backdrop-filter: blur(8px) url(#tab-switcher) saturate(var(--saturation));
   -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));

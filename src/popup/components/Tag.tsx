@@ -17,10 +17,10 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
       >
         <div className="liquidGlass-content flex items-center gap-2 group">
           <span 
-            className="whitespace-nowrap px-4 py-2"
+            className="whitespace-nowrap px-2.5 py-1"
             style={{
               color: 'var(--c-content)',
-              fontSize: '0.85rem',
+              fontSize: '0.75rem',
               fontWeight: 500,
               fontFamily: '"DM Sans", sans-serif',
               userSelect: 'none'
@@ -32,7 +32,7 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           {onRemove && (
             <button
               onClick={onRemove}
-              className="transition-all rounded-full p-0.5 mr-2"
+              className="transition-all rounded-full p-0.5 mr-1.5"
               aria-label="Remove tag"
               style={{
                 color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
@@ -49,7 +49,7 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
               }}
             >
               <X 
-                className="w-3.5 h-3.5" 
+                className="w-3 h-3" 
                 strokeWidth={2}
               />
             </button>
