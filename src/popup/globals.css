@@ -70,6 +70,66 @@
 
     /* 级别 9: 系统 UI (最高层，例如 ThemeSwitcher) */
     --z-system-layer: 100;
+
+    /* --- [新增] 字体族 (Font Family) --- */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+
+    /* --- [新增] 1. 排版令牌 (Typography Tokens) --- */
+
+    /* 1.1rem, 600 (用于页面主标题, e.g., TaggingPage, TaggedPage) */
+    --font-page-title: 600 1.1rem/1.35 var(--font-family);
+    --letter-spacing-page-title: -0.015em;
+
+    /* 1rem, 700 (用于 App/Modal 标题, e.g., "Channel", "Settings") */
+    --font-header-title: 700 1rem/1.35 var(--font-family);
+    --letter-spacing-header-title: -0.02em;
+
+    /* 0.9rem, 500 (用于设置行、列表项) */
+    --font-list-item: 500 0.9rem/1.4 var(--font-family);
+    --letter-spacing-list-item: normal;
+
+    /* 0.85rem, 400 (用于正文/输入框) */
+    --font-body: 400 0.85rem/1.4 var(--font-family);
+    --letter-spacing-body: 0.01em;
+
+    /* 0.8rem, 400 (用于二级文本, e.g., URLs) */
+    --font-caption: 400 0.8rem/1.4 var(--font-family);
+    --letter-spacing-caption: 0.005em;
+
+    /* 0.75rem, 600, UPPERCASE (用于设置组标题) */
+    --font-section-title: 600 0.75rem/1.4 var(--font-family);
+    --letter-spacing-section-title: 0.05em;
+
+    /* 0.75rem, 400 (用于列表项的次要值或脚注) */
+    --font-footnote: 400 0.75rem/1.4 var(--font-family);
+    --letter-spacing-footnote: 0.01em;
+
+    /* 0.75rem, 500 (用于 Tag 标签) */
+    --font-tag: 500 0.75rem/1.4 var(--font-family);
+    --letter-spacing-tag: 0.01em;
+
+    /* 0.7rem, 500, UPPERCASE (用于模块标题, e.g., "Add Tags", "Search by Tags") */
+    --font-module-title: 500 0.7rem/1.4 var(--font-family);
+    --letter-spacing-module-title: 0.05em;
+
+    /* --- [新增] 2. 颜色令牌 (Color Tokens) --- */
+
+    /* 主要内容 (e.g., 标题, 列表项) */
+    --color-text-primary: var(--c-content);
+
+    /* 二级内容 (e.g., URL, 描述, 已选中的值) */
+    --color-text-secondary: color-mix(in srgb, var(--c-content) 50%, transparent);
+
+    /* 三级/禁用内容 (e.g., 空状态提示) */
+    --color-text-tertiary: color-mix(in srgb, var(--c-content) 40%, transparent);
+
+    /* 动作颜色 (e.g., 链接, 图标) */
+    --color-text-action: var(--c-action);
+
+    /* 模块标题颜色 (e.g., "Add Tags", "Search by Tags") */
+    --color-text-module-title: color-mix(in srgb, var(--c-content) 70%, var(--c-bg));
   }
   
   /* 只有当 body 有 data-theme-ready 属性时才启用过渡效果 */

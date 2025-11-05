@@ -19,9 +19,9 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           <span 
             className="whitespace-nowrap px-2.5 py-1"
             style={{
-              color: 'var(--c-content)',
-              fontSize: '0.75rem',
-              fontWeight: 500,
+              color: 'var(--color-text-primary)',
+              font: 'var(--font-tag)',
+              letterSpacing: 'var(--letter-spacing-tag)',
               userSelect: 'none'
             }}
           >

@@ -137,10 +137,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                   <Plus className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
                   <span 
                     style={{ 
-                      color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                      fontWeight: 500,
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.05em',
+                      color: 'var(--color-text-module-title)',
+                      font: 'var(--font-module-title)',
+                      letterSpacing: 'var(--letter-spacing-module-title)',
                       textTransform: 'uppercase',
                       whiteSpace: 'nowrap'
                     }}
@@ -152,10 +151,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                 {currentPage?.url && (
                   <p 
                     style={{ 
-                      color: 'color-mix(in srgb, var(--c-content) 35%, var(--c-bg))',
-                      fontSize: '0.8rem',
-                      fontWeight: 400,
-                      letterSpacing: '0.01em',
+                      color: 'var(--color-text-secondary)',
+                      font: 'var(--font-caption)',
+                      letterSpacing: 'var(--letter-spacing-caption)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -221,10 +219,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     pointerEvents: editingTitle ? 'auto' : 'none',
                     zIndex: editingTitle ? 10 : 1,
                     transition: 'opacity 0.2s ease-in-out',
-                    color: 'var(--c-content)',
-                    fontWeight: 600,
-                    fontSize: '1.1rem',
-                    letterSpacing: '-0.015em',
+                    color: 'var(--color-text-primary)',
+                    font: 'var(--font-page-title)',
+                    letterSpacing: 'var(--letter-spacing-page-title)',
                     lineHeight: 1.35,
                     maxHeight: '2.7rem',
                     overflow: 'auto',
@@ -266,10 +263,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       }
                     }}
                     style={{ 
-                      color: 'var(--c-content)',
-                      fontWeight: 600,
-                      fontSize: '1.1rem',
-                      letterSpacing: '-0.015em',
+                      color: 'var(--color-text-primary)',
+                      font: 'var(--font-page-title)',
+                      letterSpacing: 'var(--letter-spacing-page-title)',
                       lineHeight: 1.35,
                       cursor: loading || error || !currentPage ? 'default' : 'text',
                       maxHeight: '2.7rem',

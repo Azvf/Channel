@@ -63,7 +63,7 @@ export function SettingsRow({
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-              color: 'color-mix(in srgb, var(--c-content) 70%, transparent)',
+              color: 'var(--color-text-secondary)',
             }}
           >
             {icon}
@@ -80,9 +80,8 @@ export function SettingsRow({
         >
           <span
             style={{
-              fontSize: '0.9rem',
-              fontWeight: 500,
-              color: 'var(--c-content)',
+              font: 'var(--font-list-item)',
+              color: 'var(--color-text-primary)',
               userSelect: 'none',
             }}
           >
@@ -91,9 +90,9 @@ export function SettingsRow({
           {value && (
             <span
               style={{
-                fontSize: '0.75rem',
-                fontWeight: 400,
-                color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+                font: 'var(--font-footnote)',
+                letterSpacing: 'var(--letter-spacing-footnote)',
+                color: 'var(--color-text-secondary)',
                 userSelect: 'none',
               }}
             >

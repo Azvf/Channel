@@ -11,11 +11,10 @@ export function SettingsSectionTitle({ children, className = '', style }: Settin
     <div
       className={`settings-section-title ${className}`}
       style={{
-        fontSize: '0.75rem',
-        fontWeight: 600,
-        letterSpacing: '0.05em',
+        font: 'var(--font-section-title)',
+        letterSpacing: 'var(--letter-spacing-section-title)',
         textTransform: 'uppercase',
-        color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+        color: 'var(--color-text-secondary)',
         marginTop: '1.5rem',
         marginBottom: '0.5rem',
         ...style,

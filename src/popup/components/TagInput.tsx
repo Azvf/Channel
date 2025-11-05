@@ -400,10 +400,9 @@ export function TagInput({
                 disabled={disabled}
                 className="flex-1 min-w-[140px] bg-transparent outline-none"
                 style={{ 
-                  color: 'var(--c-content)',
-                  fontSize: '0.85rem',
-                  fontWeight: 400,
-                  letterSpacing: '0.01em',
+                  color: 'var(--color-text-primary)',
+                  font: 'var(--font-body)',
+                  letterSpacing: 'var(--letter-spacing-body)',
                   opacity: disabled ? 0.5 : 1,
                   cursor: disabled ? 'not-allowed' : 'text'
                 }}

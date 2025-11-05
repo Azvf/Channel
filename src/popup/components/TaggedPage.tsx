@@ -174,10 +174,9 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                   <Search className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
                   <span 
                     style={{ 
-                      color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                      fontWeight: 500,
-                      fontSize: '0.7rem',
-                      letterSpacing: '0.05em',
+                      color: 'var(--color-text-module-title)',
+                      font: 'var(--font-module-title)',
+                      letterSpacing: 'var(--letter-spacing-module-title)',
                       textTransform: 'uppercase'
                     }}
                   >
@@ -213,10 +212,9 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
               <div className="flex items-center justify-between pt-1">
                 <span 
                   style={{ 
-                    color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))', 
-                    fontSize: '0.75rem',
-                    fontWeight: 400,
-                    letterSpacing: '0.005em'
+                    color: 'var(--color-text-secondary)',
+                    font: 'var(--font-footnote)',
+                    letterSpacing: 'var(--letter-spacing-footnote)',
                   }}
                 >
                   {searchTags.length > 0 ? 'Filtered results' : 'All pages'}
@@ -321,11 +319,9 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               <h2
                                 className="hover:text-[var(--c-action)] transition-colors"
                                 style={{ 
-                                  color: 'var(--c-content)',
-                                  fontWeight: 600,
-                                  fontSize: '1.1rem', // [7] 匹配 TaggingPage 标题
-                                  letterSpacing: '-0.015em', // [7] 匹配 TaggingPage 标题
-                                  lineHeight: 1.35, // [7] 匹配 TaggingPage 标题
+                                  color: 'var(--color-text-primary)',
+                                  font: 'var(--font-page-title)',
+                                  letterSpacing: 'var(--letter-spacing-page-title)',
                                   margin: 0
                                 }}
                               >
@@ -346,10 +342,9 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               <p 
                                 className="truncate flex-1"
                                 style={{ 
-                                  color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))', // [8] 匹配 TaggingPage URL
-                                  fontSize: '0.8rem', // [8] 匹配 TaggingPage URL
-                                  fontWeight: 400, // [8] 匹配 TaggingPage URL
-                                  letterSpacing: '0.005em',
+                                  color: 'var(--color-text-secondary)',
+                                  font: 'var(--font-caption)',
+                                  letterSpacing: 'var(--letter-spacing-caption)',
                                   margin: 0
                                 }}
                               >
@@ -367,11 +362,10 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                     key={tagIndex}
                                     className="inline-flex items-center px-2.5 py-1 rounded-lg"
                                     style={{ 
-                                      color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
+                                      color: 'var(--color-text-secondary)',
+                                      font: 'var(--font-tag)',
+                                      letterSpacing: 'var(--letter-spacing-tag)',
                                       background: 'color-mix(in srgb, var(--c-glass) 10%, transparent)',
-                                      fontSize: '0.7rem',
-                                      fontWeight: 500,
-                                      letterSpacing: '0.01em',
                                       border: '1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)',
                                       transition: 'all 200ms ease'
                                     }}
@@ -409,9 +403,8 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                     </div>
                     <div className="space-y-1">
                       <p style={{ 
-                        fontSize: '0.9rem',
-                        fontWeight: 500,
-                        letterSpacing: '-0.01em',
+                        font: 'var(--font-list-item)',
+                        color: 'var(--color-text-tertiary)',
                         margin: 0
                       }}>
                         {searchTags.length > 0
@@ -419,9 +412,9 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                           : "No pages yet"}
                       </p>
                       <p style={{ 
-                        fontSize: '0.8rem',
-                        fontWeight: 400,
-                        letterSpacing: '0.01em',
+                        font: 'var(--font-caption)',
+                        letterSpacing: 'var(--letter-spacing-caption)',
+                        color: 'var(--color-text-tertiary)',
                         margin: 0
                       }}>
                         {searchTags.length > 0

@@ -44,10 +44,9 @@ export function GlassInput({
     className: `flex-1 min-w-0 px-4 py-2 bg-transparent outline-none relative ${className}`,
     style: { 
       zIndex: 'var(--z-content)',
-      color: 'var(--c-content)',
-      fontSize: '0.85rem',
-      fontWeight: 400,
-      letterSpacing: '0.01em',
+      color: 'var(--color-text-primary)',
+      font: 'var(--font-body)',
+      letterSpacing: 'var(--letter-spacing-body)',
       opacity: disabled ? 0.5 : 1,
       cursor: disabled ? 'not-allowed' : 'text',
       resize: as === 'textarea' ? 'vertical' as const : undefined,
