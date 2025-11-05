@@ -224,7 +224,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         zIndex: 'calc(var(--z-modal-layer) + 1)',
         left: '50%',
         top: '50%',
-        transform: 'translate(-50%, -50%)',
+        // transform 已由 dialogSlideIn variant 处理（包含居中逻辑）
         width: 'calc(100% - 32px)',
         maxWidth: '360px',
         maxHeight: '90vh',

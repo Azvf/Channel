@@ -40,16 +40,20 @@ export const fadeAndScale: Variants = {
 /**
  * 变体(Variant)：弹窗滑入
  * 用于 SettingsModal, EditPageDialog 等
+ * 注意：此 variant 假设元素使用 left: 50%, top: 50% 定位
+ * 通过 x: "-50%", y: "-50%" 实现居中，同时保持滑入动画
  */
 export const dialogSlideIn: Variants = {
   hidden: {
     opacity: 0,
-    y: 16, // 从 16px 下方滑入
+    x: "-50%", // 水平居中
+    y: "calc(-50% + 16px)", // 垂直居中但稍微偏下（滑入起点）
     scale: 0.98
   },
   visible: {
     opacity: 1,
-    y: 0,
+    x: "-50%", // 水平居中
+    y: "-50%", // 垂直居中
     scale: 1,
     transition: {
       duration: 0.25,
@@ -58,7 +62,8 @@ export const dialogSlideIn: Variants = {
   },
   exit: {
     opacity: 0,
-    y: 16,
+    x: "-50%", // 水平居中
+    y: "calc(-50% + 16px)", // 垂直居中但稍微偏下（滑出终点）
     scale: 0.98,
     transition: SMOOTH_TRANSITION
   }

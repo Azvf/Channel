@@ -41,7 +41,7 @@ export function TagInput({
     prevTagsLengthRef.current = tags.length;
   }, [tags.length]);
 
-  // 注意：高度动画现在由 useAnimatedHeight Hook 自动处理，无需额外的 useEffect
+  // 注意：高度动画现在由 framer-motion 的 layout 属性自动处理
 
   useEffect(() => {
     // 检测是否是添加tag导致的状态变化：
