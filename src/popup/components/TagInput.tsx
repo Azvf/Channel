@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 import { Tag } from "./Tag";
@@ -35,6 +36,8 @@ export function TagInput({
   const [shouldShowDropdown, setShouldShowDropdown] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1); // 当前选中的下拉菜单选项索引
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [isPositionReady, setIsPositionReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +62,23 @@ export function TagInput({
   useEffect(() => {
     prevTagsLengthRef.current = tags.length;
   }, [tags.length]);
+
+  // 动态计算下拉菜单位置
+  useLayoutEffect(() => {
+    if (showSuggestions && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceInPx = 8; // 8px 间距
+
+      setDropdownPosition({
+        top: rect.bottom + (window.scrollY || 0) + spaceInPx,
+        left: rect.left + (window.scrollX || 0),
+        width: rect.width
+      });
+      setIsPositionReady(true);
+    } else {
+      setIsPositionReady(false);
+    }
+  }, [showSuggestions]);
 
   // 注意：高度动画现在由 framer-motion 的 layout 属性自动处理
 
@@ -142,7 +162,12 @@ export function TagInput({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isClickInsideContainer = containerRef.current?.contains(target);
+      const isClickInsideDropdown = dropdownRef.current?.contains(target);
+      
+      // 只有当点击既不在容器内也不在下拉菜单内时，才关闭下拉菜单
+      if (!isClickInsideContainer && !isClickInsideDropdown) {
         setShowSuggestions(false);
         setShouldShowDropdown(false);
         manuallyOpenedRef.current = false;
@@ -422,16 +447,21 @@ export function TagInput({
         </div>
       </div>
 
-      {/* Dropdown suggestions */}
-      {(showSuggestions || isAnimating) && filteredSuggestions.length > 0 && (
+      {/* Dropdown suggestions - Portal 化 */}
+      {isPositionReady && (showSuggestions || isAnimating) && filteredSuggestions.length > 0 && createPortal(
         <div 
           ref={dropdownRef}
-          className={`absolute top-[calc(100%+0.5rem)] left-0 right-0 transition-all duration-300 ease-out ${
+          className={`fixed transition-all duration-300 ease-out ${
             shouldShowDropdown 
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 -translate-y-2 pointer-events-none'
           }`}
-          style={{ zIndex: 'var(--z-dropdown)' }}
+          style={{
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`,
+            width: `${dropdownPosition.width}px`,
+            zIndex: 'var(--z-dropdown)'
+          }}
         >
           <div 
             className="liquidGlass-wrapper"
@@ -489,7 +519,8 @@ export function TagInput({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

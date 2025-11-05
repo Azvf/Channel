@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from 'framer-motion';
-import { fadeIn, dialogSlideIn } from '../utils/motion';
 import { GlassInput } from "./GlassInput";
 import { TagInput } from "./TagInput";
 import { GlassCard } from "./GlassCard";
@@ -194,70 +193,96 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
     onClose();
   };
 
-  if (!isOpen) return null;
+  // 定义与 SettingsModal 一致的 variants（适用于 flex 布局）
+  const backdropVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+  };
 
-  const backdropElement = (
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    visible: { opacity: 1, scale: 1, y: 0 },
+  };
+
+  // 合并为一个 modalContent 变量，结构与 SettingsModal 一致
+  const modalContent = (
     <motion.div
-      className="fixed z-[var(--z-modal-layer)]"
+      // 这是 Backdrop
+      className="fixed inset-0 flex items-center justify-center p-4"
       style={{
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100vw',
-        height: '100vh',
+        zIndex: 'var(--z-modal-layer)',
         background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
         backdropFilter: 'blur(4px)',
         margin: 0,
         padding: 0
       }}
-      variants={fadeIn}
       initial="hidden"
       animate="visible"
-      exit="exit"
-      onClick={handleCancel}
-    />
-  );
-
-  const dialogElement = (
-    <motion.div
-      ref={dialogRef}
-      className="fixed"
-      style={{
-        zIndex: 'calc(var(--z-modal-layer) + 1)',
-        left: '50%',
-        top: '50%',
-        // transform 已由 dialogSlideIn variant 处理（包含居中逻辑）
-        width: 'calc(100% - 32px)',
-        maxWidth: '360px',
-        maxHeight: '90vh',
-      }}
-      variants={dialogSlideIn}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
+      exit="hidden"
+      variants={backdropVariants}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      onClick={handleCancel} // 点击背景时关闭
     >
-      {/* [关键] 将所有视觉样式委托给 GlassCard */}
-      <GlassCard 
-        className="overflow-hidden flex flex-col"
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          maxHeight: '90vh'
+      <motion.div
+        ref={dialogRef} // ref 移到这里
+        // 这是 Dialog
+        style={{
+          width: 'calc(100% - 32px)',
+          maxWidth: '360px',
+          maxHeight: '90vh',
+          display: 'flex'
         }}
+        variants={modalVariants}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        onClick={(e) => e.stopPropagation()} // 阻止点击弹窗内容时关闭
       >
-        {/* Header - 使用标准化的 ModalHeader */}
-        <ModalHeader title="Edit Page" onClose={handleCancel} />
-
-        {/* Content - Scrollable */}
-        <div 
-          ref={scrollableContentRef}
-          className="px-3 py-2.5 space-y-2.5 flex-1 overflow-y-auto"
-          style={{
-            minHeight: 0,
+        <GlassCard 
+          className="overflow-hidden flex flex-col"
+          style={{ 
+            width: '100%', 
+            height: '100%', 
+            maxHeight: '90vh'
           }}
         >
-          {/* URL Display (Read-only) */}
+          {/* Header - 使用标准化的 ModalHeader */}
+          <ModalHeader title="Edit Page" onClose={handleCancel} />
+
+          {/* Content - Scrollable */}
+          <div 
+            ref={scrollableContentRef}
+            className="px-3 py-2.5 space-y-2.5 flex-1 overflow-y-auto"
+            style={{ minHeight: 0 }}
+          >
+            {/* URL Display (Read-only) */}
+            <div>
+              <label
+                className="block mb-1"
+                style={{
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase'
+              }}
+            >
+              URL
+            </label>
+            <div
+              className="px-2.5 py-1 rounded-lg"
+              style={{
+                background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
+                fontSize: '0.7rem',
+                color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
+                fontWeight: 500,
+                wordBreak: 'break-all'
+              }}
+            >
+                {page.url}
+              </div>
+          </div>
+
+          {/* Title Input */}
           <div>
             <label
               className="block mb-1"
@@ -269,35 +294,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               textTransform: 'uppercase'
             }}
           >
-            URL
-          </label>
-          <div
-            className="px-2.5 py-1 rounded-lg"
-            style={{
-              background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-              fontSize: '0.7rem',
-              color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
-              fontWeight: 500,
-              wordBreak: 'break-all'
-            }}
-          >
-              {page.url}
-            </div>
-        </div>
-
-        {/* Title Input */}
-        <div>
-          <label
-            className="block mb-1"
-            style={{
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-            letterSpacing: '0.02em',
-            textTransform: 'uppercase'
-          }}
-          >
             Title
           </label>
             <GlassInput
@@ -307,19 +303,19 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               as="textarea"
               rows={2}
             />
-        </div>
+          </div>
 
-        {/* Tags Input */}
-        <div>
-          <label
-            className="block mb-1"
-            style={{
-            fontSize: '0.7rem',
-            fontWeight: 600,
-            color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-            letterSpacing: '0.02em',
-            textTransform: 'uppercase'
-          }}
+          {/* Tags Input */}
+          <div>
+            <label
+              className="block mb-1"
+              style={{
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
+              letterSpacing: '0.02em',
+              textTransform: 'uppercase'
+            }}
           >
             Tags
           </label>
@@ -328,74 +324,75 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               onTagsChange={setEditedTags}
               placeholder="Add or remove tags"
             />
+          </div>
         </div>
-      </div>
 
-      {/* Footer - 使用标准化的 ModalFooter */}
-      <ModalFooter>
-        <button
-          onClick={handleCancel}
-          className="px-4 py-2 rounded-lg transition-all"
-          style={{
-            background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
-            color: 'var(--c-content)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            letterSpacing: '0.01em',
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 25%, transparent)';
-          }}
-        >
-          Cancel
-        </button>
+        {/* Footer - 使用标准化的 ModalFooter */}
+        <ModalFooter>
+          <button
+            onClick={handleCancel}
+            className="px-4 py-2 rounded-lg transition-all"
+            style={{
+              background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
+              color: 'var(--c-content)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              letterSpacing: '0.01em',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
+              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
+              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 25%, transparent)';
+            }}
+          >
+            Cancel
+          </button>
 
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
-          style={{
-            background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
-            border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
-            color: 'var(--c-bg)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            letterSpacing: '0.01em',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 85%, var(--c-bg))';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px -2px color-mix(in srgb, var(--c-action) 50%, transparent)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 100%, transparent)';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)';
-          }}
-        >
-          <Save className="w-4 h-4" />
-          Save
-        </button>
-      </ModalFooter>
-    </GlassCard>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
+            style={{
+              background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
+              border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
+              color: 'var(--c-bg)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              letterSpacing: '0.01em',
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 85%, var(--c-bg))';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px -2px color-mix(in srgb, var(--c-action) 50%, transparent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 100%, transparent)';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)';
+            }}
+          >
+            <Save className="w-4 h-4" />
+            Save
+          </button>
+        </ModalFooter>
+      </GlassCard>
+      </motion.div>
     </motion.div>
   );
 
-  // 使用Portal将backdrop和dialog渲染到body下，确保覆盖整个视口
+  // Portal
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {typeof document !== 'undefined' && createPortal(backdropElement, document.body)}
-          {typeof document !== 'undefined' && createPortal(dialogElement, document.body)}
+          {/* 只 Portal *一个* 组件 */}
+          {typeof document !== 'undefined' && createPortal(modalContent, document.body)}
         </>
       )}
     </AnimatePresence>

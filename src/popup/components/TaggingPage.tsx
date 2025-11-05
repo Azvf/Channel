@@ -124,7 +124,8 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             className="space-y-4"
             style={{ 
               willChange: 'height',
-              overflow: 'hidden' // 添加 overflow
+              overflow: 'visible', // 改为 visible 以显示阴影
+              // 注意：如果内容溢出，需要在内部元素上单独处理
             }}
           >
             {/* --- 
