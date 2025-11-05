@@ -4,7 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn, dialogSlideIn } from '../utils/motion';
 import { GlassInput } from "./GlassInput";
 import { TagInput } from "./TagInput";
-import { X, Save } from "lucide-react";
+import { GlassCard } from "./GlassCard";
+import { ModalHeader } from "./ModalHeader";
+import { ModalFooter } from "./ModalFooter";
+import { Save } from "lucide-react";
 
 interface EditPageDialogProps {
   isOpen: boolean;
@@ -219,7 +222,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
   const dialogElement = (
     <motion.div
       ref={dialogRef}
-      className="fixed rounded-xl border overflow-hidden"
+      className="fixed"
       style={{
         zIndex: 'calc(var(--z-modal-layer) + 1)',
         left: '50%',
@@ -228,65 +231,23 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         width: 'calc(100% - 32px)',
         maxWidth: '360px',
         maxHeight: '90vh',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'color-mix(in srgb, var(--c-bg) 96%, transparent)',
-        backdropFilter: 'blur(24px) saturate(180%)',
-        borderColor: 'color-mix(in srgb, var(--c-glass) 45%, transparent)',
-        boxShadow: `
-          0 0 0 1px color-mix(in srgb, var(--c-glass) 12%, transparent),
-          0 2px 4px -1px color-mix(in srgb, var(--c-glass) 10%, transparent),
-          0 4px 8px -2px color-mix(in srgb, var(--c-glass) 15%, transparent),
-          0 8px 16px -4px color-mix(in srgb, var(--c-glass) 20%, transparent),
-          0 16px 32px -8px color-mix(in srgb, var(--c-glass) 25%, transparent),
-          0 32px 64px -16px color-mix(in srgb, var(--c-glass) 30%, transparent)
-        `
       }}
       variants={dialogSlideIn}
       initial="hidden"
       animate="visible"
       exit="exit"
     >
-        {/* Header - Fixed */}
-        <div
-          className="px-4 py-3 flex items-center justify-between flex-shrink-0"
-          style={{
-            borderBottom: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)'
-          }}
-        >
-          <h2
-            style={{
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: 'var(--c-content)',
-              letterSpacing: '-0.02em',
-              margin: 0
-            }}
-          >
-            Edit Page
-          </h2>
-
-          <button
-            onClick={handleCancel}
-            className="rounded-lg p-2 transition-all"
-            style={{
-              background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-              color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
-            }}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+      {/* [关键] 将所有视觉样式委托给 GlassCard */}
+      <GlassCard 
+        className="overflow-hidden flex flex-col"
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          maxHeight: '90vh'
+        }}
+      >
+        {/* Header - 使用标准化的 ModalHeader */}
+        <ModalHeader title="Edit Page" onClose={handleCancel} />
 
         {/* Content - Scrollable */}
         <div 
@@ -294,8 +255,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           className="px-3 py-2.5 space-y-2.5 flex-1 overflow-y-auto"
           style={{
             minHeight: 0,
-            // [修复] 删除魔术数字，依赖 Flexbox 自动布局
-            // maxHeight: 'calc(90vh - 140px)' 
           }}
         >
           {/* URL Display (Read-only) */}
@@ -325,19 +284,19 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           >
               {page.url}
             </div>
-          </div>
+        </div>
 
-          {/* Title Input */}
-          <div>
-            <label
-              className="block mb-1"
-              style={{
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase'
-            }}
+        {/* Title Input */}
+        <div>
+          <label
+            className="block mb-1"
+            style={{
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
+            letterSpacing: '0.02em',
+            textTransform: 'uppercase'
+          }}
           >
             Title
           </label>
@@ -345,20 +304,22 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               value={editedTitle}
               onChange={(value) => setEditedTitle(value)}
               placeholder="Enter page title"
+              as="textarea"
+              rows={2}
             />
-          </div>
+        </div>
 
-          {/* Tags Input */}
-          <div>
-            <label
-              className="block mb-1"
-              style={{
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase'
-            }}
+        {/* Tags Input */}
+        <div>
+          <label
+            className="block mb-1"
+            style={{
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
+            letterSpacing: '0.02em',
+            textTransform: 'uppercase'
+          }}
           >
             Tags
           </label>
@@ -367,69 +328,65 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               onTagsChange={setEditedTags}
               placeholder="Add or remove tags"
             />
-          </div>
         </div>
+      </div>
 
-        {/* Footer - Fixed */}
-        <div
-          className="px-4 py-3 flex items-center justify-end gap-2 flex-shrink-0"
+      {/* Footer - 使用标准化的 ModalFooter */}
+      <ModalFooter>
+        <button
+          onClick={handleCancel}
+          className="px-4 py-2 rounded-lg transition-all"
           style={{
-            borderTop: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)'
+            background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
+            color: 'var(--c-content)',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            letterSpacing: '0.01em',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
+            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
+            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 25%, transparent)';
           }}
         >
-          <button
-            onClick={handleCancel}
-            className="px-4 py-2 rounded-lg transition-all"
-            style={{
-              background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
-              color: 'var(--c-content)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              letterSpacing: '0.01em',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 25%, transparent)';
-            }}
-          >
-            Cancel
-          </button>
+          Cancel
+        </button>
 
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
-            style={{
-              background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
-              border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
-              color: 'var(--c-bg)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              letterSpacing: '0.01em',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 85%, var(--c-bg))';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px -2px color-mix(in srgb, var(--c-action) 50%, transparent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 100%, transparent)';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)';
-            }}
-          >
-            <Save className="w-4 h-4" />
-            Save
-          </button>
-        </div>
-      </motion.div>
+        <button
+          onClick={handleSave}
+          className="px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
+          style={{
+            background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
+            border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
+            color: 'var(--c-bg)',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            letterSpacing: '0.01em',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 85%, var(--c-bg))';
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px -2px color-mix(in srgb, var(--c-action) 50%, transparent)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 100%, transparent)';
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)';
+          }}
+        >
+          <Save className="w-4 h-4" />
+          Save
+        </button>
+      </ModalFooter>
+    </GlassCard>
+    </motion.div>
   );
 
   // 使用Portal将backdrop和dialog渲染到body下，确保覆盖整个视口

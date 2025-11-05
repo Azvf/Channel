@@ -1,13 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Download, Upload, Sun, AppWindow, Video } from 'lucide-react';
+import { ChevronRight, Download, Upload, Sun, AppWindow, Video, Tag } from 'lucide-react';
 import { GlassCard } from './GlassCard';
+import { ModalHeader } from './ModalHeader';
 import { Checkbox } from './ui/checkbox';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { SettingsGroup } from './SettingsGroup';
 import { SettingsRow } from './SettingsRow';
 import { SettingsSectionTitle } from './SettingsSectionTitle';
+import { TagManagementPage } from './TagManagementPage';
 import { usePageSettings } from '../utils/usePageSettings';
 import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
 import { TagManager } from '../../services/tagManager';
@@ -19,6 +21,8 @@ interface SettingsModalProps {
   initialTheme: string;
 }
 
+type SettingsPage = 'main' | 'tagLibrary';
+
 export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalProps) {
   // 使用 pageSettings hook 管理"同步视频时间戳"设置
   const pageSettings = usePageSettings(DEFAULT_PAGE_SETTINGS);
@@ -28,6 +32,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   const [selectedAppIcon, setSelectedAppIcon] = useState<string>('default');
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [currentPage, setCurrentPage] = useState<SettingsPage>('main');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSyncVideoTimestampChange = (checked: boolean) => {
@@ -178,51 +183,25 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
         variants={modalVariants}
         transition={{ duration: 0.2, ease: 'easeOut' }}
         onClick={(e) => e.stopPropagation()} // Prevent closing on modal click
+        style={{ maxHeight: '90vh', display: 'flex' }}
       >
-        <GlassCard className="p-5">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-4">
-            <h2
-              style={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                color: 'var(--c-content)',
-                letterSpacing: '-0.02em',
-                margin: 0
-              }}
-            >
-              Settings
-            </h2>
-            <button
-              onClick={onClose}
-              className="rounded-lg p-2 transition-all"
-              style={{
-                background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
-              }}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+        <GlassCard className="p-5 flex flex-col" style={{ width: '100%', maxHeight: '90vh' }}>
+          {/* Header - 使用标准化的 ModalHeader */}
+          <ModalHeader title="Settings" onClose={onClose} />
 
           {/* ScrollableContent */}
           <div
+            className="flex-1 overflow-y-auto"
             style={{
-              maxHeight: 'calc(100vh - 200px)',
-              overflowY: 'auto',
+              minHeight: 0,
               paddingRight: '0.5rem',
+              marginTop: '1rem',
             }}
           >
+            {currentPage === 'tagLibrary' ? (
+              <TagManagementPage onBack={() => setCurrentPage('main')} />
+            ) : (
+              <>
             {/* GENERAL Section */}
             <SettingsSectionTitle style={{ marginTop: 0 }}>GENERAL</SettingsSectionTitle>
             <SettingsGroup>
@@ -256,6 +235,17 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
                     onCheckedChange={handleSyncVideoTimestampChange}
                   />
                 }
+              />
+            </SettingsGroup>
+
+            {/* LIBRARY Section */}
+            <SettingsSectionTitle>LIBRARY</SettingsSectionTitle>
+            <SettingsGroup>
+              <SettingsRow
+                icon={<Tag className="w-4 h-4" strokeWidth={1.5} />}
+                label="Manage Tags"
+                control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
+                onClick={() => setCurrentPage('tagLibrary')}
               />
             </SettingsGroup>
 
@@ -298,6 +288,8 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
                 Version 1.0.0
               </span>
             </div>
+              </>
+            )}
           </div>
         </GlassCard>
       </motion.div>

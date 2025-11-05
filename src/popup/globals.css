@@ -409,6 +409,17 @@ html {
   width: 100%;
 }
 
+/* 当 wrapper 是 flex 容器时，content 也应该支持 flex 布局 */
+.liquidGlass-wrapper.flex .liquidGlass-content,
+.liquidGlass-wrapper.flex-col .liquidGlass-content {
+  display: flex;
+  height: 100%; /* 确保 content 占满 wrapper 的高度 */
+}
+
+.liquidGlass-wrapper.flex-col .liquidGlass-content {
+  flex-direction: column;
+}
+
 /* Glass button style */
 .glass-button {
   position: relative;

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { LAYOUT_TRANSITION } from '../utils/motion';
 import { GlassCard } from "./GlassCard";
-import { GlassInput } from "./GlassInput";
+import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
 import { Plus, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
@@ -16,7 +16,6 @@ interface TaggingPageProps {
 
 export function TaggingPage({ className = "" }: TaggingPageProps) {
   const [currentPage, setCurrentPage] = useState<TaggedPage | null>(null);
-  const [tagInput, setTagInput] = useState("");
   const [allTags, setAllTags] = useState<GameplayTag[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,13 +84,8 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     }
   };
 
-  const handleAddTag = async (tagName?: string) => {
-    const tagValue = tagName ?? tagInput;
-    if (typeof tagValue !== 'string') {
-      console.error('handleAddTag: tagName must be a string', { tagName, tagInput });
-      return;
-    }
-    const trimmedTag = tagValue.trim();
+  const handleAddTag = async (tagName: string) => {
+    const trimmedTag = tagName.trim();
     if (!trimmedTag || !currentPage) return;
 
     try {
@@ -99,7 +93,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       if (!allTags.find(t => t.id === tag.id)) {
         setAllTags(prev => [...prev, tag]);
       }
-      setTagInput("");
       loadCurrentPage();
     } catch (error) {
       console.error('添加标签失败:', error);
@@ -159,8 +152,8 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                   <p 
                     style={{ 
                       color: 'color-mix(in srgb, var(--c-content) 35%, var(--c-bg))',
-                      fontSize: '0.65rem',
-                      fontWeight: 300,
+                      fontSize: '0.8rem',
+                      fontWeight: 400,
                       letterSpacing: '0.01em',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -305,21 +298,16 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               输入框 
               --- */}
             <motion.div layout="position">
-              <GlassInput
-                value={tagInput}
-                onChange={setTagInput}
-                onSelect={handleAddTag}
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                  if (e.key === "Enter" && tagInput.trim()) {
-                    e.preventDefault();
-                    handleAddTag();
-                  }
-                }}
+              <TagInput
+                tags={[]} // create模式下不需要tags
+                onTagsChange={() => {}} // create模式下不需要这个回调
+                mode="create"
+                onCreateTag={handleAddTag}
                 placeholder="Enter a tag..."
                 suggestions={suggestions}
-                excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter((name): name is string => !!name) : []}
+                excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter(Boolean) as string[] : []}
                 autoFocus={true}
-                disabled={loading || !!error} // 加载或出错时禁用
+                disabled={loading || !!error}
               />
             </motion.div>
 

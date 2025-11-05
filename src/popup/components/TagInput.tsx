@@ -9,7 +9,12 @@ interface TagInputProps {
   onTagsChange: (tags: string[]) => void;
   placeholder?: string;
   suggestions?: string[];
+  excludeTags?: string[]; // 新增: 需要排除的标签（用于create模式）
   className?: string;
+  autoFocus?: boolean; // 新增: 自动聚焦
+  disabled?: boolean; // 新增: 禁用状态
+  mode?: "list" | "create"; // 新增: 模式选择
+  onCreateTag?: (tagName: string) => void; // 新增: create模式下创建标签的回调
 }
 
 export function TagInput({ 
@@ -17,7 +22,12 @@ export function TagInput({
   onTagsChange, 
   placeholder = "", 
   suggestions = [],
-  className = "" 
+  excludeTags = [],
+  className = "",
+  autoFocus = false,
+  disabled = false,
+  mode = "list",
+  onCreateTag
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -36,6 +46,15 @@ export function TagInput({
   const isAddingTagRef = useRef(false); // 跟踪是否正在添加tag（用于防止useEffect重新打开menu）
   const inputValueBeforeTagAddRef = useRef<string>(""); // 在tags增加时保存当时的inputValue
 
+  // Auto focus on mount if autoFocus is true
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [autoFocus]);
+
   // 同步prevTagsLengthRef（当tags从外部更新时，不通过addTag）
   useEffect(() => {
     prevTagsLengthRef.current = tags.length;
@@ -53,7 +72,9 @@ export function TagInput({
       // 确认是添加tag导致的状态变化，保持menu关闭
       // 更新filteredSuggestions但不打开menu
       if (suggestions.length > 0) {
-        const filtered = suggestions.filter(s => !tags.includes(s));
+        const filtered = suggestions.filter(s => 
+          !tags.includes(s) && !excludeTags.includes(s)
+        );
         setFilteredSuggestions(filtered);
       } else {
         setFilteredSuggestions([]);
@@ -78,7 +99,8 @@ export function TagInput({
       // 输入框有内容：显示匹配的suggestions
       const filtered = suggestions.filter(s => 
         s.toLowerCase().includes(inputValue.toLowerCase()) && 
-        !tags.includes(s)
+        !tags.includes(s) &&
+        !excludeTags.includes(s)
       );
       setFilteredSuggestions(filtered);
       // 重置选中索引，因为列表变化了
@@ -95,7 +117,9 @@ export function TagInput({
       }
     } else if (!inputValue && suggestions.length > 0) {
       // 输入框为空：只有手动展开时才显示所有可用的suggestions
-      const filtered = suggestions.filter(s => !tags.includes(s));
+      const filtered = suggestions.filter(s => 
+        !tags.includes(s) && !excludeTags.includes(s)
+      );
       setFilteredSuggestions(filtered);
       // 重置选中索引，因为列表变化了
       setSelectedIndex(-1);
@@ -114,7 +138,7 @@ export function TagInput({
     // 更新refs
     prevInputValueRef.current = inputValue;
     prevTagsLengthRef.current = tags.length;
-  }, [inputValue, suggestions, tags]);
+  }, [inputValue, suggestions, tags, excludeTags]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -173,20 +197,40 @@ export function TagInput({
 
   const addTag = (tag: string) => {
     const trimmedTag = tag.trim();
-    if (trimmedTag && !tags.includes(trimmedTag)) {
-      // 先保存当前的inputValue（在清空之前）
-      inputValueBeforeTagAddRef.current = inputValue;
-      // 标记正在添加tag
-      isAddingTagRef.current = true;
+    if (!trimmedTag) return;
+
+    if (mode === "create") {
+      // create模式: 调用onCreateTag回调并清空输入框
+      if (onCreateTag) {
+        onCreateTag(trimmedTag);
+      }
+      setInputValue("");
       // 关闭menu状态
       setShowSuggestions(false);
       setShouldShowDropdown(false);
       manuallyOpenedRef.current = false;
-      // 然后更新tags（这会触发useEffect，但isAddingTagRef已经设置）
-      onTagsChange([...tags, trimmedTag]);
+      setSelectedIndex(-1);
+      // 保持输入框焦点
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+    } else {
+      // list模式: 原有逻辑，在内部创建气泡
+      if (!tags.includes(trimmedTag)) {
+        // 先保存当前的inputValue（在清空之前）
+        inputValueBeforeTagAddRef.current = inputValue;
+        // 标记正在添加tag
+        isAddingTagRef.current = true;
+        // 关闭menu状态
+        setShowSuggestions(false);
+        setShouldShowDropdown(false);
+        manuallyOpenedRef.current = false;
+        // 然后更新tags（这会触发useEffect，但isAddingTagRef已经设置）
+        onTagsChange([...tags, trimmedTag]);
+      }
+      // 最后清空inputValue（这也会触发useEffect，useEffect会检测到isAddingTagRef并保持menu关闭）
+      setInputValue("");
     }
-    // 最后清空inputValue（这也会触发useEffect，useEffect会检测到isAddingTagRef并保持menu关闭）
-    setInputValue("");
   };
 
   const removeTag = (index: number) => {
@@ -262,7 +306,8 @@ export function TagInput({
           inputRef.current.setSelectionRange(autocompleteValue.length, autocompleteValue.length);
         }
       }, 0);
-    } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0 && mode === "list") {
+      // 只在list模式下支持Backspace删除标签
       e.preventDefault();
       removeTag(tags.length - 1);
     } else {
@@ -304,7 +349,8 @@ export function TagInput({
               className="flex flex-wrap gap-2 items-center px-4 py-2" // 将所有 flex 和 padding 样式移到这里
               style={{ height: 'auto' }} // 确保内部容器高度始终自动
             >
-              {tags.map((tag, index) => (
+              {/* 只在list模式下显示标签气泡 */}
+              {mode === "list" && tags.map((tag, index) => (
                 <Tag 
                   key={`${tag}-${index}`}
                   label={tag} 
@@ -320,18 +366,21 @@ export function TagInput({
                 onKeyDown={handleKeyDown}
                 onFocus={() => {
                   // 只有当输入框有内容时才自动显示下拉菜单
-                  if (suggestions.length > 0 && inputValue.trim() && !isAddingTagRef.current) {
+                  if (suggestions.length > 0 && inputValue.trim() && !isAddingTagRef.current && !disabled) {
                     setShowSuggestions(true);
                     manuallyOpenedRef.current = false;
                   }
                 }}
                 placeholder={tags.length === 0 ? placeholder : ""}
+                disabled={disabled}
                 className="flex-1 min-w-[140px] bg-transparent outline-none"
                 style={{ 
                   color: 'var(--c-content)',
                   fontSize: '0.85rem',
                   fontWeight: 400,
-                  letterSpacing: '0.01em'
+                  letterSpacing: '0.01em',
+                  opacity: disabled ? 0.5 : 1,
+                  cursor: disabled ? 'not-allowed' : 'text'
                 }}
               />
               

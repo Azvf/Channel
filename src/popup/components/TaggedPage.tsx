@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
 import { PagePreview } from "./PagePreview";
 import { EditPageDialog } from "./EditPageDialog";
-import { Search, Inbox, Pencil, Trash2, Copy } from "lucide-react";
-import { ContextMenu } from "./ContextMenu";
+import { Search, Inbox, MoreHorizontal, Trash2, Copy, Pencil } from "lucide-react";
 import { AnimatedFlipList } from "./AnimatedFlipList";
 
 const MOCK_SUGGESTIONS = [
@@ -104,6 +105,9 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
   const [editingPage, setEditingPage] = useState<typeof MOCK_PAGES[0] | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const menuButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   // Filter pages based on search tags
   const filteredPages =
@@ -119,6 +123,42 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
   const handleSavePage = (updatedPage: typeof MOCK_PAGES[0]) => {
     setPages(pages.map(p => p.id === updatedPage.id ? updatedPage : p));
   };
+
+  const handleOpenMenu = (e: React.MouseEvent, page: typeof MOCK_PAGES[0]) => {
+    e.stopPropagation();
+    const button = e.currentTarget as HTMLButtonElement;
+    const rect = button.getBoundingClientRect();
+    // 在按钮下方显示菜单
+    setMenuPosition({ 
+      x: rect.right - 150, // 菜单宽度约150px，右对齐
+      y: rect.bottom + 8 // 在按钮下方8px
+    });
+    setOpenMenuId(page.id);
+  };
+
+  const handleCloseMenu = () => {
+    setOpenMenuId(null);
+  };
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    if (openMenuId === null) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // 检查点击是否在菜单外部
+      const menuElement = document.querySelector('[data-menu-id]');
+      const buttonElement = menuButtonRefs.current.get(openMenuId);
+      
+      if (menuElement && !menuElement.contains(target) && 
+          buttonElement && !buttonElement.contains(target)) {
+        handleCloseMenu();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -215,81 +255,59 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                   as="div"
                   className="space-y-3"
                   renderItem={(page) => {
-                    // Context Menu Items for Page
-                    const pageMenuItems = [
-                      {
-                        label: "Edit",
-                        icon: <Pencil />,
-                        onClick: () => handleEditPage(page),
-                      },
-                      {
-                        label: "Copy URL",
-                        icon: <Copy />,
-                        onClick: () => {
-                          console.log("Copy:", page.url);
-                          navigator.clipboard.writeText(page.url).catch(console.error);
-                        },
-                      },
-                      {
-                        label: "Delete",
-                        icon: <Trash2 />,
-                        onClick: () => {
-                          console.log("Delete:", page.id);
-                          setPages(prev => prev.filter(p => p.id !== page.id));
-                        },
-                      },
-                    ];
-
                     return (
-                      <ContextMenu menuItems={pageMenuItems}>
+                      <div 
+                        className="rounded-2xl transition-all relative
+                                   hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]
+                                   hover:border-[color-mix(in_srgb,var(--c-glass)_28%,transparent)]"
+                        style={{
+                          background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
+                          border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
+                          padding: '0.8rem 1.1rem',
+                          cursor: 'default'
+                        }}
+                        onMouseEnter={() => setHoveredCardId(page.id)}
+                        onMouseLeave={() => setHoveredCardId(null)}
+                      >
+                        {/* More Button - Hover Area in top right */}
                         <div 
-                          className="rounded-2xl transition-all relative
-                                     hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]
-                                     hover:border-[color-mix(in_srgb,var(--c-glass)_28%,transparent)]"
+                          className="absolute top-0 right-0 group/more"
                           style={{
-                            background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-                            border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
-                            padding: '0.8rem 1.1rem',
-                            cursor: 'context-menu'
+                            width: '120px',
+                            height: '80px',
+                            pointerEvents: 'none'
                           }}
-                          onMouseEnter={() => setHoveredCardId(page.id)}
-                          onMouseLeave={() => setHoveredCardId(null)}
                         >
-                          {/* Edit Button Hover Area - Larger hover zone in top right */}
-                          <div 
-                            className="absolute top-0 right-0 group/edit"
+                          <button
+                            ref={(el) => {
+                              if (el) {
+                                menuButtonRefs.current.set(page.id, el);
+                              } else {
+                                menuButtonRefs.current.delete(page.id);
+                              }
+                            }}
+                            onClick={(e) => handleOpenMenu(e, page)}
+                            className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0 
+                                       group-hover/more:opacity-100 transition-all
+                                       hover:bg-[color-mix(in_srgb,var(--c-action)_20%,transparent)]
+                                       hover:border-[color-mix(in_srgb,var(--c-action)_45%,transparent)]
+                                       hover:text-[var(--c-action)]
+                                       hover:scale-105"
                             style={{
-                              width: '120px',
-                              height: '80px',
-                              pointerEvents: 'none'
+                              background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
+                              backdropFilter: 'blur(8px)',
+                              border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
+                              color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
+                              cursor: 'pointer',
+                              pointerEvents: 'auto'
                             }}
                           >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditPage(page);
-                              }}
-                              className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0 
-                                         group-hover/edit:opacity-100 transition-all
-                                         hover:bg-[color-mix(in_srgb,var(--c-action)_20%,transparent)]
-                                         hover:border-[color-mix(in_srgb,var(--c-action)_45%,transparent)]
-                                         hover:text-[var(--c-action)]
-                                         hover:scale-105"
-                              style={{
-                                background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
-                                backdropFilter: 'blur(8px)',
-                                border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
-                                color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
-                                cursor: 'pointer',
-                                pointerEvents: 'auto'
-                              }}
-                            >
-                              <Pencil className="w-4 h-4" strokeWidth={1.5} />
-                            </button>
-                          </div>
+                            <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
+                          </button>
+                        </div>
 
-                          {/* Content - No Padding, Edit Button is Absolute */}
-                          <div className="space-y-3.5">
+                        {/* Content - No Padding, Edit Button is Absolute */}
+                        <div className="space-y-3.5">
                             {/* Title - Full Width, No Icons */}
                             <a
                               href={page.url}
@@ -299,7 +317,8 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               style={{ textDecoration: 'none' }}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <h2  /* [7] 语义从 h3 提升为 h2 */
+                              {/* [7] 语义从 h3 提升为 h2 */}
+                              <h2
                                 className="hover:text-[var(--c-action)] transition-colors"
                                 style={{ 
                                   color: 'var(--c-content)',
@@ -362,9 +381,8 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                 )
                               ))}
                             </div>
-                          </div>
                         </div>
-                      </ContextMenu>
+                      </div>
                     );
                   }}
                 />
@@ -427,6 +445,122 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
           page={editingPage}
           onSave={handleSavePage}
         />
+      )}
+
+      {/* Floating Menu */}
+      {createPortal(
+        <AnimatePresence>
+          {openMenuId !== null && (() => {
+            const page = pages.find(p => p.id === openMenuId);
+            if (!page) return null;
+
+            return (
+              <div
+                className="fixed inset-0"
+                style={{ zIndex: 'var(--z-context-menu-layer)' }}
+                onClick={handleCloseMenu}
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="fixed liquidGlass-wrapper"
+                  data-menu-id={openMenuId}
+                  style={{
+                    zIndex: 'calc(var(--z-context-menu-layer) + 1)',
+                    top: menuPosition.y,
+                    left: menuPosition.x,
+                    minWidth: '150px',
+                    borderRadius: '0.8em',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="liquidGlass-content p-1">
+                    <ul className="list-none m-0 p-0">
+                      <li>
+                        <button
+                          onClick={() => {
+                            handleEditPage(page);
+                            handleCloseMenu();
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
+                          style={{
+                            color: 'var(--c-content)',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
+                            e.currentTarget.style.color = 'var(--c-action)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = 'var(--c-content)';
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(page.url).catch(console.error);
+                            handleCloseMenu();
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
+                          style={{
+                            color: 'var(--c-content)',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
+                            e.currentTarget.style.color = 'var(--c-action)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = 'var(--c-content)';
+                          }}
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy URL</span>
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          onClick={() => {
+                            setPages(prev => prev.filter(p => p.id !== page.id));
+                            handleCloseMenu();
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
+                          style={{
+                            color: 'var(--c-content)',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
+                            e.currentTarget.style.color = 'var(--c-action)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.color = 'var(--c-content)';
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                </motion.div>
+              </div>
+            );
+          })()}
+        </AnimatePresence>,
+        document.body
       )}
     </div>
   );

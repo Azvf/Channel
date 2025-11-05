@@ -1,7 +1,7 @@
 import React, { useState, useEffect, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
 import { GlassCard } from './GlassCard';
+import { ModalHeader } from './ModalHeader';
 import { ActivityTooltip } from './ActivityTooltip';
 import { TagManager } from '../../services/tagManager';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
@@ -291,12 +291,8 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
         className="stats-wall-container"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="stats-wall-header">
-          <h2 className="stats-wall-title">Activity</h2>
-          <button onClick={onClose} className="close-button">
-            <X size={18} />
-          </button>
-        </div>
+        {/* Header - 使用标准化的 ModalHeader */}
+        <ModalHeader title="Activity" onClose={onClose} />
         
         {/* [V9 修复] 7. 渲染日历 (不再有 AnimatePresence 或条件) */}
         

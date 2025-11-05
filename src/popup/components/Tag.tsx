@@ -1,5 +1,4 @@
-import { X, Pencil } from "lucide-react";
-import { ContextMenu } from "./ContextMenu";
+import { X } from "lucide-react";
 
 interface TagProps {
   label: string;
@@ -8,21 +7,8 @@ interface TagProps {
 }
 
 export function Tag({ label, onRemove, className = "" }: TagProps) {
-  
-  // Context Menu Items
-  const menuItems = [
-    {
-      label: "Edit Tag",
-      icon: <Pencil />,
-      onClick: () => {
-        // Placeholder: Implement edit logic
-        console.log("Edit tag:", label); 
-      },
-    },
-  ];
-
   return (
-    <ContextMenu menuItems={menuItems} className={`inline-flex ${className}`}>
+    <div className={`inline-flex ${className}`}>
       <div 
         className="liquidGlass-wrapper relative"
         style={{
@@ -63,6 +49,6 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           )}
         </div>
       </div>
-    </ContextMenu>
+    </div>
   );
 }
