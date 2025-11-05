@@ -1,10 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, Download, Upload } from 'lucide-react';
+import { X, ChevronRight, Download, Upload, Sun, AppWindow, Video } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { Checkbox } from './ui/checkbox';
 import { ThemeSwitcher } from './ThemeSwitcher';
+import { SettingsGroup } from './SettingsGroup';
+import { SettingsRow } from './SettingsRow';
+import { SettingsSectionTitle } from './SettingsSectionTitle';
 import { usePageSettings } from '../utils/usePageSettings';
 import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
 import { TagManager } from '../../services/tagManager';
@@ -176,7 +179,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
         onClick={(e) => e.stopPropagation()} // Prevent closing on modal click
       >
         <GlassCard className="p-5">
-          {/* 1. Header */}
+          {/* Header */}
           <div className="flex justify-between items-center mb-4">
             <h2
               style={{
@@ -211,101 +214,62 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
               <X className="w-4 h-4" />
             </button>
           </div>
-          
-          <div 
-            className="space-y-4"
+
+          {/* ScrollableContent */}
+          <div
             style={{
               fontFamily: '"DM Sans", sans-serif',
+              maxHeight: 'calc(100vh - 200px)',
+              overflowY: 'auto',
+              paddingRight: '0.5rem',
             }}
           >
-            {/* 2. Group 1: APPEARANCE */}
-            <div>
-              <div className="settings-section-title">APPEARANCE</div>
+            {/* GENERAL Section */}
+            <SettingsSectionTitle style={{ marginTop: 0 }}>GENERAL</SettingsSectionTitle>
+            <SettingsGroup>
+              <SettingsRow
+                icon={<Sun className="w-4 h-4" strokeWidth={1.5} />}
+                label="Theme"
+                control={<ThemeSwitcher initialTheme={initialTheme} />}
+              />
               
-              {/* Theme (复用 ThemeSwitcher) */}
-              <div className="flex justify-center py-2">
-                <ThemeSwitcher initialTheme={initialTheme} />
-              </div>
+              <SettingsRow
+                icon={<AppWindow className="w-4 h-4" strokeWidth={1.5} />}
+                label="App Icon"
+                value={appIconOptions.find(opt => opt.id === selectedAppIcon)?.name || 'Default'}
+                control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
+                onClick={() => {
+                  // TODO: 打开 App Icon 选择页
+                  // 临时循环切换
+                  const currentIndex = appIconOptions.findIndex(opt => opt.id === selectedAppIcon);
+                  const nextIndex = (currentIndex + 1) % appIconOptions.length;
+                  setSelectedAppIcon(appIconOptions[nextIndex].id);
+                }}
+              />
               
-              {/* App Icon (新组件) */}
-              <div className="flex justify-around py-2">
-                {appIconOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    onClick={() => setSelectedAppIcon(option.id)}
-                    className="rounded-lg p-2 transition-all"
-                    style={{
-                      background: selectedAppIcon === option.id
-                        ? 'color-mix(in srgb, var(--c-action) 20%, transparent)'
-                        : 'transparent',
-                      border: selectedAppIcon === option.id
-                        ? `2px solid var(--c-action)`
-                        : '2px solid transparent',
-                      color: 'var(--c-content)',
-                      cursor: 'pointer',
-                      width: '3rem',
-                      height: '3rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedAppIcon !== option.id) {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 12%, transparent)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedAppIcon !== option.id) {
-                        e.currentTarget.style.background = 'transparent';
-                      }
-                    }}
-                  >
-                    {option.name.charAt(0)}
-                  </button>
-                ))}
-              </div>
-            </div>
+              <SettingsRow
+                icon={<Video className="w-4 h-4" strokeWidth={1.5} />}
+                label="Sync Video Timestamp"
+                control={
+                  <Checkbox
+                    id="sync-video-timestamp"
+                    checked={syncVideoTimestamp}
+                    onCheckedChange={handleSyncVideoTimestampChange}
+                  />
+                }
+              />
+            </SettingsGroup>
 
-            {/* 3. Group 2: BEHAVIOR */}
-            <div>
-              <div className="settings-section-title">BEHAVIOR</div>
-              
-              {/* Setting Row (使用) */}
-              <label
-                htmlFor="sync-video-timestamp"
-                className="settings-row"
-              >
-                <span className="settings-row-label">同步视频时间戳</span>
-                <Checkbox
-                  id="sync-video-timestamp"
-                  checked={syncVideoTimestamp}
-                  onCheckedChange={handleSyncVideoTimestampChange}
-                />
-              </label>
-            </div>
-
-            {/* 4. Group 3: DATA */}
-            <div>
-              <div className="settings-section-title">DATA</div>
-              
-              {/* Import Data */}
-              <button
-                className="settings-row-button"
+            {/* DATA Section */}
+            <SettingsSectionTitle>DATA</SettingsSectionTitle>
+            <SettingsGroup>
+              <SettingsRow
+                icon={<Upload className="w-4 h-4" strokeWidth={1.5} />}
+                label="Import Data..."
+                control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
                 onClick={handleImportClick}
                 disabled={isImporting}
-                style={{
-                  opacity: isImporting ? 0.6 : 1,
-                  cursor: isImporting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Upload className="w-4 h-4" />
-                  <span>{isImporting ? '导入中...' : 'Import Data...'}</span>
-                </span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              />
               
               {/* Hidden file input */}
               <input
@@ -316,26 +280,17 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
                 onChange={handleImportData}
               />
               
-              {/* Export Data */}
-              <button
-                className="settings-row-button"
+              <SettingsRow
+                icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+                label="Export Data..."
+                control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
                 onClick={handleExportData}
                 disabled={isExporting}
-                style={{
-                  opacity: isExporting ? 0.6 : 1,
-                  cursor: isExporting ? 'not-allowed' : 'pointer',
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Download className="w-4 h-4" />
-                  <span>{isExporting ? '导出中...' : 'Export Data...'}</span>
-                </span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+              />
+            </SettingsGroup>
 
-            {/* 5. Footer (Version) */}
-            <div className="text-center mt-6">
+            {/* Footer */}
+            <div className="text-center mt-6" style={{ marginBottom: '0.5rem' }}>
               <span style={{ 
                 color: 'color-mix(in srgb, var(--c-content) 40%, transparent)',
                 fontSize: '0.75rem',
