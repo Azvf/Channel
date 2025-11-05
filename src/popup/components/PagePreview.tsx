@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from 'framer-motion';
+import { fadeAndScale } from '../utils/motion';
 // [优化] 导入 Bookmark 图标
 import { Bookmark } from "lucide-react";
 
@@ -148,19 +150,22 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
   const faviconUrl = getFaviconUrl(url);
 
   // 悬浮卡 (Tooltip) JSX
-  const tooltipElement = showPreview && (
-    <div
+  const tooltipElement = (
+    <motion.div
       ref={previewCardRef}
       className="fixed pointer-events-none"
       style={{
         zIndex: 'var(--z-tooltip-layer)', // Tooltip 层级，低于模态框
         left: `${previewPosition.left}px`,
         top: `${previewPosition.top}px`,
-        animation: 'fadeInScale 250ms cubic-bezier(0.16, 1, 0.3, 1)',
         // (V4) 应用新宽度
         width: `${PREVIEW_WIDTH}px`, 
         maxWidth: `calc(100vw - ${VIEWPORT_MARGIN * 2}px)` // 确保不超过视口
       }}
+      variants={fadeAndScale}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
     >
       <div
         className="rounded-2xl overflow-hidden border"
@@ -228,7 +233,7 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
           </p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
@@ -269,23 +274,11 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
       </div>
 
       {/* 2. 将悬浮卡传送到 body */}
-      {typeof document !== 'undefined' && createPortal(tooltipElement, document.body)}
-
-      {/* 动画样式 */}
-      <style>
-        {`
-          @keyframes fadeInScale {
-            from {
-              opacity: 0;
-              transform: scale(0.92);
-            }
-            to {
-              opacity: 1;
-              transform: scale(1);
-            }
-          }
-        `}
-      </style>
+      {typeof document !== 'undefined' && (
+        <AnimatePresence>
+          {showPreview && createPortal(tooltipElement, document.body)}
+        </AnimatePresence>
+      )}
     </>
   );
 }

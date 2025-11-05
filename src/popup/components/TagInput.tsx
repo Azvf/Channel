@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { motion } from "framer-motion";
+import { LAYOUT_TRANSITION } from "../utils/motion";
 import { Tag } from "./Tag";
 import { ChevronDown } from "lucide-react";
-import { useAnimatedHeight } from "../utils/useAnimatedHeight";
 
 interface TagInputProps {
   tags: string[];
@@ -27,11 +28,6 @@ export function TagInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  // 使用可复用的高度动画 Hook
-  const contentWrapperRef = useAnimatedHeight({
-    duration: 200,
-    easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)'
-  });
   const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]); // 下拉菜单按钮的引用数组
   const wasShowingRef = useRef(false);
   const manuallyOpenedRef = useRef(false); // 跟踪是否是手动展开的
@@ -293,13 +289,14 @@ export function TagInput({
       <div className="liquidGlass-wrapper relative">
         {/* Content layer */}
         <div className="liquidGlass-content">
-          <div 
-            ref={contentWrapperRef}
-            className="min-h-[2.6rem]" // 移除 flex 样式，只保留 min-h
+          <motion.div 
+            layout // <-- 这就是"魔法"：自动处理高度动画
+            transition={LAYOUT_TRANSITION} // <-- 使用我们的标准物理
+            className="min-h-[2.6rem]"
             style={{
-              willChange: 'height', // 提示浏览器优化高度变化
-              backfaceVisibility: 'hidden', // 防止重绘问题
-              overflow: 'hidden' // 关键：添加 overflow: hidden 来裁切内部内容
+              willChange: 'height',
+              backfaceVisibility: 'hidden',
+              overflow: 'hidden' // 保持裁切
             }}
           >
             {/* 创建新的内部 flex 容器 */}
@@ -373,7 +370,7 @@ export function TagInput({
                 </button>
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 

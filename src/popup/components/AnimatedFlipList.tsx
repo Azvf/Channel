@@ -1,6 +1,7 @@
 // src/popup/components/AnimatedFlipList.tsx
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { SMOOTH_TRANSITION, LAYOUT_TRANSITION } from '../utils/motion';
 
 // 1. 重新导入 useRef 和 useEffect
 import React, { useRef, useEffect } from 'react';
@@ -10,12 +11,6 @@ const itemVariants = {
   initial: { opacity: 0, y: 5, scale: 0.9 }, // <--- 添加回来
   animate: { opacity: 1, y: 0, scale: 1 },
   exit: { opacity: 0, x: -10, scale: 0.8 },
-};
-
-// 定义过渡效果
-const itemTransition = { 
-  duration: 0.3, 
-  ease: [0.4, 0, 0.2, 1] as const // easeOut cubic-bezier
 };
 
 interface AnimatedFlipListProps<T> {
@@ -108,12 +103,8 @@ export function AnimatedFlipList<T>({
               animate="animate"
               exit="exit"
               transition={{
-                ...itemTransition,
-                // layout 动画独立配置，只改变位置，不影响透明度
-                layout: {
-                  duration: 0.3,
-                  ease: [0.4, 0, 0.2, 1]
-                }
+                ...SMOOTH_TRANSITION, // 用于 opacity, y, x, scale
+                layout: LAYOUT_TRANSITION // 用于位置 (layout)
               }}
             >
               {renderItem(item)}

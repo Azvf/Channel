@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from 'framer-motion';
+import { fadeIn, dialogSlideIn } from '../utils/motion';
 import { GlassInput } from "./GlassInput";
 import { TagInput } from "./TagInput";
 import { X, Save } from "lucide-react";
@@ -192,10 +194,9 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
   if (!isOpen) return null;
 
   const backdropElement = (
-    <div
-      className="fixed"
+    <motion.div
+      className="fixed z-[var(--z-modal-layer)]"
       style={{
-        zIndex: 'var(--z-modal-layer)',
         top: 0,
         left: 0,
         right: 0,
@@ -204,44 +205,48 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         height: '100vh',
         background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
         backdropFilter: 'blur(4px)',
-        animation: 'fadeIn 200ms ease-out',
         margin: 0,
         padding: 0
       }}
+      variants={fadeIn}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
       onClick={handleCancel}
     />
   );
 
   const dialogElement = (
-    <>
-      {/* Dialog */}
-      <div
-        ref={dialogRef}
-        className="fixed rounded-xl border overflow-hidden"
-        style={{
-          zIndex: 'calc(var(--z-modal-layer) + 1)',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 'calc(100% - 32px)',
-          maxWidth: '360px',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'color-mix(in srgb, var(--c-bg) 96%, transparent)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          borderColor: 'color-mix(in srgb, var(--c-glass) 45%, transparent)',
-          boxShadow: `
-            0 0 0 1px color-mix(in srgb, var(--c-glass) 12%, transparent),
-            0 2px 4px -1px color-mix(in srgb, var(--c-glass) 10%, transparent),
-            0 4px 8px -2px color-mix(in srgb, var(--c-glass) 15%, transparent),
-            0 8px 16px -4px color-mix(in srgb, var(--c-glass) 20%, transparent),
-            0 16px 32px -8px color-mix(in srgb, var(--c-glass) 25%, transparent),
-            0 32px 64px -16px color-mix(in srgb, var(--c-glass) 30%, transparent)
-          `,
-          animation: 'dialogSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1)'
-        }}
-      >
+    <motion.div
+      ref={dialogRef}
+      className="fixed rounded-xl border overflow-hidden"
+      style={{
+        zIndex: 'calc(var(--z-modal-layer) + 1)',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 'calc(100% - 32px)',
+        maxWidth: '360px',
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'color-mix(in srgb, var(--c-bg) 96%, transparent)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        borderColor: 'color-mix(in srgb, var(--c-glass) 45%, transparent)',
+        boxShadow: `
+          0 0 0 1px color-mix(in srgb, var(--c-glass) 12%, transparent),
+          0 2px 4px -1px color-mix(in srgb, var(--c-glass) 10%, transparent),
+          0 4px 8px -2px color-mix(in srgb, var(--c-glass) 15%, transparent),
+          0 8px 16px -4px color-mix(in srgb, var(--c-glass) 20%, transparent),
+          0 16px 32px -8px color-mix(in srgb, var(--c-glass) 25%, transparent),
+          0 32px 64px -16px color-mix(in srgb, var(--c-glass) 30%, transparent)
+        `
+      }}
+      variants={dialogSlideIn}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
         {/* Header - Fixed */}
         <div
           className="px-4 py-3 flex items-center justify-between flex-shrink-0"
@@ -431,35 +436,18 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
             Save
           </button>
         </div>
-      </div>
-
-      <style>
-        {`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          
-          @keyframes dialogSlideIn {
-            from {
-              opacity: 0;
-              transform: translate(-50%, -48%) scale(0.96);
-            }
-            to {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1);
-            }
-          }
-        `}
-      </style>
-    </>
+      </motion.div>
   );
 
   // 使用Portal将backdrop和dialog渲染到body下，确保覆盖整个视口
   return (
-    <>
-      {typeof document !== 'undefined' && createPortal(backdropElement, document.body)}
-      {typeof document !== 'undefined' && createPortal(dialogElement, document.body)}
-    </>
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {typeof document !== 'undefined' && createPortal(backdropElement, document.body)}
+          {typeof document !== 'undefined' && createPortal(dialogElement, document.body)}
+        </>
+      )}
+    </AnimatePresence>
   );
 }

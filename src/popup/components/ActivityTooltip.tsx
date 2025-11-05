@@ -1,5 +1,7 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { fadeIn } from '../utils/motion';
 
 interface ActivityTooltipProps {
   children: React.ReactElement;
@@ -104,8 +106,8 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
     onMouseLeave: handleMouseLeave,
   });
 
-  const tooltipElement = show && (
-    <div
+  const tooltipElement = (
+    <motion.div
       ref={tooltipRef}
       className="fixed px-2.5 py-1.5 rounded-lg"
       style={{
@@ -121,25 +123,26 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
         fontWeight: 500,
         color: 'var(--c-content)',
         pointerEvents: 'none',
-        animation: 'fadeIn 150ms ease-out',
       }}
+      variants={fadeIn}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
     >
       {content}
       
       {/* (可选) 添加一个小箭头，但为了极简，我倾向于不加 */}
-    </div>
+    </motion.div>
   );
 
   return (
     <>
       {trigger}
-      {typeof document !== 'undefined' && createPortal(tooltipElement, document.body)}
-      <style>
-        {`@keyframes fadeIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }`}
-      </style>
+      {typeof document !== 'undefined' && (
+        <AnimatePresence>
+          {show && createPortal(tooltipElement, document.body)}
+        </AnimatePresence>
+      )}
     </>
   );
 }

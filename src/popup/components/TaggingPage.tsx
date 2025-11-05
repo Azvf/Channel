@@ -1,13 +1,13 @@
 // src/popup/components/TaggingPage.tsx
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { LAYOUT_TRANSITION } from '../utils/motion';
 import { GlassCard } from "./GlassCard";
 import { GlassInput } from "./GlassInput";
 import { Tag } from "./Tag";
 import { Plus, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
-import { AnimatedHeightWrapper } from "./AnimatedHeightWrapper";
 import { AnimatedFlipList } from "./AnimatedFlipList";
 
 interface TaggingPageProps {
@@ -124,11 +124,14 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
         --- */}
       <motion.div layout>
         <GlassCard className="p-4">
-          {/* 动画高度包装器包裹所有内容 */}
-          <AnimatedHeightWrapper 
-            innerClassName="space-y-4" // [1] 减小垂直间距 (20px -> 16px)
-            wrapperProps={{
-              style: { willChange: 'height' } 
+          {/* 使用 framer-motion layout 处理高度动画 */}
+          <motion.div
+            layout // <-- 自动处理高度动画
+            transition={LAYOUT_TRANSITION} // <-- 标准物理
+            className="space-y-4"
+            style={{ 
+              willChange: 'height',
+              overflow: 'hidden' // 添加 overflow
             }}
           >
             {/* --- 
@@ -342,7 +345,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               />
             )}
             
-          </AnimatedHeightWrapper>
+          </motion.div>
         </GlassCard>
       </motion.div>
     </div>
