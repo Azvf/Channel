@@ -28,15 +28,22 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
     }}
   >
     {React.cloneElement(icon as any, { 
-      className: "w-3 h-3", 
+      className: "w-3 h-3 stat-item-icon", 
       strokeWidth: 2,
-      style: { color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))' }
+      style: { 
+        color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))',
+        transition: 'color 0.2s var(--ease-smooth)'
+      }
     })}
-    <span style={{
-      fontSize: '0.75rem',
-      fontWeight: 500,
-      color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-    }}>
+    <span 
+      className="stat-item-value"
+      style={{
+        fontSize: '0.75rem',
+        fontWeight: 500,
+        color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
+        transition: 'color 0.2s var(--ease-smooth)'
+      }}
+    >
       {value}
     </span>
   </div>
@@ -140,89 +147,119 @@ export default function App({ initialState }: AppProps) {
         {/* 移除 StatsCluster (根据我们之前的优化) */}
       </div>
 
-      {/* [优化] 浮动头部现在是一个垂直居中的容器 */}
+      {/* [!] 注入新的 Title CSS */}
+      <style>
+        {`
+          .channel-title-anchor {
+            font-family: "DM Sans", sans-serif;
+            /* [!] 新尺寸与样式 */
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--c-content);
+            
+            /* [!] 无 hover 效果 */
+            cursor: default;
+            user-select: none;
+          }
+          
+          /* [!] 新的 hover 效果 (应用于按钮) */
+          .hud-button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            margin: -0.25rem; /* 补偿 padding 以增大热区 */
+            border-radius: 0.5rem;
+            transition: background-color 0.2s var(--ease-smooth);
+          }
+          
+          .hud-button:hover {
+            background-color: color-mix(in srgb, var(--c-action) 10%, transparent);
+          }
+          
+          /* [!] 关键：
+            我们让 StatItem 内部的图标和文字在 hover 时
+            继承父按钮的 --c-action 颜色
+          */
+          .hud-button:hover .stat-item-icon,
+          .hud-button:hover .stat-item-value,
+          .hud-button-settings:hover {
+            color: var(--c-action) !important;
+          }
+          
+          .hud-button-settings {
+            padding: 1.5px; /* 微调设置图标的点击区域 */
+            color: color-mix(in srgb, var(--c-content) 65%, var(--c-bg));
+            transition: color 0.2s var(--ease-smooth), 
+                        transform 0.2s var(--ease-smooth),
+                        background-color 0.2s var(--ease-smooth);
+          }
+          
+          .hud-button-settings:hover {
+            transform: scale(1.1);
+          }
+        `}
+      </style>
+
+      {/* [!] 浮动头部 (Floating Header) */}
       <div 
         ref={floatingHeaderRef} 
-        className="absolute top-0 left-0 right-0 z-20 flex flex-col items-center" // [优化] 关键：flex-col items-center
+        className="absolute top-0 left-0 right-0 z-20 flex flex-col items-center"
         style={{ pointerEvents: 'none' }} 
       >
-        {/* [!] 顶部HUD (Heads-Up Display) - 最终版 */}
+        {/* 1. 顶部HUD */}
         <div 
-          className="relative flex justify-between items-center w-full max-w-md z-50"
+          className="relative w-full max-w-md z-50"
           style={{ 
             pointerEvents: 'auto',
-            // [!] 保持我们上一轮的垂直对齐修复
-            padding: '12px calc(1rem + 0.4rem) 0', 
+            
+            /* [!] 关键：使用 Grid 布局 */
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
+            alignItems: 'center', /* [!] 解决"高低错落" */
+            
+            padding: '12px 16px 0', /* 左右 1rem (16px) 内边距 */
             height: '44px',
           }}
         >
-          {/* --- [NEW] 左侧：流光标题 --- */}
-          <div className="channel-title-wrapper">
-            <div 
-              className="channel-title"
-              title="Channel" // Tooltip
-            >
-              Channel
-            </div>
-          </div>
-
-          {/* --- [NEW] 右侧：控制组 (统计 + 设置) --- */}
-          <div className="flex items-center gap-2">
-            {/* 统计集群按钮 */}
+          
+          {/* --- 左侧：统计 (Grid 区域 1) --- */}
+          <div style={{ justifySelf: 'start' }}>
             <button
               onClick={() => setIsStatsWallOpen(true)}
               title="View Activity"
-              className="flex items-center gap-3 rounded-lg transition-all" 
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '0.25rem',
-                margin: '-0.25rem',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 10%, transparent)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
+              className="hud-button flex items-center gap-3" 
             >
               <StatItem icon={<Bookmark />} value={MOCK_TODAY_PAGES} />
               <StatItem icon={<TagIcon />} value={MOCK_TODAY_TAGS} />
             </button>
+          </div>
 
-            {/* 设置按钮 */}
+          {/* --- 中央：品牌锚点 (Grid 区域 2) --- */}
+          <div style={{ justifySelf: 'center' }}>
+            <div className="channel-title-anchor">
+              Channel
+            </div>
+          </div>
+
+          {/* --- 右侧：设置 (Grid 区域 3) --- */}
+          <div style={{ justifySelf: 'end' }}>
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="rounded-lg p-1.5 transition-all"
-              style={{
-                background: 'transparent', 
-                border: 'none',
-                color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
-                e.currentTarget.style.color = 'var(--c-action)';
-                e.currentTarget.style.transform = 'scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
+              className="hud-button hud-button-settings"
             >
               <Settings className="w-3.5 h-3.5" strokeWidth={2} />
             </button>
           </div>
         </div>
-        
-        {/* [优化] 2. TabSwitcher 容器 - 保持居中 */}
+
+        {/* 2. TabSwitcher 容器 */}
         <div 
           className="w-full max-w-md z-10"
           style={{ 
             pointerEvents: 'auto', 
-            padding: '8px 16px 0', // [优化] 调整内边距 (8px top, 16px sides)
+            padding: '8px 16px 0', // 左右 1rem (16px) 内边距
             display: 'flex',
             justifyContent: 'center',
           }}

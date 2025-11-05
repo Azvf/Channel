@@ -1,173 +1,279 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react'; // [V9] 移除了 Loader2 和 motion
 import { GlassCard } from './GlassCard';
 import { ActivityTooltip } from './ActivityTooltip';
+import { TagManager } from '../../services/tagManager';
+import { storageService, STORAGE_KEYS } from '../../services/storageService';
+import { TaggedPage } from '../../types/gameplayTag';
 
 interface StatsWallModalProps {
   isOpen: boolean;
   onClose: () => void;
-  activityData?: number[];
 }
 
-// 默认活动数据: 0 = No Activity, 1 = Low, 2 = Mid, 3 = High
-// 确保至少有 91 个条目
-const defaultActivityData = Array.from({ length: 91 }, () => Math.floor(Math.random() * 4));
-
-// 固定显示 91 天 (13 周)
-const TOTAL_DAYS = 91;
+// [V9] 定义数据结构
+interface DayData {
+  id: string;
+  date: Date;
+  level: 0 | 1 | 2 | 3;
+  items: number;
+  dateString: string;
+}
+interface MonthLabel {
+  label: string;
+  colStart: number;
+}
 
 /**
- * 生成过去 91 天 (13 周) 的日历数据
+ * [V9 修复] 1. 创建一个 *同步* 函数来生成空的日历结构
+ * 这确保了模态框可以立即渲染，*绝不*显示加载器。
+ * 它的布局逻辑必须与 loadAndProcessActivityData *完全一致*以防止 Re-Layout。
  */
-function generateCalendarDays(data: number[]) {
-  const days: Array<{
-    id: string;
-    date: Date;
-    level: number;
-    items: number;
-    dateString: string;
-  }> = [];
+function generateEmptyCalendarDays(): { days: DayData[]; monthLabels: MonthLabel[] } {
+  const days: DayData[] = [];
+  const monthLabels: MonthLabel[] = [];
   const today = new Date();
-  const monthLabels: { label: string; colSpan: number }[] = [];
+  const endDate = new Date(today);
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 364); // 365 天
+  startDate.setDate(startDate.getDate() - startDate.getDay()); // 回溯到周日
+  endDate.setDate(endDate.getDate() + (6 - endDate.getDay())); // 前进到周六
+
   let currentMonth = '';
-  let currentColSpan = 0;
+  let currentWeekCol = 1;
 
-  // 从 90 天前开始循环到今天 (共 91 天)
-  for (let i = 90; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-
-    const dataIndex = data.length - 1 - i;
-    const level = data[dataIndex] ?? 0; // 如果数据不足，默认为 0
-    const items = level > 0 ? (level * 2 + Math.floor(Math.random() * 2)) : 0; // 模拟项目数
-    const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
-
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().split('T')[0];
+    // 关键：level 和 items 默认为 0
     days.push({
-      id: date.toISOString(),
-      date,
-      level,
-      items,
-      dateString,
+      id: key,
+      date: new Date(d),
+      level: 0, 
+      items: 0,
+      dateString: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     });
-
-    // --- 月份标签逻辑 (中观分组) ---
-    // 检查是否是新的一周 (周日) 或第一个条目
-    if (date.getDay() === 0 || i === 90) {
-      if (monthKey !== currentMonth) {
-        if (currentMonth) {
-          monthLabels.push({ label: currentMonth, colSpan: currentColSpan });
-        }
-        currentMonth = monthKey;
-        currentColSpan = 1;
-      } else {
-        currentColSpan++;
+    
+    // 月份对齐逻辑 (V5 修复)
+    const monthKey = d.toLocaleDateString('en-US', { month: 'short' });
+    if (monthKey !== currentMonth) {
+      currentMonth = monthKey;
+      const colStart = d.getDay() === 0 ? currentWeekCol : currentWeekCol + 1;
+      if (!monthLabels.find(m => m.colStart === colStart)) {
+         monthLabels.push({ label: monthKey, colStart: colStart });
       }
     }
+    if (d.getDay() === 6) { 
+      currentWeekCol++;
+    }
   }
-  // 添加最后一个月份
-  monthLabels.push({ label: currentMonth, colSpan: currentColSpan });
-
   return { days, monthLabels };
 }
 
 /**
- * 宏观视图 (热图方块)
+ * [V9] 2. 异步数据获取 (保持 V5 逻辑)
  */
-interface ActivityDaySquareProps {
-  day: ReturnType<typeof generateCalendarDays>['days'][0];
+async function loadAndProcessActivityData(): Promise<{ days: DayData[]; monthLabels: MonthLabel[] }> {
+  const tagManager = TagManager.getInstance();
+  
+  const storageData = await storageService.getMultiple([
+    STORAGE_KEYS.TAGS,
+    STORAGE_KEYS.PAGES
+  ]);
+  tagManager.initialize({
+    tags: (storageData[STORAGE_KEYS.TAGS] || null) as any,
+    pages: (storageData[STORAGE_KEYS.PAGES] || null) as any,
+  });
+
+  const pages = tagManager.getTaggedPages();
+
+  const activityMap = new Map<string, number>();
+  pages.forEach(page => {
+    const date = new Date(page.createdAt);
+    const key = date.toISOString().split('T')[0];
+    activityMap.set(key, (activityMap.get(key) || 0) + 1);
+  });
+  
+  const maxActivity = Math.max(0, ...activityMap.values());
+  const level1 = Math.max(1, Math.ceil(maxActivity * 0.25));
+  const level2 = Math.max(2, Math.ceil(maxActivity * 0.5));
+  const level3 = Math.max(3, Math.ceil(maxActivity * 0.75));
+  
+  const days: DayData[] = [];
+  const monthLabels: MonthLabel[] = [];
+  const today = new Date();
+  const endDate = new Date(today);
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 364);
+  startDate.setDate(startDate.getDate() - startDate.getDay());
+  endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+
+  let currentMonth = '';
+  let currentWeekCol = 1;
+
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().split('T')[0];
+    const items = activityMap.get(key) || 0;
+    
+    let level: DayData['level'] = 0;
+    if (items >= level3) level = 3;
+    else if (items >= level2) level = 2;
+    else if (items >= level1) level = 1;
+
+    days.push({
+      id: key,
+      date: new Date(d),
+      level,
+      items,
+      dateString: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    });
+
+    const monthKey = d.toLocaleDateString('en-US', { month: 'short' });
+    if (monthKey !== currentMonth) {
+      currentMonth = monthKey;
+      const colStart = d.getDay() === 0 ? currentWeekCol : currentWeekCol + 1;
+      if (!monthLabels.find(m => m.colStart === colStart)) {
+         monthLabels.push({ label: monthKey, colStart: colStart });
+      }
+    }
+    if (d.getDay() === 6) { 
+      currentWeekCol++;
+    }
+  }
+  return { days, monthLabels };
 }
 
-const ActivityDaySquare: React.FC<ActivityDaySquareProps> = ({ day }) => {
-  const tooltipContent = `${day.items} items on ${day.dateString}`;
+// [V9] 3. 状态缓存 (Module-level cache)
+let cachedData: { days: DayData[]; monthLabels: MonthLabel[] } | null = null;
+let lastCacheTime: number = 0;
+const CACHE_DURATION_MS = 60 * 1000; // 1 分钟
+
+/**
+ * [V9] 4. 宏观视图 (热图方块) - 使用 React.memo 优化
+ */
+const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
+  const tooltipContent = day.items === 0 
+    ? `No activity on ${day.dateString}`
+    : `${day.items} items on ${day.dateString}`;
 
   return (
     <ActivityTooltip content={tooltipContent}>
-      <div
-        className="activity-day-square"
+      <div 
+        className="activity-day-square" 
         data-level={day.level}
-        title={tooltipContent} // 增加原生 title 作为后备
+        title={tooltipContent}
       />
     </ActivityTooltip>
   );
-};
+});
 
 /**
  * 主模态框组件
  */
-export function StatsWallModal({
-  isOpen,
-  onClose,
-  activityData = defaultActivityData,
-}: StatsWallModalProps) {
+export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
+  
+  // [V9 修复] 5. 立即使用缓存或空结构进行初始化
+  const [data, setData] = useState(() => cachedData || generateEmptyCalendarDays());
+  // [V9 修复] 移除了 isLoading 和 error 状态
+
+  // [V9 修复] 6. 静默获取 (Silent Fetch)
+  useEffect(() => {
+    if (isOpen) {
+      const now = Date.now();
+      const isCacheStale = !cachedData || (now - lastCacheTime > CACHE_DURATION_MS);
+      
+      if (cachedData && !isCacheStale) {
+        if (data !== cachedData) {
+          setData(cachedData);
+        }
+        return; 
+      }
+
+      // 静默刷新
+      loadAndProcessActivityData()
+        .then(result => {
+          setData(result);
+          cachedData = result;
+          lastCacheTime = now;
+        })
+        .catch(err => {
+          // 静默失败
+          console.error("后台加载活动数据失败:", err);
+        });
+    }
+  }, [isOpen, data]); // 添加 data 依赖确保状态一致
+
   if (!isOpen) return null;
+  
+  const { days, monthLabels } = data; // data 永远存在
+  const totalWeeks = Math.ceil(days.length / 7);
 
-  // 生成日历数据
-  const { days, monthLabels } = generateCalendarDays(activityData);
-
-  return (
-    // 1. 背景遮罩
+  return createPortal(
     <div className="stats-wall-backdrop" onClick={onClose}>
       <GlassCard
         className="stats-wall-container"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 2. 头部 (不变) */}
         <div className="stats-wall-header">
           <h2 className="stats-wall-title">Activity</h2>
           <button onClick={onClose} className="close-button">
             <X size={18} />
           </button>
         </div>
-
-        {/* 3. 可视化容器 (替换 .stats-wall-scroll-content) */}
-        <div className="activity-calendar-container">
-          {/* 3a. 月份标签 (中观分组) */}
-          <div
-            className="month-labels"
-            style={{
-              // 动态设置 Grid 列，使其与下方的周对齐
-              gridTemplateColumns: `repeat(${monthLabels.length}, 1fr)`
-            }}
+        
+        {/* [V9 修复] 7. 直接渲染日历 (不再有 AnimatePresence 或条件) */}
+        <div className="stats-wall-scroll-content">
+          <div 
+            className="activity-calendar-container"
+            style={{ gridTemplateColumns: `var(--day-label-width) repeat(${totalWeeks}, 1fr)` }}
           >
-            {monthLabels.map(({ label, colSpan }, index) => (
-              <span
-                key={label + index}
-                style={{ gridColumn: `span ${colSpan} / span ${colSpan}` }}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-
-          <div className="calendar-body">
-            {/* 3b. 星期标签 (中观分组) */}
-            <div className="day-labels">
-              <span>M</span> {/* 周一 */}
-              <span>W</span> {/* 周三 */}
-              <span>F</span> {/* 周五 */}
+            {/* 月份标签 */}
+            <div 
+              className="month-labels"
+              style={{ 
+                gridTemplateColumns: `repeat(${totalWeeks}, var(--square-size))`,
+                gridColumn: '2 / -1'
+              }}
+            >
+              {monthLabels.map(({ label, colStart }) => (
+                <span key={label} style={{ gridColumnStart: colStart }}>
+                  {label}
+                </span>
+              ))}
             </div>
 
-            {/* 3c. 核心网格 (宏观数据) */}
-            <div className="activity-grid">
+            {/* 星期标签 */}
+            <div className="day-labels">
+              <span>M</span>
+              <span>W</span>
+              <span>F</span>
+            </div>
+
+            {/* 核心网格 */}
+            <div 
+              className="activity-grid"
+              style={{ 
+                gridTemplateColumns: `repeat(${totalWeeks}, var(--square-size))`
+              }}
+            >
               {days.map((day) => (
                 <ActivityDaySquare key={day.id} day={day} />
               ))}
             </div>
-          </div>
 
-          {/* 3d. 图例 (上下文) */}
-          <div className="calendar-legend">
-            <span>Less</span>
-            <div className="legend-square" data-level="0" />
-            <div className="legend-square" data-level="1" />
-            <div className="legend-square" data-level="2" />
-            <div className="legend-square" data-level="3" />
-            <span>More</span>
+            {/* 图例 */}
+            <div className="calendar-legend">
+              <span>Less</span>
+              <div className="legend-square" data-level="0" />
+              <div className="legend-square" data-level="1" />
+              <div className="legend-square" data-level="2" />
+              <div className="legend-square" data-level="3" />
+              <span>More</span>
+            </div>
           </div>
         </div>
       </GlassCard>
-    </div>
+    </div>,
+    document.body
   );
 }
-

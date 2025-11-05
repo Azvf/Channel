@@ -1045,19 +1045,27 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 .stats-wall-container {
   width: 100%;
-  max-width: 420px; /* 比 popup 宽一点 */
+  max-width: 420px; /* 保持最大宽度 */
   padding: 1rem 1.25rem;
-  
-  /* 为滚动优化 */
-  margin: auto; 
-  
-  /* 使用更强烈的背景色，与底层区分 */
+  margin: auto;
   background-color: color-mix(in srgb, var(--c-bg) 98%, transparent) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 30%), transparent);
-  
-  /* 确保内容可见 - 添加阴影 */
   box-shadow: 0px 8px 32px color-mix(in srgb, var(--c-dark) 30%, transparent);
+
+  /* [V4] 确保 GlassCard 内部布局正确 */
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; /* 防止模态框过高 */
+}
+.stats-wall-container .liquidGlass-content {
+  /* [V7] 确保内容可以 flex 布局 */
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* 占据剩余空间 */
+  min-height: 0; /* 允许子元素滚动 */
+  width: auto; 
+  min-width: 0;
 }
 
 .stats-wall-header {
@@ -1065,6 +1073,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  flex-shrink: 0; /* 不收缩 */
 }
 
 .stats-wall-title {
@@ -1093,150 +1102,197 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 
 /* ========================================
-   ACTIVITY CALENDAR - 日历热图 (V2)
+   ACTIVITY CALENDAR - 日历热图 (V4: 可滚动、数据驱动)
    ======================================== */
 
-/* 1. 替换原有的滚动容器 */
-.activity-calendar-container {
-  padding-top: 0.5rem; /* 8px 顶部留白 */
-  font-family: "DM Sans", sans-serif;
-  /* 定义方块尺寸和间距变量，用于对齐 */
-  --square-size: 11.5px; /* (360px - 边距 - 13周*间距) / 13周 */
-  --gap-size: 3px;
+/* 3. [V9 修复] 水平滚动容器
+   - *移除* height: 160px;
+   - *移除* flex-shrink: 0;
+   - *添加* flex: 1; (使其自动填充剩余空间)
+*/
+.stats-wall-scroll-content {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 5px;
+  min-width: 0;
+  flex: 1; /* [V9] 自动填充可用空间 */
+  
+  /* [V9] 滚动条美化 */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--c-glass) 40%, transparent) color-mix(in srgb, var(--c-glass) 10%, transparent);
 }
-
-/* 2. 月份标签 (中观分组) */
-.month-labels {
-  display: grid; /* 使用 Grid 布局对齐 */
-  grid-auto-flow: column;
-  padding-left: 20px; /* 关键：为左侧的星期标签留出空间 */
-  margin-bottom: 4px;
+.stats-wall-scroll-content::-webkit-scrollbar {
+  height: 8px;
 }
-
-.month-labels span {
-  font-size: 0.6rem; /* 10px - 极简 */
-  font-weight: 500;
-  /* 关键：无感设计，使用低对比度 */
-  color: color-mix(in srgb, var(--c-content) 50%, transparent);
+.stats-wall-scroll-content::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--c-glass) 10%, transparent);
+  border-radius: 4px;
 }
-
-/* 3. 主体 (星期 + 网格) */
-.calendar-body {
-  display: flex;
-  gap: 5px; /* 星期标签和网格的间距 */
+.stats-wall-scroll-content::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--c-glass) 40%, transparent);
+  border-radius: 4px;
 }
-
-/* 4. 星期标签 (中观分组) */
-.day-labels {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  font-size: 0.6rem; /* 10px */
-  font-weight: 500;
-  /* 垂直对齐：在第1、3、5行方块的中间 */
-  padding-top: calc((var(--square-size) * 1) + (var(--gap-size) * 0) + (var(--square-size) / 2) - 5px);
-  padding-bottom: calc((var(--square-size) * 1) + (var(--gap-size) * 0) + (var(--square-size) / 2) - 5px);
-  flex-shrink: 0;
-  width: 15px; /* 固定宽度 */
-  color: color-mix(in srgb, var(--c-content) 50%, transparent);
-}
-
-.day-labels span {
-  height: var(--square-size);
-  line-height: var(--square-size);
-}
-
-/* 只显示 M, W, F，所以我们留空 2, 4, 6, 7 */
-.day-labels span:nth-child(2) {
-  margin-top: calc(var(--square-size) + var(--gap-size));
-}
-
-.day-labels span:nth-child(3) {
-  margin-top: calc(var(--square-size) + var(--gap-size));
-}
-
-/* 5. 核心热图网格 (宏观数据) */
-.activity-grid {
-  flex: 1; /* 占据剩余空间 */
-  display: grid;
-  grid-template-rows: repeat(7, var(--square-size)); /* 7 天 (周日-周六) */
-  grid-auto-flow: column; /* 自动按列填充 (周) */
-  grid-auto-columns: var(--square-size); /* 每列（天）的宽度 */
-  gap: var(--gap-size); /* 方块之间的间距 */
-  /* 我们固定 13 周 (91天)
-    总宽度 = (13 * var(--square-size)) + (12 * var(--gap-size)) 
-  */
-  justify-content: flex-end; /* 从右侧开始填充 */
-}
-
-/* 6. 单个活动方块 (微观) */
-.activity-day-square {
-  width: 100%;
-  height: 100%;
-  border-radius: 2px;
-  cursor: default; /* 交互通过 ActivityTooltip 实现 */
-  transition: transform 100ms ease-out, box-shadow 100ms ease-out;
-}
-
-/* 复用 globals.css 中已有的 data-level 颜色 */
-.activity-day-square[data-level="0"] {
-  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
-}
-
-.activity-day-square[data-level="1"] {
-  background: color-mix(in srgb, var(--c-action) 30%, transparent);
-}
-
-.activity-day-square[data-level="2"] {
+.stats-wall-scroll-content::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--c-action) 60%, transparent);
 }
 
+/* 4. [V4] CSS 变量 */
+.activity-calendar-container {
+  /* (V4 修复): 
+    使用固定尺寸的方块和间距，确保在所有设备上渲染一致。
+    总宽度 = 53周 * (10px + 3px gap) + 20px 标签宽度 = 709px
+  */
+  --square-size: 10px; /* 固定方块大小 */
+  --gap-size: 3px;
+  --day-label-width: 20px;
+  
+  /* (V4 修复): 
+    使用 min-width 强制容器拉伸，从而激活水平滚动
+  */
+  min-width: calc(53 * (var(--square-size) + var(--gap-size)) + var(--day-label-width));
+  padding-top: 0.5rem;
+}
+
+/* 5. [V4] 主网格容器 (Row 1: 月份, Row 2: 星期+热图, Row 3: 图例) */
+.activity-calendar-container {
+  display: grid;
+  /* (V4 修复): 
+    Col 1: 星期标签 (固定宽度)
+    Col 2: 53 周 (动态计算)
+  */
+  grid-template-columns: var(--day-label-width) 1fr;
+  grid-template-rows: auto 1fr auto; /* 1.月份, 2.内容, 3.图例 */
+  gap: 5px var(--gap-size); /* 星期和网格的间距 (5px 垂直, 3px 水平) */
+  font-family: "DM Sans", sans-serif;
+}
+
+/* 6. 月份标签 (Row 1, Col 2) */
+.month-labels {
+  grid-column: 2 / 3; /* 放在第 2 列 */
+  grid-row: 1 / 2;
+  
+  display: grid; /* 内部也是一个 grid */
+  grid-auto-flow: column;
+  /* (V9 修复): 
+    列模板由组件动态设置，这里设置默认值
+  */
+  grid-template-columns: repeat(53, var(--square-size)); /* 默认 53 周 */
+  gap: var(--gap-size);
+}
+.month-labels span {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--c-content) 50%, transparent);
+  white-space: nowrap; 
+  display: inline-block;
+  overflow: hidden;
+}
+
+/* 7. 星期标签 (Row 2, Col 1) */
+.day-labels {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+
+  /* (V4 修复): 
+    使用 Grid 布局自身，确保 M, W, F 完美对齐
+  */
+  display: grid;
+  grid-template-rows: repeat(7, var(--square-size)); /* 7 行, 每行高度=方块高度 */
+  gap: var(--gap-size); /* 间距与热图网格一致 */
+
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--c-content) 50%, transparent);
+}
+.day-labels span {
+  height: var(--square-size);
+  line-height: var(--square-size); /* 垂直居中 */
+}
+/* (V4 修复): 
+  CSS Grid 从 1 开始。
+  我们的数据数组从 周日 (index 0) 开始。
+  所以 周一 在第 2 行, 周三 在第 4 行, 周五 在第 6 行。
+*/
+.day-labels span:nth-child(1) { grid-row: 2; } /* M (周一) */
+.day-labels span:nth-child(2) { grid-row: 4; } /* W (周三) */
+.day-labels span:nth-child(3) { grid-row: 6; } /* F (周五) */
+
+/* 8. 核心热图网格 (Row 2, Col 2) */
+.activity-grid {
+  grid-column: 2 / 3;
+  grid-row: 2 / 3;
+
+  display: grid;
+  grid-template-rows: repeat(7, var(--square-size)); /* 7 天 */
+  grid-auto-flow: column; /* (V4 修复): 保持列填充 */
+  /* (V4 修复): 列模板由组件动态设置 */
+  gap: var(--gap-size);
+}
+
+/* 9. 活动方块 (V9 修复：添加背景色过渡) */
+.activity-day-square {
+  width: var(--square-size);
+  height: var(--square-size);
+  border-radius: 2px;
+  cursor: default;
+  transition: transform 100ms ease-out, box-shadow 100ms ease-out, background-color 300ms ease-out; /* [V9] 增加背景色过渡 */
+}
+
+/* data-level 颜色 */
+.activity-day-square[data-level="0"] {
+  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
+}
+.activity-day-square[data-level="1"] {
+  background: color-mix(in srgb, var(--c-action) 30%, transparent);
+}
+.activity-day-square[data-level="2"] {
+  background: color-mix(in srgb, var(--c-action) 60%, transparent);
+}
 .activity-day-square[data-level="3"] {
   background: color-mix(in srgb, var(--c-action) 100%, transparent);
 }
-
-/* 7. 悬停微交互 (Affordance) */
 .activity-day-square:hover {
   transform: scale(1.15);
-  position: relative; /* 确保在最上层 */
+  position: relative;
   z-index: 10;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--c-dark) 20%, transparent);
 }
 
-/* 8. 图例 (上下文) */
+/* 10. 图例 (Row 3, Col 2) */
 .calendar-legend {
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+
   display: flex;
-  justify-content: flex-end; /* 与 GitHub 对齐 */
+  justify-content: flex-end;
   align-items: center;
   gap: 4px;
-  font-size: 0.7rem; /* 11px */
+  font-size: 0.7rem;
   color: color-mix(in srgb, var(--c-content) 60%, transparent);
-  margin-top: 0.75rem; /* 12px */
-  padding-right: 2px; /* 视觉微调 */
+  margin-top: 0.25rem;
+  padding-right: 2px;
 }
-
 .calendar-legend .legend-square {
   width: 10px;
   height: 10px;
   border-radius: 2px;
 }
 
-/* 复用 data-level 样式 */
+/* data-level 样式 */
 .calendar-legend .legend-square[data-level="0"] {
   background: color-mix(in srgb, var(--c-glass) 15%, transparent);
 }
-
 .calendar-legend .legend-square[data-level="1"] {
   background: color-mix(in srgb, var(--c-action) 30%, transparent);
 }
-
 .calendar-legend .legend-square[data-level="2"] {
   background: color-mix(in srgb, var(--c-action) 60%, transparent);
 }
-
 .calendar-legend .legend-square[data-level="3"] {
   background: color-mix(in srgb, var(--c-action) 100%, transparent);
 }
+
+/* [V9 修复] 移除 .stats-wall-message-center (不再需要加载/错误状态) */
 
 /* ========================================
    CHANNEL TITLE - 流光渐变效果
