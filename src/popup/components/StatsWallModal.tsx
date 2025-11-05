@@ -1,12 +1,10 @@
 import React, { useState, useEffect, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { ActivityTooltip } from './ActivityTooltip';
 import { TagManager } from '../../services/tagManager';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
-import { dialogSlideIn } from '../utils/motion';
 
 interface StatsWallModalProps {
   isOpen: boolean;
@@ -178,26 +176,6 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
 
   // 2. [新] 为滚动容器创建一个 ref
   const scrollRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  // 使用原生 dialog API 管理打开/关闭状态
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    if (isOpen) {
-      // 仅在 dialog 未打开时调用 showModal
-      if (!dialog.open) {
-        dialog.showModal();
-      }
-    } else {
-      // 仅在 dialog 已打开时调用 close
-      // AnimatePresence 会在动画结束后移除 dialog
-      if (dialog.open) {
-        dialog.close();
-      }
-    }
-  }, [isOpen]);
 
   // [V9 修复] 6. 静默获取 (Silent Fetch)
   useEffect(() => {
@@ -302,53 +280,17 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
   }, [isOpen, data]); // 依赖 isOpen 和 data
   // [END MODIFIED]
 
-  // 处理 dialog 关闭事件（ESC 键或点击背景）
-  const handleDialogClose = () => {
-    onClose();
-  };
-
+  if (!isOpen) return null;
+  
   const { days, monthLabels } = data; // data 永远存在
   const totalWeeks = Math.ceil(days.length / 7);
 
   return createPortal(
-    <AnimatePresence>
-      {isOpen && (
-        <dialog
-          ref={dialogRef}
-          onClose={handleDialogClose}
-          onClick={(e) => {
-            // 点击 dialog 本身（backdrop）时关闭
-            if (e.target === e.currentTarget) {
-              onClose();
-            }
-          }}
-          className="stats-wall-dialog"
-        >
-          <motion.div
-            variants={dialogSlideIn}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: '50%',
-              width: 'calc(100% - 32px)',
-              maxWidth: '560px',
-              maxHeight: '90vh',
-              display: 'flex',
-            }}
-          >
-            <GlassCard
-              className="stats-wall-container"
-              style={{
-                width: '100%',
-                maxHeight: '90vh',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
+    <div className="stats-wall-backdrop" onClick={onClose}>
+      <GlassCard
+        className="stats-wall-container"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header - 使用标准化的 ModalHeader */}
         <ModalHeader title="Activity" onClose={onClose} />
         
@@ -412,11 +354,8 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
           <span>More</span>
         </div>
         {/* [!!! 重构结束 !!!] */}
-            </GlassCard>
-          </motion.div>
-        </dialog>
-      )}
-    </AnimatePresence>,
+      </GlassCard>
+    </div>,
     document.body
   );
 }
