@@ -381,11 +381,12 @@ export function TagInput({
       {(showSuggestions || isAnimating) && filteredSuggestions.length > 0 && (
         <div 
           ref={dropdownRef}
-          className={`absolute top-[calc(100%+0.5rem)] left-0 right-0 z-50 transition-all duration-300 ease-out ${
+          className={`absolute top-[calc(100%+0.5rem)] left-0 right-0 transition-all duration-300 ease-out ${
             shouldShowDropdown 
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 -translate-y-2 pointer-events-none'
           }`}
+          style={{ zIndex: 'var(--z-dropdown)' }}
         >
           <div 
             className="liquidGlass-wrapper"

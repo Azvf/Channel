@@ -205,12 +205,15 @@ export default function App({ initialState }: AppProps) {
       {/* [!] 浮动头部 (Floating Header) */}
       <div 
         ref={floatingHeaderRef} 
-        className="absolute top-0 left-0 right-0 z-20 flex flex-col items-center"
-        style={{ pointerEvents: 'none' }} 
+        className="absolute top-0 left-0 right-0 flex flex-col items-center"
+        style={{ 
+          pointerEvents: 'none',
+          zIndex: 'var(--z-app-header)'
+        }} 
       >
         {/* 1. 顶部HUD */}
         <div 
-          className="relative w-full max-w-md z-50 grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-3 h-11"
+          className="relative w-full max-w-md grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-3 h-11"
           style={{ 
             pointerEvents: 'auto',
           }}
@@ -248,7 +251,7 @@ export default function App({ initialState }: AppProps) {
 
         {/* 2. TabSwitcher 容器 */}
         <div 
-          className="w-full max-w-md z-10 flex justify-center px-4 pt-2"
+          className="w-full max-w-md flex justify-center px-4 pt-2"
           style={{ 
             pointerEvents: 'auto', 
           }}

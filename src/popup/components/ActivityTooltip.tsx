@@ -107,8 +107,9 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
   const tooltipElement = show && (
     <div
       ref={tooltipRef}
-      className="fixed z-[300] px-2.5 py-1.5 rounded-lg"
+      className="fixed px-2.5 py-1.5 rounded-lg"
       style={{
+        zIndex: 'var(--z-tooltip-layer)',
         top: position.top,
         left: position.left,
         background: 'color-mix(in srgb, var(--c-bg) 90%, transparent)',

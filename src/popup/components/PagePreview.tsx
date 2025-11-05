@@ -153,7 +153,7 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
       ref={previewCardRef}
       className="fixed pointer-events-none"
       style={{
-        zIndex: 300, // 确保在最顶层 (高于 201 的弹窗)
+        zIndex: 'var(--z-tooltip-layer)', // Tooltip 层级，低于模态框
         left: `${previewPosition.left}px`,
         top: `${previewPosition.top}px`,
         animation: 'fadeInScale 250ms cubic-bezier(0.16, 1, 0.3, 1)',

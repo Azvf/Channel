@@ -193,8 +193,9 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
 
   const backdropElement = (
     <div
-      className="fixed z-[200]"
+      className="fixed"
       style={{
+        zIndex: 'var(--z-modal-layer)',
         top: 0,
         left: 0,
         right: 0,
@@ -216,8 +217,9 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
       {/* Dialog */}
       <div
         ref={dialogRef}
-        className="fixed z-[201] rounded-xl border overflow-hidden"
+        className="fixed rounded-xl border overflow-hidden"
         style={{
+          zIndex: 'calc(var(--z-modal-layer) + 1)',
           left: '50%',
           top: '50%',
           transform: 'translate(-50%, -50%)',

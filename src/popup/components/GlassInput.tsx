@@ -265,8 +265,9 @@ export function GlassInput({
             }}
             placeholder={placeholder}
             disabled={disabled}
-            className="flex-1 min-w-0 px-4 py-2 bg-transparent outline-none relative z-10"
+            className="flex-1 min-w-0 px-4 py-2 bg-transparent outline-none relative"
             style={{ 
+              zIndex: 'var(--z-content)',
               color: 'var(--c-content)',
               fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.85rem',
@@ -283,8 +284,9 @@ export function GlassInput({
               onClick={() => {
                 setShowSuggestions(!showSuggestions);
               }}
-              className="flex-shrink-0 mr-4 p-1.5 rounded-full transition-all z-10"
+              className="flex-shrink-0 mr-4 p-1.5 rounded-full transition-all"
               style={{ 
+                zIndex: 'var(--z-content)',
                 color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
                 background: showSuggestions ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' : 'transparent'
               }}
@@ -313,7 +315,7 @@ export function GlassInput({
       {filteredSuggestions.length > 0 && ((showSuggestions && isPositionReady) || (isAnimating && isPositionReady)) && createPortal(
         <div 
           ref={dropdownRef}
-          className={`fixed z-50 transition-all duration-300 ease-out ${
+          className={`fixed transition-all duration-300 ease-out ${
             showSuggestions && isPositionReady
               ? 'opacity-100 translate-y-0' 
               : 'opacity-0 -translate-y-2 pointer-events-none'
@@ -321,7 +323,8 @@ export function GlassInput({
           style={{
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
-            width: `${dropdownPosition.width}px`
+            width: `${dropdownPosition.width}px`,
+            zIndex: 'var(--z-dropdown)'
           }}
         >
           <div 

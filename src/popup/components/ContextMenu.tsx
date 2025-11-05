@@ -37,7 +37,8 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
 
   const menuElement = (
     <div
-      className="fixed inset-0 z-[200]"
+      className="fixed inset-0"
+      style={{ zIndex: 'var(--z-context-menu-layer)' }}
       onClick={closeMenu}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -51,8 +52,9 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="fixed z-[201] liquidGlass-wrapper"
+            className="fixed liquidGlass-wrapper"
             style={{
+              zIndex: 'calc(var(--z-context-menu-layer) + 1)',
               top: position.y,
               left: position.x,
               minWidth: '150px',

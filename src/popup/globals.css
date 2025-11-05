@@ -41,6 +41,40 @@
     /* transition 将在 JavaScript 中通过 data-theme-ready 属性启用 */
     transition: none;
   }
+
+  :root {
+    /* --- Z-Index 系统 --- */
+    
+    /* 级别 0: 隐藏 */
+    --z-hidden: -1;
+    
+    /* 级别 1: 组件内部 (例如：毛玻璃滑块) */
+    --z-base: 1;
+    
+    /* 级别 2: 组件内容 (例如：滑块上的图标) */
+    --z-content: 2;
+    
+    /* 级别 3: 粘性元素 (例如：Sticky Header, Hover效果) */
+    --z-sticky: 10;
+    
+    /* 级别 4: 应用主 UI (例如：App 浮动顶栏) */
+    --z-app-header: 20;
+
+    /* 级别 5: 下拉菜单 (例如：TagInput 的建议列表) */
+    --z-dropdown: 30;
+
+    /* 级别 6: 模态框 (所有弹窗，如 Settings, Stats, Edit) */
+    --z-modal-layer: 40;
+
+    /* 级别 7: 提示框 (例如：PagePreview 浮窗) */
+    --z-tooltip-layer: 50;
+    
+    /* 级别 8: 上下文菜单 (右键菜单，必须在 Tooltip 之上) */
+    --z-context-menu-layer: 60;
+
+    /* 级别 9: 系统 UI (最高层，例如 ThemeSwitcher) */
+    --z-system-layer: 100;
+  }
   
   /* 只有当 body 有 data-theme-ready 属性时才启用过渡效果 */
   body[data-theme-ready] {
@@ -375,7 +409,7 @@ html {
 
 .liquidGlass-content {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-content);
   width: 100%;
 }
 
@@ -440,7 +474,7 @@ html {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  z-index: 1000;
+  z-index: var(--z-system-layer);
   transform-origin: bottom right; /* 动画基点 */
 }
 
@@ -454,7 +488,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   position: fixed;
   inset: 0;
   background: transparent;
-  z-index: 1000; /* 在 Switcher 后面 */
+  z-index: var(--z-system-layer); /* 在 Switcher 后面 */
   pointer-events: none;
   opacity: 0;
   /* 使用更平滑的 'ease-out' 曲线，持续 300ms
@@ -476,7 +510,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   right: 0;
   display: flex;
   overflow: hidden;
-  z-index: 1001; /* 在 Backdrop 上面 */
+  z-index: calc(var(--z-system-layer) + 1); /* 在 Backdrop 上面 */
   transform-origin: bottom right;
   will-change: width, height, padding, transform;
 
@@ -702,7 +736,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 99em;
-  z-index: 10; /* 确保图标在 ::after 滑块之上 */
+  z-index: var(--z-content); /* 确保图标在 ::after 滑块之上 */
   position: relative;
   
   /*
@@ -808,7 +842,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   display: block;
   border-radius: 99em;
   background-color: color-mix(in srgb, var(--c-glass) 36%, transparent);
-  z-index: 1; /* 提高 z-index，但在 icon (z-index: 10) 之下 */
+  z-index: var(--z-base); /* 提高 z-index，但在 icon (z-index: var(--z-content)) 之下 */
   backdrop-filter: blur(8px) url(#switcher) saturate(var(--saturation));
   -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
   box-shadow: 
@@ -1029,7 +1063,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 .stats-wall-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: var(--z-modal-layer);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1246,7 +1280,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 .activity-day-square:hover {
   transform: scale(1.15);
   position: relative;
-  z-index: 10;
+  z-index: var(--z-sticky);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--c-dark) 20%, transparent);
 }
 
@@ -1306,7 +1340,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   top: 0;
   
   /* 2. 确保它在滚动内容之上 */
-  z-index: 10;
+  z-index: var(--z-sticky);
   
   /* 3. 必须添加背景色，以覆盖下方滚动的内容 */
   /* 匹配 .stats-wall-container 的背景色 */

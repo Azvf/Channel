@@ -160,8 +160,9 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
 
   const modalContent = (
     <motion.div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center p-4"
       style={{
+        zIndex: 'var(--z-modal-layer)',
         background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
         backdropFilter: 'blur(4px)',
       }}
