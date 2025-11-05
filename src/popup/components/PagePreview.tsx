@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-// (V4 关键) 1. 导入 createPortal
 import { createPortal } from "react-dom";
+// [优化] 导入 Bookmark 图标
+import { Bookmark } from "lucide-react";
 
 interface PagePreviewProps {
   url: string;
@@ -255,10 +256,12 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
               style={{ objectFit: 'contain' }}
             />
           ) : (
-            <div 
-              className="w-3 h-3 rounded"
-              style={{
-                background: 'color-mix(in srgb, var(--c-action) 50%, transparent)'
+            // [优化] 使用 Bookmark 图标作为 fallback
+            <Bookmark 
+              className="w-3 h-3" 
+              strokeWidth={1.5}
+              style={{ 
+                color: 'color-mix(in srgb, var(--c-content) 40%, var(--c-bg))' 
               }}
             />
           )}

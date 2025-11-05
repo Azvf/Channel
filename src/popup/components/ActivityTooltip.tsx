@@ -89,7 +89,7 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
     };
   }, []);
 
-  // 克隆 children (pixel-day-tile) 并附加 ref 和事件
+  // 克隆 children (activity-bar 或其他元素) 并附加 ref 和事件
   const trigger = React.cloneElement(children, {
     ref: (node: HTMLElement | null) => {
       triggerRef.current = node;

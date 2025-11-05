@@ -1083,133 +1083,99 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 
-/* 像素画廊容器 - 极简主义设计 */
-.stats-wall-grid-container {
-  display: flex;
-  gap: 6px;
+/* 滚动内容容器 - 垂直滚动 */
+.stats-wall-scroll-content {
+  /* 关键：模态框内部垂直滚动 */
+  max-height: 60vh; /* 限制最大高度 */
+  overflow-y: auto;
+  /* 滚动条样式已在全局样式中定义 */
+}
+
+/* 活动分组 */
+.activity-group {
+  margin-bottom: 1.5rem;
+}
+
+.activity-group-title {
   font-family: "DM Sans", sans-serif;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: color-mix(in srgb, var(--c-content) 50%, transparent);
-  margin-bottom: 1rem;
+  padding: 0 0.5rem 0.5rem 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--c-glass) 15%, transparent);
 }
 
-/* Y轴 (星期): 极简主义，只显示 Mon, Wed, Fri - 视觉降级 */
-.stats-wall-days-y {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-top: 1.2rem; /* 留出 X 轴标签空间 */
-  min-width: 2rem;
-  height: calc(7 * (12px + 3px) - 3px); /* 7行像素块的高度 */
-  align-items: flex-end;
-  padding-right: 4px;
-}
-
-.stats-wall-days-y span {
-  font-size: 0.6rem;
-  color: color-mix(in srgb, var(--c-content) 30%, transparent);
-  line-height: 1;
-}
-
-.stats-wall-grid-wrapper {
-  flex: 1;
+.activity-group-list {
   display: flex;
   flex-direction: column;
 }
 
-/* X轴 (月份): 位于网格正上方，统一对齐 - 视觉降级 */
-.stats-wall-months-x {
+/* 每日活动行 */
+.activity-row {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 4px;
-  height: 1.2rem;
   align-items: center;
-  padding-left: 0;
+  justify-content: space-between;
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: background-color 150ms var(--ease-smooth);
 }
 
-.stats-wall-months-x span {
-  font-size: 0.6rem;
-  color: color-mix(in srgb, var(--c-content) 30%, transparent);
-  line-height: 1;
+.activity-row:hover {
+  background-color: color-mix(in srgb, var(--c-glass) 8%, transparent);
 }
 
-/* 网格: 核心像素画廊 - 水平滚动（如果数据超出一年），垂直固定 */
-.stats-wall-grid {
-  display: flex;
-  flex-direction: row;
-  gap: 3px;
-  width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  /* 平滑滚动 */
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--c-action) 30%, transparent) transparent;
-}
-
-.stats-wall-week {
+.activity-row-date {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  line-height: 1.2;
 }
 
-.pixel-day-tile {
-  /* 带轻微圆角的方块，比尖角正方形更柔和 */
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  
-  /* 微交互过渡效果 */
-  transition: transform var(--transition-fast) var(--ease-smooth),
-              outline var(--transition-fast) var(--ease-smooth);
-  position: relative;
+.activity-row-date .day-name {
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--c-content);
+}
+
+.activity-row-date .date-string {
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--c-content) 60%, transparent);
+}
+
+.activity-row-bar-wrapper {
+  flex: 1;
+  margin-left: 1rem;
+  /* 确保 ActivityTooltip 可以正常工作 */
+  display: flex;
+  align-items: center;
+}
+
+/* 活动条 - 使用 data-level 样式 */
+.activity-bar {
+  height: 8px;
+  border-radius: 4px;
+  min-width: 4px; /* 确保 level 0 也可见 */
+  transition: width 300ms var(--ease-smooth);
   cursor: pointer;
 }
 
-/* data-level 颜色渐变：提供关于用户专注程度的即时数据反馈 */
-.pixel-day-tile[data-level="0"] {
+/* 复用 data-level 颜色样式 */
+.activity-bar[data-level="0"] {
   background: color-mix(in srgb, var(--c-glass) 15%, transparent);
 }
 
-.pixel-day-tile[data-level="1"] {
+.activity-bar[data-level="1"] {
   background: color-mix(in srgb, var(--c-action) 30%, transparent);
 }
 
-.pixel-day-tile[data-level="2"] {
+.activity-bar[data-level="2"] {
   background: color-mix(in srgb, var(--c-action) 60%, transparent);
 }
 
-.pixel-day-tile[data-level="3"] {
+.activity-bar[data-level="3"] {
   background: color-mix(in srgb, var(--c-action) 100%, transparent);
-}
-
-/* Hover 微交互：提供可探索性 (Discoverability) */
-.pixel-day-tile:hover {
-  /* [移除] 不再使用 transform 和 outline */
-  /* transform: scale(1.2); */
-  /* outline: 2px solid var(--c-action); */
-  
-  /* [替换为] inset box-shadow */
-  /* 这会在 "内部" 创建边框，绝不会被裁剪 */
-  box-shadow: inset 0 0 0 2px var(--c-action);
-  
-  /* [保留] z-index 仍然有用，确保它在兄弟元素之上 */
-  z-index: 10;
-  position: relative;
-}
-
-/* 自定义 Tooltip - 轻量级提示 */
-.stats-wall-tooltip {
-  font-family: "DM Sans", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--c-content);
-  background: color-mix(in srgb, var(--c-bg) 95%, transparent);
-  backdrop-filter: blur(8px) saturate(180%);
-  border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
-  padding: 0.375rem 0.625rem;
-  border-radius: 0.375rem;
-  white-space: nowrap;
-  z-index: 1000;
-  box-shadow: 0px 4px 12px color-mix(in srgb, var(--c-dark) 20%, transparent);
-  pointer-events: none;
 }

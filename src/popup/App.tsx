@@ -7,45 +7,43 @@ import { StatsWallModal } from "./components/StatsWallModal";
 import { storageService, STORAGE_KEYS } from "../services/storageService";
 import { usePageSettings } from "./utils/usePageSettings";
 import type { AppInitialState } from "../services/appInitService";
-import { Settings, FileText, Tag as TagIcon, BarChart3 } from "lucide-react";
+import { Settings, Tag as TagIcon, Bookmark } from "lucide-react";
 
 interface AppProps {
   initialState: AppInitialState;
 }
 
-// [!!] StatItem 移入 App.tsx (类似 shared/ui)
-// 这是一个轻量级的内联组件，用于显示图标+数字
-// 注意：现在在可点击容器内，所以 pointerEvents 改为 'auto'，但保持 userSelect: 'none'
+// [优化] StatItem 使用新图标
 const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
   <div 
-    className="flex items-center gap-1.5"
+    className="flex items-center gap-1"
     style={{
       fontFamily: '"DM Sans", sans-serif',
-      fontVariantNumeric: 'tabular-nums', // 确保数字等宽，防止跳动
-      userSelect: 'none', // 防止文本被选中
+      fontVariantNumeric: 'tabular-nums',
+      userSelect: 'none',
       WebkitUserSelect: 'none',
       MozUserSelect: 'none',
       msUserSelect: 'none',
-      pointerEvents: 'auto', // 允许在父按钮内交互
+      pointerEvents: 'auto',
     }}
   >
     {React.cloneElement(icon as any, { 
-      className: "w-3.5 h-3.5",
+      className: "w-3 h-3", 
       strokeWidth: 2,
-      style: { color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))' }
+      style: { color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))' }
     })}
     <span style={{
-      fontSize: '0.8rem', // 13px
-      fontWeight: 600,
-      color: 'var(--c-content)',
+      fontSize: '0.75rem',
+      fontWeight: 500,
+      color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
     }}>
       {value}
     </span>
   </div>
 );
 
-// 2. [新] 定义一个合理的默认高度（基于我们之前的值），以防止0高度闪烁
-const DEFAULT_HEADER_HEIGHT = 124; // 7.75rem
+// [优化] 调整默认高度以适应新的居中布局
+const DEFAULT_HEADER_HEIGHT = 108; // 44px (HUD) + 52px (Switcher) + 12px (Gap)
 
 export default function App({ initialState }: AppProps) {
   // 使用初始状态，避免页面闪烁
@@ -63,13 +61,11 @@ export default function App({ initialState }: AppProps) {
   // 这消除了所有"魔术数字"
   useLayoutEffect(() => {
     if (floatingHeaderRef.current) {
-      // 创建一个 ResizeObserver 来监听浮动头部的任何尺寸变化
       const resizeObserver = new ResizeObserver(entries => {
-        // 当浮动头部高度变化时，立即更新占位符的高度
         for (let entry of entries) {
           const newHeight = entry.contentRect.height;
-          // 增加 1rem (16px) 的额外间距
-          setHeaderHeight(newHeight + 16);
+          // [优化] 间距从 16px 减小到 12px (0.75rem)，因为顶部内边距已移除
+          setHeaderHeight(newHeight + 12); 
         }
       });
 
@@ -144,85 +140,78 @@ export default function App({ initialState }: AppProps) {
         {/* 移除 StatsCluster (根据我们之前的优化) */}
       </div>
 
-      {/* B. 浮动在顶层的 UI (使用 absolute) */}
-      {/* 我们将 TopBar 和 TabSwitcher 包装在
-        一个带 ref 的父级 div 中，以便测量它们的总高度。
-      */}
+      {/* [优化] 浮动头部现在是一个垂直居中的容器 */}
       <div 
-        ref={floatingHeaderRef} // [关键] 绑定 ref 来测量
-        className="absolute top-0 left-0 right-0 z-20"
+        ref={floatingHeaderRef} 
+        className="absolute top-0 left-0 right-0 z-20 flex flex-col items-center" // [优化] 关键：flex-col items-center
         style={{ pointerEvents: 'none' }} 
       >
-        {/* TopBar (z-index: 50) - 使用现有内联的统计和设置按钮 */}
-        <div className="relative pt-2 px-4 pb-3 space-y-2 flex-shrink-0 z-50" style={{ pointerEvents: 'auto' }}>
-          {/* [3] [!!] 顶部 HUD (Stats + Settings)
-              - 它们现在是"环境UI"，而不是一个"Bar"
-          */}
-          <div className="flex items-center justify-between">
-            
-            {/* 左侧：图标化统计 - 可点击打开像素画廊 */}
-            <button
-              onClick={() => setIsStatsWallOpen(true)}
-              className="flex items-center gap-4 rounded-lg px-2 py-1 transition-all"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 10%, transparent)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
-            >
-              <StatItem icon={<FileText />} value={MOCK_TODAY_PAGES} />
-              <StatItem icon={<TagIcon />} value={MOCK_TODAY_TAGS} />
-              <BarChart3 
-                className="w-3.5 h-3.5" 
-                strokeWidth={2}
-                style={{ color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))' }}
-              />
-            </button>
-            
-            {/* 右侧：[!!] 无感的设置按钮 */}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="rounded-lg p-1.5 transition-all"
-              style={{
-                background: 'transparent', // [!!] 完全无背景
-                border: 'none', // [!!] 完全无边框
-                color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
-                e.currentTarget.style.color = 'var(--c-action)';
-                e.currentTarget.style.transform = 'scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              <Settings className="w-4 h-4" strokeWidth={2} />
-            </button>
-          </div>
+        {/* [优化] 1. 顶部HUD (设置 + 统计) - 作为一个居中块 */}
+        <div 
+          className="relative flex justify-between items-center w-full max-w-xs z-50" // [优化] 居中并限制最大宽度
+          style={{ 
+            pointerEvents: 'auto',
+            padding: '12px 16px 0', // [优化] 顶部 12px, 左右 16px, 底部 0
+            height: '44px', // [优化] 固定高度
+          }}
+        >
+          {/* 左侧：设置按钮 */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="rounded-lg p-1.5 transition-all"
+            style={{
+              background: 'transparent', 
+              border: 'none',
+              color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
+              e.currentTarget.style.color = 'var(--c-action)';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            <Settings className="w-3.5 h-3.5" strokeWidth={2} />
+          </button>
+
+          {/* 右侧：统计按钮 */}
+          <button
+            onClick={() => setIsStatsWallOpen(true)}
+            title="View Activity"
+            className="flex items-center gap-3 rounded-lg transition-all"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              margin: '-0.25rem',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 10%, transparent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            {/* [优化] 使用 Bookmark 图标 */}
+            <StatItem icon={<Bookmark />} value={MOCK_TODAY_PAGES} />
+            <StatItem icon={<TagIcon />} value={MOCK_TODAY_TAGS} />
+          </button>
         </div>
         
-        {/* TabSwitcher 容器 (z-index: 10) */}
+        {/* [优化] 2. TabSwitcher 容器 - 保持居中 */}
         <div 
-          className="w-full max-w-md" 
+          className="w-full max-w-md z-10"
           style={{ 
             pointerEvents: 'auto', 
-            // (3rem TopBar + 0.5rem 间距)
-            paddingTop: '0.5rem', 
-            paddingLeft: '1rem',
-            paddingRight: '1rem',
+            padding: '8px 16px 0', // [优化] 调整内边距 (8px top, 16px sides)
             display: 'flex',
             justifyContent: 'center',
-            // 注意：不再需要 absolute，因为它已在 ref 容器的文档流中
           }}
         >
           <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
