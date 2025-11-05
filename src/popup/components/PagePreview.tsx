@@ -208,7 +208,6 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
           <p
             className="line-clamp-2"
             style={{
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.8rem',
               fontWeight: 600,
               color: 'var(--c-content)',
@@ -222,7 +221,6 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
           <p
             className="line-clamp-1"
             style={{
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.68rem',
               fontWeight: 400,
               color: 'color-mix(in srgb, var(--c-content) 55%, var(--c-bg))',

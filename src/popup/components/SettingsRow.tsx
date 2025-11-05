@@ -80,7 +80,6 @@ export function SettingsRow({
         >
           <span
             style={{
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.9rem',
               fontWeight: 500,
               color: 'var(--c-content)',
@@ -92,7 +91,6 @@ export function SettingsRow({
           {value && (
             <span
               style={{
-                fontFamily: '"DM Sans", sans-serif',
                 fontSize: '0.75rem',
                 fontWeight: 400,
                 color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',

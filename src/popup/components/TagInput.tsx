@@ -329,7 +329,6 @@ export function TagInput({
                 className="flex-1 min-w-[140px] bg-transparent outline-none"
                 style={{ 
                   color: 'var(--c-content)',
-                  fontFamily: '"DM Sans", sans-serif',
                   fontSize: '0.85rem',
                   fontWeight: 400,
                   letterSpacing: '0.01em'
@@ -411,7 +410,6 @@ export function TagInput({
                     className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2"
                     style={{ 
                       color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
-                      fontFamily: '"DM Sans", sans-serif',
                       fontSize: '0.85rem',
                       fontWeight: 400,
                       letterSpacing: '0.01em',

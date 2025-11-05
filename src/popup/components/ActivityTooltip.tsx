@@ -118,7 +118,6 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
         backdropFilter: 'blur(12px)',
         border: '1px solid color-mix(in srgb, var(--c-glass) 30%, transparent)',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-        fontFamily: '"DM Sans", sans-serif',
         fontSize: '0.75rem',
         fontWeight: 500,
         color: 'var(--c-content)',

@@ -144,7 +144,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                   <span 
                     style={{ 
                       color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                      fontFamily: '"DM Sans", sans-serif',
                       fontWeight: 500,
                       fontSize: '0.7rem',
                       letterSpacing: '0.05em',
@@ -160,7 +159,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                   <p 
                     style={{ 
                       color: 'color-mix(in srgb, var(--c-content) 35%, var(--c-bg))',
-                      fontFamily: '"DM Sans", sans-serif',
                       fontSize: '0.65rem',
                       fontWeight: 300,
                       letterSpacing: '0.01em',
@@ -229,7 +227,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     pointerEvents: editingTitle ? 'auto' : 'none',
                     zIndex: editingTitle ? 10 : 1,
                     transition: 'opacity 0.2s ease-in-out',
-                    fontFamily: '"DM Sans", sans-serif',
                     color: 'var(--c-content)',
                     fontWeight: 600,
                     fontSize: '1.1rem',
@@ -275,7 +272,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       }
                     }}
                     style={{ 
-                      fontFamily: '"DM Sans", sans-serif',
                       color: 'var(--c-content)',
                       fontWeight: 600,
                       fontSize: '1.1rem',

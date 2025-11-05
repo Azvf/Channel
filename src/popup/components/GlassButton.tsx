@@ -35,7 +35,6 @@ export function GlassButton({
       {hasChildren && (
         <span 
           style={{ 
-            fontFamily: '"DM Sans", sans-serif',
             fontSize: '0.85rem',
             fontWeight: 500,
             letterSpacing: '0.01em'

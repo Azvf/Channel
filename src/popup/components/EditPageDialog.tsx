@@ -256,7 +256,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         >
           <h2
             style={{
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '1rem',
               fontWeight: 700,
               color: 'var(--c-content)',
@@ -304,7 +303,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
             <label
               className="block mb-1"
               style={{
-                fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.7rem',
               fontWeight: 600,
               color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
@@ -319,7 +317,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
             style={{
               background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.7rem',
               color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
               fontWeight: 500,
@@ -335,7 +332,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
             <label
               className="block mb-1"
               style={{
-                fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.7rem',
               fontWeight: 600,
               color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
@@ -357,7 +353,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
             <label
               className="block mb-1"
               style={{
-                fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.7rem',
               fontWeight: 600,
               color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
@@ -389,7 +384,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
               color: 'var(--c-content)',
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.8rem',
               fontWeight: 600,
               letterSpacing: '0.01em',
@@ -414,7 +408,6 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
               border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
               color: 'var(--c-bg)',
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.8rem',
               fontWeight: 600,
               letterSpacing: '0.01em',

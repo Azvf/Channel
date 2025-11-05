@@ -36,7 +36,6 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
               color: 'var(--c-content)',
               fontSize: '0.75rem',
               fontWeight: 500,
-              fontFamily: '"DM Sans", sans-serif',
               userSelect: 'none'
             }}
           >

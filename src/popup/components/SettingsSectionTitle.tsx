@@ -11,7 +11,6 @@ export function SettingsSectionTitle({ children, className = '', style }: Settin
     <div
       className={`settings-section-title ${className}`}
       style={{
-        fontFamily: '"DM Sans", sans-serif',
         fontSize: '0.75rem',
         fontWeight: 600,
         letterSpacing: '0.05em',

@@ -135,7 +135,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                   <span 
                     style={{ 
                       color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
-                      fontFamily: '"DM Sans", sans-serif',
                       fontWeight: 500,
                       fontSize: '0.7rem',
                       letterSpacing: '0.05em',
@@ -175,7 +174,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                 <span 
                   style={{ 
                     color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))', 
-                    fontFamily: '"DM Sans", sans-serif',
                     fontSize: '0.75rem',
                     fontWeight: 400,
                     letterSpacing: '0.005em'
@@ -188,7 +186,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                   style={{ 
                     color: 'var(--c-content)',
                     background: 'color-mix(in srgb, var(--c-glass) 16%, transparent)',
-                    fontFamily: '"DM Sans", sans-serif',
                     fontSize: '0.7rem',
                     fontWeight: 600,
                     letterSpacing: '0.01em',
@@ -305,7 +302,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               <h2  /* [7] 语义从 h3 提升为 h2 */
                                 className="hover:text-[var(--c-action)] transition-colors"
                                 style={{ 
-                                  fontFamily: '"DM Sans", sans-serif',
                                   color: 'var(--c-content)',
                                   fontWeight: 600,
                                   fontSize: '1.1rem', // [7] 匹配 TaggingPage 标题
@@ -332,7 +328,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                 className="truncate flex-1"
                                 style={{ 
                                   color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))', // [8] 匹配 TaggingPage URL
-                                  fontFamily: '"DM Sans", sans-serif',
                                   fontSize: '0.8rem', // [8] 匹配 TaggingPage URL
                                   fontWeight: 400, // [8] 匹配 TaggingPage URL
                                   letterSpacing: '0.005em',
@@ -355,7 +350,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                     style={{ 
                                       color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
                                       background: 'color-mix(in srgb, var(--c-glass) 10%, transparent)',
-                                      fontFamily: '"DM Sans", sans-serif',
                                       fontSize: '0.7rem',
                                       fontWeight: 500,
                                       letterSpacing: '0.01em',
@@ -380,7 +374,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                   className="text-center py-12 rounded-3xl border-2 border-dashed"
                   style={{ 
                     color: 'color-mix(in srgb, var(--c-content) 40%, var(--c-bg))',
-                    fontFamily: '"DM Sans", sans-serif',
                     borderColor: 'color-mix(in srgb, var(--c-glass) 30%, transparent)'
                   }}
                 >

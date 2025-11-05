@@ -70,7 +70,6 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
                       className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
                       style={{
                         color: 'var(--c-content)',
-                        fontFamily: '"DM Sans", sans-serif',
                         fontSize: '0.8rem',
                         fontWeight: 500,
                       }}

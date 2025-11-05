@@ -47,7 +47,6 @@ export function TabSwitcher({ activeTab, onTabChange }: TabSwitcherProps) {
           <span 
             className="switcher__label"
             style={{ 
-              fontFamily: '"DM Sans", sans-serif', 
               fontWeight: 500,
               fontSize: '0.8rem',
               letterSpacing: '0.01em',
@@ -74,7 +73,6 @@ export function TabSwitcher({ activeTab, onTabChange }: TabSwitcherProps) {
           <span 
             className="switcher__label"
             style={{ 
-              fontFamily: '"DM Sans", sans-serif', 
               fontWeight: 500,
               fontSize: '0.8rem',
               letterSpacing: '0.01em',

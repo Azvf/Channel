@@ -184,7 +184,6 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
           <div className="flex justify-between items-center mb-4">
             <h2
               style={{
-                fontFamily: '"DM Sans", sans-serif',
                 fontSize: '1rem',
                 fontWeight: 700,
                 color: 'var(--c-content)',
@@ -219,7 +218,6 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
           {/* ScrollableContent */}
           <div
             style={{
-              fontFamily: '"DM Sans", sans-serif',
               maxHeight: 'calc(100vh - 200px)',
               overflowY: 'auto',
               paddingRight: '0.5rem',

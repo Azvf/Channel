@@ -18,7 +18,6 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
   <div 
     className="flex items-center gap-1"
     style={{
-      fontFamily: '"DM Sans", sans-serif',
       fontVariantNumeric: 'tabular-nums',
       userSelect: 'none',
       WebkitUserSelect: 'none',
@@ -151,7 +150,6 @@ export default function App({ initialState }: AppProps) {
       <style>
         {`
           .channel-title-anchor {
-            font-family: "DM Sans", sans-serif;
             /* [!] 新尺寸与样式 */
             font-size: 1rem;
             font-weight: 700;

@@ -269,7 +269,6 @@ export function GlassInput({
             style={{ 
               zIndex: 'var(--z-content)',
               color: 'var(--c-content)',
-              fontFamily: '"DM Sans", sans-serif',
               fontSize: '0.85rem',
               fontWeight: 400,
               letterSpacing: '0.01em',
@@ -346,7 +345,6 @@ export function GlassInput({
                                hover:text-[var(--c-action)]"
                     style={{ 
                       color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
-                      fontFamily: '"DM Sans", sans-serif',
                       fontSize: '0.85rem',
                       fontWeight: 400,
                       letterSpacing: '0.01em',
