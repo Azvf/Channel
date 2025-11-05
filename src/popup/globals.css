@@ -1074,9 +1074,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
   align-items: center;
   justify-content: center;
   
-  /* 使用你的 glass 变量做背景 */
-  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
-  backdrop-filter: blur(4px);
+  /* 使用半透明背景，确保可见性 */
+  background: color-mix(in srgb, var(--c-dark) 40%, transparent);
+  backdrop-filter: blur(8px);
   
   /* 确保这个 modal 可以滚动，如果内容溢出 */
   overflow-y: auto;
@@ -1092,9 +1092,12 @@ body[data-edit-dialog-open] .theme-switcher-container {
   margin: auto; 
   
   /* 使用更强烈的背景色，与底层区分 */
-  background-color: color-mix(in srgb, var(--c-bg) 95%, transparent) !important;
+  background-color: color-mix(in srgb, var(--c-bg) 98%, transparent) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
-  border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
+  border: 1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 30%), transparent);
+  
+  /* 确保内容可见 - 添加阴影 */
+  box-shadow: 0px 8px 32px color-mix(in srgb, var(--c-dark) 30%, transparent);
 }
 
 .stats-wall-header {
@@ -1128,16 +1131,15 @@ body[data-edit-dialog-open] .theme-switcher-container {
   color: var(--c-action);
 }
 
-/* 奖励进度条 (核心激励) */
+/* 奖励进度条(核心激励) - 使用 GlassCard 容器，var(--c-action) 轻微背景 */
 .stats-wall-reward {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: color-mix(in srgb, var(--c-action) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--c-action) 30%, transparent);
-  border-radius: 0.8em;
-  padding: 0.75rem;
+  background: color-mix(in srgb, var(--c-action) 8%, transparent) !important;
+  padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
+  /* GlassCard 已经提供了边框和阴影，这里只设置背景色突出显示 */
 }
 
 .reward-icon {
@@ -1179,7 +1181,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
   color: var(--c-action);
 }
 
-/* 贡献墙网格 */
+/* 像素画廊容器 - 极简主义设计 */
 .stats-wall-grid-container {
   display: flex;
   gap: 6px;
@@ -1189,12 +1191,16 @@ body[data-edit-dialog-open] .theme-switcher-container {
   margin-bottom: 1rem;
 }
 
+/* Y轴 (星期): 极简主义，只显示 Mon, Wed, Fri */
 .stats-wall-days-y {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding-top: 1.2rem; /* 留出 X 轴标签空间 */
   min-width: 2rem;
+  height: calc(7 * (12px + 3px) - 3px); /* 7行像素块的高度 */
+  align-items: flex-end;
+  padding-right: 4px;
 }
 
 .stats-wall-grid-wrapper {
@@ -1203,14 +1209,17 @@ body[data-edit-dialog-open] .theme-switcher-container {
   flex-direction: column;
 }
 
+/* X轴 (月份): 位于网格正上方，统一对齐 */
 .stats-wall-months-x {
   display: flex;
   gap: 2rem;
   margin-bottom: 4px;
   height: 1.2rem;
   align-items: center;
+  padding-left: 0;
 }
 
+/* 网格: 核心像素画廊 - 水平滚动（如果数据超出一年），垂直固定 */
 .stats-wall-grid {
   display: flex;
   flex-direction: row;
@@ -1218,6 +1227,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  /* 平滑滚动 */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--c-action) 30%, transparent) transparent;
 }
 
 .stats-wall-week {
@@ -1227,20 +1239,23 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .pixel-day-tile {
-  /* 改为固定尺寸的正方形 */
+  /* 带轻微圆角的方块，比尖角正方形更柔和 */
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
   
-  /* 添加 hover 效果 */
-  transition: all 150ms ease-out;
+  /* 微交互过渡效果 */
+  transition: transform var(--transition-fast) var(--ease-smooth),
+              outline var(--transition-fast) var(--ease-smooth);
   position: relative;
+  cursor: pointer;
 }
 
-/* 适配主题的"多巴胺"颜色
- * (原则: 即时 > 延迟)
- */
+/* data-level 颜色渐变：提供关于用户专注程度的即时数据反馈 */
+.pixel-day-tile[data-level="0"] {
+  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
+}
+
 .pixel-day-tile[data-level="1"] {
   background: color-mix(in srgb, var(--c-action) 30%, transparent);
 }
@@ -1253,12 +1268,12 @@ body[data-edit-dialog-open] .theme-switcher-container {
   background: color-mix(in srgb, var(--c-action) 100%, transparent);
 }
 
+/* Hover 微交互：提供可探索性 (Discoverability) */
 .pixel-day-tile:hover {
-  /* Hover: 放大并添加高光边框 */
   transform: scale(1.2);
   outline: 2px solid var(--c-action);
+  outline-offset: 1px;
   z-index: 10;
-  position: relative;
 }
 
 .share-button {
@@ -1271,4 +1286,5 @@ body[data-edit-dialog-open] .theme-switcher-container {
   font-size: 0.9rem !important;
   /* 确保它能被点击 */
   z-index: 10;
+  cursor: pointer;
 }

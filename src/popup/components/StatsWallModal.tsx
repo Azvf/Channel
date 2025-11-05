@@ -13,7 +13,7 @@ interface StatsWallModalProps {
   };
 }
 
-// 默认活动数据：0 = No Activity, 1 = Low, 2 = Mid, 3 = High
+// 默认活动数据: 0 = No Activity, 1 = Low, 2 = Mid, 3 = High
 const defaultActivityData = [
   /* 周日 */ 0, 0, 1, 2, 1, 0, 0,
   /* 周一 */ 1, 3, 2, 1, 1, 2, 1,
@@ -25,8 +25,6 @@ const defaultActivityData = [
   // 重复直到填满约 90 天
   ...Array.from({ length: 70 }, () => Math.floor(Math.random() * 4)),
 ];
-
-const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function StatsWallModal({
   isOpen,
@@ -46,13 +44,16 @@ export function StatsWallModal({
     weeksData.push(activityData.slice(i, i + 7));
   }
 
+  // Y轴标签：只显示 Mon, Wed, Fri（对应索引 1, 3, 5）
+  const dayLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+
   return (
     <div className="stats-wall-backdrop" onClick={onClose}>
       <GlassCard
         className="stats-wall-container"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 1. 头部 */}
+        {/* 4. 上下文 (The Context) - 模态框头部 */}
         <div className="stats-wall-header">
           <h2 className="stats-wall-title">你的像素画廊</h2>
           <button onClick={onClose} className="close-button">
@@ -60,8 +61,8 @@ export function StatsWallModal({
           </button>
         </div>
 
-        {/* 2. 奖励进度 (核心激励) */}
-        <div className="stats-wall-reward">
+        {/* 1. 核心激励 (The Hook) - 下一个徽章进度条 */}
+        <GlassCard className="stats-wall-reward">
           <Award size={16} className="reward-icon" />
           <div className="reward-info">
             <span className="reward-label">下一个徽章: {currentUnlock.name}</span>
@@ -73,26 +74,26 @@ export function StatsWallModal({
             </div>
           </div>
           <span className="reward-percent">{currentUnlock.progress}%</span>
-        </div>
+        </GlassCard>
 
-        {/* 3. 贡献墙 (The Wall) */}
+        {/* 2. 像素画廊 (The Wall) - GitHub 贡献墙的无感设计版 */}
         <div className="stats-wall-grid-container">
-          {/* Y轴日期标签 */}
+          {/* Y轴 (星期): 极简主义，只显示 Mon, Wed, Fri */}
           <div className="stats-wall-days-y">
-            {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((label, idx) => (
+            {dayLabels.map((label, idx) => (
               <span key={idx}>{label}</span>
             ))}
           </div>
 
           <div className="stats-wall-grid-wrapper">
-            {/* X轴月份标签 */}
+            {/* X轴 (月份): 位于网格正上方 */}
             <div className="stats-wall-months-x">
               {months.map((month, idx) => (
                 <span key={idx}>{month}</span>
               ))}
             </div>
 
-            {/* 像素格子网格 */}
+            {/* 网格: 核心像素画廊 */}
             <div className="stats-wall-grid">
               {weeksData.map((week, weekIndex) => (
                 <div key={weekIndex} className="stats-wall-week">
@@ -113,7 +114,7 @@ export function StatsWallModal({
           </div>
         </div>
 
-        {/* 4. 社交分享 (原则: 社区 > 孤岛) */}
+        {/* 3. 放大器 (The Amplifier) - 分享按钮 */}
         <button
           className="share-button glass-button primary"
           onClick={() => {

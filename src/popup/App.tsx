@@ -7,14 +7,15 @@ import { StatsWallModal } from "./components/StatsWallModal";
 import { storageService, STORAGE_KEYS } from "../services/storageService";
 import { usePageSettings } from "./utils/usePageSettings";
 import type { AppInitialState } from "../services/appInitService";
-import { Settings, FileText, Tag as TagIcon } from "lucide-react";
+import { Settings, FileText, Tag as TagIcon, BarChart3 } from "lucide-react";
 
 interface AppProps {
   initialState: AppInitialState;
 }
 
-// [!!] 将 StatItem 移入 App.tsx (或 shared/ui)
+// [!!] StatItem 移入 App.tsx (类似 shared/ui)
 // 这是一个轻量级的内联组件，用于显示图标+数字
+// 注意：现在在可点击容器内，所以 pointerEvents 改为 'auto'，但保持 userSelect: 'none'
 const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
   <div 
     className="flex items-center gap-1.5"
@@ -25,8 +26,7 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
       WebkitUserSelect: 'none',
       MozUserSelect: 'none',
       msUserSelect: 'none',
-      cursor: 'default', // 确保鼠标样式不是可点击的
-      pointerEvents: 'none', // 完全禁用交互
+      pointerEvents: 'auto', // 允许在父按钮内交互
     }}
   >
     {React.cloneElement(icon as any, { 
@@ -160,11 +160,30 @@ export default function App({ initialState }: AppProps) {
           */}
           <div className="flex items-center justify-between">
             
-            {/* 左侧：图标化统计 */}
-            <div className="flex items-center gap-4">
+            {/* 左侧：图标化统计 - 可点击打开像素画廊 */}
+            <button
+              onClick={() => setIsStatsWallOpen(true)}
+              className="flex items-center gap-4 rounded-lg px-2 py-1 transition-all"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 10%, transparent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
               <StatItem icon={<FileText />} value={MOCK_TODAY_PAGES} />
               <StatItem icon={<TagIcon />} value={MOCK_TODAY_TAGS} />
-            </div>
+              <BarChart3 
+                className="w-3.5 h-3.5" 
+                strokeWidth={2}
+                style={{ color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))' }}
+              />
+            </button>
             
             {/* 右侧：[!!] 无感的设置按钮 */}
             <button
