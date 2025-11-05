@@ -4,20 +4,17 @@ import { motion } from "framer-motion";
 import { GlassCard } from "./GlassCard";
 import { GlassInput } from "./GlassInput";
 import { Tag } from "./Tag";
-import { Checkbox } from "./ui/checkbox";
 import { Plus, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
-import type { PageSettingsHook } from "../../popup/utils/usePageSettings";
 import { AnimatedHeightWrapper } from "./AnimatedHeightWrapper";
 import { AnimatedFlipList } from "./AnimatedFlipList";
 
 interface TaggingPageProps {
   className?: string;
-  pageSettings: PageSettingsHook;
 }
 
-export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) {
+export function TaggingPage({ className = "" }: TaggingPageProps) {
   const [currentPage, setCurrentPage] = useState<TaggedPage | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [allTags, setAllTags] = useState<GameplayTag[]>([]);
@@ -26,9 +23,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
   const [error, setError] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
-
-  const { settings, updateSyncVideoTimestamp } = pageSettings;
-  const syncVideoTimestamp = settings.syncVideoTimestamp;
 
   useEffect(() => {
     loadCurrentPage();
@@ -123,10 +117,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
     }
   };
 
-  const handleSyncVideoTimestampChange = (checked: boolean) => {
-    updateSyncVideoTimestamp(checked);
-  };
-
   return (
     <div className={className}>
       {/* --- 
@@ -142,11 +132,11 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
             }}
           >
             {/* --- 
-              SECTION 1: 核心操作 - 添加标签标题
+              SECTION 1: 核心操作 - 添加标签标题 + URL
               --- */}
             <motion.div layout="position">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Plus className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
                   <span 
                     style={{ 
@@ -155,18 +145,41 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                       fontWeight: 500,
                       fontSize: '0.7rem',
                       letterSpacing: '0.05em',
-                      textTransform: 'uppercase'
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     Add Tags
                   </span>
                 </div>
+                {/* URL 显示在右侧 */}
+                {currentPage?.url && (
+                  <p 
+                    style={{ 
+                      color: 'color-mix(in srgb, var(--c-content) 35%, var(--c-bg))',
+                      fontFamily: '"DM Sans", sans-serif',
+                      fontSize: '0.65rem',
+                      fontWeight: 300,
+                      letterSpacing: '0.01em',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                      minWidth: 0,
+                      margin: 0,
+                      textAlign: 'right'
+                    } as React.CSSProperties}
+                    title={currentPage.url}
+                  >
+                    {currentPage.url}
+                  </p>
+                )}
                 {/* 刷新按钮移到主操作区 */}
                 {(error || loading) && (
                   <button
                     onClick={loadCurrentPage}
                     disabled={loading}
-                    className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50"
+                    className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50 flex-shrink-0"
                     style={{
                       background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
                       border: '1px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
@@ -290,32 +303,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
             </motion.div>
 
             {/* --- 
-              SECTION 3: URL (附注) - 移到标题下方
-              --- */}
-            <motion.div layout="position">
-              <p 
-                style={{ 
-                  color: 'color-mix(in srgb, var(--c-content) 40%, var(--c-bg))',
-                  fontFamily: '"DM Sans", sans-serif',
-                  fontSize: '0.7rem',
-                  fontWeight: 300,
-                  letterSpacing: '0.01em',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical' as any,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  wordBreak: 'break-all',
-                  lineHeight: 1.4,
-                  margin: 0,
-                  marginTop: '-0.5rem'
-                } as React.CSSProperties}
-              >
-                {error ? '请检查浏览器控制台获取详细信息' : currentPage?.url || ''}
-              </p>
-            </motion.div>
-
-            {/* --- 
               输入框 
               --- */}
             <motion.div layout="position">
@@ -354,48 +341,6 @@ export function TaggingPage({ className = "", pageSettings }: TaggingPageProps) 
                 }}
               />
             )}
-
-            {/* --- 
-              SECTION 5: 设置 (次要) 
-              --- */}
-            <motion.div
-              layout="position" // 分割线
-              style={{
-                height: '1px',
-                backgroundColor: 'color-mix(in srgb, var(--c-glass) 20%, transparent)' // [4] 移除多余的 margin
-              }}
-            />
-
-            <motion.div 
-              layout="position" // Checkbox
-              className="flex flex-wrap gap-x-6 gap-y-2.5"
-            >
-              <label
-                htmlFor="sync-video-timestamp"
-                className="flex items-center gap-2 cursor-pointer select-none"
-                style={{
-                  color: 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))',
-                  fontFamily: '"DM Sans", sans-serif',
-                  fontSize: '0.75rem',
-                  fontWeight: 400,
-                  letterSpacing: '0.01em',
-                  transition: 'color 200ms ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--c-content)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))';
-                }}
-              >
-                <Checkbox
-                  id="sync-video-timestamp"
-                  checked={syncVideoTimestamp}
-                  onCheckedChange={handleSyncVideoTimestampChange}
-                />
-                <span>同步视频时间戳到 URL</span>
-              </label>
-            </motion.div>
             
           </AnimatedHeightWrapper>
         </GlassCard>
