@@ -1083,99 +1083,148 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 
-/* 滚动内容容器 - 垂直滚动 */
-.stats-wall-scroll-content {
-  /* 关键：模态框内部垂直滚动 */
-  max-height: 60vh; /* 限制最大高度 */
-  overflow-y: auto;
-  /* 滚动条样式已在全局样式中定义 */
-}
+/* ========================================
+   ACTIVITY CALENDAR - 日历热图 (V2)
+   ======================================== */
 
-/* 活动分组 */
-.activity-group {
-  margin-bottom: 1.5rem;
-}
-
-.activity-group-title {
+/* 1. 替换原有的滚动容器 */
+.activity-calendar-container {
+  padding-top: 0.5rem; /* 8px 顶部留白 */
   font-family: "DM Sans", sans-serif;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-content) 50%, transparent);
-  padding: 0 0.5rem 0.5rem 0.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--c-glass) 15%, transparent);
+  /* 定义方块尺寸和间距变量，用于对齐 */
+  --square-size: 11.5px; /* (360px - 边距 - 13周*间距) / 13周 */
+  --gap-size: 3px;
 }
 
-.activity-group-list {
-  display: flex;
-  flex-direction: column;
+/* 2. 月份标签 (中观分组) */
+.month-labels {
+  display: grid; /* 使用 Grid 布局对齐 */
+  grid-auto-flow: column;
+  padding-left: 20px; /* 关键：为左侧的星期标签留出空间 */
+  margin-bottom: 4px;
 }
 
-/* 每日活动行 */
-.activity-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 0.5rem;
-  border-radius: 0.5rem;
-  transition: background-color 150ms var(--ease-smooth);
-}
-
-.activity-row:hover {
-  background-color: color-mix(in srgb, var(--c-glass) 8%, transparent);
-}
-
-.activity-row-date {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-.activity-row-date .day-name {
-  font-family: "DM Sans", sans-serif;
-  font-size: 0.9rem;
+.month-labels span {
+  font-size: 0.6rem; /* 10px - 极简 */
   font-weight: 500;
-  color: var(--c-content);
+  /* 关键：无感设计，使用低对比度 */
+  color: color-mix(in srgb, var(--c-content) 50%, transparent);
 }
 
-.activity-row-date .date-string {
-  font-family: "DM Sans", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: color-mix(in srgb, var(--c-content) 60%, transparent);
-}
-
-.activity-row-bar-wrapper {
-  flex: 1;
-  margin-left: 1rem;
-  /* 确保 ActivityTooltip 可以正常工作 */
+/* 3. 主体 (星期 + 网格) */
+.calendar-body {
   display: flex;
-  align-items: center;
+  gap: 5px; /* 星期标签和网格的间距 */
 }
 
-/* 活动条 - 使用 data-level 样式 */
-.activity-bar {
-  height: 8px;
-  border-radius: 4px;
-  min-width: 4px; /* 确保 level 0 也可见 */
-  transition: width 300ms var(--ease-smooth);
-  cursor: pointer;
+/* 4. 星期标签 (中观分组) */
+.day-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  font-size: 0.6rem; /* 10px */
+  font-weight: 500;
+  /* 垂直对齐：在第1、3、5行方块的中间 */
+  padding-top: calc((var(--square-size) * 1) + (var(--gap-size) * 0) + (var(--square-size) / 2) - 5px);
+  padding-bottom: calc((var(--square-size) * 1) + (var(--gap-size) * 0) + (var(--square-size) / 2) - 5px);
+  flex-shrink: 0;
+  width: 15px; /* 固定宽度 */
+  color: color-mix(in srgb, var(--c-content) 50%, transparent);
 }
 
-/* 复用 data-level 颜色样式 */
-.activity-bar[data-level="0"] {
+.day-labels span {
+  height: var(--square-size);
+  line-height: var(--square-size);
+}
+
+/* 只显示 M, W, F，所以我们留空 2, 4, 6, 7 */
+.day-labels span:nth-child(2) {
+  margin-top: calc(var(--square-size) + var(--gap-size));
+}
+
+.day-labels span:nth-child(3) {
+  margin-top: calc(var(--square-size) + var(--gap-size));
+}
+
+/* 5. 核心热图网格 (宏观数据) */
+.activity-grid {
+  flex: 1; /* 占据剩余空间 */
+  display: grid;
+  grid-template-rows: repeat(7, var(--square-size)); /* 7 天 (周日-周六) */
+  grid-auto-flow: column; /* 自动按列填充 (周) */
+  grid-auto-columns: var(--square-size); /* 每列（天）的宽度 */
+  gap: var(--gap-size); /* 方块之间的间距 */
+  /* 我们固定 13 周 (91天)
+    总宽度 = (13 * var(--square-size)) + (12 * var(--gap-size)) 
+  */
+  justify-content: flex-end; /* 从右侧开始填充 */
+}
+
+/* 6. 单个活动方块 (微观) */
+.activity-day-square {
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  cursor: default; /* 交互通过 ActivityTooltip 实现 */
+  transition: transform 100ms ease-out, box-shadow 100ms ease-out;
+}
+
+/* 复用 globals.css 中已有的 data-level 颜色 */
+.activity-day-square[data-level="0"] {
   background: color-mix(in srgb, var(--c-glass) 15%, transparent);
 }
 
-.activity-bar[data-level="1"] {
+.activity-day-square[data-level="1"] {
   background: color-mix(in srgb, var(--c-action) 30%, transparent);
 }
 
-.activity-bar[data-level="2"] {
+.activity-day-square[data-level="2"] {
   background: color-mix(in srgb, var(--c-action) 60%, transparent);
 }
 
-.activity-bar[data-level="3"] {
+.activity-day-square[data-level="3"] {
+  background: color-mix(in srgb, var(--c-action) 100%, transparent);
+}
+
+/* 7. 悬停微交互 (Affordance) */
+.activity-day-square:hover {
+  transform: scale(1.15);
+  position: relative; /* 确保在最上层 */
+  z-index: 10;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--c-dark) 20%, transparent);
+}
+
+/* 8. 图例 (上下文) */
+.calendar-legend {
+  display: flex;
+  justify-content: flex-end; /* 与 GitHub 对齐 */
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem; /* 11px */
+  color: color-mix(in srgb, var(--c-content) 60%, transparent);
+  margin-top: 0.75rem; /* 12px */
+  padding-right: 2px; /* 视觉微调 */
+}
+
+.calendar-legend .legend-square {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* 复用 data-level 样式 */
+.calendar-legend .legend-square[data-level="0"] {
+  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
+}
+
+.calendar-legend .legend-square[data-level="1"] {
+  background: color-mix(in srgb, var(--c-action) 30%, transparent);
+}
+
+.calendar-legend .legend-square[data-level="2"] {
+  background: color-mix(in srgb, var(--c-action) 60%, transparent);
+}
+
+.calendar-legend .legend-square[data-level="3"] {
   background: color-mix(in srgb, var(--c-action) 100%, transparent);
 }

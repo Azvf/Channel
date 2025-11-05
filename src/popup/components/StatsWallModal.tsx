@@ -10,77 +10,91 @@ interface StatsWallModalProps {
 }
 
 // 默认活动数据: 0 = No Activity, 1 = Low, 2 = Mid, 3 = High
-const defaultActivityData = [
-  /* 周日 */ 0, 0, 1, 2, 1, 0, 0,
-  /* 周一 */ 1, 3, 2, 1, 1, 2, 1,
-  /* 周二 */ 2, 2, 3, 3, 2, 1, 2,
-  /* 周三 */ 1, 3, 1, 0, 2, 3, 3,
-  /* 周四 */ 0, 2, 0, 1, 1, 2, 1,
-  /* 周五 */ 1, 1, 1, 2, 3, 3, 2,
-  /* 周六 */ 0, 0, 0, 1, 2, 1, 0,
-  // 重复直到填满约 90 天
-  ...Array.from({ length: 70 }, () => Math.floor(Math.random() * 4)),
-];
+// 确保至少有 91 个条目
+const defaultActivityData = Array.from({ length: 91 }, () => Math.floor(Math.random() * 4));
 
-// 每日活动行组件
-interface ActivityDayRowProps {
-  date: Date;
-  level: number;
-  items: number;
+// 固定显示 91 天 (13 周)
+const TOTAL_DAYS = 91;
+
+/**
+ * 生成过去 91 天 (13 周) 的日历数据
+ */
+function generateCalendarDays(data: number[]) {
+  const days: Array<{
+    id: string;
+    date: Date;
+    level: number;
+    items: number;
+    dateString: string;
+  }> = [];
+  const today = new Date();
+  const monthLabels: { label: string; colSpan: number }[] = [];
+  let currentMonth = '';
+  let currentColSpan = 0;
+
+  // 从 90 天前开始循环到今天 (共 91 天)
+  for (let i = 90; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+
+    const dataIndex = data.length - 1 - i;
+    const level = data[dataIndex] ?? 0; // 如果数据不足，默认为 0
+    const items = level > 0 ? (level * 2 + Math.floor(Math.random() * 2)) : 0; // 模拟项目数
+    const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const monthKey = date.toLocaleDateString('en-US', { month: 'short' });
+
+    days.push({
+      id: date.toISOString(),
+      date,
+      level,
+      items,
+      dateString,
+    });
+
+    // --- 月份标签逻辑 (中观分组) ---
+    // 检查是否是新的一周 (周日) 或第一个条目
+    if (date.getDay() === 0 || i === 90) {
+      if (monthKey !== currentMonth) {
+        if (currentMonth) {
+          monthLabels.push({ label: currentMonth, colSpan: currentColSpan });
+        }
+        currentMonth = monthKey;
+        currentColSpan = 1;
+      } else {
+        currentColSpan++;
+      }
+    }
+  }
+  // 添加最后一个月份
+  monthLabels.push({ label: currentMonth, colSpan: currentColSpan });
+
+  return { days, monthLabels };
 }
 
-const ActivityDayRow = ({ date, level, items }: ActivityDayRowProps) => {
-  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-  const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const tooltipContent = `${items} items on ${dateString}`;
+/**
+ * 宏观视图 (热图方块)
+ */
+interface ActivityDaySquareProps {
+  day: ReturnType<typeof generateCalendarDays>['days'][0];
+}
 
-  // 根据 level 计算条的宽度
-  // 0=0%, 1=33%, 2=66%, 3=100%
-  const barWidth = level > 0 ? (level / 3) * 100 : 0;
+const ActivityDaySquare: React.FC<ActivityDaySquareProps> = ({ day }) => {
+  const tooltipContent = `${day.items} items on ${day.dateString}`;
 
   return (
-    <div className="activity-row">
-      <div className="activity-row-date">
-        <span className="day-name">{dayName}</span>
-        <span className="date-string">{dateString}</span>
-      </div>
-      <div className="activity-row-bar-wrapper">
-        <ActivityTooltip content={tooltipContent}>
-          <div 
-            className="activity-bar" 
-            data-level={level} 
-            style={{ width: barWidth === 0 ? '4px' : `${barWidth}%` }}
-          />
-        </ActivityTooltip>
-      </div>
-    </div>
+    <ActivityTooltip content={tooltipContent}>
+      <div
+        className="activity-day-square"
+        data-level={day.level}
+        title={tooltipContent} // 增加原生 title 作为后备
+      />
+    </ActivityTooltip>
   );
 };
 
-// 简化的日期分组逻辑
-const getGroupedActivity = (activityData: number[]) => {
-  const today = new Date();
-  const groups: { [key: string]: { date: Date; level: number; items: number }[] } = {
-    "Recent Activity": [],
-  };
-
-  activityData.forEach((level, index) => {
-    const daysAgo = activityData.length - 1 - index;
-    const date = new Date();
-    date.setDate(today.getDate() - daysAgo);
-
-    groups["Recent Activity"].push({
-      date,
-      level,
-      items: level > 0 ? level * 2 + 1 : 0, // 模拟数据
-    });
-  });
-  
-  // 反转使其成为反向时间顺序（最新的在前）
-  groups["Recent Activity"].reverse();
-  return Object.entries(groups);
-};
-
+/**
+ * 主模态框组件
+ */
 export function StatsWallModal({
   isOpen,
   onClose,
@@ -88,15 +102,17 @@ export function StatsWallModal({
 }: StatsWallModalProps) {
   if (!isOpen) return null;
 
-  const groupedData = getGroupedActivity(activityData);
+  // 生成日历数据
+  const { days, monthLabels } = generateCalendarDays(activityData);
 
   return (
+    // 1. 背景遮罩
     <div className="stats-wall-backdrop" onClick={onClose}>
       <GlassCard
         className="stats-wall-container"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 头部 */}
+        {/* 2. 头部 (不变) */}
         <div className="stats-wall-header">
           <h2 className="stats-wall-title">Activity</h2>
           <button onClick={onClose} className="close-button">
@@ -104,23 +120,51 @@ export function StatsWallModal({
           </button>
         </div>
 
-        {/* 滚动容器 */}
-        <div className="stats-wall-scroll-content">
-          {groupedData.map(([groupTitle, activities]) => (
-            <section key={groupTitle} className="activity-group">
-              <h3 className="activity-group-title">{groupTitle}</h3>
-              <div className="activity-group-list">
-                {activities.map((activity) => (
-                  <ActivityDayRow
-                    key={activity.date.toISOString()}
-                    date={activity.date}
-                    level={activity.level}
-                    items={activity.items}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+        {/* 3. 可视化容器 (替换 .stats-wall-scroll-content) */}
+        <div className="activity-calendar-container">
+          {/* 3a. 月份标签 (中观分组) */}
+          <div
+            className="month-labels"
+            style={{
+              // 动态设置 Grid 列，使其与下方的周对齐
+              gridTemplateColumns: `repeat(${monthLabels.length}, 1fr)`
+            }}
+          >
+            {monthLabels.map(({ label, colSpan }, index) => (
+              <span
+                key={label + index}
+                style={{ gridColumn: `span ${colSpan} / span ${colSpan}` }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+
+          <div className="calendar-body">
+            {/* 3b. 星期标签 (中观分组) */}
+            <div className="day-labels">
+              <span>M</span> {/* 周一 */}
+              <span>W</span> {/* 周三 */}
+              <span>F</span> {/* 周五 */}
+            </div>
+
+            {/* 3c. 核心网格 (宏观数据) */}
+            <div className="activity-grid">
+              {days.map((day) => (
+                <ActivityDaySquare key={day.id} day={day} />
+              ))}
+            </div>
+          </div>
+
+          {/* 3d. 图例 (上下文) */}
+          <div className="calendar-legend">
+            <span>Less</span>
+            <div className="legend-square" data-level="0" />
+            <div className="legend-square" data-level="1" />
+            <div className="legend-square" data-level="2" />
+            <div className="legend-square" data-level="3" />
+            <span>More</span>
+          </div>
         </div>
       </GlassCard>
     </div>
