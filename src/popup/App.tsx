@@ -71,8 +71,9 @@ export default function App({ initialState }: AppProps) {
       const resizeObserver = new ResizeObserver(entries => {
         for (let entry of entries) {
           const newHeight = entry.contentRect.height;
-          // [优化] 间距从 16px 减小到 12px (0.75rem)，因为顶部内边距已移除
-          setHeaderHeight(newHeight + 12); 
+          // [修改] 移除 12px 的魔术数字。
+          // setHeaderHeight(newHeight + 12); 
+          setHeaderHeight(newHeight); 
         }
       });
 
@@ -101,10 +102,8 @@ export default function App({ initialState }: AppProps) {
   // 5. [重构] 布局结构
   return (
     <div 
-      className="relative flex h-full flex-col" 
+      className="relative flex h-full w-full flex-col" 
       style={{ 
-        width: '360px',
-        height: '560px',
         background: 'transparent',
         overflow: 'hidden' // 确保 App 根元素裁切
       }}
@@ -122,11 +121,12 @@ export default function App({ initialState }: AppProps) {
       
       {/* A. 可滚动的内容区 (在底层) */}
       <div 
-        className="relative flex-1 px-4 pb-4" 
+        // [修改] 将 px-4 pb-4 替换为 p-4，
+        // 这样内容区就有了统一的 16px 内边距 (padding: 1rem)
+        className="relative flex-1 p-4" 
         style={{ 
           minHeight: 0, 
           overflowY: 'auto',
-          // 移除所有硬编码的 padding-top
         }}
       >
         {/* [关键] 动态占位符：
@@ -210,17 +210,9 @@ export default function App({ initialState }: AppProps) {
       >
         {/* 1. 顶部HUD */}
         <div 
-          className="relative w-full max-w-md z-50"
+          className="relative w-full max-w-md z-50 grid grid-cols-[1fr_auto_1fr] items-center px-4 pt-3 h-11"
           style={{ 
             pointerEvents: 'auto',
-            
-            /* [!] 关键：使用 Grid 布局 */
-            display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr',
-            alignItems: 'center', /* [!] 解决"高低错落" */
-            
-            padding: '12px 16px 0', /* 左右 1rem (16px) 内边距 */
-            height: '44px',
           }}
         >
           
@@ -256,12 +248,9 @@ export default function App({ initialState }: AppProps) {
 
         {/* 2. TabSwitcher 容器 */}
         <div 
-          className="w-full max-w-md z-10"
+          className="w-full max-w-md z-10 flex justify-center px-4 pt-2"
           style={{ 
             pointerEvents: 'auto', 
-            padding: '8px 16px 0', // 左右 1rem (16px) 内边距
-            display: 'flex',
-            justifyContent: 'center',
           }}
         >
           <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />

@@ -68,8 +68,13 @@ export function GlassInput({
     if (showSuggestions && containerRef.current) {
       // 同步计算位置，在浏览器绘制之前完成
       const rect = containerRef.current.getBoundingClientRect();
+      
+      // [修复] 从 8px 改为 0.5rem (Tailwind 'space-2')
+      const spaceInRem = 0.5; 
+      const spaceInPx = spaceInRem * parseFloat(getComputedStyle(document.documentElement).fontSize);
+      
       setDropdownPosition({
-        top: rect.bottom + (window.scrollY || 0) + 8, // 0.5rem = 8px
+        top: rect.bottom + (window.scrollY || 0) + spaceInPx,
         left: rect.left + (window.scrollX || 0),
         width: rect.width
       });
@@ -86,8 +91,13 @@ export function GlassInput({
       const updatePosition = () => {
         if (containerRef.current) {
           const rect = containerRef.current.getBoundingClientRect();
+          
+          // [修复] 从 8px 改为 0.5rem (Tailwind 'space-2')
+          const spaceInRem = 0.5; 
+          const spaceInPx = spaceInRem * parseFloat(getComputedStyle(document.documentElement).fontSize);
+          
           setDropdownPosition({
-            top: rect.bottom + (window.scrollY || 0) + 8,
+            top: rect.bottom + (window.scrollY || 0) + spaceInPx,
             left: rect.left + (window.scrollX || 0),
             width: rect.width
           });

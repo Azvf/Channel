@@ -5,7 +5,6 @@ import { GlassCard } from './GlassCard';
 import { ActivityTooltip } from './ActivityTooltip';
 import { TagManager } from '../../services/tagManager';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
-import { TaggedPage } from '../../types/gameplayTag';
 
 interface StatsWallModalProps {
   isOpen: boolean;
@@ -237,9 +236,11 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
       // 1. 查找第一个有活动的 day 的索引
       const firstActivityIndex = data.days.findIndex(day => day.items > 0);
 
-      // 从 CSS 变量（或 globals.css）获取方块和间距大小
-      // 注意：这里硬编码了 globals.css 中的值 (24px + 4px)
-      const colWidth = 28; 
+      // [修复] 从 CSS 读取动态值，而不是硬编码
+      const computedStyle = window.getComputedStyle(element);
+      const squareSize = parseFloat(computedStyle.getPropertyValue('--square-size')) || 24;
+      const gapSize = parseFloat(computedStyle.getPropertyValue('--gap-size')) || 4;
+      const colWidth = squareSize + gapSize; // 现在是 28px，但会随 CSS 自动更新 
 
       let targetScrollLeft = 0;
 

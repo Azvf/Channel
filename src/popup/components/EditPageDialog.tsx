@@ -288,7 +288,8 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           className="px-3 py-2.5 space-y-2.5 flex-1 overflow-y-auto"
           style={{
             minHeight: 0,
-            maxHeight: 'calc(90vh - 140px)'
+            // [修复] 删除魔术数字，依赖 Flexbox 自动布局
+            // maxHeight: 'calc(90vh - 140px)' 
           }}
         >
           {/* URL Display (Read-only) */}
