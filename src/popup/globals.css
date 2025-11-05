@@ -1060,6 +1060,80 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 /* ========================================
+   SETTINGS MODAL - 无感设置
+   ======================================== */
+
+/* 节标题 (Section Header) - 极度简约，只用于分组 */
+.settings-section-title {
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 600; /* Semibold */
+  letter-spacing: 0.05em; /* 大写字母间距拉开 */
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--c-content) 60%, transparent);
+  margin-top: 1.5rem; /* 24px */
+  margin-bottom: 0.5rem; /* 8px */
+}
+
+/* 第一个节标题不需要上边距 */
+.settings-section-title:first-child {
+  margin-top: 0;
+}
+
+/* 设置项行 (Setting Row) - 清晰、一致，具有明确的交互示能 */
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px; /* 确保移动端点击区域 */
+  padding: 0.5rem 0;
+  cursor: pointer;
+  transition: background-color var(--transition-fast) var(--ease-smooth);
+  border-radius: 0.5rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  margin-left: -0.5rem;
+  margin-right: -0.5rem;
+}
+
+.settings-row:hover {
+  background-color: color-mix(in srgb, var(--c-glass) 8%, transparent);
+}
+
+.settings-row-label {
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.9rem; /* 14-15px */
+  font-weight: 500; /* Medium */
+  color: var(--c-content);
+  user-select: none;
+}
+
+.settings-row-button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--c-content);
+  cursor: pointer;
+  transition: background-color var(--transition-fast) var(--ease-smooth),
+              color var(--transition-fast) var(--ease-smooth);
+  text-align: left;
+}
+
+.settings-row-button:hover {
+  background-color: color-mix(in srgb, var(--c-glass) 8%, transparent);
+  color: var(--c-action);
+}
+
+/* ========================================
    STATS WALL MODAL - 像素画廊
    ======================================== */
 

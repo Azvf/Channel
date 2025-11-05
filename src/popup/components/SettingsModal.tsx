@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, ChevronRight, Download, Upload } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { Checkbox } from './ui/checkbox';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { usePageSettings } from '../utils/usePageSettings';
 import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
+import { TagManager } from '../../services/tagManager';
+import { storageService, STORAGE_KEYS } from '../../services/storageService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -20,9 +22,128 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   const { settings, updateSyncVideoTimestamp } = pageSettings;
   const syncVideoTimestamp = settings.syncVideoTimestamp;
 
+  const [selectedAppIcon, setSelectedAppIcon] = useState<string>('default');
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleSyncVideoTimestampChange = (checked: boolean) => {
     updateSyncVideoTimestamp(checked);
   };
+
+  // 导出数据
+  const handleExportData = async () => {
+    try {
+      setIsExporting(true);
+      
+      // 获取 TagManager 实例并初始化
+      const tagManager = TagManager.getInstance();
+      
+      // 从存储中加载数据
+      const storageData = await storageService.getMultiple([
+        STORAGE_KEYS.TAGS,
+        STORAGE_KEYS.PAGES
+      ]);
+      
+      tagManager.initialize({
+        tags: storageData[STORAGE_KEYS.TAGS] || null,
+        pages: storageData[STORAGE_KEYS.PAGES] || null
+      });
+      
+      // 导出数据
+      const jsonData = tagManager.exportData();
+      
+      // 创建下载链接
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `channel-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('导出数据失败:', error);
+      alert('导出数据失败，请重试');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // 导入数据
+  const handleImportData = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsImporting(true);
+      
+      // 读取文件内容
+      const text = await file.text();
+      
+      // 获取 TagManager 实例并初始化
+      const tagManager = TagManager.getInstance();
+      
+      // 从存储中加载当前数据
+      const storageData = await storageService.getMultiple([
+        STORAGE_KEYS.TAGS,
+        STORAGE_KEYS.PAGES
+      ]);
+      
+      tagManager.initialize({
+        tags: storageData[STORAGE_KEYS.TAGS] || null,
+        pages: storageData[STORAGE_KEYS.PAGES] || null
+      });
+      
+      // 询问用户是覆盖还是合并
+      const mergeMode = window.confirm(
+        '导入模式选择：\n\n' +
+        '点击"确定"：合并模式（保留现有数据，仅添加新数据）\n' +
+        '点击"取消"：覆盖模式（完全替换现有数据）'
+      );
+      
+      // 导入数据
+      const result = await tagManager.importData(text, mergeMode);
+      
+      if (result.success) {
+        // 同步到存储
+        await tagManager.syncToStorage();
+        
+        alert(
+          `导入成功！\n` +
+          `标签：${result.imported?.tagsCount || 0} 个\n` +
+          `页面：${result.imported?.pagesCount || 0} 个`
+        );
+        
+        // 刷新页面以显示新数据
+        window.location.reload();
+      } else {
+        alert(`导入失败：${result.error || '未知错误'}`);
+      }
+    } catch (error) {
+      console.error('导入数据失败:', error);
+      alert('导入数据失败，请检查文件格式是否正确');
+    } finally {
+      setIsImporting(false);
+      // 重置文件输入
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // App Icon 选项（占位符，未来可以扩展）
+  const appIconOptions = [
+    { id: 'default', name: 'Default' },
+    { id: 'graphite', name: 'Graphite' },
+    { id: 'sapphire', name: 'Sapphire' },
+    { id: 'ruby', name: 'Ruby' },
+  ];
 
   const backdropVariants = {
     hidden: { opacity: 0 },
@@ -55,6 +176,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
         onClick={(e) => e.stopPropagation()} // Prevent closing on modal click
       >
         <GlassCard className="p-5">
+          {/* 1. Header */}
           <div className="flex justify-between items-center mb-4">
             <h2
               style={{
@@ -94,113 +216,133 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
             className="space-y-4"
             style={{
               fontFamily: '"DM Sans", sans-serif',
-              fontSize: '0.85rem',
-              color: 'var(--c-content)',
             }}
           >
-            {/* Theme Settings */}
-            <div className="space-y-2">
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  marginBottom: '0.5rem'
-                }}
-              >
-                Theme
-              </div>
-              <div className="flex justify-center">
+            {/* 2. Group 1: APPEARANCE */}
+            <div>
+              <div className="settings-section-title">APPEARANCE</div>
+              
+              {/* Theme (复用 ThemeSwitcher) */}
+              <div className="flex justify-center py-2">
                 <ThemeSwitcher initialTheme={initialTheme} />
+              </div>
+              
+              {/* App Icon (新组件) */}
+              <div className="flex justify-around py-2">
+                {appIconOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setSelectedAppIcon(option.id)}
+                    className="rounded-lg p-2 transition-all"
+                    style={{
+                      background: selectedAppIcon === option.id
+                        ? 'color-mix(in srgb, var(--c-action) 20%, transparent)'
+                        : 'transparent',
+                      border: selectedAppIcon === option.id
+                        ? `2px solid var(--c-action)`
+                        : '2px solid transparent',
+                      color: 'var(--c-content)',
+                      cursor: 'pointer',
+                      width: '3rem',
+                      height: '3rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedAppIcon !== option.id) {
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 12%, transparent)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedAppIcon !== option.id) {
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
+                  >
+                    {option.name.charAt(0)}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Divider */}
-            <div
-              style={{
-                height: '1px',
-                backgroundColor: 'color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                margin: '0.75rem 0'
-              }}
-            />
-
-            {/* Page Settings */}
-            <div className="space-y-2">
-              <div
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  marginBottom: '0.5rem'
-                }}
-              >
-                Page Settings
-              </div>
+            {/* 3. Group 2: BEHAVIOR */}
+            <div>
+              <div className="settings-section-title">BEHAVIOR</div>
+              
+              {/* Setting Row (使用) */}
               <label
                 htmlFor="sync-video-timestamp"
-                className="flex items-center gap-2 cursor-pointer select-none"
-                style={{
-                  color: 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))',
-                  fontSize: '0.8rem',
-                  fontWeight: 400,
-                  letterSpacing: '0.01em',
-                  transition: 'color 200ms ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = 'var(--c-content)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 75%, var(--c-bg))';
-                }}
+                className="settings-row"
               >
+                <span className="settings-row-label">同步视频时间戳</span>
                 <Checkbox
                   id="sync-video-timestamp"
                   checked={syncVideoTimestamp}
                   onCheckedChange={handleSyncVideoTimestampChange}
                 />
-                <span>同步视频时间戳到 URL</span>
               </label>
             </div>
 
-            {/* Divider */}
-            <div
-              style={{
-                height: '1px',
-                backgroundColor: 'color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                margin: '0.75rem 0'
-              }}
-            />
-
-            {/* Other Settings Placeholder */}
-            <div className="space-y-2">
-              <div
+            {/* 4. Group 3: DATA */}
+            <div>
+              <div className="settings-section-title">DATA</div>
+              
+              {/* Import Data */}
+              <button
+                className="settings-row-button"
+                onClick={handleImportClick}
+                disabled={isImporting}
                 style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  marginBottom: '0.5rem'
+                  opacity: isImporting ? 0.6 : 1,
+                  cursor: isImporting ? 'not-allowed' : 'pointer',
                 }}
               >
-                Data
-              </div>
-              <p style={{ 
-                fontSize: '0.8rem',
-                color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))'
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Upload className="w-4 h-4" />
+                  <span>{isImporting ? '导入中...' : 'Import Data...'}</span>
+                </span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                style={{ display: 'none' }}
+                onChange={handleImportData}
+              />
+              
+              {/* Export Data */}
+              <button
+                className="settings-row-button"
+                onClick={handleExportData}
+                disabled={isExporting}
+                style={{
+                  opacity: isExporting ? 0.6 : 1,
+                  cursor: isExporting ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Download className="w-4 h-4" />
+                  <span>{isExporting ? '导出中...' : 'Export Data...'}</span>
+                </span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* 5. Footer (Version) */}
+            <div className="text-center mt-6">
+              <span style={{ 
+                color: 'color-mix(in srgb, var(--c-content) 40%, transparent)',
+                fontSize: '0.75rem',
+                fontWeight: 500
               }}>
-                Import / Export
-              </p>
-              <p style={{ 
-                fontSize: '0.8rem',
-                color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))'
-              }}>
-                About
-              </p>
+                Version 1.0.0
+              </span>
             </div>
           </div>
         </GlassCard>
@@ -215,5 +357,3 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
     document.body
   );
 }
-
-
