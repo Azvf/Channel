@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react'; // [V9] 移除了 Loader2 和 motion
+import { X } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { ActivityTooltip } from './ActivityTooltip';
 import { TagManager } from '../../services/tagManager';
@@ -12,7 +12,6 @@ interface StatsWallModalProps {
   onClose: () => void;
 }
 
-// [V9] 定义数据结构
 interface DayData {
   id: string;
   date: Date;
@@ -228,6 +227,57 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
       };
     }
   }, [isOpen]); // 仅在 isOpen 状态改变时重新附加/移除
+
+  // [MODIFIED] 自动滚动逻辑
+  useEffect(() => {
+    // 仅在模态框打开、滚动容器可用且数据已加载时执行
+    if (isOpen && scrollRef.current && data.days.length > 0) {
+      const element = scrollRef.current;
+
+      // 1. 查找第一个有活动的 day 的索引
+      const firstActivityIndex = data.days.findIndex(day => day.items > 0);
+
+      // 从 CSS 变量（或 globals.css）获取方块和间距大小
+      // 注意：这里硬编码了 globals.css 中的值 (24px + 4px)
+      const colWidth = 28; 
+
+      let targetScrollLeft = 0;
+
+      if (firstActivityIndex !== -1) {
+        // 2. 如果找到了活动
+        // 找到它在第几周 (column)
+        const firstActivityWeek = Math.floor(firstActivityIndex / 7);
+        
+        // 3. 计算滚动的目标位置
+        // 目标是滚动到第一列，并减去几周的宽度作为左边距
+        targetScrollLeft = firstActivityWeek * colWidth;
+        // 减去2周的宽度作为边距，但确保不小于0
+        targetScrollLeft = Math.max(0, targetScrollLeft - (colWidth * 2)); 
+
+      } else {
+        // 4. 如果*没有*任何活动 (firstActivityIndex === -1)
+        // 按照要求，滚动到最右侧 (当前月份)
+        targetScrollLeft = element.scrollWidth - element.clientWidth;
+      }
+
+      // 5. 滚动到目标位置
+      // 使用 rAF 和 setTimeout 确保 DOM 布局已完成
+      const animationFrameId = requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (element) {
+            // 使用平滑滚动
+            element.scrollTo({
+              left: targetScrollLeft,
+              behavior: 'smooth'
+            });
+          }
+        }, 100); // 100ms 延迟确保布局稳定
+      });
+
+      return () => cancelAnimationFrame(animationFrameId);
+    }
+  }, [isOpen, data]); // 依赖 isOpen 和 data
+  // [END MODIFIED]
 
   if (!isOpen) return null;
   
