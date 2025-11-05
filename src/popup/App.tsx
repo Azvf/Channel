@@ -146,62 +146,75 @@ export default function App({ initialState }: AppProps) {
         className="absolute top-0 left-0 right-0 z-20 flex flex-col items-center" // [优化] 关键：flex-col items-center
         style={{ pointerEvents: 'none' }} 
       >
-        {/* [优化] 1. 顶部HUD (设置 + 统计) - 作为一个居中块 */}
+        {/* [!] 顶部HUD (Heads-Up Display) - 最终版 */}
         <div 
-          className="relative flex justify-between items-center w-full max-w-xs z-50" // [优化] 居中并限制最大宽度
+          className="relative flex justify-between items-center w-full max-w-md z-50"
           style={{ 
             pointerEvents: 'auto',
-            padding: '12px 16px 0', // [优化] 顶部 12px, 左右 16px, 底部 0
-            height: '44px', // [优化] 固定高度
+            // [!] 保持我们上一轮的垂直对齐修复
+            padding: '12px calc(1rem + 0.4rem) 0', 
+            height: '44px',
           }}
         >
-          {/* 左侧：设置按钮 */}
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="rounded-lg p-1.5 transition-all"
-            style={{
-              background: 'transparent', 
-              border: 'none',
-              color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
-              e.currentTarget.style.color = 'var(--c-action)';
-              e.currentTarget.style.transform = 'scale(1.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
-              e.currentTarget.style.transform = 'scale(1)';
-            }}
-          >
-            <Settings className="w-3.5 h-3.5" strokeWidth={2} />
-          </button>
+          {/* --- [NEW] 左侧：流光标题 --- */}
+          <div className="channel-title-wrapper">
+            <div 
+              className="channel-title"
+              title="Channel" // Tooltip
+            >
+              Channel
+            </div>
+          </div>
 
-          {/* 右侧：统计按钮 */}
-          <button
-            onClick={() => setIsStatsWallOpen(true)}
-            title="View Activity"
-            className="flex items-center gap-3 rounded-lg transition-all"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '0.25rem',
-              margin: '-0.25rem',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 10%, transparent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            {/* [优化] 使用 Bookmark 图标 */}
-            <StatItem icon={<Bookmark />} value={MOCK_TODAY_PAGES} />
-            <StatItem icon={<TagIcon />} value={MOCK_TODAY_TAGS} />
-          </button>
+          {/* --- [NEW] 右侧：控制组 (统计 + 设置) --- */}
+          <div className="flex items-center gap-2">
+            {/* 统计集群按钮 */}
+            <button
+              onClick={() => setIsStatsWallOpen(true)}
+              title="View Activity"
+              className="flex items-center gap-3 rounded-lg transition-all" 
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '0.25rem',
+                margin: '-0.25rem',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 10%, transparent)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <StatItem icon={<Bookmark />} value={MOCK_TODAY_PAGES} />
+              <StatItem icon={<TagIcon />} value={MOCK_TODAY_TAGS} />
+            </button>
+
+            {/* 设置按钮 */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="rounded-lg p-1.5 transition-all"
+              style={{
+                background: 'transparent', 
+                border: 'none',
+                color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
+                e.currentTarget.style.color = 'var(--c-action)';
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <Settings className="w-3.5 h-3.5" strokeWidth={2} />
+            </button>
+          </div>
         </div>
         
         {/* [优化] 2. TabSwitcher 容器 - 保持居中 */}

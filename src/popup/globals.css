@@ -346,20 +346,29 @@ html {
   overflow: hidden;
   isolation: isolate;
   border-radius: 1.4em;
-  background-color: color-mix(in srgb, var(--c-glass) 12%, transparent);
-  backdrop-filter: blur(8px) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+  
+  /* [优化] 玻璃基色不透明度从 12% 提高到 15%，增加"实体感" */
+  background-color: color-mix(in srgb, var(--c-glass) 15%, transparent); 
+  
+  /* [优化] 模糊半径从 8px 增加到 12px，更有深度；饱和度使用新变量 */
+  backdrop-filter: blur(12px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(12px) saturate(var(--saturation));
+  
+  /* [优化] 调整阴影以匹配新的反射变量 
+    (这些变量现在在 light 主题中是 '1' 和 '1'，效果会更均衡)
+  */
   box-shadow: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
-    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
-    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
-    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
-    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+    inset 0 0 0 1.5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 15%), transparent),
+    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 70%), transparent), 
+    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
+    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 40%), transparent), 
+    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent),
+    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
+    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
+    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 5%), transparent);
+  
   transition: background-color var(--transition-slow) var(--ease-glass),
               box-shadow var(--transition-slow) var(--ease-glass);
 }
@@ -1227,4 +1236,65 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 .calendar-legend .legend-square[data-level="3"] {
   background: color-mix(in srgb, var(--c-action) 100%, transparent);
+}
+
+/* ========================================
+   CHANNEL TITLE - 流光渐变效果
+   ======================================== */
+
+.channel-title-wrapper {
+  position: relative;
+  /* 我们使用 wrapper 来应用 hover，这样 shimmer 效果更灵敏 */
+}
+
+.channel-title {
+  position: relative;
+  display: inline-block;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.9rem; /* 14.4px */
+  font-weight: 700;
+  letter-spacing: -0.01em;
+
+  /* 1. 创建渐变文本 */
+  background: linear-gradient(
+    90deg, 
+    var(--c-action) 0%, 
+    color-mix(in srgb, var(--c-content) 90%, transparent) 80%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+
+  /* 2. 准备流光效果 */
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+}
+
+.channel-title::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  /* 3. 这是流光（高光） */
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    color-mix(in srgb, var(--c-light) 60%, transparent) 50%, 
+    transparent 100%
+  );
+
+  opacity: 0.8;
+
+  /* 4. 初始状态（在左侧屏幕外） */
+  transform: translateX(-120%);
+  transition: transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 5. Hover 状态（在 wrapper 上触发） */
+.channel-title-wrapper:hover .channel-title::before {
+  transform: translateX(120%);
 }
