@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, Download, Upload, Sun, AppWindow, Video, Tag } from 'lucide-react';
+import { dialogSlideIn } from '../utils/motion';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { Checkbox } from './ui/checkbox';
@@ -34,6 +35,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   const [isExporting, setIsExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState<SettingsPage>('main');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   const handleSyncVideoTimestampChange = (checked: boolean) => {
     updateSyncVideoTimestamp(checked);
@@ -145,6 +147,30 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
     fileInputRef.current?.click();
   };
 
+  // 使用原生 dialog API 管理打开/关闭状态
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (isOpen) {
+      // 仅在 dialog 未打开时调用 showModal
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+    } else {
+      // 仅在 dialog 已打开时调用 close
+      // AnimatePresence 会在动画结束后移除 dialog
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
+  }, [isOpen]);
+
+  // 处理 dialog 关闭事件（ESC 键或点击背景）
+  const handleDialogClose = () => {
+    onClose();
+  };
+
   // App Icon 选项（占位符，未来可以扩展）
   const appIconOptions = [
     { id: 'default', name: 'Default' },
@@ -153,51 +179,60 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
     { id: 'ruby', name: 'Ruby' },
   ];
 
-  const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-  };
-
-  const modalVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: 20 },
-    visible: { opacity: 1, scale: 1, y: 0 },
-  };
-
-  const modalContent = (
-    <motion.div
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{
-        zIndex: 'var(--z-modal-layer)',
-        background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
-        backdropFilter: 'blur(4px)',
-      }}
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      variants={backdropVariants}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-      onClick={onClose}
-    >
-      <motion.div
-        className="w-full max-w-sm"
-        variants={modalVariants}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        onClick={(e) => e.stopPropagation()} // Prevent closing on modal click
-        style={{ maxHeight: '90vh', display: 'flex' }}
-      >
-        <GlassCard className="p-5 flex flex-col" style={{ width: '100%', maxHeight: '90vh' }}>
-          {/* Header - 使用标准化的 ModalHeader */}
-          <ModalHeader title="Settings" onClose={onClose} />
-
-          {/* ScrollableContent */}
-          <div
-            className="flex-1 overflow-y-auto"
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <dialog
+          ref={dialogRef}
+          onClose={handleDialogClose}
+          onClick={(e) => {
+            // 点击 dialog 本身（backdrop）时关闭
+            if (e.target === e.currentTarget) {
+              onClose();
+            }
+          }}
+          className="settings-dialog"
+        >
+          <motion.div
+            variants={dialogSlideIn}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            onClick={(e) => e.stopPropagation()}
             style={{
-              minHeight: 0,
-              paddingRight: '0.5rem',
-              marginTop: '1rem',
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              width: 'calc(100% - 32px)',
+              maxWidth: '384px',
+              maxHeight: '90vh',
+              display: 'flex',
             }}
           >
+            <GlassCard
+              className="flex flex-col"
+              style={{
+                width: '100%',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 0,
+              }}
+            >
+              {/* Header - 使用标准化的 ModalHeader */}
+              <ModalHeader title="Settings" onClose={onClose} />
+
+              {/* ScrollableContent */}
+              <div
+                className="flex-1 overflow-y-auto"
+                style={{
+                  minHeight: 0,
+                  paddingRight: '0.5rem',
+                  paddingLeft: '1.25rem',
+                  paddingTop: '1rem',
+                  paddingBottom: '1rem',
+                }}
+              >
             {currentPage === 'tagLibrary' ? (
               <TagManagementPage onBack={() => setCurrentPage('main')} />
             ) : (
@@ -290,15 +325,11 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
             </div>
               </>
             )}
-          </div>
-        </GlassCard>
-      </motion.div>
-    </motion.div>
-  );
-
-  return createPortal(
-    <AnimatePresence>
-      {isOpen && modalContent}
+              </div>
+            </GlassCard>
+          </motion.div>
+        </dialog>
+      )}
     </AnimatePresence>,
     document.body
   );
