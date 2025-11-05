@@ -246,23 +246,17 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                     return (
                       <ContextMenu menuItems={pageMenuItems}>
                         <div 
-                          className="rounded-2xl transition-all relative"
+                          className="rounded-2xl transition-all relative
+                                     hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]
+                                     hover:border-[color-mix(in_srgb,var(--c-glass)_28%,transparent)]"
                           style={{
                             background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
                             border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
                             padding: '0.8rem 1.1rem',
                             cursor: 'context-menu'
                           }}
-                          onMouseEnter={(e) => {
-                            setHoveredCardId(page.id);
-                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-                            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
-                          }}
-                          onMouseLeave={(e) => {
-                            setHoveredCardId(null);
-                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-                            e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-                          }}
+                          onMouseEnter={() => setHoveredCardId(page.id)}
+                          onMouseLeave={() => setHoveredCardId(null)}
                         >
                           {/* Edit Button Hover Area - Larger hover zone in top right */}
                           <div 
@@ -278,7 +272,12 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                 e.stopPropagation();
                                 handleEditPage(page);
                               }}
-                              className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0 group-hover/edit:opacity-100 transition-all"
+                              className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0 
+                                         group-hover/edit:opacity-100 transition-all
+                                         hover:bg-[color-mix(in_srgb,var(--c-action)_20%,transparent)]
+                                         hover:border-[color-mix(in_srgb,var(--c-action)_45%,transparent)]
+                                         hover:text-[var(--c-action)]
+                                         hover:scale-105"
                               style={{
                                 background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
                                 backdropFilter: 'blur(8px)',
@@ -286,18 +285,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                 color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
                                 cursor: 'pointer',
                                 pointerEvents: 'auto'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 20%, transparent)';
-                                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-action) 45%, transparent)';
-                                e.currentTarget.style.color = 'var(--c-action)';
-                                e.currentTarget.style.transform = 'scale(1.05)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 18%, transparent)';
-                                e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 28%, transparent)';
-                                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))';
-                                e.currentTarget.style.transform = 'scale(1)';
                               }}
                             >
                               <Pencil className="w-4 h-4" strokeWidth={1.5} />
@@ -316,6 +303,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               onClick={(e) => e.stopPropagation()}
                             >
                               <h2  /* [7] 语义从 h3 提升为 h2 */
+                                className="hover:text-[var(--c-action)] transition-colors"
                                 style={{ 
                                   fontFamily: '"DM Sans", sans-serif',
                                   color: 'var(--c-content)',
@@ -323,14 +311,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                   fontSize: '1.1rem', // [7] 匹配 TaggingPage 标题
                                   letterSpacing: '-0.015em', // [7] 匹配 TaggingPage 标题
                                   lineHeight: 1.35, // [7] 匹配 TaggingPage 标题
-                                  transition: 'color 200ms ease',
                                   margin: 0
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.color = 'var(--c-action)';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.color = 'var(--c-content)';
                                 }}
                               >
                                 {page.title}

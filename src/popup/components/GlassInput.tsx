@@ -284,23 +284,13 @@ export function GlassInput({
               onClick={() => {
                 setShowSuggestions(!showSuggestions);
               }}
-              className="flex-shrink-0 mr-4 p-1.5 rounded-full transition-all"
+              className={`flex-shrink-0 mr-4 p-1.5 rounded-full transition-all z-10 
+                         hover:text-[var(--c-action)] 
+                         ${!showSuggestions ? 'hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]' : ''}`}
               style={{ 
                 zIndex: 'var(--z-content)',
                 color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
                 background: showSuggestions ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' : 'transparent'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--c-action)';
-                if (!showSuggestions) {
-                  e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 60%, transparent)';
-                if (!showSuggestions) {
-                  e.currentTarget.style.background = 'transparent';
-                }
               }}
             >
               <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
@@ -350,7 +340,10 @@ export function GlassInput({
                       suggestionButtonsRef.current[index] = el;
                     }}
                     onClick={() => handleSelect(suggestion)}
-                    className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2"
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2
+                               hover:bg-[color-mix(in_srgb,var(--c-glass)_20%,transparent)]
+                               hover:text-[var(--c-action)]"
                     style={{ 
                       color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
                       fontFamily: '"DM Sans", sans-serif',
@@ -361,21 +354,6 @@ export function GlassInput({
                       background: selectedIndex === index 
                         ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
                         : 'transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      setSelectedIndex(index);
-                      e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
-                      e.currentTarget.style.color = 'var(--c-action)';
-                    }}
-                    onMouseLeave={(e) => {
-                      // 注意：这里不重置selectedIndex，保持键盘导航的状态
-                      // 只有当鼠标悬停时才更新索引，但离开时不重置
-                      e.currentTarget.style.background = selectedIndex === index 
-                        ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
-                        : 'transparent';
-                      e.currentTarget.style.color = selectedIndex === index 
-                        ? 'var(--c-action)' 
-                        : 'var(--c-content)';
                     }}
                   >
                     {suggestion}

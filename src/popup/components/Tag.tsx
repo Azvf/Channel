@@ -46,20 +46,14 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           {onRemove && (
             <button
               onClick={onRemove}
-              className="transition-all rounded-full p-0.5 mr-1.5"
+              className="transition-all rounded-full p-0.5 mr-1.5 
+                         hover:bg-[color-mix(in_srgb,var(--c-dark)_15%,transparent)] 
+                         hover:text-[var(--c-content)]"
               aria-label="Remove tag"
               style={{
                 color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
                 background: 'transparent',
                 flexShrink: 0
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'color-mix(in srgb, var(--c-dark) 15%, transparent)';
-                e.currentTarget.style.color = 'var(--c-content)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 60%, transparent)';
               }}
             >
               <X 
