@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react'; // [V9] 移除了 Loader2 和 motion
 import { GlassCard } from './GlassCard';
@@ -176,6 +176,9 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
   const [data, setData] = useState(() => cachedData || generateEmptyCalendarDays());
   // [V9 修复] 移除了 isLoading 和 error 状态
 
+  // 2. [新] 为滚动容器创建一个 ref
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   // [V9 修复] 6. 静默获取 (Silent Fetch)
   useEffect(() => {
     if (isOpen) {
@@ -203,6 +206,29 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
     }
   }, [isOpen, data]); // 添加 data 依赖确保状态一致
 
+  // 3. [新] 添加 useEffect 来处理滚轮事件
+  useEffect(() => {
+    if (isOpen && scrollRef.current) {
+      const element = scrollRef.current;
+
+      const handleWheel = (e: WheelEvent) => {
+        // 检查是否有垂直滚动（deltaY）
+        if (e.deltaY !== 0) {
+          // 阻止页面默认的垂直滚动
+          e.preventDefault();
+          // 将垂直滚动量应用到水平滚动上
+          element.scrollLeft += e.deltaY;
+        }
+      };
+
+      element.addEventListener('wheel', handleWheel);
+      
+      return () => {
+        element.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, [isOpen]); // 仅在 isOpen 状态改变时重新附加/移除
+
   if (!isOpen) return null;
   
   const { days, monthLabels } = data; // data 永远存在
@@ -221,18 +247,32 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
           </button>
         </div>
         
-        {/* [V9 修复] 7. 直接渲染日历 (不再有 AnimatePresence 或条件) */}
-        <div className="stats-wall-scroll-content">
+        {/* [V9 修复] 7. 渲染日历 (不再有 AnimatePresence 或条件) */}
+        
+        {/* [!!! 重构开始 !!!] */}
+
+        {/* 1. [新] 主日历布局 (Grid) */}
+        {/* 这个新的 Grid 容器将分离"固定列"和"滚动列" */}
+        <div 
+          className="stats-wall-calendar-layout"
+        >
+          {/* 1a. [新] 固定的星期标签 (M, W, F) */}
+          <div className="day-labels-fixed">
+            <span>M</span>
+            <span>W</span>
+            <span>F</span>
+          </div>
+          
+          {/* 1b. [新] 可滚动的内容区域 */}
           <div 
-            className="activity-calendar-container"
-            style={{ gridTemplateColumns: `var(--day-label-width) repeat(${totalWeeks}, 1fr)` }}
+            ref={scrollRef}
+            className="stats-wall-scroll-content"
           >
-            {/* 月份标签 */}
+            {/* 月份标签 (现在在滚动区内部) */}
             <div 
               className="month-labels"
               style={{ 
                 gridTemplateColumns: `repeat(${totalWeeks}, var(--square-size))`,
-                gridColumn: '2 / -1'
               }}
             >
               {monthLabels.map(({ label, colStart }) => (
@@ -242,14 +282,7 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
               ))}
             </div>
 
-            {/* 星期标签 */}
-            <div className="day-labels">
-              <span>M</span>
-              <span>W</span>
-              <span>F</span>
-            </div>
-
-            {/* 核心网格 */}
+            {/* 核心网格 (现在在滚动区内部) */}
             <div 
               className="activity-grid"
               style={{ 
@@ -260,18 +293,20 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
                 <ActivityDaySquare key={day.id} day={day} />
               ))}
             </div>
-
-            {/* 图例 */}
-            <div className="calendar-legend">
-              <span>Less</span>
-              <div className="legend-square" data-level="0" />
-              <div className="legend-square" data-level="1" />
-              <div className="legend-square" data-level="2" />
-              <div className="legend-square" data-level="3" />
-              <span>More</span>
-            </div>
           </div>
         </div>
+
+        {/* 2. [新] 固定的图例 (Legend) */}
+        {/* 我们将图例也移到滚动区域之外，保持其始终可见 */}
+        <div className="calendar-legend-fixed">
+          <span>Less</span>
+          <div className="legend-square" data-level="0" />
+          <div className="legend-square" data-level="1" />
+          <div className="legend-square" data-level="2" />
+          <div className="legend-square" data-level="3" />
+          <span>More</span>
+        </div>
+        {/* [!!! 重构结束 !!!] */}
       </GlassCard>
     </div>,
     document.body
