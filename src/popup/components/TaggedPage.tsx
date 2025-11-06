@@ -354,26 +354,45 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
 
                             {/* Tags - WITH LIQUID GLASS MATCHING EFFECT */}
                             <div className="flex flex-wrap gap-2.5"> {/* [9] 匹配 TaggingPage Tag 间距 (6px -> 10px) */}
-                              {page.tags.map((tag, tagIndex) => (
-                                searchTags.includes(tag) ? (
-                                  <Tag key={tagIndex} label={tag} />
-                                ) : (
-                                  <span 
-                                    key={tagIndex}
-                                    className="inline-flex items-center px-2.5 py-1 rounded-lg"
-                                    style={{ 
-                                      color: 'var(--color-text-secondary)',
-                                      font: 'var(--font-tag)',
-                                      letterSpacing: 'var(--letter-spacing-tag)',
-                                      background: 'color-mix(in srgb, var(--c-glass) 10%, transparent)',
-                                      border: '1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)',
-                                      transition: 'all 200ms ease'
-                                    }}
-                                  >
-                                    {tag}
-                                  </span>
-                                )
-                              ))}
+                              <AnimatePresence mode="popLayout">
+                                {page.tags.map((tag, tagIndex) => {
+                                  const uniqueId = `${page.id}-${tag}-${tagIndex}`;
+                                  const isMatched = searchTags.includes(tag);
+                                  
+                                  return (
+                                    <motion.div
+                                      key={uniqueId}
+                                      layout
+                                      initial={{ opacity: 0, scale: 0.8, y: 5 }}
+                                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                                      exit={{ opacity: 0, scale: 0.8, x: -10 }}
+                                      transition={{
+                                        layout: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
+                                        default: { duration: 0.2, ease: [0.4, 0, 0.2, 1] }
+                                      }}
+                                      className="inline-flex"
+                                    >
+                                      {isMatched ? (
+                                        <Tag label={tag} />
+                                      ) : (
+                                        <span 
+                                          className="inline-flex items-center px-2.5 py-1 rounded-lg"
+                                          style={{ 
+                                            color: 'var(--color-text-secondary)',
+                                            font: 'var(--font-tag)',
+                                            letterSpacing: 'var(--letter-spacing-tag)',
+                                            background: 'color-mix(in srgb, var(--c-glass) 10%, transparent)',
+                                            border: '1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)',
+                                            transition: 'all 200ms ease'
+                                          }}
+                                        >
+                                          {tag}
+                                        </span>
+                                      )}
+                                    </motion.div>
+                                  );
+                                })}
+                              </AnimatePresence>
                             </div>
                         </div>
                       </div>
