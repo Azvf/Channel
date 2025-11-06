@@ -4,12 +4,11 @@ import { motion } from "framer-motion";
 import { LAYOUT_TRANSITION } from '../utils/motion';
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
-// [修复] 1. 移除 Tag
+import { Tag } from "./Tag";
 import { Plus, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
-// [修复] 2. 导入 AnimatedTagList
-import { AnimatedTagList, TagListItem } from "./AnimatedTagList";
+import { AnimatedFlipList } from "./AnimatedFlipList";
 
 interface TaggingPageProps {
   className?: string;
@@ -111,15 +110,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     }
   };
 
-  // [修复] 3. 准备数据给 AnimatedTagList
-  const currentTagsList: TagListItem[] = currentPage?.tags
-    .map(tagId => allTags.find(t => t.id === tagId))
-    .filter(Boolean)
-    .map(tag => ({
-      id: tag!.id, // 确保 id 是 string
-      label: tag!.name,
-    })) || [];
-
   return (
     <div className={className}>
       {/* --- 
@@ -129,7 +119,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
         <GlassCard className="p-4">
           {/* 使用 framer-motion layout 处理高度动画 */}
           <motion.div
-            layout // <-- 保留父容器的高度动画
+            layout // <-- 自动处理高度动画
             transition={LAYOUT_TRANSITION} // <-- 标准物理
             className="space-y-4"
             style={{ 
@@ -321,24 +311,20 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             {/* --- 
               SECTION 4: 当前标签 (操作反馈) 
               --- */}
-            {/* [修复] 4. 使用 <AnimatedTagList> 替换 <AnimatedFlipList> */}
-            <motion.div 
-              layout // 保持外层 div 的 layout 动画
-              transition={LAYOUT_TRANSITION}
-              className="flex flex-wrap items-start"
-              style={{
-                gap: '0.75rem',
-                alignContent: 'flex-start',
-                rowGap: '0.75rem'
-              }}
-            >
-              {currentPage && currentPage.tags.length > 0 && (
-                <AnimatedTagList 
-                  tags={currentTagsList}
-                  onRemove={(id) => handleRemoveTag(id as string)}
-                />
-              )}
-            </motion.div>
+            {currentPage && currentPage.tags.length > 0 && (
+              <AnimatedFlipList
+                items={currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)).filter(Boolean) as (GameplayTag & { id: string })[]}
+                renderItem={(tag) => (
+                  <Tag label={tag.name} onRemove={() => handleRemoveTag(tag.id)} />
+                )}
+                className="flex flex-wrap items-start"
+                style={{
+                  gap: '0.75rem',
+                  alignContent: 'flex-start',
+                  rowGap: '0.75rem'
+                }}
+              />
+            )}
             
           </motion.div>
         </GlassCard>
