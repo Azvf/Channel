@@ -1469,3 +1469,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
 .channel-title-wrapper:hover .channel-title::before {
   transform: translateX(120%);
 }
+
+/* [新增] 辅助类，用于隐藏 h2 上强制的滚动条 */
+h2[style*="overflow-y: scroll"]::-webkit-scrollbar {
+  display: var(--pseudo-display, block);
+}

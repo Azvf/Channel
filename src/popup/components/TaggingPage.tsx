@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Pencil } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
 
@@ -228,11 +228,10 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             </motion.div>
 
             {/* --- 
-              SECTION 2: 可编辑标题 (主要)
+              SECTION 2: 可编辑标题 (In-Place Edit)
               --- */}
             <motion.div layout="position">
-              <div className="relative" style={{ minHeight: '2.7rem', width: '100%' }}>
-                {/* 可编辑状态 */}
+              {editingTitle ? (
                 <textarea
                   value={titleValue}
                   onChange={(e) => setTitleValue(e.target.value)}
@@ -246,27 +245,20 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       setEditingTitle(false);
                     }
                   }}
-                  rows={2}
                   style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
+                    display: 'block',
                     width: '100%',
-                    opacity: editingTitle ? 1 : 0,
-                    pointerEvents: editingTitle ? 'auto' : 'none',
-                    zIndex: editingTitle ? 10 : 1,
-                    transition: 'opacity 0.2s ease-in-out',
                     color: 'var(--color-text-primary)',
                     font: 'var(--font-page-title)',
                     letterSpacing: 'var(--letter-spacing-page-title)',
                     lineHeight: 1.35,
-                    maxHeight: '2.7rem',
-                    overflow: 'auto',
-                    minHeight: '2.7rem',
+                    maxHeight: '3.47rem',
+                    minHeight: '1.985rem',
                     padding: '0.25rem 0',
+                    overflow: 'auto',
                     background: 'transparent',
                     border: 'none',
+                    borderRadius: '0.5rem',
                     outline: 'none',
                     resize: 'none',
                     margin: 0,
@@ -274,39 +266,52 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     boxSizing: 'border-box'
                   }}
                   onBlur={() => handleTitleChange(titleValue)}
+                  ref={(node) => {
+                    if (node && editingTitle && document.activeElement !== node) {
+                      node.focus();
+                      node.setSelectionRange(0, 0);
+                      node.scrollTop = 0;
+                      node.scrollLeft = 0;
+                    }
+                  }}
                 />
-                {/* 不可编辑状态 */}
+              ) : (
                 <div
+                  className="group relative"
                   style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
+                    maxHeight: '3.47rem',
+                    minHeight: '1.985rem',
                     width: '100%',
-                    opacity: editingTitle ? 0 : 1,
-                    pointerEvents: editingTitle ? 'none' : 'auto',
-                    zIndex: editingTitle ? 1 : 10,
-                    transition: 'opacity 0.2s ease-in-out',
                     padding: '0.25rem 0',
-                    minHeight: '2.7rem',
+                    boxSizing: 'border-box',
+                    borderRadius: '0.5rem',
                     display: 'flex',
                     alignItems: 'flex-start',
-                    boxSizing: 'border-box'
+                    cursor: loading || error || !currentPage ? 'default' : 'text',
+                    transition: 'background-color 0.2s var(--ease-smooth)'
+                  }}
+                  onClick={() => {
+                    if (!loading && !error && currentPage) {
+                      setEditingTitle(true);
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading && !error && currentPage) {
+                      e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--c-glass) 10%, transparent)';
+                      e.currentTarget.style.setProperty('--pseudo-display', 'none');
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.removeProperty('--pseudo-display');
                   }}
                 >
-                  <h2 
-                    onClick={() => {
-                      if (!loading && !error && currentPage) {
-                        setEditingTitle(true);
-                      }
-                    }}
-                    style={{ 
+                  <h2
+                    style={{
                       color: 'var(--color-text-primary)',
                       font: 'var(--font-page-title)',
                       letterSpacing: 'var(--letter-spacing-page-title)',
                       lineHeight: 1.35,
-                      cursor: loading || error || !currentPage ? 'default' : 'text',
-                      maxHeight: '2.7rem',
                       overflow: 'hidden',
                       display: '-webkit-box',
                       WebkitLineClamp: 2,
@@ -319,14 +324,28 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     }}
                     title={currentPage ? '点击编辑标题' : undefined}
                   >
-                    {loading 
-                      ? 'Loading...' 
-                      : error 
-                        ? `Error: ${error}` 
+                    {loading
+                      ? 'Loading...'
+                      : error
+                        ? `Error: ${error}`
                         : currentPage?.title || 'No page loaded'}
                   </h2>
+
+                  {!loading && !error && currentPage && (
+                    <div
+                      className="absolute right-1 top-1 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{
+                        top: 'calc(0.25rem + 2px)',
+                        right: '4px',
+                        color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+                        pointerEvents: 'none'
+                      }}
+                    >
+                      <Pencil className="w-3 h-3" strokeWidth={2} />
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </motion.div>
 
             {/* --- 
