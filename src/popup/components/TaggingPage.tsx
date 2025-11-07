@@ -1,14 +1,12 @@
 // src/popup/components/TaggingPage.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import { motion } from "framer-motion";
-import { LAYOUT_TRANSITION } from '../utils/motion';
+import { LAYOUT_TRANSITION } from "../utils/motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
-import { Tag } from "./Tag";
 import { Plus, RefreshCw } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
-import { AnimatedFlipList } from "./AnimatedFlipList";
 
 interface TaggingPageProps {
   className?: string;
@@ -22,6 +20,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     loadCurrentPage();
@@ -93,7 +92,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       if (!allTags.find(t => t.id === tag.id)) {
         setAllTags(prev => [...prev, tag]);
       }
-      loadCurrentPage();
     } catch (error) {
       console.error('添加标签失败:', error);
     }
@@ -104,11 +102,51 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
 
     try {
       await currentPageService.removeTagFromPage(currentPage.id, tagId);
-      loadCurrentPage();
     } catch (error) {
       console.error('移除标签失败:', error);
     }
   };
+
+  const handleTagsChange = async (newTagNames: string[]) => {
+    if (!currentPage) return;
+
+    const currentTagNames = currentPage.tags
+      .map(tagId => allTags.find(t => t.id === tagId)?.name)
+      .filter(Boolean) as string[];
+
+    const addedTags = newTagNames.filter(name => !currentTagNames.includes(name));
+    const removedTagNames = currentTagNames.filter(name => !newTagNames.includes(name));
+
+    const promises: Promise<unknown>[] = [];
+
+    removedTagNames.forEach(name => {
+      const tag = allTags.find(t => t.name === name);
+      if (tag) {
+        promises.push(handleRemoveTag(tag.id));
+      }
+    });
+
+    addedTags.forEach(name => {
+      promises.push(handleAddTag(name));
+    });
+
+    if (promises.length === 0) {
+      return;
+    }
+
+    setIsRefreshing(true);
+
+    await Promise.all(promises);
+
+    await loadCurrentPage();
+    setIsRefreshing(false);
+  };
+
+  const currentPageTagNames = currentPage
+    ? currentPage.tags
+        .map(tagId => allTags.find(t => t.id === tagId)?.name)
+        .filter(Boolean) as string[]
+    : [];
 
   return (
     <div className={className}>
@@ -161,17 +199,17 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       minWidth: 0,
                       margin: 0,
                       textAlign: 'right'
-                    } as React.CSSProperties}
+                    } as CSSProperties}
                     title={currentPage.url}
                   >
                     {currentPage.url}
                   </p>
                 )}
                 {/* 刷新按钮移到主操作区 */}
-                {(error || loading) && (
+                {(error || loading || isRefreshing) && (
                   <button
                     onClick={loadCurrentPage}
-                    disabled={loading}
+                    disabled={loading || isRefreshing}
                     className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50 flex-shrink-0"
                     style={{
                       background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
@@ -180,7 +218,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     title="刷新"
                   >
                     <RefreshCw 
-                      className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
+                      className={`w-4 h-4 ${(loading || isRefreshing) ? 'animate-spin' : ''}`}
                       strokeWidth={1.5}
                       style={{ color: 'var(--c-action)' }}
                     />
@@ -292,39 +330,20 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             </motion.div>
 
             {/* --- 
-              输入框 
+              输入框 (修改)
               --- */}
             <motion.div layout="position">
               <TagInput
-                tags={[]} // create模式下不需要tags
-                onTagsChange={() => {}} // create模式下不需要这个回调
-                mode="create"
-                onCreateTag={handleAddTag}
+                tags={currentPageTagNames}
+                onTagsChange={handleTagsChange}
+                mode="list"
                 placeholder="Enter a tag..."
                 suggestions={suggestions}
-                excludeTags={currentPage ? currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)?.name).filter(Boolean) as string[] : []}
+                excludeTags={currentPageTagNames}
                 autoFocus={true}
                 disabled={loading || !!error}
               />
             </motion.div>
-
-            {/* --- 
-              SECTION 4: 当前标签 (操作反馈) 
-              --- */}
-            {currentPage && currentPage.tags.length > 0 && (
-              <AnimatedFlipList
-                items={currentPage.tags.map(tagId => allTags.find(t => t.id === tagId)).filter(Boolean) as (GameplayTag & { id: string })[]}
-                renderItem={(tag) => (
-                  <Tag label={tag.name} onRemove={() => handleRemoveTag(tag.id)} />
-                )}
-                className="flex flex-wrap items-start"
-                style={{
-                  gap: '0.75rem',
-                  alignContent: 'flex-start',
-                  rowGap: '0.75rem'
-                }}
-              />
-            )}
             
           </motion.div>
         </GlassCard>

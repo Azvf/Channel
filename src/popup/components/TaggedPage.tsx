@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassCard";
@@ -6,7 +6,18 @@ import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
 import { PageIcon } from "./PageIcon";
 import { EditPageDialog } from "./EditPageDialog";
-import { Search, Inbox, MoreHorizontal, Trash2, Copy, Pencil } from "lucide-react";
+import {
+  Search,
+  Inbox,
+  MoreHorizontal,
+  Trash2,
+  Copy,
+  Pencil,
+  Settings,
+  TrendingUp,
+  Bookmark,
+  Tag as TagIcon,
+} from "lucide-react";
 import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
 
@@ -96,8 +107,48 @@ const MOCK_PAGES = [
   },
 ];
 
+const MOCK_STREAKS = 12;
+const MOCK_TOTAL_PAGES = 128;
+const MOCK_TOTAL_TAGS = 42;
+
+const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
+  <div
+    className="flex items-center gap-1"
+    style={{
+      fontVariantNumeric: "tabular-nums",
+      userSelect: "none",
+      WebkitUserSelect: "none",
+      MozUserSelect: "none",
+      msUserSelect: "none",
+      pointerEvents: "auto",
+    }}
+  >
+    {React.cloneElement(icon as any, {
+      className: "w-3 h-3 stat-item-icon",
+      strokeWidth: 2,
+      style: {
+        color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))",
+        transition: "color 0.2s var(--ease-smooth)",
+      },
+    })}
+    <span
+      className="stat-item-value"
+      style={{
+        fontSize: "0.75rem",
+        fontWeight: 500,
+        color: "color-mix(in srgb, var(--c-content) 70%, var(--c-bg))",
+        transition: "color 0.2s var(--ease-smooth)",
+      }}
+    >
+      {value}
+    </span>
+  </div>
+);
+
 interface TaggedPageProps {
   className?: string;
+  onOpenSettings: () => void;
+  onOpenStats: () => void;
 }
 
 interface PageCardProps {
@@ -108,7 +159,7 @@ interface PageCardProps {
   openMenuFromButtonRef: (pageId: number) => void;
 }
 
-export function TaggedPage({ className = "" }: TaggedPageProps) {
+export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: TaggedPageProps) {
   const [searchTags, setSearchTags] = useState<string[]>([]);
   const [pages, setPages] = useState(MOCK_PAGES);
   const [editingPage, setEditingPage] = useState<typeof MOCK_PAGES[0] | null>(null);
@@ -170,7 +221,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      const menuElement = document.querySelector('[data-menu-id]');
+      const menuElement = document.querySelector("[data-menu-id]");
       const buttonElement = menuButtonRefs.current.get(openMenuId);
 
       if (
@@ -189,15 +240,82 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {/* Unified Card: Search + Results */}
+      <style>
+        {`
+          .hud-button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            margin: -0.25rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s var(--ease-smooth);
+          }
+
+          .hud-button:hover {
+            background-color: color-mix(in srgb, var(--c-action) 10%, transparent);
+          }
+
+          .hud-button:hover .stat-item-icon,
+          .hud-button:hover .stat-item-value,
+          .hud-button-settings:hover {
+            color: var(--c-action) !important;
+          }
+
+          .hud-button-settings {
+            padding: 1.5px;
+            color: color-mix(in srgb, var(--c-content) 65%, var(--c-bg));
+            transition:
+              color 0.2s var(--ease-smooth),
+              transform 0.2s var(--ease-smooth),
+              background-color 0.2s var(--ease-smooth);
+          }
+
+          .hud-button-settings:hover {
+            transform: scale(1.1);
+          }
+        `}
+      </style>
+
       <div>
         <GlassCard className="p-4">
           <div className="space-y-4">
-            {/* Search Section */}
+            <div className="flex items-center justify-between gap-3">
+              <button
+                onClick={onOpenStats}
+                title="View Activity"
+                className="hud-button flex items-center gap-3"
+              >
+                <StatItem icon={<TrendingUp />} value={MOCK_STREAKS} />
+                <StatItem icon={<Bookmark />} value={MOCK_TOTAL_PAGES} />
+                <StatItem icon={<TagIcon />} value={MOCK_TOTAL_TAGS} />
+              </button>
+
+              <button
+                onClick={onOpenSettings}
+                title="Settings"
+                className="hud-button hud-button-settings"
+              >
+                <Settings className="w-3.5 h-3.5" strokeWidth={2} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                height: "1px",
+                background: "color-mix(in srgb, var(--c-glass) 20%, transparent)",
+                margin: "0.75rem 0",
+              }}
+            />
+
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
+                  <Search
+                    className="w-3.5 h-3.5"
+                    strokeWidth={1.5}
+                    style={{ color: "var(--c-action)" }}
+                  />
                   <span
                     style={{
                       color: "var(--color-text-module-title)",
@@ -231,6 +349,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                 onTagsChange={setSearchTags}
                 placeholder="Enter tags to filter pages..."
                 suggestions={MOCK_SUGGESTIONS}
+                allowCreation={false}
               />
 
               <div className="flex items-center justify-between pt-1">
@@ -268,7 +387,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
               }}
             />
 
-            {/* Results Section */}
             <div>
               {filteredPages.length > 0 ? (
                 <AnimatedFlipList

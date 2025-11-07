@@ -7,7 +7,7 @@ import { ChevronDown } from "lucide-react";
 
 interface TagInputProps {
   tags: string[];
-  onTagsChange: (tags: string[]) => void;
+  onTagsChange: (tags: string[]) => void | Promise<void>;
   placeholder?: string;
   suggestions?: string[];
   excludeTags?: string[]; // 新增: 需要排除的标签（用于create模式）
@@ -16,6 +16,7 @@ interface TagInputProps {
   disabled?: boolean; // 新增: 禁用状态
   mode?: "list" | "create"; // 新增: 模式选择
   onCreateTag?: (tagName: string) => void; // 新增: create模式下创建标签的回调
+  allowCreation?: boolean; // 新增: 是否允许创建新标签
 }
 
 export function TagInput({ 
@@ -28,7 +29,8 @@ export function TagInput({
   autoFocus = false,
   disabled = false,
   mode = "list",
-  onCreateTag
+  onCreateTag,
+  allowCreation = true
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -220,11 +222,22 @@ export function TagInput({
     }
   }, [showSuggestions]);
 
-  const addTag = (tag: string) => {
+  const addTag = (tag: string, source: "input" | "suggestion" = "input") => {
     const trimmedTag = tag.trim();
     if (!trimmedTag) return;
 
+    const matchesSuggestion = suggestions.some(
+      (s) => s.toLowerCase() === trimmedTag.toLowerCase()
+    );
+
+    if (!allowCreation && source === "input" && !matchesSuggestion) {
+      return;
+    }
+
     if (mode === "create") {
+      if (!allowCreation && source === "input" && !matchesSuggestion) {
+        return;
+      }
       // create模式: 调用onCreateTag回调并清空输入框
       if (onCreateTag) {
         onCreateTag(trimmedTag);
@@ -312,8 +325,14 @@ export function TagInput({
         handleSelect(filteredSuggestions[selectedIndex]);
       } else if (inputValue.trim()) {
         // 否则，使用输入框的值
-        e.preventDefault();
-        addTag(inputValue);
+        const trimmedValue = inputValue.trim();
+        const matchesSuggestion = suggestions.some(
+          (s) => s.toLowerCase() === trimmedValue.toLowerCase()
+        );
+        if (allowCreation || matchesSuggestion) {
+          e.preventDefault();
+          addTag(inputValue, matchesSuggestion ? "suggestion" : "input");
+        }
       }
     } else if (e.key === 'Tab' && filteredSuggestions.length > 0 && showSuggestions) {
       // Handle Tab key to autocomplete first suggestion
@@ -349,7 +368,7 @@ export function TagInput({
     // 重置选中索引
     setSelectedIndex(-1);
     // 然后添加tag（addTag会按正确顺序更新状态，useEffect会检测到是添加tag并保持menu关闭）
-    addTag(suggestion);
+    addTag(suggestion, "suggestion");
     inputRef.current?.focus();
   };
 
