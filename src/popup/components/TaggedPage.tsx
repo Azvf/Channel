@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
-import { PagePreview } from "./PagePreview";
+import { PageIcon } from "./PageIcon";
 import { EditPageDialog } from "./EditPageDialog";
 import { Search, Inbox, MoreHorizontal, Trash2, Copy, Pencil } from "lucide-react";
 import { AnimatedFlipList } from "./AnimatedFlipList";
+import { useLongPress } from "../utils/useLongPress";
 
 const MOCK_SUGGESTIONS = [
   "React",
@@ -99,19 +100,23 @@ interface TaggedPageProps {
   className?: string;
 }
 
+interface PageCardProps {
+  page: typeof MOCK_PAGES[0];
+  searchTags: string[];
+  onMenuButtonClick: (e: React.MouseEvent, page: typeof MOCK_PAGES[0]) => void;
+  registerMenuButton: (pageId: number, button: HTMLButtonElement | null) => void;
+  openMenuFromButtonRef: (pageId: number) => void;
+}
+
 export function TaggedPage({ className = "" }: TaggedPageProps) {
   const [searchTags, setSearchTags] = useState<string[]>([]);
   const [pages, setPages] = useState(MOCK_PAGES);
   const [editingPage, setEditingPage] = useState<typeof MOCK_PAGES[0] | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
-  const [visiblePreviewId, setVisiblePreviewId] = useState<number | null>(null);
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const menuButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
-  // Filter pages based on search tags
   const filteredPages =
     searchTags.length > 0
       ? pages.filter((page) => searchTags.every((tag) => page.tags.includes(tag)))
@@ -123,73 +128,64 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
   };
 
   const handleSavePage = (updatedPage: typeof MOCK_PAGES[0]) => {
-    setPages(pages.map(p => p.id === updatedPage.id ? updatedPage : p));
+    setPages(pages.map((p) => (p.id === updatedPage.id ? updatedPage : p)));
   };
 
-  const handleCardMouseEnter = (pageId: number) => {
-    setHoveredCardId(pageId);
-
-    if (previewTimerRef.current) {
-      clearTimeout(previewTimerRef.current);
+  const registerMenuButton = (pageId: number, button: HTMLButtonElement | null) => {
+    if (button) {
+      menuButtonRefs.current.set(pageId, button);
+    } else {
+      menuButtonRefs.current.delete(pageId);
     }
-
-    previewTimerRef.current = setTimeout(() => {
-      setVisiblePreviewId(pageId);
-    }, 300);
   };
 
-  const handleCardMouseLeave = () => {
-    if (previewTimerRef.current) {
-      clearTimeout(previewTimerRef.current);
-    }
-
-    setHoveredCardId(null);
-    setVisiblePreviewId(null);
+  const openMenuAtRect = (rect: DOMRect, pageId: number) => {
+    setMenuPosition({
+      x: rect.right - 150,
+      y: rect.bottom + 8,
+    });
+    setOpenMenuId(pageId);
   };
 
   const handleOpenMenu = (e: React.MouseEvent, page: typeof MOCK_PAGES[0]) => {
     e.stopPropagation();
     const button = e.currentTarget as HTMLButtonElement;
     const rect = button.getBoundingClientRect();
-    // 在按钮下方显示菜单
-    setMenuPosition({ 
-      x: rect.right - 150, // 菜单宽度约150px，右对齐
-      y: rect.bottom + 8 // 在按钮下方8px
-    });
-    setOpenMenuId(page.id);
+    openMenuAtRect(rect, page.id);
+  };
+
+  const openMenuFromButtonRef = (pageId: number) => {
+    const button = menuButtonRefs.current.get(pageId);
+    if (!button) return;
+    const rect = button.getBoundingClientRect();
+    openMenuAtRect(rect, pageId);
   };
 
   const handleCloseMenu = () => {
     setOpenMenuId(null);
   };
 
-  // 点击外部关闭菜单
   useEffect(() => {
     if (openMenuId === null) return;
-    
+
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
-      // 检查点击是否在菜单外部
       const menuElement = document.querySelector('[data-menu-id]');
       const buttonElement = menuButtonRefs.current.get(openMenuId);
-      
-      if (menuElement && !menuElement.contains(target) && 
-          buttonElement && !buttonElement.contains(target)) {
+
+      if (
+        menuElement &&
+        !menuElement.contains(target) &&
+        buttonElement &&
+        !buttonElement.contains(target)
+      ) {
         handleCloseMenu();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
-
-  useEffect(() => {
-    return () => {
-      if (previewTimerRef.current) {
-        clearTimeout(previewTimerRef.current);
-      }
-    };
-  }, []);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -199,39 +195,37 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
           <div className="space-y-4">
             {/* Search Section */}
             <div className="space-y-4">
-              {/* Section Label */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
-                  <span 
-                    style={{ 
-                      color: 'var(--color-text-module-title)',
-                      font: 'var(--font-module-title)',
-                      letterSpacing: 'var(--letter-spacing-module-title)',
-                      textTransform: 'uppercase'
+                  <Search className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
+                  <span
+                    style={{
+                      color: "var(--color-text-module-title)",
+                      font: "var(--font-module-title)",
+                      letterSpacing: "var(--letter-spacing-module-title)",
+                      textTransform: "uppercase",
                     }}
                   >
                     Search by Tags
                   </span>
                 </div>
-                
+
                 <button
                   onClick={() => setSearchTags([])}
                   className="glass-button"
-                  style={{ 
-                    fontSize: '0.8rem',
-                    padding: '0.4em 0.9em',
+                  style={{
+                    fontSize: "0.8rem",
+                    padding: "0.4em 0.9em",
                     opacity: searchTags.length > 0 ? 1 : 0,
-                    visibility: searchTags.length > 0 ? 'visible' : 'hidden',
-                    pointerEvents: searchTags.length > 0 ? 'auto' : 'none',
-                    transition: 'opacity 200ms ease, visibility 200ms ease'
+                    visibility: searchTags.length > 0 ? "visible" : "hidden",
+                    pointerEvents: searchTags.length > 0 ? "auto" : "none",
+                    transition: "opacity 200ms ease, visibility 200ms ease",
                   }}
                 >
                   Clear All
                 </button>
               </div>
 
-              {/* Search Input */}
               <TagInput
                 tags={searchTags}
                 onTagsChange={setSearchTags}
@@ -239,27 +233,26 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                 suggestions={MOCK_SUGGESTIONS}
               />
 
-              {/* Results Summary */}
               <div className="flex items-center justify-between pt-1">
-                <span 
-                  style={{ 
-                    color: 'var(--color-text-secondary)',
-                    font: 'var(--font-footnote)',
-                    letterSpacing: 'var(--letter-spacing-footnote)',
+                <span
+                  style={{
+                    color: "var(--color-text-secondary)",
+                    font: "var(--font-footnote)",
+                    letterSpacing: "var(--letter-spacing-footnote)",
                   }}
                 >
-                  {searchTags.length > 0 ? 'Filtered results' : 'All pages'}
+                  {searchTags.length > 0 ? "Filtered results" : "All pages"}
                 </span>
-                <div 
+                <div
                   className="px-2.5 py-1 rounded-lg"
-                  style={{ 
-                    color: 'var(--c-content)',
-                    background: 'color-mix(in srgb, var(--c-glass) 16%, transparent)',
-                    fontSize: '0.7rem',
+                  style={{
+                    color: "var(--c-content)",
+                    background: "color-mix(in srgb, var(--c-glass) 16%, transparent)",
+                    fontSize: "0.7rem",
                     fontWeight: 600,
-                    letterSpacing: '0.01em',
-                    border: '1px solid color-mix(in srgb, var(--c-glass) 24%, transparent)',
-                    fontVariantNumeric: 'tabular-nums'
+                    letterSpacing: "0.01em",
+                    border: "1px solid color-mix(in srgb, var(--c-glass) 24%, transparent)",
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   {filteredPages.length}/{MOCK_PAGES.length}
@@ -267,13 +260,12 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
               </div>
             </div>
 
-            {/* Divider */}
-            <div 
-              style={{ 
-                height: '1px',
-                background: 'color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                margin: '0.75rem 0'
-              }} 
+            <div
+              style={{
+                height: "1px",
+                background: "color-mix(in srgb, var(--c-glass) 20%, transparent)",
+                margin: "0.75rem 0",
+              }}
             />
 
             {/* Results Section */}
@@ -283,171 +275,53 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                   items={filteredPages}
                   as="div"
                   className="space-y-3"
-                  renderItem={(page) => {
-                    return (
-                      <div 
-                        className="rounded-2xl transition-all relative
-                                   hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]
-                                   hover:border-[color-mix(in_srgb,var(--c-glass)_28%,transparent)]"
-                        style={{
-                          background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-                          border: '1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)',
-                          padding: '0.8rem 1.1rem',
-                          cursor: 'default'
-                        }}
-                        onMouseEnter={() => handleCardMouseEnter(page.id)}
-                        onMouseLeave={handleCardMouseLeave}
-                      >
-                        {/* More Button - Hover Area in top right */}
-                        <div 
-                          className="absolute top-0 right-0"
-                          style={{
-                            width: '120px',
-                            height: '80px',
-                            pointerEvents: 'none'
-                          }}
-                        >
-                          <button
-                            ref={(el) => {
-                              if (el) {
-                                menuButtonRefs.current.set(page.id, el);
-                              } else {
-                                menuButtonRefs.current.delete(page.id);
-                              }
-                            }}
-                            onClick={(e) => handleOpenMenu(e, page)}
-                            className="absolute top-3 right-3 rounded-xl p-2.5 transition-all
-                                       hover:bg-[color-mix(in_srgb,var(--c-action)_20%,transparent)]
-                                       hover:border-[color-mix(in_srgb,var(--c-action)_45%,transparent)]
-                                       hover:text-[var(--c-action)]
-                                       hover:scale-105"
-                            style={{
-                              opacity: hoveredCardId === page.id ? 1 : 0,
-                              background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
-                              backdropFilter: 'blur(8px)',
-                              border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
-                              color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
-                              cursor: 'pointer',
-                              pointerEvents: hoveredCardId === page.id ? 'auto' : 'none'
-                            }}
-                          >
-                            <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
-                          </button>
-                        </div>
-
-                        {/* Content - No Padding, Edit Button is Absolute */}
-                        <div className="space-y-3.5">
-                            {/* Title - Full Width, No Icons */}
-                            <a
-                              href={page.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block"
-                              style={{ textDecoration: 'none' }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {/* [7] 语义从 h3 提升为 h2 */}
-                              <h2
-                                className="hover:text-[var(--c-action)] transition-colors"
-                                style={{ 
-                                  color: 'var(--color-text-primary)',
-                                  font: 'var(--font-page-title)',
-                                  letterSpacing: 'var(--letter-spacing-page-title)',
-                                  margin: 0
-                                }}
-                              >
-                                {page.title}
-                              </h2>
-                            </a>
-
-                            {/* Icon + URL Row */}
-                            <div className="flex items-center gap-2.5">
-                              <div className="flex-shrink-0">
-                                <PagePreview 
-                                  url={page.url}
-                                  screenshot={page.screenshot}
-                                  title={page.title}
-                                  isVisible={visiblePreviewId === page.id}
-                                />
-                              </div>
-                              <p 
-                                className="truncate flex-1"
-                                style={{ 
-                                  color: 'var(--color-text-secondary)',
-                                  font: 'var(--font-caption)',
-                                  letterSpacing: 'var(--letter-spacing-caption)',
-                                  margin: 0
-                                }}
-                              >
-                                {page.url}
-                              </p>
-                            </div>
-
-                            {/* Tags - WITH LIQUID GLASS MATCHING EFFECT */}
-                            <div className="flex flex-wrap gap-2.5"> {/* [9] 匹配 TaggingPage Tag 间距 (6px -> 10px) */}
-                              {page.tags.map((tag, tagIndex) => (
-                                searchTags.includes(tag) ? (
-                                  <Tag key={tagIndex} label={tag} />
-                                ) : (
-                                  <span 
-                                    key={tagIndex}
-                                    className="inline-flex items-center px-2.5 py-1 rounded-lg"
-                                    style={{ 
-                                      color: 'var(--color-text-secondary)',
-                                      font: 'var(--font-tag)',
-                                      letterSpacing: 'var(--letter-spacing-tag)',
-                                      background: 'color-mix(in srgb, var(--c-glass) 10%, transparent)',
-                                      border: '1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)',
-                                      transition: 'all 200ms ease'
-                                    }}
-                                  >
-                                    {tag}
-                                  </span>
-                                )
-                              ))}
-                            </div>
-                        </div>
-                      </div>
-                    );
-                  }}
+                  renderItem={(page) => (
+                    <PageCard
+                      key={page.id}
+                      page={page}
+                      searchTags={searchTags}
+                      onMenuButtonClick={handleOpenMenu}
+                      registerMenuButton={registerMenuButton}
+                      openMenuFromButtonRef={openMenuFromButtonRef}
+                    />
+                  )}
                 />
               ) : (
-                // Empty State
-                <div 
+                <div
                   className="text-center py-12 rounded-3xl border-2 border-dashed"
-                  style={{ 
-                    color: 'color-mix(in srgb, var(--c-content) 40%, var(--c-bg))',
-                    borderColor: 'color-mix(in srgb, var(--c-glass) 30%, transparent)'
+                  style={{
+                    color: "color-mix(in srgb, var(--c-content) 40%, var(--c-bg))",
+                    borderColor: "color-mix(in srgb, var(--c-glass) 30%, transparent)",
                   }}
                 >
                   <div className="space-y-4">
-                    <div 
-                      className="w-16 h-16 mx-auto rounded-3xl flex items-center justify-center"
-                    >
-                      <Inbox 
-                        className="w-8 h-8" 
+                    <div className="w-16 h-16 mx-auto rounded-3xl flex items-center justify-center">
+                      <Inbox
+                        className="w-8 h-8"
                         strokeWidth={1.5}
-                        style={{ 
-                          color: 'color-mix(in srgb, var(--c-content) 35%, var(--c-bg))'
+                        style={{
+                          color: "color-mix(in srgb, var(--c-content) 35%, var(--c-bg))",
                         }}
                       />
                     </div>
                     <div className="space-y-1">
-                      <p style={{ 
-                        font: 'var(--font-list-item)',
-                        color: 'var(--color-text-tertiary)',
-                        margin: 0
-                      }}>
-                        {searchTags.length > 0
-                          ? "No pages found"
-                          : "No pages yet"}
+                      <p
+                        style={{
+                          font: "var(--font-list-item)",
+                          color: "var(--color-text-tertiary)",
+                          margin: 0,
+                        }}
+                      >
+                        {searchTags.length > 0 ? "No pages found" : "No pages yet"}
                       </p>
-                      <p style={{ 
-                        font: 'var(--font-caption)',
-                        letterSpacing: 'var(--letter-spacing-caption)',
-                        color: 'var(--color-text-tertiary)',
-                        margin: 0
-                      }}>
+                      <p
+                        style={{
+                          font: "var(--font-caption)",
+                          letterSpacing: "var(--letter-spacing-caption)",
+                          color: "var(--color-text-tertiary)",
+                          margin: 0,
+                        }}
+                      >
                         {searchTags.length > 0
                           ? "Try different tags or clear your filters"
                           : "Start tagging pages to see them here"}
@@ -461,7 +335,6 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
         </GlassCard>
       </div>
 
-      {/* Edit Dialog */}
       {editingPage && (
         <EditPageDialog
           isOpen={isEditDialogOpen}
@@ -471,32 +344,31 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
         />
       )}
 
-      {/* Floating Menu */}
       {createPortal(
         <AnimatePresence>
           {openMenuId !== null && (() => {
-            const page = pages.find(p => p.id === openMenuId);
+            const page = pages.find((p) => p.id === openMenuId);
             if (!page) return null;
 
             return (
               <div
                 className="fixed inset-0"
-                style={{ zIndex: 'var(--z-context-menu-layer)' }}
+                style={{ zIndex: "var(--z-context-menu-layer)" }}
                 onClick={handleCloseMenu}
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
                   className="fixed liquidGlass-wrapper"
                   data-menu-id={openMenuId}
                   style={{
-                    zIndex: 'calc(var(--z-context-menu-layer) + 1)',
+                    zIndex: "calc(var(--z-context-menu-layer) + 1)",
                     top: menuPosition.y,
                     left: menuPosition.x,
-                    minWidth: '150px',
-                    borderRadius: '0.8em',
+                    minWidth: "150px",
+                    borderRadius: "0.8em",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -510,17 +382,17 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
                           style={{
-                            color: 'var(--c-content)',
-                            fontSize: '0.8rem',
+                            color: "var(--c-content)",
+                            fontSize: "0.8rem",
                             fontWeight: 500,
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
-                            e.currentTarget.style.color = 'var(--c-action)';
+                            e.currentTarget.style.background = "color-mix(in srgb, var(--c-action) 15%, transparent)";
+                            e.currentTarget.style.color = "var(--c-action)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--c-content)';
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "var(--c-content)";
                           }}
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -535,17 +407,17 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
                           style={{
-                            color: 'var(--c-content)',
-                            fontSize: '0.8rem',
+                            color: "var(--c-content)",
+                            fontSize: "0.8rem",
                             fontWeight: 500,
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
-                            e.currentTarget.style.color = 'var(--c-action)';
+                            e.currentTarget.style.background = "color-mix(in srgb, var(--c-action) 15%, transparent)";
+                            e.currentTarget.style.color = "var(--c-action)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--c-content)';
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "var(--c-content)";
                           }}
                         >
                           <Copy className="w-3.5 h-3.5" />
@@ -555,22 +427,22 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                       <li>
                         <button
                           onClick={() => {
-                            setPages(prev => prev.filter(p => p.id !== page.id));
+                            setPages((prev) => prev.filter((p) => p.id !== page.id));
                             handleCloseMenu();
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
                           style={{
-                            color: 'var(--c-content)',
-                            fontSize: '0.8rem',
+                            color: "var(--c-content)",
+                            fontSize: "0.8rem",
                             fontWeight: 500,
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
-                            e.currentTarget.style.color = 'var(--c-action)';
+                            e.currentTarget.style.background = "color-mix(in srgb, var(--c-action) 15%, transparent)";
+                            e.currentTarget.style.color = "var(--c-action)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--c-content)';
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "var(--c-content)";
                           }}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -586,6 +458,145 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
         </AnimatePresence>,
         document.body
       )}
+    </div>
+  );
+}
+
+function PageCard({
+  page,
+  searchTags,
+  onMenuButtonClick,
+  registerMenuButton,
+  openMenuFromButtonRef,
+}: PageCardProps) {
+  const longPressHandlers = useLongPress({
+    onLongPress: (e) => {
+      e.preventDefault();
+      openMenuFromButtonRef(page.id);
+    },
+    delay: 500,
+  });
+
+  const {
+    onMouseDown,
+    onMouseUp,
+    onMouseLeave,
+    onTouchStart,
+    onTouchEnd,
+    onTouchCancel,
+  } = longPressHandlers;
+
+  return (
+    <div
+      className="rounded-2xl transition-all relative
+                 hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]
+                 hover:border-[color-mix(in_srgb,var(--c-glass)_28%,transparent)]"
+      style={{
+        background: "color-mix(in srgb, var(--c-glass) 8%, transparent)",
+        border: "1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)",
+        padding: "0.8rem 1.1rem",
+        cursor: "default",
+      }}
+      onMouseLeave={onMouseLeave}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
+    >
+      <div
+        className="absolute top-0 right-0 group/more"
+        style={{
+          width: "120px",
+          height: "80px",
+          pointerEvents: "none",
+        }}
+      >
+        <button
+          ref={(button) => registerMenuButton(page.id, button)}
+          onClick={(e) => onMenuButtonClick(e, page)}
+          className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0
+                     group-hover/more:opacity-100 transition-all
+                     hover:bg-[color-mix(in_srgb,var(--c-action)_20%,transparent)]
+                     hover:border-[color-mix(in_srgb,var(--c-action)_45%,transparent)]
+                     hover:text-[var(--c-action)]
+                     hover:scale-105"
+          style={{
+            background: "color-mix(in srgb, var(--c-glass) 18%, transparent)",
+            backdropFilter: "blur(8px)",
+            border: "1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)",
+            color: "color-mix(in srgb, var(--c-content) 65%, var(--c-bg))",
+            cursor: "pointer",
+            pointerEvents: "auto",
+          }}
+        >
+          <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
+        </button>
+      </div>
+
+      <div className="space-y-3.5">
+        <a
+          href={page.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+          style={{ textDecoration: "none" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2
+            className="hover:text-[var(--c-action)] transition-colors"
+            style={{
+              color: "var(--color-text-primary)",
+              font: "var(--font-page-title)",
+              letterSpacing: "var(--letter-spacing-page-title)",
+              margin: 0,
+            }}
+          >
+            {page.title}
+          </h2>
+        </a>
+
+        <div className="flex items-center gap-2.5">
+          <div className="flex-shrink-0">
+            <PageIcon url={page.url} />
+          </div>
+
+          <p
+            className="truncate flex-1"
+            style={{
+              color: "var(--color-text-secondary)",
+              font: "var(--font-caption)",
+              letterSpacing: "var(--letter-spacing-caption)",
+              margin: 0,
+            }}
+          >
+            {page.url}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2.5">
+          {page.tags.map((tag, tagIndex) => (
+            searchTags.includes(tag) ? (
+              <Tag key={tagIndex} label={tag} />
+            ) : (
+              <span
+                key={tagIndex}
+                className="inline-flex items-center px-2.5 py-1 rounded-lg"
+                style={{
+                  color: "var(--color-text-secondary)",
+                  font: "var(--font-tag)",
+                  letterSpacing: "var(--letter-spacing-tag)",
+                  background: "color-mix(in srgb, var(--c-glass) 10%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)",
+                  transition: "all 200ms ease",
+                }}
+              >
+                {tag}
+              </span>
+            )
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
