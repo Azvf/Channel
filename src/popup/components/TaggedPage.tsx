@@ -105,6 +105,8 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
   const [editingPage, setEditingPage] = useState<typeof MOCK_PAGES[0] | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
+  const [visiblePreviewId, setVisiblePreviewId] = useState<number | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const menuButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
@@ -122,6 +124,27 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
 
   const handleSavePage = (updatedPage: typeof MOCK_PAGES[0]) => {
     setPages(pages.map(p => p.id === updatedPage.id ? updatedPage : p));
+  };
+
+  const handleCardMouseEnter = (pageId: number) => {
+    setHoveredCardId(pageId);
+
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+    }
+
+    previewTimerRef.current = setTimeout(() => {
+      setVisiblePreviewId(pageId);
+    }, 300);
+  };
+
+  const handleCardMouseLeave = () => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+    }
+
+    setHoveredCardId(null);
+    setVisiblePreviewId(null);
   };
 
   const handleOpenMenu = (e: React.MouseEvent, page: typeof MOCK_PAGES[0]) => {
@@ -159,6 +182,14 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenuId]);
+
+  useEffect(() => {
+    return () => {
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -264,12 +295,12 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                           padding: '0.8rem 1.1rem',
                           cursor: 'default'
                         }}
-                        onMouseEnter={() => setHoveredCardId(page.id)}
-                        onMouseLeave={() => setHoveredCardId(null)}
+                        onMouseEnter={() => handleCardMouseEnter(page.id)}
+                        onMouseLeave={handleCardMouseLeave}
                       >
                         {/* More Button - Hover Area in top right */}
                         <div 
-                          className="absolute top-0 right-0 group/more"
+                          className="absolute top-0 right-0"
                           style={{
                             width: '120px',
                             height: '80px',
@@ -285,19 +316,19 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                               }
                             }}
                             onClick={(e) => handleOpenMenu(e, page)}
-                            className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0 
-                                       group-hover/more:opacity-100 transition-all
+                            className="absolute top-3 right-3 rounded-xl p-2.5 transition-all
                                        hover:bg-[color-mix(in_srgb,var(--c-action)_20%,transparent)]
                                        hover:border-[color-mix(in_srgb,var(--c-action)_45%,transparent)]
                                        hover:text-[var(--c-action)]
                                        hover:scale-105"
                             style={{
+                              opacity: hoveredCardId === page.id ? 1 : 0,
                               background: 'color-mix(in srgb, var(--c-glass) 18%, transparent)',
                               backdropFilter: 'blur(8px)',
                               border: '1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)',
                               color: 'color-mix(in srgb, var(--c-content) 65%, var(--c-bg))',
                               cursor: 'pointer',
-                              pointerEvents: 'auto'
+                              pointerEvents: hoveredCardId === page.id ? 'auto' : 'none'
                             }}
                           >
                             <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
@@ -336,7 +367,7 @@ export function TaggedPage({ className = "" }: TaggedPageProps) {
                                   url={page.url}
                                   screenshot={page.screenshot}
                                   title={page.title}
-                                  forceClose={hoveredCardId !== page.id}
+                                  isVisible={visiblePreviewId === page.id}
                                 />
                               </div>
                               <p 

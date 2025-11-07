@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeAndScale } from '../utils/motion';
@@ -9,7 +9,7 @@ interface PagePreviewProps {
   url: string;
   screenshot: string;
   title: string;
-  forceClose?: boolean;
+  isVisible: boolean;
 }
 
 // (V4) 增加宽度和边距常量
@@ -17,28 +17,15 @@ const PREVIEW_WIDTH = 360; // 保持 360px 宽度
 const VIEWPORT_MARGIN = 20; // 统一的屏幕边距
 const ICON_GAP = 12; // 图标与卡片的间距
 
-export function PagePreview({ url, screenshot, title, forceClose = false }: PagePreviewProps) {
-  const [showPreview, setShowPreview] = useState(false);
+export function PagePreview({ url, screenshot, title, isVisible }: PagePreviewProps) {
   const [faviconError, setFaviconError] = useState(false);
   const [previewPosition, setPreviewPosition] = useState({ top: 0, left: 0 });
-  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const faviconRef = useRef<HTMLDivElement>(null);
   const previewCardRef = useRef<HTMLDivElement>(null);
 
-  // 强制关闭
-  useEffect(() => {
-    if (forceClose) {
-      if (hoverTimerRef.current) {
-        clearTimeout(hoverTimerRef.current);
-        hoverTimerRef.current = null;
-      }
-      setShowPreview(false);
-    }
-  }, [forceClose]);
-
   // (V6) 核心定位逻辑 (Proximity First, Fallback Chain)
-  useEffect(() => {
-    if (showPreview && faviconRef.current && previewCardRef.current) {
+  useLayoutEffect(() => {
+    if (isVisible && faviconRef.current && previewCardRef.current) {
       
       const iconRect = faviconRef.current.getBoundingClientRect();
       const previewRect = previewCardRef.current.getBoundingClientRect();
@@ -112,7 +99,7 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
       
       setPreviewPosition({ top, left });
     }
-  }, [showPreview]); // 依赖 showPreview
+  }, [isVisible]);
 
   // --- 剩余代码 (不变) ---
 
@@ -124,28 +111,6 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
       return "";
     }
   };
-
-  const handleMouseEnter = () => {
-    hoverTimerRef.current = setTimeout(() => {
-      setShowPreview(true);
-    }, 300);
-  };
-
-  const handleMouseLeave = () => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-    setShowPreview(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimerRef.current) {
-        clearTimeout(hoverTimerRef.current);
-      }
-    };
-  }, []);
 
   const faviconUrl = getFaviconUrl(url);
 
@@ -239,8 +204,6 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
       {/* 1. 徽章 (Icon) 留在原处 */}
       <div 
         className="relative inline-flex items-center justify-center flex-shrink-0"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
         ref={faviconRef}
       >
         <div 
@@ -274,7 +237,7 @@ export function PagePreview({ url, screenshot, title, forceClose = false }: Page
       {/* 2. 将悬浮卡传送到 body */}
       {typeof document !== 'undefined' && (
         <AnimatePresence>
-          {showPreview && createPortal(tooltipElement, document.body)}
+          {isVisible && createPortal(tooltipElement, document.body)}
         </AnimatePresence>
       )}
     </>
