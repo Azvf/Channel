@@ -1,15 +1,19 @@
-// src/popup/components/TaggingPage.tsx
 import { useState, useEffect, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
-import { Plus, RefreshCw, Pencil } from "lucide-react";
+import { Plus, RefreshCw, Pencil, TrendingUp, Calendar } from "lucide-react";
 import { TaggedPage, GameplayTag } from "../../types/gameplayTag";
 import { currentPageService } from "../../services/popup/currentPageService";
 
 interface TaggingPageProps {
   className?: string;
+}
+
+interface UserStats {
+  todayCount: number;
+  streak: number;
 }
 
 export function TaggingPage({ className = "" }: TaggingPageProps) {
@@ -21,21 +25,52 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const [stats, setStats] = useState<UserStats>({ todayCount: 0, streak: 0 });
 
   useEffect(() => {
-    loadCurrentPage();
-    loadAllTags();
-  }, []);
+    // 统一加载所有初始数据
+    const loadAllData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // [修复] 步骤 1: 必须先单独 await 页面。
+        // 这是一个“写”操作，它需要先完成，以确保页面被注册。
+        const page = await currentPageService.getCurrentPage();
 
-  useEffect(() => {
-    if (allTags.length > 0) {
-      setSuggestions(allTags.map(tag => tag.name));
-    }
-  }, [allTags]);
+        // [修复] 步骤 2: 在页面注册成功后，再并行获取所有“读”操作。
+        // 这解决了竞态条件，确保 getUserStats() 能读到最新的页面数据。
+        const [tags, userStats] = await Promise.all([
+          currentPageService.getAllTags(),
+          currentPageService.getUserStats()
+        ]);
+        
+        // 步骤 3: 安全地设置所有状态
+        setCurrentPage(page);
+        setTitleValue(page.title);
+        setAllTags(tags);
+        setSuggestions(tags.map(tag => tag.name));
+        setStats(userStats); 
+        
+        setEditingTitle(false);
+        setError(null);
+      } catch (error) {
+        // 捕获来自 getCurrentPage 或 Promise.all 的任何错误
+        console.error('加载数据失败:', error);
+        const errorMessage = error instanceof Error ? error.message : '获取数据失败';
+        setError(errorMessage);
+        setCurrentPage(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadCurrentPage = async () => {
-    setLoading(true);
-    setError(null);
+    loadAllData();
+  }, []); // 仅在挂载时运行
+
+  // [新增] 2. 创建一个单独的函数来加载页面（用于刷新）
+  const loadCurrentPage = async (isManualRefresh = false) => {
+    if (isManualRefresh) setIsRefreshing(true);
     try {
       const page = await currentPageService.getCurrentPage();
       setCurrentPage(page);
@@ -48,7 +83,18 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       setError(errorMessage);
       setCurrentPage(null);
     } finally {
-      setLoading(false);
+      if (isManualRefresh) setIsRefreshing(false);
+    }
+  };
+  
+  // [新增] 3. 创建一个单独的函数来加载统计数据（用于即时反馈）
+  const loadStats = async () => {
+    try {
+      const userStats = await currentPageService.getUserStats();
+      setStats(userStats);
+    } catch (error) {
+      console.error('刷新统计数据失败:', error);
+      // 静默失败，不打扰用户
     }
   };
 
@@ -74,15 +120,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     }
   };
 
-  const loadAllTags = async () => {
-    try {
-      const tags = await currentPageService.getAllTags();
-      setAllTags(tags);
-    } catch (error) {
-      console.error('获取所有标签失败:', error);
-    }
-  };
-
   const handleAddTag = async (tagName: string) => {
     const trimmedTag = tagName.trim();
     if (!trimmedTag || !currentPage) return;
@@ -91,6 +128,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       const tag = await currentPageService.createTagAndAddToPage(trimmedTag, currentPage.id);
       if (!allTags.find(t => t.id === tag.id)) {
         setAllTags(prev => [...prev, tag]);
+        setSuggestions(prev => [...prev, tag.name]);
       }
     } catch (error) {
       console.error('添加标签失败:', error);
@@ -138,7 +176,11 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
 
     await Promise.all(promises);
 
+    // [修改] 4. 在核心操作完成后，重新加载页面 *并* 刷新统计数据
+    // 这就是“即时反馈”的关键
     await loadCurrentPage();
+    await loadStats(); 
+    
     setIsRefreshing(false);
   };
 
@@ -150,25 +192,19 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
 
   return (
     <div className={className}>
-      {/* --- 
-        单个统一的 GlassCard，包含所有内容 
-        --- */}
+      {/* 单个统一的 GlassCard */}
       <motion.div layout>
         <GlassCard className="p-4">
-          {/* 使用 framer-motion layout 处理高度动画 */}
           <motion.div
-            layout // <-- 自动处理高度动画
-            transition={LAYOUT_TRANSITION} // <-- 标准物理
-            className="space-y-4"
+            layout
+            transition={LAYOUT_TRANSITION}
+            className="space-y-4" // 移除 pb-2，我们将用页脚填充
             style={{ 
               willChange: 'height',
-              overflow: 'visible', // 改为 visible 以显示阴影
-              // 注意：如果内容溢出，需要在内部元素上单独处理
+              overflow: 'visible',
             }}
           >
-            {/* --- 
-              SECTION 1: 核心操作 - 添加标签标题 + URL
-              --- */}
+            {/* SECTION 1: 核心操作 - 添加标签标题 + URL */}
             <motion.div layout="position">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -185,7 +221,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     Add Tags
                   </span>
                 </div>
-                {/* URL 显示在右侧 */}
                 {currentPage?.url && (
                   <p 
                     style={{ 
@@ -205,10 +240,10 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     {currentPage.url}
                   </p>
                 )}
-                {/* 刷新按钮移到主操作区 */}
+                {/* 刷新按钮 */}
                 {(error || loading || isRefreshing) && (
                   <button
-                    onClick={loadCurrentPage}
+                    onClick={() => loadCurrentPage(true)} // [修改]
                     disabled={loading || isRefreshing}
                     className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50 flex-shrink-0"
                     style={{
@@ -227,9 +262,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               </div>
             </motion.div>
 
-            {/* --- 
-              SECTION 2: 可编辑标题 (In-Place Edit)
-              --- */}
+            {/* SECTION 2: 可编辑标题 (In-Place Edit) */}
             <motion.div layout="position">
               {editingTitle ? (
                 <textarea
@@ -348,9 +381,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               )}
             </motion.div>
 
-            {/* --- 
-              输入框 (修改)
-              --- */}
+            {/* SECTION 3: 输入框 */}
             <motion.div layout="position">
               <TagInput
                 tags={currentPageTagNames}
@@ -364,6 +395,56 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               />
             </motion.div>
             
+            {/* [新增] 5. SECTION 4: 微型统计栏 (The Subtle Nudge) */}
+            {!loading && !error && currentPage && (
+              <motion.div layout="position">
+                <div 
+                  className="flex items-center justify-between gap-4 pt-3 mt-2"
+                  style={{
+                    borderTop: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)'
+                  }}
+                >
+                  <div className="flex items-center gap-1.5" title="Today's tagged items">
+                    <Calendar className="w-3.5 h-3.5" style={{ color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))' }} strokeWidth={2} />
+                    <span style={{
+                      font: 'var(--font-footnote)',
+                      color: 'var(--color-text-secondary)',
+                      fontWeight: 500,
+                    }}>
+                      Today:
+                    </span>
+                    <span style={{
+                      font: 'var(--font-footnote)',
+                      color: 'var(--color-text-primary)',
+                      fontWeight: 600,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      {stats.todayCount}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5" title="Current tagging streak">
+                    <TrendingUp className="w-3.5 h-3.5" style={{ color: 'color-mix(in srgb, var(--c-content) 50%, var(--c-bg))' }} strokeWidth={2} />
+                    <span style={{
+                      font: 'var(--font-footnote)',
+                      color: 'var(--color-text-secondary)',
+                      fontWeight: 500,
+                    }}>
+                      Streak:
+                    </span>
+                    <span style={{
+                      font: 'var(--font-footnote)',
+                      color: 'var(--color-text-primary)',
+                      fontWeight: 600,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
+                      {stats.streak} days
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+
           </motion.div>
         </GlassCard>
       </motion.div>

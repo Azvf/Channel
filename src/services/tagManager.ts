@@ -162,65 +162,11 @@ export class TagManager {
     return newTag;
   }
 
-  /**
-   * 从 Chrome tabs API 获取当前标签页并注册页面
-   */
-  public async getCurrentTabAndRegisterPage(resolvedUrl?: string): Promise<TaggedPage> {
-    try {
-      // 检查 chrome.tabs API 是否可用
-      if (!chrome.tabs || !chrome.tabs.query) {
-        throw new Error('Chrome tabs API 不可用');
-      }
+  // [修复] 移除 getCurrentTabAndRegisterPage
+  // public async getCurrentTabAndRegisterPage(...) { ... }
 
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      
-      if (!tabs || tabs.length === 0) {
-        throw new Error('无法获取当前标签页：没有活动的标签页');
-      }
-
-      const tab = tabs[0];
-      
-      if (!tab || !tab.id) {
-        throw new Error('无法获取当前标签页：标签页 ID 无效');
-      }
-
-      // 检查 URL 是否有效（某些页面如 chrome:// 可能没有 URL）
-      if (!tab.url) {
-        throw new Error('无法获取当前页面：页面 URL 不可用（可能是 Chrome 内部页面）');
-      }
-      
-      const pageUrl = resolvedUrl || tab.url;
-
-      return this.createOrUpdatePage(
-        pageUrl,
-        tab.title || '无标题',
-        new URL(pageUrl).hostname,
-        tab.favIconUrl
-      );
-    } catch (error) {
-      const log = logger('TagManager');
-      log.error('getCurrentTabAndRegisterPage failed', { error });
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error(`获取当前页面失败: ${String(error)}`);
-    }
-  }
-
-  /**
-   * 确保页面已注册（如果不存在则创建）
-   */
-  public async ensurePageRegistered(pageId?: string): Promise<TaggedPage> {
-    if (pageId) {
-      const page = this.getPageById(pageId);
-      if (page) {
-        return page;
-      }
-    }
-    
-    // 页面不存在，从当前标签页创建
-    return await this.getCurrentTabAndRegisterPage();
-  }
+  // [修复] 移除 ensurePageRegistered
+  // public async ensurePageRegistered(...) { ... }
 
   /**
    * 添加或移除标签到页面（统一接口）
@@ -365,6 +311,81 @@ export class TagManager {
       tagsCount: Object.keys(this.tags).length,
       pagesCount: Object.keys(this.pages).length
     };
+  }
+
+  /**
+   * 获取用户激励统计数据（今日标记数量与连续天数）
+   */
+  public getUserStats(): { todayCount: number; streak: number } {
+    const allPages = Object.values(this.pages);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.getTime();
+    const tomorrowStart = todayStart + 24 * 60 * 60 * 1000;
+
+    const todayCount = allPages.filter(page =>
+      typeof page.createdAt === 'number' &&
+      page.createdAt >= todayStart &&
+      page.createdAt < tomorrowStart
+    ).length;
+
+    const streak = this.calculateStreak(allPages);
+
+    return { todayCount, streak };
+  }
+
+  /**
+   * 计算连续标记天数
+   * 如果今天没有标记但昨天有，继续 streak；
+   * 如果今天和昨天都没有标记， streak 置为 0。
+   */
+  private calculateStreak(pages: TaggedPage[]): number {
+    if (!pages.length) {
+      return 0;
+    }
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const markedDays = new Set<number>();
+
+    pages.forEach(page => {
+      if (typeof page.createdAt !== 'number') {
+        return;
+      }
+
+      const day = new Date(page.createdAt);
+      day.setHours(0, 0, 0, 0);
+      markedDays.add(day.getTime());
+    });
+
+    if (!markedDays.size) {
+      return 0;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.getTime();
+    const yesterdayStart = todayStart - dayMs;
+
+    let startDay: number | null = null;
+
+    if (markedDays.has(todayStart)) {
+      startDay = todayStart;
+    } else if (markedDays.has(yesterdayStart)) {
+      startDay = yesterdayStart;
+    } else {
+      return 0;
+    }
+
+    let streak = 0;
+    let pointer = startDay;
+
+    while (markedDays.has(pointer)) {
+      streak += 1;
+      pointer -= dayMs;
+    }
+
+    return streak;
   }
 
   // 私有方法

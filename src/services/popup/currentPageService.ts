@@ -262,8 +262,35 @@ class CurrentPageService {
       throw new Error(String(error));
     }
   }
+  /**
+   * 获取用户统计数据（今日标记数量与 streak）
+   */
+  async getUserStats(): Promise<{ todayCount: number; streak: number }> {
+    try {
+      const response = await this.sendMessageWithTimeout<{ todayCount: number; streak: number }>({
+        action: 'getUserStats'
+      });
+
+      if (!response) {
+        throw new Error('响应为空，无法获取用户统计');
+      }
+
+      if (response.success !== undefined && response.success && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response.error || '获取用户统计失败');
+    } catch (error) {
+      console.error('获取用户统计失败:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(String(error));
+    }
+  }
 }
 
 // 导出单例实例
 export const currentPageService = new CurrentPageService();
+
 

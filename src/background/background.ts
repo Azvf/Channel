@@ -1,3 +1,5 @@
+// src/background/background.ts
+
 // Background Service Worker
 // 在Manifest V3中，background script变成了service worker
 
@@ -126,6 +128,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 case 'updatePageTitle':
                     await handleUpdatePageTitle(message.data, sendResponse);
                     break;
+                case 'getUserStats':
+                    await handleGetUserStats(sendResponse);
+                    break;
                     
                 default:
                     sendResponse({ success: false, error: '未知操作' });
@@ -211,11 +216,11 @@ async function handleShowNotification(sendResponse: (response: any) => void) {
     }
 }
 
+// [修复] 恢复 handleGetCurrentPage 的原始签名和功能
 async function handleGetCurrentPage(sendResponse: (response: any) => void) {
-    console.log('[handleGetCurrentPage] 开始处理请求');
+    console.log('[handleGetCurrentPage] 开始处理请求 (使用 chrome.tabs.query)');
     try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        console.log('[handleGetCurrentPage] 查询到标签页数量:', tabs?.length);
         
         if (!tabs || tabs.length === 0) {
             console.error('[handleGetCurrentPage] 没有找到活动标签页');
@@ -223,15 +228,16 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void) {
         }
 
         const tab = tabs[0];
-        console.log('[handleGetCurrentPage] 活动标签页 URL:', tab.url);
+        console.log('[handleGetCurrentPage] 活动标签页 URL (来自 query):', tab.url);
         
-        if (!tab || !tab.id || !tab.url) {
-            console.error('[handleGetCurrentPage] 无效的标签页信息');
-            throw new Error('无效的标签页');
+        // [修复] 移除对 chrome:// 和 edge:// 的拦截，只保留对 about:blank 和空 URL 的检查
+        if (!tab || !tab.id || !tab.url || tab.url.startsWith('about:')) {
+            console.error('[handleGetCurrentPage] 无效的标签页信息 (URL 为空或 about:blank)');
+            throw new Error('无法在当前页面上操作 (页面尚未加载完成)');
         }
         
         let resolvedUrl = tab.url;
-        const pageSettings = await getPageSettings(); // (现在从缓存读取，很快)
+        const pageSettings = await getPageSettings();
         const syncVideoTimestamp = pageSettings.syncVideoTimestamp;
 
         if (syncVideoTimestamp) {
@@ -247,12 +253,32 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void) {
                     }
                 }
             } catch (error) {
-                console.warn('检测视频时间戳失败:', error);
+                // 允许在内部页面上失败（例如 chrome://extensions/）
+                console.warn('检测视频时间戳失败 (可能为内部页面):', error);
             }
         }
         
-        console.log('[handleGetCurrentPage] 准备调用 tagManager.getCurrentTabAndRegisterPage');
-        const page = await tagManager.getCurrentTabAndRegisterPage(resolvedUrl);
+        console.log('[handleGetCurrentPage] 准备调用 tagManager.createOrUpdatePage');
+        
+        // [修复] 安全地获取 hostname，防止 'new URL()' 对 'chrome://' 等协议抛出错误
+        let domain: string;
+        try {
+          // 尝试标准解析
+          domain = new URL(resolvedUrl).hostname;
+        } catch (e) {
+          // 回退到协议解析
+          const protocolMatch = resolvedUrl.match(/^([a-z]+):\/\//);
+          // e.g., 'chrome-page' or 'edge-page'
+          domain = protocolMatch ? `${protocolMatch[1]}-page` : 'internal-page';
+        }
+
+        const page = tagManager.createOrUpdatePage(
+            resolvedUrl,
+            tab.title || '无标题',
+            domain, // <-- 使用安全获取的 domain
+            tab.favIconUrl
+        );
+        
         console.log('[handleGetCurrentPage] 成功获取页面，准备发送响应');
         sendResponse({ success: true, data: page });
         console.log('[handleGetCurrentPage] 响应已发送');
@@ -443,6 +469,17 @@ async function handleUpdatePageTitle(data: any, sendResponse: (response: any) =>
     }
 }
 
+async function handleGetUserStats(sendResponse: (response: any) => void) {
+    try {
+        const stats = tagManager.getUserStats();
+        sendResponse({ success: true, data: stats });
+    } catch (error) {
+        console.error('获取用户统计失败:', error);
+        const errorMessage = error instanceof Error ? error.message : '获取用户统计失败';
+        sendResponse({ success: false, error: errorMessage });
+    }
+}
+
 // 监听标签页更新
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
@@ -454,3 +491,4 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
 chrome.storage.onChanged.addListener((_changes, _namespace) => {
     // TODO: 处理存储变化逻辑
 });
+
