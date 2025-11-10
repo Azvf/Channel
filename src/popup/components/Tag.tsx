@@ -15,7 +15,8 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           borderRadius: '99em' // 覆盖默认的 1.4em，保持 tag 的圆形外观
         }}
       >
-        <div className="liquidGlass-content flex items-center gap-2 group">
+        {/* [修复] 移除 "liquidGlass-content"，它带来了 `width: 100%` 的副作用 */}
+        <div className="tag-content flex items-center gap-2 group">
           <span 
             className="whitespace-nowrap px-2.5 py-1"
             style={{
