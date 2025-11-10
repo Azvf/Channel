@@ -40,7 +40,27 @@ global.chrome = {
       addListener: jest.fn(),
       hasListener: jest.fn(() => true), // 添加这个
     },
+    sendMessage: jest.fn((message: any, callback?: (response: any) => void) => {
+      const handler = (global as any).__CHROME_SEND_MESSAGE_HANDLER__;
+      if (handler) {
+        handler(message, callback);
+      } else if (typeof callback === 'function') {
+        setTimeout(() => {
+          callback((global as any).__MOCK_CHROME_RESPONSE__);
+        }, 0);
+      }
+      return true;
+    }),
     lastError: undefined, // 确保 lastError 为 undefined
+  },
+  notifications: {
+    create: jest.fn((_options: any, callback?: (notificationId: string) => void) => {
+      const notificationId = 'mock-notification-id';
+      if (callback) {
+        callback(notificationId);
+      }
+      return notificationId;
+    }),
   },
   scripting: {
     executeScript: jest.fn(() => Promise.resolve([{ result: null }])),
@@ -61,6 +81,20 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 });
+
+// requestAnimationFrame / cancelAnimationFrame polyfill
+if (!window.requestAnimationFrame) {
+  window.requestAnimationFrame = (callback: FrameRequestCallback): number => setTimeout(() => callback(performance.now()), 0) as unknown as number;
+}
+
+if (!window.cancelAnimationFrame) {
+  window.cancelAnimationFrame = (handle: number): void => clearTimeout(handle);
+}
+
+// scrollIntoView stub to prevent errors in jsdom
+if (!HTMLElement.prototype.scrollIntoView) {
+  HTMLElement.prototype.scrollIntoView = jest.fn();
+}
 
 // Mock console methods to reduce noise in tests
 global.console = {
