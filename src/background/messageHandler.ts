@@ -51,19 +51,21 @@ export async function getInitializationPromise(): Promise<void> {
   return initPromise;
 }
 
-export async function onInstalledHandler(_details: chrome.runtime.InstalledDetails): Promise<void> {
-  try {
-    await getInitializationPromise();
+export function onInstalledHandler(_details: chrome.runtime.InstalledDetails): void {
+  (async () => {
+    try {
+      await getInitializationPromise();
 
-    await syncStorageService.setMultiple({
-      [STORAGE_KEYS.EXTENSION_ENABLED]: true,
-      [STORAGE_KEYS.THEME]: 'default',
-      [STORAGE_KEYS.LAST_USED]: Date.now(),
-    });
-    console.log('Background: 插件已安装并设置默认值。');
-  } catch (error) {
-    console.error('Background: onInstalled 失败:', error);
-  }
+      await syncStorageService.setMultiple({
+        [STORAGE_KEYS.EXTENSION_ENABLED]: true,
+        [STORAGE_KEYS.THEME]: 'default',
+        [STORAGE_KEYS.LAST_USED]: Date.now(),
+      });
+      console.log('Background: 插件已安装并设置默认值。');
+    } catch (error) {
+      console.error('Background: onInstalled 失败:', error);
+    }
+  })();
 }
 
 async function getPageSettings(): Promise<PageSettings> {
