@@ -96,9 +96,29 @@ class ChromeStorageWrapper implements IStorageService {
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(key, JSON.stringify(value));
+
+        if (localStorage.getItem('SYNC_CACHE_LAST_FAIL')) {
+          localStorage.removeItem('SYNC_CACHE_LAST_FAIL');
+          console.log('[StorageService] 同步缓存 (localStorage) 写入成功，已清除失败标志。');
+        }
       }
     } catch (error) {
-      // 忽略 localStorage 写入错误，不影响主流程
+      console.error(
+        `[StorageService] CRITICAL: 同步缓存 (localStorage) 写入失败 (Key: "${key}")。`,
+        `启动性能可能会降级（出现闪烁）。`,
+        error
+      );
+
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('SYNC_CACHE_LAST_FAIL', Date.now().toString());
+        }
+      } catch (flagError) {
+        console.error(
+          `[StorageService] 连设置 SYNC_CACHE_LAST_FAIL 标志都失败了。`,
+          flagError
+        );
+      }
     }
   }
 
