@@ -185,6 +185,40 @@ class CurrentPageService {
   }
 
   /**
+   * 事务性更新页面标题和标签
+   */
+  async updatePageDetails(
+    pageId: string,
+    details: { title: string; tagsToAdd: string[]; tagsToRemove: string[] },
+  ): Promise<void> {
+    try {
+      const response = await this.sendMessageWithTimeout<void>({
+        action: 'updatePageDetails',
+        data: {
+          pageId,
+          title: details.title,
+          tagsToAdd: details.tagsToAdd,
+          tagsToRemove: details.tagsToRemove,
+        },
+      });
+
+      if (!response) {
+        throw new Error('响应为空，无法更新页面详情');
+      }
+
+      if (response.success === undefined || !response.success) {
+        throw new Error(response?.error || '更新页面详情失败');
+      }
+    } catch (error) {
+      console.error('更新页面详情失败:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(String(error));
+    }
+  }
+
+  /**
    * 批量更新页面标签
    */
   async updatePageTags(

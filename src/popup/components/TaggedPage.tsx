@@ -173,16 +173,11 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
       const removedTags = currentTagNames.filter((name) => !tagNames.includes(name));
 
       try {
-        if (nextTitle !== editingPage.title) {
-          await currentPageService.updatePageTitle(editingPage.id, nextTitle);
-        }
-
-        if (addedTags.length > 0 || removedTags.length > 0) {
-          await currentPageService.updatePageTags(editingPage.id, {
-            tagsToAdd: addedTags,
-            tagsToRemove: removedTags,
-          });
-        }
+        await currentPageService.updatePageDetails(editingPage.id, {
+          title: nextTitle,
+          tagsToAdd: addedTags,
+          tagsToRemove: removedTags,
+        });
 
         await refreshAllData();
         setActionError(null);
@@ -191,6 +186,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
         console.error("更新页面失败:", err);
         const message = err instanceof Error ? err.message : "更新页面失败";
         setActionError(message);
+        await refreshAllData();
       }
     },
     [editingPage, refreshAllData, tagIdToName, closeEditDialog],

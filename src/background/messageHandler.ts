@@ -131,6 +131,9 @@ export const messageHandler = (
         case 'updatePageTitle':
           await handleUpdatePageTitle(message.data, sendResponse);
           break;
+        case 'updatePageDetails':
+          await handleUpdatePageDetails(message.data, sendResponse);
+          break;
         case 'getUserStats':
           await handleGetUserStats(sendResponse);
           break;
@@ -439,6 +442,13 @@ interface UpdatePageTagsPayload {
   tagsToRemove?: string[];
 }
 
+interface UpdatePageDetailsPayload {
+  pageId: string;
+  title: string;
+  tagsToAdd?: string[];
+  tagsToRemove?: string[];
+}
+
 async function handleUpdatePageTags(data: UpdatePageTagsPayload, sendResponse: (response: any) => void): Promise<void> {
   try {
     if (!data?.pageId) {
@@ -529,6 +539,84 @@ async function handleUpdatePageTitle(data: any, sendResponse: (response: any) =>
   } catch (error) {
     console.error('更新页面标题失败:', error);
     const errorMessage = error instanceof Error ? error.message : '更新页面标题失败';
+    sendResponse({ success: false, error: errorMessage });
+  }
+}
+
+async function handleUpdatePageDetails(
+  data: UpdatePageDetailsPayload,
+  sendResponse: (response: any) => void,
+): Promise<void> {
+  try {
+    const { pageId, title, tagsToAdd = [], tagsToRemove = [] } = data ?? {};
+
+    if (!pageId) {
+      sendResponse({ success: false, error: '页面ID不能为空' });
+      return;
+    }
+
+    const page = tagManager.getPageById(pageId);
+    if (!page) {
+      sendResponse({ success: false, error: '页面不存在' });
+      return;
+    }
+
+    let titleUpdated = false;
+    let tagsUpdated = false;
+
+    const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+    if (normalizedTitle && normalizedTitle !== page.title) {
+      const success = tagManager.updatePageTitle(pageId, normalizedTitle);
+      if (success) {
+        titleUpdated = true;
+      }
+    }
+
+    const normalizedTagsToAdd = Array.from(
+      new Set(
+        tagsToAdd
+          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(tag => tag.length > 0),
+      ),
+    );
+
+    const normalizedTagsToRemove = Array.from(
+      new Set(
+        tagsToRemove
+          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(tag => tag.length > 0),
+      ),
+    );
+
+    if (normalizedTagsToAdd.length > 0 || normalizedTagsToRemove.length > 0) {
+      normalizedTagsToAdd.forEach(tagName => {
+        tagManager.createTagAndAddToPage(tagName, pageId);
+      });
+
+      normalizedTagsToRemove.forEach(tagIdentifier => {
+        const existingById = tagManager.getTagById(tagIdentifier);
+        if (existingById) {
+          tagManager.removeTagFromPage(pageId, existingById.id);
+          return;
+        }
+
+        const existingByName = tagManager.findTagByName(tagIdentifier);
+        if (existingByName) {
+          tagManager.removeTagFromPage(pageId, existingByName.id);
+        }
+      });
+
+      tagsUpdated = true;
+    }
+
+    if (titleUpdated || tagsUpdated) {
+      await tagManager.syncToStorage();
+    }
+
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('事务性更新页面详情失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '事务性更新页面详情失败';
     sendResponse({ success: false, error: errorMessage });
   }
 }
