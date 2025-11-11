@@ -21,7 +21,8 @@ import {
 import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
 import { currentPageService } from "../../services/popup/currentPageService";
-import { TaggedPage as TaggedPageType, GameplayTag } from "../../types/gameplayTag";
+import { TaggedPage as TaggedPageType } from "../../types/gameplayTag";
+import { useAppContext } from "../context/AppContext";
 
 const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
   <div
@@ -63,11 +64,6 @@ interface TaggedPageProps {
   onOpenStats: () => void;
 }
 
-interface UserStats {
-  todayCount: number;
-  streak: number;
-}
-
 interface PageCardProps {
   page: TaggedPageType;
   searchTags: string[];
@@ -78,12 +74,17 @@ interface PageCardProps {
 }
 
 export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: TaggedPageProps) {
+  const {
+    allPages,
+    allTags,
+    stats,
+    loading: appLoading,
+    error: appError,
+    refreshAllData,
+  } = useAppContext();
+
   const [searchTags, setSearchTags] = useState<string[]>([]);
-  const [allPages, setAllPages] = useState<TaggedPageType[]>([]);
-  const [allTags, setAllTags] = useState<GameplayTag[]>([]);
-  const [stats, setStats] = useState<UserStats>({ todayCount: 0, streak: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [editingPage, setEditingPage] = useState<TaggedPageType | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -91,33 +92,22 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [removedPageIds, setRemovedPageIds] = useState<Set<string>>(new Set<string>());
 
-  const loadAllData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [pagesData, tagsData, statsData] = await Promise.all([
-        currentPageService.getAllTaggedPages(),
-        currentPageService.getAllTags(),
-        currentPageService.getUserStats(),
-      ]);
-
-      setAllPages(pagesData);
-      setAllTags(tagsData);
-      setStats(statsData);
-    } catch (err) {
-      console.error("加载 TaggedPage 数据失败:", err);
-      const message = err instanceof Error ? err.message : "加载数据失败";
-      setError(message);
-      setAllPages([]);
-    } finally {
-      setLoading(false);
-    }
+  const removePageFromView = useCallback((pageId: string) => {
+    setRemovedPageIds((prev) => {
+      if (prev.has(pageId)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.add(pageId);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
-    loadAllData();
-  }, [loadAllData]);
+    setRemovedPageIds(new Set<string>());
+  }, [allPages]);
 
   const tagIdToName = useMemo(() => {
     const map = new Map<string, string>();
@@ -137,18 +127,26 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
 
   const suggestions = useMemo(() => allTags.map((tag) => tag.name), [allTags]);
 
+  const visiblePages = useMemo(
+    () => allPages.filter((page) => !removedPageIds.has(page.id)),
+    [allPages, removedPageIds],
+  );
+
   const filteredPages = useMemo(() => {
     if (searchTags.length === 0) {
-      return allPages;
+      return visiblePages;
     }
 
-    return allPages.filter((page) =>
+    return visiblePages.filter((page) =>
       searchTags.every((tagName) => {
         const tagId = tagNameToId.get(tagName);
         return tagId ? page.tags.includes(tagId) : false;
       }),
     );
-  }, [allPages, searchTags, tagNameToId]);
+  }, [visiblePages, searchTags, tagNameToId]);
+
+  const loading = appLoading;
+  const error = appError || actionError;
 
   const handleEditPage = (page: TaggedPageType) => {
     setEditingPage(page);
@@ -186,15 +184,16 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
           });
         }
 
-        await loadAllData();
+        await refreshAllData();
+        setActionError(null);
         closeEditDialog();
       } catch (err) {
         console.error("更新页面失败:", err);
         const message = err instanceof Error ? err.message : "更新页面失败";
-        setError(message);
+        setActionError(message);
       }
     },
-    [editingPage, loadAllData, tagIdToName, closeEditDialog],
+    [editingPage, refreshAllData, tagIdToName, closeEditDialog],
   );
 
   const registerMenuButton = (pageId: string, button: HTMLButtonElement | null) => {
@@ -309,7 +308,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                 className="hud-button flex items-center gap-3"
               >
                 <StatItem icon={<TrendingUp />} value={stats.streak} />
-                <StatItem icon={<Bookmark />} value={allPages.length} />
+                <StatItem icon={<Bookmark />} value={visiblePages.length} />
                 <StatItem icon={<TagIcon />} value={allTags.length} />
               </button>
 
@@ -398,7 +397,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {filteredPages.length}/{allPages.length}
+                  {filteredPages.length}/{visiblePages.length}
                 </div>
               </div>
             </div>
@@ -509,7 +508,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
       {createPortal(
         <AnimatePresence>
           {openMenuId !== null && (() => {
-            const page = allPages.find((p) => p.id === openMenuId);
+            const page = visiblePages.find((p) => p.id === openMenuId);
             if (!page) return null;
 
             return (
@@ -591,7 +590,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                       <li>
                         <button
                           onClick={() => {
-                            setAllPages((prev) => prev.filter((p) => p.id !== page.id));
+                            removePageFromView(page.id);
                             handleCloseMenu();
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"

@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import { loadAppInitialState, loadAppInitialStateSync } from '../services/appInitService';
 import { applyThemeToBody } from './utils/theme';
+import { AppProvider } from './context/AppContext';
 
 /**
  * 应用初始化
@@ -44,7 +45,9 @@ initializeApp().then((initialState) => {
   
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <App initialState={initialState} />
+      <AppProvider>
+        <App initialState={initialState} />
+      </AppProvider>
     </React.StrictMode>
   );
 });
