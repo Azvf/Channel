@@ -3,8 +3,7 @@ import { createPortal } from 'react-dom';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { ActivityTooltip } from './ActivityTooltip';
-import { TagManager } from '../../services/tagManager';
-import { storageService, STORAGE_KEYS } from '../../services/storageService';
+import { currentPageService } from '../../services/popup/currentPageService';
 
 interface StatsWallModalProps {
   isOpen: boolean;
@@ -72,18 +71,7 @@ function generateEmptyCalendarDays(): { days: DayData[]; monthLabels: MonthLabel
  * [V9] 2. 异步数据获取 (保持 V5 逻辑)
  */
 async function loadAndProcessActivityData(): Promise<{ days: DayData[]; monthLabels: MonthLabel[] }> {
-  const tagManager = TagManager.getInstance();
-  
-  const storageData = await storageService.getMultiple([
-    STORAGE_KEYS.TAGS,
-    STORAGE_KEYS.PAGES
-  ]);
-  tagManager.initialize({
-    tags: (storageData[STORAGE_KEYS.TAGS] || null) as any,
-    pages: (storageData[STORAGE_KEYS.PAGES] || null) as any,
-  });
-
-  const pages = tagManager.getTaggedPages();
+  const pages = await currentPageService.getAllTaggedPages();
 
   const activityMap = new Map<string, number>();
   pages.forEach(page => {

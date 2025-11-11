@@ -7,6 +7,19 @@ const tagManager = TagManager.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
 let initPromise: Promise<void> | null = null;
 
+interface RuntimeMessage {
+  action: string;
+  // 使用 any 保持兼容性，具体类型由各个处理器验证
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
+}
+
+interface MessageResponse {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
+
 export function resetInitializationForTests(): void {
   initPromise = null;
   currentPageSettings = DEFAULT_PAGE_SETTINGS;
@@ -71,7 +84,11 @@ async function getPageSettings(): Promise<PageSettings> {
   return currentPageSettings;
 }
 
-export const messageHandler: chrome.runtime.MessageListener = (message, sender, sendResponse) => {
+export const messageHandler = (
+  message: RuntimeMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: MessageResponse) => void,
+): boolean => {
   (async () => {
     try {
       await getInitializationPromise();
@@ -116,6 +133,12 @@ export const messageHandler: chrome.runtime.MessageListener = (message, sender, 
           break;
         case 'getUserStats':
           await handleGetUserStats(sendResponse);
+          break;
+        case 'exportData':
+          await handleExportData(sendResponse);
+          break;
+        case 'importData':
+          await handleImportData(message.data, sendResponse);
           break;
         default:
           sendResponse({ success: false, error: '未知操作' });
@@ -517,6 +540,41 @@ async function handleGetUserStats(sendResponse: (response: any) => void): Promis
   } catch (error) {
     console.error('获取用户统计失败:', error);
     const errorMessage = error instanceof Error ? error.message : '获取用户统计失败';
+    sendResponse({ success: false, error: errorMessage });
+  }
+}
+
+async function handleExportData(sendResponse: (response: any) => void): Promise<void> {
+  try {
+    const jsonData = tagManager.exportData();
+    sendResponse({ success: true, data: jsonData });
+  } catch (error) {
+    console.error('导出数据失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '导出数据失败';
+    sendResponse({ success: false, error: errorMessage });
+  }
+}
+
+async function handleImportData(
+  data: { jsonData: string; mergeMode: boolean },
+  sendResponse: (response: any) => void,
+): Promise<void> {
+  try {
+    if (!data || typeof data.jsonData !== 'string') {
+      sendResponse({ success: false, error: '无效的导入数据' });
+      return;
+    }
+
+    const result = await tagManager.importData(data.jsonData, data.mergeMode);
+
+    if (result.success) {
+      sendResponse({ success: true, data: result.imported });
+    } else {
+      sendResponse({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('导入数据失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '导入数据失败';
     sendResponse({ success: false, error: errorMessage });
   }
 }

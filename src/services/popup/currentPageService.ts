@@ -276,6 +276,64 @@ class CurrentPageService {
   }
 
   /**
+   * 请求 Service Worker 导出所有数据
+   */
+  async exportData(): Promise<string> {
+    try {
+      const response = await this.sendMessageWithTimeout<string>({
+        action: 'exportData'
+      });
+
+      if (!response) {
+        throw new Error('响应为空，无法导出数据');
+      }
+
+      if (response.success && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response.error || '导出数据失败');
+    } catch (error) {
+      console.error('导出数据失败:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(String(error));
+    }
+  }
+
+  /**
+   * 请求 Service Worker 导入数据
+   */
+  async importData(
+    jsonData: string,
+    mergeMode: boolean
+  ): Promise<{ tagsCount: number; pagesCount: number }> {
+    try {
+      const response = await this.sendMessageWithTimeout<{ tagsCount: number; pagesCount: number }>({
+        action: 'importData',
+        data: { jsonData, mergeMode }
+      });
+
+      if (!response) {
+        throw new Error('响应为空，无法导入数据');
+      }
+
+      if (response.success && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response.error || '导入数据失败');
+    } catch (error) {
+      console.error('导入数据失败:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(String(error));
+    }
+  }
+
+  /**
    * 更新页面标题
    */
   async updatePageTitle(pageId: string, title: string): Promise<void> {

@@ -12,8 +12,7 @@ import { SettingsSectionTitle } from './SettingsSectionTitle';
 import { TagManagementPage } from './TagManagementPage';
 import { usePageSettings } from '../utils/usePageSettings';
 import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
-import { TagManager } from '../../services/tagManager';
-import { storageService, STORAGE_KEYS } from '../../services/storageService';
+import { currentPageService } from '../../services/popup/currentPageService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -43,23 +42,8 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   const handleExportData = async () => {
     try {
       setIsExporting(true);
-      
-      // 获取 TagManager 实例并初始化
-      const tagManager = TagManager.getInstance();
-      
-      // 从存储中加载数据
-      const storageData = await storageService.getMultiple([
-        STORAGE_KEYS.TAGS,
-        STORAGE_KEYS.PAGES
-      ]);
-      
-      tagManager.initialize({
-        tags: storageData[STORAGE_KEYS.TAGS] || null,
-        pages: storageData[STORAGE_KEYS.PAGES] || null
-      });
-      
-      // 导出数据
-      const jsonData = tagManager.exportData();
+
+      const jsonData = await currentPageService.exportData();
       
       // 创建下载链接
       const blob = new Blob([jsonData], { type: 'application/json' });
@@ -90,20 +74,6 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
       // 读取文件内容
       const text = await file.text();
       
-      // 获取 TagManager 实例并初始化
-      const tagManager = TagManager.getInstance();
-      
-      // 从存储中加载当前数据
-      const storageData = await storageService.getMultiple([
-        STORAGE_KEYS.TAGS,
-        STORAGE_KEYS.PAGES
-      ]);
-      
-      tagManager.initialize({
-        tags: storageData[STORAGE_KEYS.TAGS] || null,
-        pages: storageData[STORAGE_KEYS.PAGES] || null
-      });
-      
       // 询问用户是覆盖还是合并
       const mergeMode = window.confirm(
         '导入模式选择：\n\n' +
@@ -111,27 +81,20 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
         '点击"取消"：覆盖模式（完全替换现有数据）'
       );
       
-      // 导入数据
-      const result = await tagManager.importData(text, mergeMode);
+      const result = await currentPageService.importData(text, mergeMode);
+
+      alert(
+        `导入成功！\n` +
+        `标签：${result.tagsCount || 0} 个\n` +
+        `页面：${result.pagesCount || 0} 个`
+      );
       
-      if (result.success) {
-        // 同步到存储
-        await tagManager.syncToStorage();
-        
-        alert(
-          `导入成功！\n` +
-          `标签：${result.imported?.tagsCount || 0} 个\n` +
-          `页面：${result.imported?.pagesCount || 0} 个`
-        );
-        
-        // 刷新页面以显示新数据
-        window.location.reload();
-      } else {
-        alert(`导入失败：${result.error || '未知错误'}`);
-      }
+      // 刷新页面以显示新数据
+      window.location.reload();
     } catch (error) {
       console.error('导入数据失败:', error);
-      alert('导入数据失败，请检查文件格式是否正确');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`导入数据失败：${errorMessage}`);
     } finally {
       setIsImporting(false);
       // 重置文件输入
