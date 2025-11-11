@@ -10,9 +10,15 @@ const createMockTagManager = () => ({
   createTagAndAddToPage: jest.fn(),
   removeTagFromPage: jest.fn(),
   updatePageTitle: jest.fn(),
+  getPageById: jest.fn(),
+  getTagById: jest.fn(),
+  findTagByName: jest.fn(),
   getAllTags: jest.fn(),
   getTaggedPages: jest.fn(),
   getUserStats: jest.fn(),
+  updateTagName: jest.fn(),
+  deleteTag: jest.fn(),
+  getAllTagUsageCounts: jest.fn(),
   syncToStorage: jest.fn(() => Promise.resolve()),
 });
 
@@ -106,6 +112,77 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(sendResponse).toHaveBeenCalledWith({ success: false, error: expect.stringContaining('storage failed') });
+  });
+
+  it('should handle updatePageDetails transactionally', async () => {
+    const sendResponse = jest.fn();
+    const data = { pageId: 'p1', title: 'New Title', tagsToAdd: ['T1'], tagsToRemove: ['T2'] };
+
+    mockTagManagerInstance.getPageById.mockReturnValue({ id: 'p1', title: 'Old Title', tags: [] });
+    mockTagManagerInstance.updatePageTitle.mockReturnValue(true);
+
+    messageHandler({ action: 'updatePageDetails', data }, {}, sendResponse);
+
+    await flushPromises();
+
+    expect(mockTagManagerInstance.updatePageTitle).toHaveBeenCalledWith('p1', 'New Title');
+    expect(mockTagManagerInstance.createTagAndAddToPage).toHaveBeenCalledWith('T1', 'p1');
+    expect(mockTagManagerInstance.findTagByName).toHaveBeenCalledWith('T2');
+    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalledTimes(1);
+    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+  });
+
+  it('should handle updateTag', async () => {
+    const sendResponse = jest.fn();
+    mockTagManagerInstance.updateTagName.mockReturnValue({ success: true });
+
+    messageHandler({ action: 'updateTag', data: { tagId: 't1', newName: 'New' } }, {}, sendResponse);
+
+    await flushPromises();
+
+    expect(mockTagManagerInstance.updateTagName).toHaveBeenCalledWith('t1', 'New');
+    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalledTimes(1);
+    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+  });
+
+  it('should not sync on updateTag failure', async () => {
+    const sendResponse = jest.fn();
+    mockTagManagerInstance.updateTagName.mockReturnValue({ success: false, error: 'Exists' });
+
+    messageHandler({ action: 'updateTag', data: { tagId: 't1', newName: 'New' } }, {}, sendResponse);
+
+    await flushPromises();
+
+    expect(mockTagManagerInstance.updateTagName).toHaveBeenCalled();
+    expect(mockTagManagerInstance.syncToStorage).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: false, error: 'Exists' });
+  });
+
+  it('should handle deleteTag', async () => {
+    const sendResponse = jest.fn();
+    mockTagManagerInstance.deleteTag.mockReturnValue(true);
+
+    messageHandler({ action: 'deleteTag', data: { tagId: 't1' } }, {}, sendResponse);
+
+    await flushPromises();
+
+    expect(mockTagManagerInstance.deleteTag).toHaveBeenCalledWith('t1');
+    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalledTimes(1);
+    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+  });
+
+  it('should handle getAllTagUsageCounts', async () => {
+    const sendResponse = jest.fn();
+    const counts = { t1: 5, t2: 0 };
+    mockTagManagerInstance.getAllTagUsageCounts.mockReturnValue(counts);
+
+    messageHandler({ action: 'getAllTagUsageCounts' }, {}, sendResponse);
+
+    await flushPromises();
+
+    expect(mockTagManagerInstance.getAllTagUsageCounts).toHaveBeenCalled();
+    expect(mockTagManagerInstance.syncToStorage).not.toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: counts });
   });
 });
 

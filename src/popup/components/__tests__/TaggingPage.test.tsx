@@ -1,86 +1,91 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { AppProvider } from '../../context/AppContext';
 import { TaggingPage } from '../TaggingPage';
 import { currentPageService } from '../../../services/popup/currentPageService';
 
-jest.mock('../../../services/popup/currentPageService', () => ({
-  currentPageService: {
-    getCurrentPage: jest.fn(),
-    getAllTags: jest.fn(),
-    getUserStats: jest.fn(),
-    createTagAndAddToPage: jest.fn(),
-    removeTagFromPage: jest.fn(),
-    updatePageTitle: jest.fn(),
-  },
-}));
+jest.mock('../../../services/popup/currentPageService');
 
-const mockService = currentPageService as unknown as Record<string, jest.Mock>;
+const mockedPageService = currentPageService as jest.Mocked<typeof currentPageService>;
 
-const initialPage = {
-  id: 'page-1',
-  url: 'https://example.com',
-  title: 'Test Page',
-  tags: ['tag-1'],
-  favIconUrl: 'https://example.com/favicon.ico',
-  domain: 'example.com',
-};
-
-const updatedPage = {
-  ...initialPage,
-  tags: ['tag-1', 'tag-2'],
-};
-
-const allTags = [
-  { id: 'tag-1', name: 'React', color: '#fff' },
+const MOCK_TAGS = [
+  { id: 't1', name: 'React', description: 'Library', color: '#61dafb', createdAt: 1, updatedAt: 1, bindings: [] },
 ];
 
-describe('TaggingPage component', () => {
+const MOCK_STATS = { todayCount: 5, streak: 10 };
+const MOCK_PAGE = {
+  id: 'p1',
+  url: 'https://example.com',
+  title: 'Test Page',
+  domain: 'example.com',
+  tags: ['t1'],
+  createdAt: 1,
+  updatedAt: 1,
+};
+
+const UPDATED_MOCK_PAGE = {
+  ...MOCK_PAGE,
+  tags: ['t1', 't2'],
+};
+
+const renderPage = async () => {
+  render(
+    <AppProvider>
+      <TaggingPage />
+    </AppProvider>,
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText('Test Page')).toBeInTheDocument();
+  });
+};
+
+describe('TaggingPage (with Context)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockService.getCurrentPage
-      .mockResolvedValueOnce(initialPage)
-      .mockResolvedValue(updatedPage);
-
-    mockService.getAllTags.mockResolvedValue(allTags);
-    mockService.getUserStats.mockResolvedValue({ todayCount: 5, streak: 2 });
-    mockService.createTagAndAddToPage.mockResolvedValue({ id: 'tag-2', name: 'New Tag', color: '#000' });
+    mockedPageService.getAllTags.mockResolvedValue(MOCK_TAGS);
+    mockedPageService.getAllTaggedPages.mockResolvedValue([]);
+    mockedPageService.getUserStats.mockResolvedValue(MOCK_STATS);
+    mockedPageService.getCurrentPage.mockResolvedValue(MOCK_PAGE);
   });
 
-  it('loads initial page data and displays stats', async () => {
-    render(<TaggingPage />);
+  it('should render data from both Context and its own fetch', async () => {
+    await renderPage();
 
-    expect(await screen.findByText('Test Page')).toBeInTheDocument();
+    expect(screen.getByText('10 days')).toBeInTheDocument();
     expect(screen.getByText('React')).toBeInTheDocument();
-    expect(screen.getByText('Today:')).toBeInTheDocument();
-    expect(screen.getByText('2 days')).toBeInTheDocument();
+    expect(screen.getByText('Test Page')).toBeInTheDocument();
 
-    expect(mockService.getCurrentPage).toHaveBeenCalledTimes(1);
-    expect(mockService.getAllTags).toHaveBeenCalledTimes(1);
-    expect(mockService.getUserStats).toHaveBeenCalledTimes(1);
+    expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(1);
+    expect(mockedPageService.getCurrentPage).toHaveBeenCalledTimes(1);
   });
 
-  it('creates a new tag and syncs with services', async () => {
+  it('should call updatePageTags and refreshAllData when adding a tag', async () => {
     const user = userEvent.setup();
+    mockedPageService.updatePageTags.mockResolvedValue({
+      newPage: UPDATED_MOCK_PAGE,
+      newStats: MOCK_STATS,
+    });
 
-    render(<TaggingPage />);
+    await renderPage();
 
-    await screen.findByText('Test Page');
+    expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(1);
 
     const input = screen.getByRole('textbox');
-    await user.type(input, 'New Tag');
-    await user.type(input, '{enter}');
-
-    await waitFor(() => {
-      expect(mockService.createTagAndAddToPage).toHaveBeenCalledWith('New Tag', 'page-1');
+    await act(async () => {
+      await user.type(input, 'New Tag{enter}');
     });
 
     await waitFor(() => {
-      expect(screen.getByText('New Tag')).toBeInTheDocument();
+      expect(mockedPageService.updatePageTags).toHaveBeenCalledWith('p1', {
+        tagsToAdd: ['New Tag'],
+        tagsToRemove: [],
+      });
     });
 
-    expect(mockService.getCurrentPage).toHaveBeenCalledTimes(2);
-    expect(mockService.getUserStats).toHaveBeenCalledTimes(2);
+    expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(2);
+    expect(mockedPageService.getUserStats).toHaveBeenCalledTimes(2);
   });
 });
 
