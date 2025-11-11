@@ -1,19 +1,19 @@
-import type { ReactElement } from 'react';
 import { expect, test as base } from '@playwright/experimental-ct-react';
-import { AppProvider } from '../../src/popup/context/AppContext';
+import { setProjectAnnotations } from '@storybook/react';
+import preview from '../../.storybook/preview';
 import { setupStorybookMocks } from '../../src/popup/mocks/storybookMocks';
-import '../../src/popup/globals.css';
 import '../../src/popup/index.css';
 
 setupStorybookMocks();
+setProjectAnnotations(preview);
 
 export const test = base.extend({
-  mount: async ({ mount }, use) => {
-    await use(async (component: ReactElement, options) => {
-      return mount(<AppProvider>{component}</AppProvider>, options);
+  page: async ({ page }, use) => {
+    page.on('console', (msg) => {
+      console.log('[browser]', msg.type(), msg.text());
     });
+    await use(page);
   },
 });
-
 export { expect };
 

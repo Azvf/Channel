@@ -1,5 +1,5 @@
 /* @custom-variant dark (&:is(.dark *)); */
-
+@tailwind base;
 @layer base {
   /* * {
     @apply border-border outline-ring/50;

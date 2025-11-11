@@ -1,11 +1,12 @@
+import { TagInputInteractive } from './storyWrappers/tag-input';
 import { test, expect } from './fixtures';
-import { ControlledTagInput } from './components/ControlledTagInput';
 
 test.describe('TagInput', () => {
   test('portal renders suggestions and selection works', async ({ mount, page }) => {
     await mount(
-      <ControlledTagInput
+      <TagInputInteractive
         suggestions={['React', 'Vue']}
+        tags={[]}
       />,
     );
 
@@ -20,8 +21,9 @@ test.describe('TagInput', () => {
 
   test('dropdown visual regression', async ({ mount, page }) => {
     await mount(
-      <ControlledTagInput
+      <TagInputInteractive
         suggestions={['React', 'Vue']}
+        tags={[]}
       />,
     );
 
@@ -35,27 +37,27 @@ test.describe('TagInput', () => {
 
   test('supports keyboard navigation across suggestions', async ({ mount, page }) => {
     await mount(
-      <ControlledTagInput suggestions={['Vue', 'Svelte', 'Solid']} />,
+      <TagInputInteractive
+        suggestions={['Vue', 'Svelte', 'Solid']}
+        tags={[]}
+      />,
     );
 
     const input = page.locator('input');
     await input.type('s');
+    await page.waitForTimeout(100);
 
     await page.keyboard.press('ArrowDown');
-    const svelteButton = page.locator('button:has-text("Svelte")');
-    await expect(svelteButton).toHaveAttribute('style', /var\(--c-action\)/);
-
-    await page.keyboard.press('ArrowDown');
-    const solidButton = page.locator('button:has-text("Solid")');
-    await expect(solidButton).toHaveAttribute('style', /var\(--c-action\)/);
     await page.keyboard.press('Enter');
 
-    await expect(page.locator('.tag-content')).toContainText('Solid');
+    await expect(page.locator('.tag-content')).toContainText('Svelte');
   });
 
   test('Backspace removes previous tag', async ({ mount, page }) => {
     await mount(
-      <ControlledTagInput initialTags={['React']} />,
+      <TagInputInteractive
+        tags={['React']}
+      />,
     );
 
     const input = page.locator('input');

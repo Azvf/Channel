@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from 'storybook/react';
-import { fn } from '@storybook/test';
 
 import { StatsWallModal } from './StatsWallModal';
 import { setMockPages } from '../mocks/storybookMocks';
@@ -41,12 +40,14 @@ const heavyActivity = createMockPages(
 // 默认数据
 setMockPages(lightActivity);
 
+const noop = () => undefined;
+
 const meta: Meta<typeof StatsWallModal> = {
   title: 'Popup/StatsWallModal',
   component: StatsWallModal,
   args: {
     isOpen: true,
-    onClose: fn(),
+    onClose: noop,
   },
   parameters: {
     layout: 'fullscreen',

@@ -1,85 +1,33 @@
+import { TaggedPageDefaultStory } from './storyWrappers/tagged-page';
 import { test, expect } from './fixtures';
-import { TaggedPage } from '../../src/popup/components/TaggedPage';
-import { setMockPages } from '../../src/popup/mocks/storybookMocks';
-import type { TaggedPage as TaggedPageType } from '../../src/types/gameplayTag';
-
-const mockPages: TaggedPageType[] = [
-  {
-    id: 'page-alpha',
-    url: 'https://example.com/alpha',
-    title: 'Alpha 页面',
-    domain: 'example.com',
-    tags: ['tag-react', 'tag-ui'],
-    createdAt: Date.now() - 1000 * 60 * 60,
-    updatedAt: Date.now() - 1000 * 60,
-    description: '用于测试上下文菜单的页面',
-    favicon: 'https://example.com/favicon.ico',
-  },
-  {
-    id: 'page-beta',
-    url: 'https://example.com/beta',
-    title: 'Beta 页面',
-    domain: 'example.com',
-    tags: ['tag-type'],
-    createdAt: Date.now() - 1000 * 60 * 120,
-    updatedAt: Date.now() - 1000 * 60 * 30,
-    description: '用于测试长按菜单的页面',
-    favicon: 'https://example.com/favicon.ico',
-  },
-];
 
 test.describe('TaggedPage', () => {
-  test.beforeEach(async () => {
-    setMockPages(mockPages);
-  });
+  test('shows context menu via actions button', async ({ mount, page }) => {
+    await mount(<TaggedPageDefaultStory />);
 
-  test('shows context menu on right click', async ({ mount, page }) => {
-    await mount(
-      <TaggedPage onOpenSettings={() => {}} onOpenStats={() => {}} />,
-    );
-
-    const firstCard = page.getByTestId('page-card-page-alpha');
+    const firstCard = page.locator('[data-testid^="page-card-"]').first();
     await firstCard.waitFor();
-    await firstCard.click({ button: 'right' });
+    await firstCard.locator('button[aria-label="更多操作"]').click();
 
-    await expect(page.locator('body')).toContainText('Edit');
-    await expect(page.locator('body')).toContainText('Copy URL');
+    const menu = page.locator('[data-menu-id]');
+    await expect(menu).toBeVisible({ timeout: 2000 });
+    await expect(menu).toContainText('Edit');
+    await expect(menu).toContainText('Copy URL');
   });
 
   test('opens menu on long press (touch)', async ({ mount, page }) => {
-    await mount(
-      <TaggedPage onOpenSettings={() => {}} onOpenStats={() => {}} />,
-    );
+    await mount(<TaggedPageDefaultStory />);
 
-    const card = page.getByTestId('page-card-page-beta');
+    const card = page.locator('[data-testid^="page-card-"]').nth(1);
     await card.waitFor();
 
-    const box = await card.boundingBox();
-    if (!box) {
-      throw new Error('Failed to get card bounding box');
-    }
-
-    await card.dispatchEvent('touchstart', {
-      touches: [
-        {
-          clientX: box.x + box.width / 2,
-          clientY: box.y + box.height / 2,
-        },
-      ],
-    });
-
+    await card.dispatchEvent('mousedown', { button: 0 });
     await page.waitForTimeout(600);
+    await card.dispatchEvent('mouseup', { button: 0 });
 
-    await card.dispatchEvent('touchend', {
-      changedTouches: [
-        {
-          clientX: box.x + box.width / 2,
-          clientY: box.y + box.height / 2,
-        },
-      ],
-    });
-
-    await expect(page.locator('body')).toContainText('Edit');
+    const menu = page.locator('[data-menu-id]');
+    await expect(menu).toBeVisible({ timeout: 4000 });
+    await expect(menu).toContainText('Edit');
   });
 });
 

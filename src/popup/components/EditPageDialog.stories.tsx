@@ -1,6 +1,4 @@
 import type { Meta, StoryObj } from 'storybook/react';
-import { fn } from '@storybook/test';
-
 import { EditPageDialog } from './EditPageDialog';
 import type { TaggedPage } from '../../types/gameplayTag';
 
@@ -17,6 +15,8 @@ const samplePage: TaggedPage = {
 
 const defaultTags = ['React', 'TypeScript', 'Automation', 'UI/UX', 'Performance', 'Testing'];
 
+const noop = () => undefined;
+
 const meta: Meta<typeof EditPageDialog> = {
   title: 'Popup/EditPageDialog',
   component: EditPageDialog,
@@ -24,8 +24,8 @@ const meta: Meta<typeof EditPageDialog> = {
     isOpen: true,
     page: samplePage,
     initialTagNames: ['React', 'Automation'],
-    onSave: fn(),
-    onClose: fn(),
+    onSave: noop,
+    onClose: noop,
     allSuggestions: defaultTags,
   },
   parameters: {
@@ -49,5 +49,18 @@ export const ReadonlySuggestions: Story = {
   args: {
     allSuggestions: [],
   },
+};
+
+export const ScrollLock: Story = {
+  name: 'Scroll Lock Scenario',
+  args: {
+    ...Default.args,
+  },
+  render: (args) => (
+    <>
+      <div data-testid="background" style={{ height: '200vh' }} />
+      <EditPageDialog {...args} />
+    </>
+  ),
 };
 

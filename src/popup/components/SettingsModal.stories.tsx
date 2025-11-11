@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from 'storybook/react';
-import { fn } from '@storybook/test';
-
 import { SettingsModal } from './SettingsModal';
+
+const noop = () => undefined;
 
 const meta: Meta<typeof SettingsModal> = {
   title: 'Popup/SettingsModal',
   component: SettingsModal,
   args: {
     isOpen: true,
-    onClose: fn(),
+    onClose: noop,
     initialTheme: 'light',
   },
   parameters: {

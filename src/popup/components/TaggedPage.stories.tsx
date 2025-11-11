@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from 'storybook/react';
-import { fn } from '@storybook/test';
 
 import { TaggedPage as TaggedPageComponent } from './TaggedPage';
 import { setMockPages } from '../mocks/storybookMocks';
@@ -41,12 +40,14 @@ const basePages: TaggedPage[] = [
   },
 ];
 
+const noop = () => undefined;
+
 const meta: Meta<typeof TaggedPageComponent> = {
   title: 'Popup/TaggedPage',
   component: TaggedPageComponent,
   args: {
-    onOpenSettings: fn(),
-    onOpenStats: fn(),
+    onOpenSettings: noop,
+    onOpenStats: noop,
   },
   parameters: {
     layout: 'fullscreen',

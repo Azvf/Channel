@@ -1,5 +1,5 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from 'storybook/react';
-import { fn } from '@storybook/test';
 
 import { TagInput } from './TagInput';
 
@@ -16,6 +16,8 @@ const suggestions = [
   'Nuxt',
 ];
 
+const noop = () => undefined;
+
 const meta: Meta<typeof TagInput> = {
   title: 'Popup/TagInput',
   component: TagInput,
@@ -23,7 +25,7 @@ const meta: Meta<typeof TagInput> = {
     tags: [],
     suggestions,
     placeholder: '添加标签…',
-    onTagsChange: fn(),
+    onTagsChange: noop,
   },
   parameters: {
     layout: 'centered',
@@ -58,7 +60,18 @@ export const CreateMode: Story = {
   args: {
     mode: 'create',
     allowCreation: true,
-    onCreateTag: fn(),
+    onCreateTag: noop,
+  },
+};
+
+export const Interactive: Story = {
+  args: {
+    suggestions,
+    tags: [],
+  },
+  render: (args) => {
+    const [tags, setTags] = useState<string[]>(args.tags ?? []);
+    return <TagInput {...args} tags={tags} onTagsChange={setTags} />;
   },
 };
 
