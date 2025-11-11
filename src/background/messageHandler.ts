@@ -143,6 +143,15 @@ export const messageHandler = (
         case 'importData':
           await handleImportData(message.data, sendResponse);
           break;
+        case 'updateTag':
+          await handleUpdateTag(message.data, sendResponse);
+          break;
+        case 'deleteTag':
+          await handleDeleteTag(message.data, sendResponse);
+          break;
+        case 'getAllTagUsageCounts':
+          await handleGetAllTagUsageCounts(sendResponse);
+          break;
         default:
           sendResponse({ success: false, error: '未知操作' });
       }
@@ -663,6 +672,72 @@ async function handleImportData(
   } catch (error) {
     console.error('导入数据失败:', error);
     const errorMessage = error instanceof Error ? error.message : '导入数据失败';
+    sendResponse({ success: false, error: errorMessage });
+  }
+}
+
+// [新增]
+async function handleUpdateTag(
+  data: { tagId: string; newName: string },
+  sendResponse: (response: any) => void,
+): Promise<void> {
+  try {
+    if (!data?.tagId || !data?.newName) {
+      sendResponse({ success: false, error: '标签ID和新名称不能为空' });
+      return;
+    }
+
+    const result = tagManager.updateTagName(data.tagId, data.newName);
+
+    if (result.success) {
+      await tagManager.syncToStorage();
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: result.error });
+    }
+  } catch (error) {
+    console.error('更新标签失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '更新标签失败';
+    sendResponse({ success: false, error: errorMessage });
+  }
+}
+
+// [新增]
+async function handleDeleteTag(
+  data: { tagId: string },
+  sendResponse: (response: any) => void,
+): Promise<void> {
+  try {
+    if (!data?.tagId) {
+      sendResponse({ success: false, error: '标签ID不能为空' });
+      return;
+    }
+
+    const success = tagManager.deleteTag(data.tagId);
+
+    if (success) {
+      await tagManager.syncToStorage();
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: '删除标签失败（可能标签不存在）' });
+    }
+  } catch (error) {
+    console.error('删除标签失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '删除标签失败';
+    sendResponse({ success: false, error: errorMessage });
+  }
+}
+
+// [新增]
+async function handleGetAllTagUsageCounts(
+  sendResponse: (response: any) => void,
+): Promise<void> {
+  try {
+    const counts = tagManager.getAllTagUsageCounts();
+    sendResponse({ success: true, data: counts });
+  } catch (error) {
+    console.error('获取标签使用计数失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '获取标签使用计数失败';
     sendResponse({ success: false, error: errorMessage });
   }
 }

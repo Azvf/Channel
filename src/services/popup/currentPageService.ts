@@ -157,6 +157,67 @@ class CurrentPageService {
   }
 
   /**
+   * [新增] 更新标签名称
+   */
+  async updateTag(tagId: string, newName: string): Promise<void> {
+    try {
+      const response = await this.sendMessageWithTimeout<void>({
+        action: 'updateTag',
+        data: { tagId, newName }
+      });
+
+      if (!response || !response.success) {
+        throw new Error(response?.error || '更新标签失败');
+      }
+    } catch (error) {
+      console.error('更新标签失败:', error);
+      if (error instanceof Error) throw error;
+      throw new Error(String(error));
+    }
+  }
+
+  /**
+   * [新增] 删除一个标签
+   */
+  async deleteTag(tagId: string): Promise<void> {
+    try {
+      const response = await this.sendMessageWithTimeout<void>({
+        action: 'deleteTag',
+        data: { tagId }
+      });
+
+      if (!response || !response.success) {
+        throw new Error(response?.error || '删除标签失败');
+      }
+    } catch (error) {
+      console.error('删除标签失败:', error);
+      if (error instanceof Error) throw error;
+      throw new Error(String(error));
+    }
+  }
+
+  /**
+   * [新增] 获取所有标签的使用计数
+   */
+  async getAllTagUsageCounts(): Promise<Record<string, number>> {
+    try {
+      const response = await this.sendMessageWithTimeout<Record<string, number>>({
+        action: 'getAllTagUsageCounts'
+      });
+
+      if (response && response.success && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response?.error || '获取标签计数失败');
+    } catch (error) {
+      console.error('获取标签计数失败:', error);
+      if (error instanceof Error) throw error;
+      throw new Error(String(error));
+    }
+  }
+
+  /**
    * 创建标签并添加到当前页面
    */
   async createTagAndAddToPage(tagName: string, pageId: string): Promise<GameplayTag> {

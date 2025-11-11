@@ -115,6 +115,39 @@ export class TagManager {
   }
 
   /**
+   * [新增] 更新标签名称
+   * @param tagId 要更新的标签ID
+   * @param newName 新的标签名称
+   * @returns 成功或失败
+   */
+  public updateTagName(tagId: string, newName: string): { success: boolean; error?: string } {
+    const tag = this.tags[tagId];
+    if (!tag) {
+      return { success: false, error: '标签不存在' };
+    }
+
+    // 1. 验证新名称
+    const validation = this.validateTagName(newName);
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
+    }
+
+    const trimmedName = newName.trim();
+
+    // 2. 检查新名称是否与*其他*标签冲突
+    const existing = this.findTagByName(trimmedName);
+    if (existing && existing.id !== tagId) {
+      return { success: false, error: `标签名称 "${trimmedName}" 已存在` };
+    }
+
+    // 3. 更新名称
+    tag.name = trimmedName;
+    tag.updatedAt = Date.now();
+
+    return { success: true };
+  }
+
+  /**
    * 验证标签名称
    */
   public validateTagName(name: string): { valid: boolean; error?: string } {
@@ -272,6 +305,30 @@ export class TagManager {
     }
 
     return result.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  /**
+   * [新增] 获取所有标签的使用计数（高性能）
+   * @returns 一个 { tagId: count } 格式的记录
+   */
+  public getAllTagUsageCounts(): Record<string, number> {
+    const counts: Record<string, number> = {};
+
+    // 初始化所有标签计数为 0
+    for (const tagId in this.tags) {
+      counts[tagId] = 0;
+    }
+
+    // 遍历所有页面，累加计数
+    for (const page of Object.values(this.pages)) {
+      for (const tagId of page.tags) {
+        if (counts[tagId] !== undefined) {
+          counts[tagId]++;
+        }
+      }
+    }
+
+    return counts;
   }
 
   public getPageById(pageId: string): TaggedPage | undefined {
@@ -568,27 +625,39 @@ export class TagManager {
   // Tag生命周期管理
 
   /**
-   * 删除标签及其所有子标签
+   * [修改] 删除标签及其所有引用（公开方法）
+   * @param tagId 要删除的标签ID
+   * @returns 成功或失败
    */
-  private deleteTag(tagId: string): void {
-    if (!this.tags[tagId]) {
-      return;
+  public deleteTag(tagId: string): boolean {
+    const tagToDelete = this.tags[tagId];
+    if (!tagToDelete) {
+      return false; // 标签不存在
     }
 
-    // 清理与其他标签的绑定关系
-    const tag = this.tags[tagId];
-    if (tag.bindings && tag.bindings.length > 0) {
-      tag.bindings.forEach(otherId => {
-        const other = this.tags[otherId];
-        if (other) {
-          other.bindings = other.bindings.filter(id => id !== tagId);
-          other.updatedAt = Date.now();
+    // 1. 从所有页面中移除引用
+    Object.values(this.pages).forEach(page => {
+      const index = page.tags.indexOf(tagId);
+      if (index > -1) {
+        page.tags.splice(index, 1);
+        page.updatedAt = Date.now();
+      }
+    });
+
+    // 2. 清理与其他标签的绑定关系
+    if (tagToDelete.bindings && tagToDelete.bindings.length > 0) {
+      tagToDelete.bindings.forEach(otherId => {
+        const otherTag = this.tags[otherId];
+        if (otherTag) {
+          otherTag.bindings = otherTag.bindings.filter(id => id !== tagId);
+          otherTag.updatedAt = Date.now();
         }
       });
     }
 
-    // 删除标签本身
+    // 3. 删除标签本身
     delete this.tags[tagId];
+    return true;
   }
 
   /**

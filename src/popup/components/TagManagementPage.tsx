@@ -137,6 +137,7 @@ interface TagManagementPageProps {
 
 export function TagManagementPage({ onBack }: TagManagementPageProps) {
   const [tags, setTags] = useState<GameplayTag[]>([]);
+  const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [editingTag, setEditingTag] = useState<GameplayTag | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -151,10 +152,18 @@ export function TagManagementPage({ onBack }: TagManagementPageProps) {
   const loadTags = async () => {
     setLoading(true);
     try {
-      const allTags = await currentPageService.getAllTags();
+      const [allTags, allCounts] = await Promise.all([
+        currentPageService.getAllTags(),
+        currentPageService.getAllTagUsageCounts()
+      ]);
+
+      allTags.sort((a, b) => a.name.localeCompare(b.name));
+
       setTags(allTags);
+      setUsageCounts(allCounts);
     } catch (error) {
-      console.error('加载标签失败:', error);
+      console.error('加载标签库失败:', error);
+      alert('加载标签库失败');
     } finally {
       setLoading(false);
     }
@@ -167,32 +176,48 @@ export function TagManagementPage({ onBack }: TagManagementPageProps) {
   };
 
   const handleSaveEdit = async () => {
-    if (!editingTag || !editValue.trim()) {
+    if (!editingTag) {
       setEditingTag(null);
       return;
     }
 
+    const trimmedValue = editValue.trim();
+    if (!trimmedValue || trimmedValue === editingTag.name) {
+      setEditingTag(null);
+      setEditValue("");
+      return;
+    }
+
     try {
-      // TODO: 实现更新标签的 API
-      console.log('更新标签:', editingTag.id, editValue.trim());
-      // await currentPageService.updateTag(editingTag.id, editValue.trim());
+      await currentPageService.updateTag(editingTag.id, trimmedValue);
       await loadTags();
       setEditingTag(null);
       setEditValue("");
     } catch (error) {
       console.error('更新标签失败:', error);
+      alert(`更新标签失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
   const handleDeleteTag = async (tagId: string) => {
+    setMenuOpen(null);
+
+    const tag = tags.find(t => t.id === tagId);
+    const confirmDelete = window.confirm(
+      `确定要删除标签 "${tag?.name || '此标签'}" 吗？\n\n` +
+      `这个操作会将其从所有 ${usageCounts[tagId] || 0} 个页面中移除，且无法撤销。`
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
     try {
-      // TODO: 实现删除标签的 API
-      console.log('删除标签:', tagId);
-      // await currentPageService.deleteTag(tagId);
+      await currentPageService.deleteTag(tagId);
       await loadTags();
-      setMenuOpen(null);
     } catch (error) {
       console.error('删除标签失败:', error);
+      alert(`删除标签失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
@@ -233,8 +258,7 @@ export function TagManagementPage({ onBack }: TagManagementPageProps) {
 
   // 计算标签使用次数（需要从所有页面中统计）
   const getTagUsageCount = (tagId: string): number => {
-    // TODO: 实现获取标签使用次数的逻辑
-    return 0;
+    return usageCounts[tagId] || 0;
   };
 
   if (loading) {
