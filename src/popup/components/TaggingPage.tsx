@@ -77,6 +77,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       setTitleValue(page.title);
       setEditingTitle(false);
       setError(null);
+      if (isManualRefresh) {
+        await loadStats();
+      }
     } catch (error) {
       console.error('获取当前页面失败:', error);
       const errorMessage = error instanceof Error ? error.message : '获取当前页面失败';
@@ -120,31 +123,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     }
   };
 
-  const handleAddTag = async (tagName: string) => {
-    const trimmedTag = tagName.trim();
-    if (!trimmedTag || !currentPage) return;
-
-    try {
-      const tag = await currentPageService.createTagAndAddToPage(trimmedTag, currentPage.id);
-      if (!allTags.find(t => t.id === tag.id)) {
-        setAllTags(prev => [...prev, tag]);
-        setSuggestions(prev => [...prev, tag.name]);
-      }
-    } catch (error) {
-      console.error('添加标签失败:', error);
-    }
-  };
-
-  const handleRemoveTag = async (tagId: string) => {
-    if (!currentPage) return;
-
-    try {
-      await currentPageService.removeTagFromPage(currentPage.id, tagId);
-    } catch (error) {
-      console.error('移除标签失败:', error);
-    }
-  };
-
   const handleTagsChange = async (newTagNames: string[]) => {
     if (!currentPage) return;
 
@@ -152,36 +130,54 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       .map(tagId => allTags.find(t => t.id === tagId)?.name)
       .filter(Boolean) as string[];
 
-    const addedTags = newTagNames.filter(name => !currentTagNames.includes(name));
+    const addedTagNames = newTagNames.filter(name => !currentTagNames.includes(name));
     const removedTagNames = currentTagNames.filter(name => !newTagNames.includes(name));
 
-    const promises: Promise<unknown>[] = [];
+    const tagsToAdd = Array.from(
+      new Set(
+        addedTagNames
+          .map(name => name.trim())
+          .filter(name => name.length > 0),
+      ),
+    );
 
-    removedTagNames.forEach(name => {
-      const tag = allTags.find(t => t.name === name);
-      if (tag) {
-        promises.push(handleRemoveTag(tag.id));
-      }
-    });
+    const tagsToRemove = Array.from(
+      new Set(
+        removedTagNames
+          .map(name => name.trim())
+          .filter(name => name.length > 0),
+      ),
+    );
 
-    addedTags.forEach(name => {
-      promises.push(handleAddTag(name));
-    });
-
-    if (promises.length === 0) {
+    if (tagsToAdd.length === 0 && tagsToRemove.length === 0) {
       return;
     }
 
     setIsRefreshing(true);
 
-    await Promise.all(promises);
+    try {
+      const { newPage, newStats } = await currentPageService.updatePageTags(
+        currentPage.id,
+        {
+          tagsToAdd,
+          tagsToRemove,
+        },
+      );
 
-    // [修改] 4. 在核心操作完成后，重新加载页面 *并* 刷新统计数据
-    // 这就是“即时反馈”的关键
-    await loadCurrentPage();
-    await loadStats(); 
-    
-    setIsRefreshing(false);
+      setCurrentPage(newPage);
+      setTitleValue(newPage.title);
+      setStats(newStats);
+
+      const updatedTags = await currentPageService.getAllTags();
+      setAllTags(updatedTags);
+      setSuggestions(updatedTags.map(tag => tag.name));
+      setError(null);
+    } catch (error) {
+      console.error('批量更新标签失败:', error);
+      await loadCurrentPage();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const currentPageTagNames = currentPage

@@ -7,38 +7,35 @@ import { GlassCard } from "./GlassCard";
 import { ModalHeader } from "./ModalHeader";
 import { ModalFooter } from "./ModalFooter";
 import { Save } from "lucide-react";
+import { TaggedPage } from "../../types/gameplayTag";
 
 interface EditPageDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  page: {
-    id: number;
-    title: string;
-    url: string;
-    tags: string[];
-    screenshot: string;
-  };
-  onSave: (updatedPage: {
-    id: number;
-    title: string;
-    url: string;
-    tags: string[];
-    screenshot: string;
-  }) => void;
+  page: TaggedPage;
+  initialTagNames: string[];
+  onSave: (payload: { title: string; tagNames: string[] }) => void | Promise<void>;
   allSuggestions?: string[];
 }
 
-export function EditPageDialog({ isOpen, onClose, page, onSave, allSuggestions = [] }: EditPageDialogProps) {
+export function EditPageDialog({
+  isOpen,
+  onClose,
+  page,
+  onSave,
+  initialTagNames,
+  allSuggestions = [],
+}: EditPageDialogProps) {
   const [editedTitle, setEditedTitle] = useState(page.title);
-  const [editedTags, setEditedTags] = useState<string[]>(page.tags);
+  const [editedTags, setEditedTags] = useState<string[]>(initialTagNames);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Reset form when page changes or dialog opens
   useEffect(() => {
     setEditedTitle(page.title);
-    setEditedTags(page.tags);
-  }, [page, isOpen]);
+    setEditedTags(initialTagNames);
+  }, [page, initialTagNames, isOpen]);
 
   // 彻底防止底层页面滚动：在document级别拦截所有滚动事件
   useEffect(() => {
@@ -179,18 +176,22 @@ export function EditPageDialog({ isOpen, onClose, page, onSave, allSuggestions =
     }
   }, [isOpen]);
 
-  const handleSave = () => {
-    onSave({
-      ...page,
-      title: editedTitle.trim() || page.title,
-      tags: editedTags,
-    });
-    onClose();
+  const handleSave = async () => {
+    try {
+      await Promise.resolve(
+        onSave({
+          title: editedTitle.trim() || page.title,
+          tagNames: editedTags,
+        }),
+      );
+    } catch (error) {
+      console.error('保存页面失败:', error);
+    }
   };
 
   const handleCancel = () => {
     setEditedTitle(page.title);
-    setEditedTags(page.tags);
+    setEditedTags(initialTagNames);
     onClose();
   };
 

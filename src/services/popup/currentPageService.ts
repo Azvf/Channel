@@ -185,6 +185,44 @@ class CurrentPageService {
   }
 
   /**
+   * 批量更新页面标签
+   */
+  async updatePageTags(
+    pageId: string,
+    payload: { tagsToAdd: string[]; tagsToRemove: string[] },
+  ): Promise<{ newPage: TaggedPage; newStats: { todayCount: number; streak: number } }> {
+    try {
+      const response = await this.sendMessageWithTimeout<{
+        newPage: TaggedPage;
+        newStats: { todayCount: number; streak: number };
+      }>({
+        action: 'updatePageTags',
+        data: {
+          pageId,
+          tagsToAdd: payload.tagsToAdd,
+          tagsToRemove: payload.tagsToRemove,
+        },
+      });
+
+      if (!response) {
+        throw new Error('响应为空，无法更新页面标签');
+      }
+
+      if (response.success !== undefined && response.success && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response.error || '批量更新页面标签失败');
+    } catch (error) {
+      console.error('批量更新页面标签失败:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(String(error));
+    }
+  }
+
+  /**
    * 从当前页面移除标签
    */
   async removeTagFromPage(pageId: string, tagId: string): Promise<void> {

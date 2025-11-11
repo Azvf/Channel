@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassCard";
@@ -20,96 +20,8 @@ import {
 } from "lucide-react";
 import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
-
-const MOCK_SUGGESTIONS = [
-  "React",
-  "TypeScript",
-  "Design",
-  "Tutorial",
-  "Documentation",
-  "Frontend",
-  "Backend",
-  "API",
-  "Performance",
-  "Security",
-];
-
-const MOCK_PAGES = [
-  {
-    id: 1,
-    title: "React Hooks Complete Guide",
-    url: "https://react.dev/react-hooks-guide",
-    tags: ["React", "Tutorial", "Frontend"],
-    screenshot: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=300&fit=crop",
-  },
-  {
-    id: 2,
-    title: "TypeScript Type System Deep Dive",
-    url: "https://www.typescriptlang.org/typescript-types",
-    tags: ["TypeScript", "Tutorial", "Frontend"],
-    screenshot: "https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400&h=300&fit=crop",
-  },
-  {
-    id: 3,
-    title: "Design System Best Practices",
-    url: "https://www.designsystems.com/design-system",
-    tags: ["Design", "Frontend", "UI"],
-    screenshot: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=300&fit=crop",
-  },
-  {
-    id: 4,
-    title: "React Performance Optimization",
-    url: "https://react.dev/react-performance",
-    tags: ["React", "Frontend", "Performance"],
-    screenshot: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop",
-  },
-  {
-    id: 5,
-    title: "API Design Guidelines",
-    url: "https://www.apidesign.com/api-design",
-    tags: ["API", "Backend", "Documentation"],
-    screenshot: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=300&fit=crop",
-  },
-  {
-    id: 6,
-    title: "Frontend Security Best Practices",
-    url: "https://www.security.dev/frontend-security",
-    tags: ["Frontend", "Security", "Tutorial"],
-    screenshot: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&h=300&fit=crop",
-  },
-  {
-    id: 7,
-    title: "CSS Grid Layout Mastery",
-    url: "https://cssgrid.io/css-grid",
-    tags: ["CSS", "Frontend", "Tutorial"],
-    screenshot: "https://images.unsplash.com/photo-1507721999472-8ed4421c4af2?w=400&h=300&fit=crop",
-  },
-  {
-    id: 8,
-    title: "Node.js Best Practices",
-    url: "https://nodejs.org/nodejs-practices",
-    tags: ["Node.js", "Backend", "Performance"],
-    screenshot: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=300&fit=crop",
-  },
-  {
-    id: 9,
-    title: "Git Workflow Strategies",
-    url: "https://git-scm.com/git-workflow",
-    tags: ["Git", "Documentation", "Tutorial"],
-    screenshot: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?w=400&h=300&fit=crop",
-  },
-  {
-    id: 10,
-    title: "Web Accessibility Guide",
-    url: "https://www.a11y.dev/a11y-guide",
-    tags: ["Accessibility", "Frontend", "UI"],
-    screenshot: "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=400&h=300&fit=crop",
-  },
-];
-
-const MOCK_STREAKS = 12;
-const MOCK_TOTAL_PAGES = 128;
-const MOCK_TOTAL_TAGS = 42;
+import { currentPageService } from "../../services/popup/currentPageService";
+import { TaggedPage as TaggedPageType, GameplayTag } from "../../types/gameplayTag";
 
 const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
   <div
@@ -151,38 +63,141 @@ interface TaggedPageProps {
   onOpenStats: () => void;
 }
 
+interface UserStats {
+  todayCount: number;
+  streak: number;
+}
+
 interface PageCardProps {
-  page: typeof MOCK_PAGES[0];
+  page: TaggedPageType;
   searchTags: string[];
-  onMenuButtonClick: (e: React.MouseEvent, page: typeof MOCK_PAGES[0]) => void;
-  registerMenuButton: (pageId: number, button: HTMLButtonElement | null) => void;
-  openMenuFromButtonRef: (pageId: number) => void;
+  onMenuButtonClick: (e: React.MouseEvent, page: TaggedPageType) => void;
+  registerMenuButton: (pageId: string, button: HTMLButtonElement | null) => void;
+  openMenuFromButtonRef: (pageId: string) => void;
+  tagIdToName: Map<string, string>;
 }
 
 export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: TaggedPageProps) {
   const [searchTags, setSearchTags] = useState<string[]>([]);
-  const [pages, setPages] = useState(MOCK_PAGES);
-  const [editingPage, setEditingPage] = useState<typeof MOCK_PAGES[0] | null>(null);
+  const [allPages, setAllPages] = useState<TaggedPageType[]>([]);
+  const [allTags, setAllTags] = useState<GameplayTag[]>([]);
+  const [stats, setStats] = useState<UserStats>({ todayCount: 0, streak: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [editingPage, setEditingPage] = useState<TaggedPageType | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const menuButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  const filteredPages =
-    searchTags.length > 0
-      ? pages.filter((page) => searchTags.every((tag) => page.tags.includes(tag)))
-      : pages;
+  const loadAllData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [pagesData, tagsData, statsData] = await Promise.all([
+        currentPageService.getAllTaggedPages(),
+        currentPageService.getAllTags(),
+        currentPageService.getUserStats(),
+      ]);
 
-  const handleEditPage = (page: typeof MOCK_PAGES[0]) => {
+      setAllPages(pagesData);
+      setAllTags(tagsData);
+      setStats(statsData);
+    } catch (err) {
+      console.error("加载 TaggedPage 数据失败:", err);
+      const message = err instanceof Error ? err.message : "加载数据失败";
+      setError(message);
+      setAllPages([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
+  const tagIdToName = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const tag of allTags) {
+      map.set(tag.id, tag.name);
+    }
+    return map;
+  }, [allTags]);
+
+  const tagNameToId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const tag of allTags) {
+      map.set(tag.name, tag.id);
+    }
+    return map;
+  }, [allTags]);
+
+  const suggestions = useMemo(() => allTags.map((tag) => tag.name), [allTags]);
+
+  const filteredPages = useMemo(() => {
+    if (searchTags.length === 0) {
+      return allPages;
+    }
+
+    return allPages.filter((page) =>
+      searchTags.every((tagName) => {
+        const tagId = tagNameToId.get(tagName);
+        return tagId ? page.tags.includes(tagId) : false;
+      }),
+    );
+  }, [allPages, searchTags, tagNameToId]);
+
+  const handleEditPage = (page: TaggedPageType) => {
     setEditingPage(page);
     setIsEditDialogOpen(true);
   };
 
-  const handleSavePage = (updatedPage: typeof MOCK_PAGES[0]) => {
-    setPages(pages.map((p) => (p.id === updatedPage.id ? updatedPage : p)));
+  const closeEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setEditingPage(null);
   };
 
-  const registerMenuButton = (pageId: number, button: HTMLButtonElement | null) => {
+  const handleSavePage = useCallback(
+    async ({ title, tagNames }: { title: string; tagNames: string[] }) => {
+      if (!editingPage) return;
+
+      const trimmedTitle = title.trim();
+      const nextTitle = trimmedTitle.length > 0 ? trimmedTitle : editingPage.title;
+
+      const currentTagNames = editingPage.tags
+        .map((tagId) => tagIdToName.get(tagId))
+        .filter(Boolean) as string[];
+
+      const addedTags = tagNames.filter((name) => !currentTagNames.includes(name));
+      const removedTags = currentTagNames.filter((name) => !tagNames.includes(name));
+
+      try {
+        if (nextTitle !== editingPage.title) {
+          await currentPageService.updatePageTitle(editingPage.id, nextTitle);
+        }
+
+        if (addedTags.length > 0 || removedTags.length > 0) {
+          await currentPageService.updatePageTags(editingPage.id, {
+            tagsToAdd: addedTags,
+            tagsToRemove: removedTags,
+          });
+        }
+
+        await loadAllData();
+        closeEditDialog();
+      } catch (err) {
+        console.error("更新页面失败:", err);
+        const message = err instanceof Error ? err.message : "更新页面失败";
+        setError(message);
+      }
+    },
+    [editingPage, loadAllData, tagIdToName, closeEditDialog],
+  );
+
+  const registerMenuButton = (pageId: string, button: HTMLButtonElement | null) => {
     if (button) {
       menuButtonRefs.current.set(pageId, button);
     } else {
@@ -190,7 +205,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
     }
   };
 
-  const openMenuAtRect = (rect: DOMRect, pageId: number) => {
+  const openMenuAtRect = (rect: DOMRect, pageId: string) => {
     setMenuPosition({
       x: rect.right - 150,
       y: rect.bottom + 8,
@@ -198,14 +213,14 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
     setOpenMenuId(pageId);
   };
 
-  const handleOpenMenu = (e: React.MouseEvent, page: typeof MOCK_PAGES[0]) => {
+  const handleOpenMenu = (e: React.MouseEvent, page: TaggedPageType) => {
     e.stopPropagation();
     const button = e.currentTarget as HTMLButtonElement;
     const rect = button.getBoundingClientRect();
     openMenuAtRect(rect, page.id);
   };
 
-  const openMenuFromButtonRef = (pageId: number) => {
+  const openMenuFromButtonRef = (pageId: string) => {
     const button = menuButtonRefs.current.get(pageId);
     if (!button) return;
     const rect = button.getBoundingClientRect();
@@ -237,6 +252,13 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openMenuId]);
+
+  const editingPageTagNames = useMemo(() => {
+    if (!editingPage) return [];
+    return editingPage.tags
+      .map((tagId) => tagIdToName.get(tagId))
+      .filter(Boolean) as string[];
+  }, [editingPage, tagIdToName]);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -286,9 +308,9 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                 title="View Activity"
                 className="hud-button flex items-center gap-3"
               >
-                <StatItem icon={<TrendingUp />} value={MOCK_STREAKS} />
-                <StatItem icon={<Bookmark />} value={MOCK_TOTAL_PAGES} />
-                <StatItem icon={<TagIcon />} value={MOCK_TOTAL_TAGS} />
+                <StatItem icon={<TrendingUp />} value={stats.streak} />
+                <StatItem icon={<Bookmark />} value={allPages.length} />
+                <StatItem icon={<TagIcon />} value={allTags.length} />
               </button>
 
               <button
@@ -339,6 +361,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                     pointerEvents: searchTags.length > 0 ? "auto" : "none",
                     transition: "opacity 200ms ease, visibility 200ms ease",
                   }}
+                  disabled={loading}
                 >
                   Clear All
                 </button>
@@ -348,8 +371,9 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                 tags={searchTags}
                 onTagsChange={setSearchTags}
                 placeholder="Enter tags to filter pages..."
-                suggestions={MOCK_SUGGESTIONS}
+                suggestions={suggestions}
                 allowCreation={false}
+                disabled={loading}
               />
 
               <div className="flex items-center justify-between pt-1">
@@ -374,7 +398,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  {filteredPages.length}/{MOCK_PAGES.length}
+                  {filteredPages.length}/{allPages.length}
                 </div>
               </div>
             </div>
@@ -388,7 +412,24 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
             />
 
             <div>
-              {filteredPages.length > 0 ? (
+              {loading ? (
+                <div
+                  className="text-center py-12 rounded-3xl"
+                  style={{ color: "color-mix(in srgb, var(--c-content) 55%, var(--c-bg))" }}
+                >
+                  Loading...
+                </div>
+              ) : error ? (
+                <div
+                  className="text-center py-12 rounded-3xl border border-dashed"
+                  style={{
+                    color: "color-mix(in srgb, var(--c-content) 60%, var(--c-bg))",
+                    borderColor: "color-mix(in srgb, var(--c-glass) 30%, transparent)",
+                  }}
+                >
+                  <p style={{ margin: 0 }}>加载失败：{error}</p>
+                </div>
+              ) : filteredPages.length > 0 ? (
                 <AnimatedFlipList
                   items={filteredPages}
                   as="div"
@@ -401,6 +442,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                       onMenuButtonClick={handleOpenMenu}
                       registerMenuButton={registerMenuButton}
                       openMenuFromButtonRef={openMenuFromButtonRef}
+                      tagIdToName={tagIdToName}
                     />
                   )}
                 />
@@ -456,17 +498,18 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
       {editingPage && (
         <EditPageDialog
           isOpen={isEditDialogOpen}
-          onClose={() => setIsEditDialogOpen(false)}
+          onClose={closeEditDialog}
           page={editingPage}
+          initialTagNames={editingPageTagNames}
           onSave={handleSavePage}
-          allSuggestions={MOCK_SUGGESTIONS}
+          allSuggestions={suggestions}
         />
       )}
 
       {createPortal(
         <AnimatePresence>
           {openMenuId !== null && (() => {
-            const page = pages.find((p) => p.id === openMenuId);
+            const page = allPages.find((p) => p.id === openMenuId);
             if (!page) return null;
 
             return (
@@ -506,7 +549,8 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                             fontWeight: 500,
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "color-mix(in srgb, var(--c-action) 15%, transparent)";
+                            e.currentTarget.style.background =
+                              "color-mix(in srgb, var(--c-action) 15%, transparent)";
                             e.currentTarget.style.color = "var(--c-action)";
                           }}
                           onMouseLeave={(e) => {
@@ -531,7 +575,8 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                             fontWeight: 500,
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "color-mix(in srgb, var(--c-action) 15%, transparent)";
+                            e.currentTarget.style.background =
+                              "color-mix(in srgb, var(--c-action) 15%, transparent)";
                             e.currentTarget.style.color = "var(--c-action)";
                           }}
                           onMouseLeave={(e) => {
@@ -546,7 +591,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                       <li>
                         <button
                           onClick={() => {
-                            setPages((prev) => prev.filter((p) => p.id !== page.id));
+                            setAllPages((prev) => prev.filter((p) => p.id !== page.id));
                             handleCloseMenu();
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
@@ -556,7 +601,8 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                             fontWeight: 500,
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "color-mix(in srgb, var(--c-action) 15%, transparent)";
+                            e.currentTarget.style.background =
+                              "color-mix(in srgb, var(--c-action) 15%, transparent)";
                             e.currentTarget.style.color = "var(--c-action)";
                           }}
                           onMouseLeave={(e) => {
@@ -587,6 +633,7 @@ function PageCard({
   onMenuButtonClick,
   registerMenuButton,
   openMenuFromButtonRef,
+  tagIdToName,
 }: PageCardProps) {
   const longPressHandlers = useLongPress({
     onLongPress: (e) => {
@@ -596,14 +643,8 @@ function PageCard({
     delay: 500,
   });
 
-  const {
-    onMouseDown,
-    onMouseUp,
-    onMouseLeave,
-    onTouchStart,
-    onTouchEnd,
-    onTouchCancel,
-  } = longPressHandlers;
+  const { onMouseDown, onMouseUp, onMouseLeave, onTouchStart, onTouchEnd, onTouchCancel } =
+    longPressHandlers;
 
   return (
     <div
@@ -694,12 +735,15 @@ function PageCard({
         </div>
 
         <div className="flex flex-wrap gap-2.5">
-          {page.tags.map((tag, tagIndex) => (
-            searchTags.includes(tag) ? (
-              <Tag key={tagIndex} label={tag} />
+          {page.tags.map((tagId) => {
+            const tagName = tagIdToName.get(tagId) ?? tagId;
+            const isHighlighted = searchTags.includes(tagName);
+
+            return isHighlighted ? (
+              <Tag key={tagId} label={tagName} />
             ) : (
               <span
-                key={tagIndex}
+                key={tagId}
                 className="inline-flex items-center px-2.5 py-1 rounded-lg"
                 style={{
                   color: "var(--color-text-secondary)",
@@ -710,10 +754,10 @@ function PageCard({
                   transition: "all 200ms ease",
                 }}
               >
-                {tag}
+                {tagName}
               </span>
-            )
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

@@ -43,7 +43,6 @@ export async function getInitializationPromise(): Promise<void> {
       console.log('Background: 初始化完成。');
     } catch (error) {
       console.error('Background: 初始化失败:', error);
-      initPromise = null;
       throw error;
     }
   })();
@@ -108,6 +107,9 @@ export const messageHandler: chrome.runtime.MessageListener = (message, sender, 
           break;
         case 'removeTagFromPage':
           await handleRemoveTagFromPage(message.data, sendResponse);
+          break;
+        case 'updatePageTags':
+          await handleUpdatePageTags(message.data, sendResponse);
           break;
         case 'updatePageTitle':
           await handleUpdatePageTitle(message.data, sendResponse);
@@ -404,6 +406,85 @@ async function handleRemoveTagFromPage(data: any, sendResponse: (response: any) 
   } catch (error) {
     console.error('从页面移除标签失败:', error);
     const errorMessage = error instanceof Error ? error.message : '从页面移除标签失败';
+    sendResponse({ success: false, error: errorMessage });
+  }
+}
+
+interface UpdatePageTagsPayload {
+  pageId: string;
+  tagsToAdd?: string[];
+  tagsToRemove?: string[];
+}
+
+async function handleUpdatePageTags(data: UpdatePageTagsPayload, sendResponse: (response: any) => void): Promise<void> {
+  try {
+    if (!data?.pageId) {
+      sendResponse({ success: false, error: '页面ID不能为空' });
+      return;
+    }
+
+    const tagsToAdd = Array.isArray(data.tagsToAdd) ? data.tagsToAdd : [];
+    const tagsToRemove = Array.isArray(data.tagsToRemove) ? data.tagsToRemove : [];
+
+    const normalizedTagsToAdd = Array.from(
+      new Set(
+        tagsToAdd
+          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(tag => tag.length > 0),
+      ),
+    );
+
+    const normalizedTagsToRemove = Array.from(
+      new Set(
+        tagsToRemove
+          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(tag => tag.length > 0),
+      ),
+    );
+
+    const page = tagManager.getPageById(data.pageId);
+    if (!page) {
+      sendResponse({ success: false, error: '页面不存在' });
+      return;
+    }
+
+    normalizedTagsToAdd.forEach(tagName => {
+      tagManager.createTagAndAddToPage(tagName, data.pageId);
+    });
+
+    normalizedTagsToRemove.forEach(tagIdentifier => {
+      const existingById = tagManager.getTagById(tagIdentifier);
+      if (existingById) {
+        tagManager.removeTagFromPage(data.pageId, existingById.id);
+        return;
+      }
+
+      const existingByName = tagManager.findTagByName(tagIdentifier);
+      if (existingByName) {
+        tagManager.removeTagFromPage(data.pageId, existingByName.id);
+      }
+    });
+
+    await tagManager.syncToStorage();
+
+    const updatedPage = tagManager.getPageById(data.pageId);
+    if (!updatedPage) {
+      sendResponse({ success: false, error: '更新页面失败' });
+      return;
+    }
+
+    const stats = tagManager.getUserStats();
+
+    sendResponse({
+      success: true,
+      data: {
+        newPage: updatedPage,
+        newStats: stats,
+      },
+    });
+  } catch (error) {
+    console.error('批量更新页面标签失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '批量更新页面标签失败';
     sendResponse({ success: false, error: errorMessage });
   }
 }
