@@ -84,8 +84,11 @@ describe('TaggingPage (with Context)', () => {
       });
     });
 
-    expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(2);
-    expect(mockedPageService.getUserStats).toHaveBeenCalledTimes(2);
+    await waitFor(() => {
+      expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(2);
+      expect(mockedPageService.getAllTaggedPages).toHaveBeenCalledTimes(2);
+      expect(mockedPageService.getUserStats).toHaveBeenCalledTimes(2);
+    });
   });
 });
 
