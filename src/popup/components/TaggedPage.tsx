@@ -46,8 +46,8 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
     <span
       className="stat-item-value"
       style={{
-        fontSize: "0.75rem",
-        fontWeight: 500,
+        font: "var(--font-tag)",
+        letterSpacing: "var(--letter-spacing-tag)",
         color: "color-mix(in srgb, var(--c-content) 70%, var(--c-bg))",
         transition: "color 0.2s var(--ease-smooth)",
       }}

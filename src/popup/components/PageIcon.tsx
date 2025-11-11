@@ -35,7 +35,7 @@ export function PageIcon({ url }: PageIconProps) {
         className="w-5 h-5 rounded-lg flex items-center justify-center overflow-hidden transition-all"
         style={{
           background: 'color-mix(in srgb, var(--c-glass) 12%, transparent)',
-          border: '1.5px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
+          border: '2px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
         }}
       >
         {!faviconError && faviconUrl ? (

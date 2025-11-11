@@ -33,11 +33,11 @@ export function GlassButton({
     >
       {icon}
       {hasChildren && (
-        <span 
-          style={{ 
-            fontSize: '0.85rem',
+        <span
+          style={{
+            font: 'var(--font-body)',
+            letterSpacing: 'var(--letter-spacing-body)',
             fontWeight: 500,
-            letterSpacing: '0.01em'
           }}
         >
           {children}
