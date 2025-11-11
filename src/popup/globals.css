@@ -623,9 +623,17 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 /* 6. 主体 - 展开态 (Expanded) */
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded {
-  width: 12.2rem;
+  --switcher-icon-width: 3.4rem;
+  --switcher-gap: 0.4rem;
+  --switcher-padding-h: 0.6rem;
+  --switcher-padding-v: 0.4rem;
+  width: calc(
+    (var(--switcher-icon-width) * 3) +
+    (var(--switcher-gap) * 2) +
+    (var(--switcher-padding-h) * 2)
+  );
   height: 3.5rem;
-  padding: 0.4rem 0.6rem 0.5rem;
+  padding: var(--switcher-padding-v) var(--switcher-padding-h) 0.5rem;
   border-radius: 99em;
   cursor: default;
   transform: scale(1);
@@ -636,12 +644,22 @@ body[data-edit-dialog-open] .theme-switcher-container {
   display: flex;
   align-items: center;
   justify-content: flex-start; /* 默认左对齐 */
-  gap: 0.4rem;
-  width: 12.2rem;
-  max-width: 12.2rem;
+  gap: var(--switcher-gap, 0.4rem);
+  width: calc(
+    (var(--switcher-icon-width, 3.4rem) * 3) +
+    (var(--switcher-gap, 0.4rem) * 2) +
+    (var(--switcher-padding-h, 0.6rem) * 2)
+  );
+  max-width: calc(
+    (var(--switcher-icon-width, 3.4rem) * 3) +
+    (var(--switcher-gap, 0.4rem) * 2) +
+    (var(--switcher-padding-h, 0.6rem) * 2)
+  );
   height: 3.5rem;
   box-sizing: border-box;
-  padding: 0.4rem 0.6rem 0.5rem;
+  padding: var(--switcher-padding-v, 0.4rem)
+           var(--switcher-padding-h, 0.6rem)
+           0.5rem;
   margin: 0 auto;
   border: none;
   border-radius: 99em;
@@ -833,7 +851,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 /* 8. 内部选项 - 展开态 - 仅影响 theme-switcher */
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option {
-  width: 3.4rem;
+  width: var(--switcher-icon-width);
   height: 100%;
   padding: 0 0.8rem;
   opacity: 1;
@@ -956,7 +974,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 /* 13. 滑块 - 展开态基础样式 - 仅影响 theme-switcher */
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded::after {
-  width: 4.2rem;
+  width: calc(var(--switcher-icon-width) + 0.8rem);
   height: calc(100% - 0.5rem);
   left: 0.2rem;
   top: 0.2rem;
@@ -989,12 +1007,12 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="2"]:checked)::after {
   /* option 2 在中间，从右侧滑入 */
-  translate: 3.8rem 0;
+  translate: calc(var(--switcher-icon-width) + var(--switcher-gap)) 0;
 }
 
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="3"]:checked)::after {
   /* option 3 在右侧，从右侧滑入 */
-  translate: 7.6rem 0;
+  translate: calc((var(--switcher-icon-width) + var(--switcher-gap)) * 2) 0;
 }
 
 /* Tab switcher 滑块位置动画 - 使用变量 */
