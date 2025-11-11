@@ -74,5 +74,42 @@ describe('usePageSettings', () => {
     await waitFor(() => expect(mockedStorage.get).toHaveBeenCalledTimes(2));
     expect(result.current.settings.syncVideoTimestamp).toBe(true);
   });
+
+  it('使用默认设置回退当 storage 返回 null', async () => {
+    mockedStorage.get.mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() => usePageSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.settings).toEqual(DEFAULT_PAGE_SETTINGS);
+  });
+
+  it('使用默认设置回退当 storage 返回非法数据', async () => {
+    mockedStorage.get.mockResolvedValueOnce({ syncVideoTimestamp: 'invalid' });
+
+    const { result } = renderHook(() => usePageSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.settings).toEqual(DEFAULT_PAGE_SETTINGS);
+  });
+
+  it('在更新失败时设置 error 并回滚到存储值', async () => {
+    const persistError = new Error('persist failed');
+    mockedStorage.set.mockRejectedValueOnce(persistError);
+
+    const { result } = renderHook(() => usePageSettings());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await expect(result.current.updateSyncVideoTimestamp(false)).rejects.toThrow('persist failed');
+
+    expect(mockedStorage.get).toHaveBeenCalledTimes(2);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toBe('persist failed');
+    expect(result.current.settings).toEqual(DEFAULT_PAGE_SETTINGS);
+  });
 });
 
