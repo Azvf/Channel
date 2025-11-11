@@ -16,6 +16,7 @@ interface TagInputProps {
   mode?: "list" | "create"; // 新增: 模式选择
   onCreateTag?: (tagName: string) => void; // 新增: create模式下创建标签的回调
   allowCreation?: boolean; // 新增: 是否允许创建新标签
+  dropdownZIndex?: string;
 }
 
 export function TagInput({ 
@@ -29,7 +30,8 @@ export function TagInput({
   disabled = false,
   mode = "list",
   onCreateTag,
-  allowCreation = true
+  allowCreation = true,
+  dropdownZIndex = "var(--z-dropdown)"
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -476,7 +478,7 @@ export function TagInput({
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
             width: `${dropdownPosition.width}px`,
-            zIndex: 'var(--z-dropdown)'
+            zIndex: dropdownZIndex
           }}
         >
           <div 

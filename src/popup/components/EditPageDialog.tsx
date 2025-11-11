@@ -25,9 +25,10 @@ interface EditPageDialogProps {
     tags: string[];
     screenshot: string;
   }) => void;
+  allSuggestions?: string[];
 }
 
-export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialogProps) {
+export function EditPageDialog({ isOpen, onClose, page, onSave, allSuggestions = [] }: EditPageDialogProps) {
   const [editedTitle, setEditedTitle] = useState(page.title);
   const [editedTags, setEditedTags] = useState<string[]>(page.tags);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
@@ -213,8 +214,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         zIndex: 'var(--z-modal-layer)',
         background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
         backdropFilter: 'blur(4px)',
-        margin: 0,
-        padding: 0
+        margin: 0
       }}
       initial="hidden"
       animate="visible"
@@ -229,7 +229,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
         style={{
           width: 'calc(100% - 32px)',
           maxWidth: '360px',
-          maxHeight: '90vh',
+          height: 'calc(100vh - 32px)',
           display: 'flex'
         }}
         variants={modalVariants}
@@ -240,8 +240,7 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
           className="overflow-hidden flex flex-col"
           style={{ 
             width: '100%', 
-            height: '100%', 
-            maxHeight: '90vh'
+            height: '100%'
           }}
         >
           {/* Header - 使用标准化的 ModalHeader */}
@@ -323,6 +322,10 @@ export function EditPageDialog({ isOpen, onClose, page, onSave }: EditPageDialog
               tags={editedTags}
               onTagsChange={setEditedTags}
               placeholder="Add or remove tags"
+              suggestions={allSuggestions}
+              excludeTags={editedTags}
+              allowCreation={true}
+              dropdownZIndex="var(--z-tooltip-layer)"
             />
           </div>
         </div>

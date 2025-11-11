@@ -459,6 +459,7 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
           onClose={() => setIsEditDialogOpen(false)}
           page={editingPage}
           onSave={handleSavePage}
+          allSuggestions={MOCK_SUGGESTIONS}
         />
       )}
 
