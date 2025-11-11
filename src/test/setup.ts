@@ -84,7 +84,8 @@ Object.defineProperty(window, 'matchMedia', {
 
 // requestAnimationFrame / cancelAnimationFrame polyfill
 if (!window.requestAnimationFrame) {
-  window.requestAnimationFrame = (callback: FrameRequestCallback): number => setTimeout(() => callback(performance.now()), 0) as unknown as number;
+  window.requestAnimationFrame = (callback: (time: number) => void): number =>
+    setTimeout(() => callback(performance.now()), 0) as unknown as number;
 }
 
 if (!window.cancelAnimationFrame) {

@@ -113,3 +113,13 @@ pids
 .rts2_cache/
 .node_repl_history
 *.pem
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+*storybook.log
+storybook-static

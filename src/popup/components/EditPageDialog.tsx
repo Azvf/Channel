@@ -251,6 +251,7 @@ export function EditPageDialog({
           <div 
             ref={scrollableContentRef}
             className="px-3 py-2.5 space-y-2.5 flex-1 overflow-y-auto"
+            data-testid="edit-dialog-scrollable"
             style={{ minHeight: 0 }}
           >
             {/* URL Display (Read-only) */}
