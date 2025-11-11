@@ -204,9 +204,8 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               overflow: 'visible',
             }}
           >
-            {/* SECTION 1: 核心操作 - 添加标签标题 + URL */}
             <motion.div layout="position">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Plus className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: 'var(--c-action)' }} />
                   <span 
@@ -221,44 +220,84 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     Add Tags
                   </span>
                 </div>
-                {currentPage?.url && (
-                  <p 
-                    style={{ 
-                      color: 'var(--color-text-secondary)',
-                      font: 'var(--font-caption)',
-                      letterSpacing: 'var(--letter-spacing-caption)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                      minWidth: 0,
-                      margin: 0,
-                      textAlign: 'right'
-                    } as CSSProperties}
-                    title={currentPage.url}
-                  >
-                    {currentPage.url}
-                  </p>
-                )}
-                {/* 刷新按钮 */}
-                {(error || loading || isRefreshing) && (
-                  <button
-                    onClick={() => loadCurrentPage(true)} // [修改]
-                    disabled={loading || isRefreshing}
-                    className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50 flex-shrink-0"
-                    style={{
-                      background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
-                      border: '1px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
-                    }}
-                    title="刷新"
-                  >
-                    <RefreshCw 
-                      className={`w-4 h-4 ${(loading || isRefreshing) ? 'animate-spin' : ''}`}
-                      strokeWidth={1.5}
-                      style={{ color: 'var(--c-action)' }}
-                    />
-                  </button>
-                )}
+
+                {/* [修复 3] 右侧“空间复用”容器 */}
+
+                <div 
+                  className="flex items-center justify-end gap-3 ml-auto" 
+                  style={{ flex: '1 1 0', minWidth: 0 }}
+                >
+                  
+                  {/* [修复 4] 条件渲染：只在 'error' 时显示按钮 */}
+                  
+                  {error ? (
+                    
+                    // 状态 1: 错误（显示可点击的刷新按钮）
+                    <button
+                      onClick={() => loadCurrentPage(true)}
+                      disabled={loading || isRefreshing}
+                      className="p-2 rounded-lg transition-all flex-shrink-0" 
+                      style={{
+                        background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
+                        border: '1px solid color-mix(in srgb, var(--c-glass) 30%, transparent)',
+                        opacity: 1,
+                        pointerEvents: 'auto',
+                        transition: 'opacity 150ms var(--ease-smooth)',
+                      }}
+                      title="刷新"
+                    >
+                      <RefreshCw 
+                        // [修复] 旋转由 isRefreshing 控制
+                        className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                        strokeWidth={1.5}
+                        style={{ color: 'var(--c-action)' }}
+                      />
+                    </button>
+                    
+                  ) : (currentPage?.url) ? (
+                  
+                    // 状态 2: 正常（显示 URL 和一个“条件可见”的 spinner）
+                    <div className="flex items-center justify-end gap-2" style={{ minWidth: 0 }}>
+                      
+                      {/* [关键修复] Spinner 始终在 DOM 中，只改变 opacity */}
+                      <RefreshCw 
+                        className="w-4 h-4 animate-spin"
+                        strokeWidth={1.5}
+                        style={{ 
+                          color: 'var(--c-action)',
+                          flexShrink: 0,
+                          // [关键] 使用 opacity 控制可见性，防止 Jank
+                          opacity: isRefreshing ? 1 : 0, 
+                          transition: 'opacity 150ms var(--ease-smooth)',
+                          pointerEvents: 'none'
+                        }}
+                      />
+                      
+                      {/* [关键修复] URL 始终在 DOM 中 */}
+                      <p 
+                        style={{ 
+                          color: 'var(--color-text-secondary)',
+                          font: 'var(--font-caption)',
+                          letterSpacing: 'var(--letter-spacing-caption)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          margin: 0,
+                          minWidth: 0,
+                          flexShrink: 1,
+                          textAlign: 'right'
+                        } as CSSProperties}
+                        title={currentPage.url}
+                      >
+                        {currentPage.url}
+                      </p>
+                    </div>
+                    
+                  ) : (
+                    // 状态 3: 既没有错误也没有 URL (例如：初始加载)
+                    null
+                  )}
+                </div>
               </div>
             </motion.div>
 

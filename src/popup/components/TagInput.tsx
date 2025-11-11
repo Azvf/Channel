@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
-import { LAYOUT_TRANSITION } from "../utils/motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Tag } from "./Tag";
 import { ChevronDown } from "lucide-react";
 
@@ -379,11 +378,8 @@ export function TagInput({
         {/* Content layer */}
         <div className="liquidGlass-content">
           <motion.div 
-            layout // <-- 这就是"魔法"：自动处理高度动画
-            transition={LAYOUT_TRANSITION} // <-- 使用我们的标准物理
             className="min-h-[2.6rem]"
             style={{
-              willChange: 'height',
               backfaceVisibility: 'hidden',
               overflow: 'hidden' // 保持裁切
             }}
@@ -394,13 +390,15 @@ export function TagInput({
               style={{ height: 'auto' }} // 确保内部容器高度始终自动
             >
               {/* 只在list模式下显示标签气泡 */}
-              {mode === "list" && tags.map((tag, index) => (
-                <Tag 
-                  key={`${tag}-${index}`}
-                  label={tag} 
-                  onRemove={() => removeTag(index)}
-                />
-              ))}
+              <AnimatePresence mode="popLayout">
+                {mode === "list" && tags.map((tag, index) => (
+                  <Tag 
+                    key={tag}
+                    label={tag} 
+                    onRemove={() => removeTag(index)}
+                  />
+                ))}
+              </AnimatePresence>
               
               <input
                 ref={inputRef}
@@ -439,7 +437,7 @@ export function TagInput({
                       setShouldShowDropdown(false);
                     }
                   }}
-                  className="p-1.5 rounded-full flex-shrink-0 transition-all"
+                  className="p-1.5 rounded-full flex-shrink-0 transition-all ml-auto"
                   style={{ 
                     color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
                     background: showSuggestions ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' : 'transparent'

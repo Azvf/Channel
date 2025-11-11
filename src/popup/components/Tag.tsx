@@ -1,4 +1,6 @@
 import { X } from "lucide-react";
+import { motion } from "framer-motion";
+import { LAYOUT_TRANSITION } from "../utils/motion";
 
 interface TagProps {
   label: string;
@@ -8,7 +10,13 @@ interface TagProps {
 
 export function Tag({ label, onRemove, className = "" }: TagProps) {
   return (
-    <div className={`inline-flex ${className}`}>
+    <motion.div
+      className={`inline-flex ${className}`}
+      layout
+      transition={{
+        layout: LAYOUT_TRANSITION,
+      }}
+    >
       <div 
         className="liquidGlass-wrapper relative"
         style={{
@@ -50,6 +58,6 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
