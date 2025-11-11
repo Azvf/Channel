@@ -30,11 +30,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 // 获取页面信息
 function handleGetPageInfo(sendResponse: (response: any) => void) {
+    const bodyElement = document.body;
+    const rawText = bodyElement?.innerText ?? bodyElement?.textContent ?? '';
+    const normalizedText = typeof rawText === 'string' ? rawText.trim() : '';
+    const wordCount =
+        normalizedText.length > 0 ? normalizedText.split(/\s+/).length : 0;
+
     const pageInfo = {
         title: document.title,
         url: window.location.href,
         domain: window.location.hostname,
-        wordCount: document.body.innerText.split(/\s+/).length,
+        wordCount,
         imageCount: document.images.length,
         linkCount: document.links.length,
         timestamp: Date.now()

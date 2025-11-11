@@ -172,6 +172,58 @@ describe('IPC 桥集成测试', () => {
     expect(removeResult.newPage.tags).toHaveLength(1);
     expect(memoryStorage[STORAGE_KEYS.PAGES][page.id].tags).not.toContain(tagToRemove.id);
   });
+
+  it('应该更新标签名称并同步存储', async () => {
+    const page = await currentPageService.getCurrentPage();
+    const originalTag = await currentPageService.createTagAndAddToPage('Old Name', page.id);
+    const tagManagerInstance = TagManager.getInstance();
+    const updateSpy = jest.spyOn(tagManagerInstance, 'updateTagName');
+
+    await currentPageService.updateTag(originalTag.id, 'New Name');
+
+    expect(updateSpy).toHaveBeenCalledWith(originalTag.id, 'New Name');
+    const storedTag = memoryStorage[STORAGE_KEYS.TAGS][originalTag.id];
+    expect(storedTag.name).toBe('New Name');
+
+    updateSpy.mockRestore();
+  });
+
+  it('应该获取所有标签的使用计数', async () => {
+    const page = await currentPageService.getCurrentPage();
+
+    await currentPageService.updatePageTags(page.id, {
+      tagsToAdd: ['Usage A', 'Usage B'],
+      tagsToRemove: [],
+    });
+
+    const counts = await currentPageService.getAllTagUsageCounts();
+
+    const storedTags = memoryStorage[STORAGE_KEYS.TAGS];
+    const usageATag = Object.values(storedTags).find((tag: any) => tag.name === 'Usage A') as { id: string };
+    const usageBTag = Object.values(storedTags).find((tag: any) => tag.name === 'Usage B') as { id: string };
+
+    expect(usageATag).toBeDefined();
+    expect(usageBTag).toBeDefined();
+    expect(counts[usageATag.id]).toBe(1);
+    expect(counts[usageBTag.id]).toBe(1);
+  });
+
+  it('更新标签失败时应该返回错误并且不触发持久化', async () => {
+    const tagManagerInstance = TagManager.getInstance();
+    const updateSpy = jest.spyOn(tagManagerInstance, 'updateTagName').mockReturnValue({
+      success: false,
+      error: 'Name exists',
+    });
+    const syncSpy = jest.spyOn(tagManagerInstance, 'syncToStorage');
+
+    await expect(currentPageService.updateTag('t1', 'Existing Name')).rejects.toThrow('Name exists');
+
+    expect(updateSpy).toHaveBeenCalledWith('t1', 'Existing Name');
+    expect(syncSpy).not.toHaveBeenCalled();
+
+    updateSpy.mockRestore();
+    syncSpy.mockRestore();
+  });
 });
 
 

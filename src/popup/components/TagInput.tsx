@@ -54,11 +54,17 @@ export function TagInput({
 
   // Auto focus on mount if autoFocus is true
   useEffect(() => {
-    if (autoFocus && inputRef.current) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
+    if (!autoFocus || !inputRef.current) {
+      return;
     }
+
+    const focusTimer = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
   }, [autoFocus]);
 
   // 同步prevTagsLengthRef（当tags从外部更新时，不通过addTag）

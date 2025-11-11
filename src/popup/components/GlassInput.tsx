@@ -27,12 +27,17 @@ export function GlassInput({
 
   // Auto focus on mount if autoFocus is true
   React.useEffect(() => {
-    if (autoFocus && inputRef.current) {
-      // Use setTimeout to ensure the component is fully mounted
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
+    if (!autoFocus || !inputRef.current) {
+      return;
     }
+
+    const focusTimer = window.setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+
+    return () => {
+      window.clearTimeout(focusTimer);
+    };
   }, [autoFocus]);
 
   const commonProps = {

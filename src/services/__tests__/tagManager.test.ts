@@ -718,6 +718,117 @@ describe('TagManager', () => {
       expect(pageWithTags.tags.length).toBeGreaterThan(0);
     });
 
+    it('合并模式在 ID 冲突时应保留现有数据并合并新数据', async () => {
+      tagManager.clearAllData();
+      const existingTag = tagManager.createTag('Existing Tag', '原始描述', '#123456');
+      const existingPage = tagManager.createOrUpdatePage(
+        'https://existing.example.com',
+        'Existing Page',
+        'existing.example.com'
+      );
+      tagManager.addTagToPage(existingPage.id, existingTag.id);
+
+      const importPayload = JSON.stringify({
+        tags: {
+          [existingTag.id]: {
+            id: existingTag.id,
+            name: '导入的名称',
+            description: '导入描述',
+            color: '#FFFFFF',
+            createdAt: 1,
+            updatedAt: 1,
+            bindings: ['non_existent']
+          },
+          tag_new: {
+            id: 'tag_new',
+            name: 'New Tag',
+            description: '新的标签',
+            color: '#ABCDEF',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            bindings: []
+          }
+        },
+        pages: {
+          [existingPage.id]: {
+            id: existingPage.id,
+            url: 'https://imported.example.com',
+            title: 'Imported Page',
+            domain: 'imported.example.com',
+            tags: ['tag_new'],
+            createdAt: 1,
+            updatedAt: 1
+          },
+          page_new: {
+            id: 'page_new',
+            url: 'https://new.example.com',
+            title: 'New Page',
+            domain: 'new.example.com',
+            tags: ['tag_new'],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          }
+        },
+        version: '1.0',
+        exportDate: new Date().toISOString()
+      });
+
+      const result = await tagManager.importData(importPayload, true);
+
+      expect(result.success).toBe(true);
+
+      const preservedTag = tagManager.getTagById(existingTag.id);
+      expect(preservedTag?.name).toBe('Existing Tag');
+      expect(preservedTag?.description).toBe('原始描述');
+      expect(preservedTag?.color).toBe('#123456');
+      expect(preservedTag?.bindings).not.toContain('non_existent');
+
+      const preservedPage = tagManager.getPageById(existingPage.id);
+      expect(preservedPage?.title).toBe('Existing Page');
+      expect(preservedPage?.url).toBe('https://existing.example.com');
+      expect(preservedPage?.tags).toContain(existingTag.id);
+      expect(preservedPage?.tags).not.toContain('tag_new');
+
+      expect(tagManager.getTagById('tag_new')).toBeDefined();
+      expect(tagManager.getPageById('page_new')).toBeDefined();
+    });
+
+    it('导入缺失引用的数据集后应保持可用性', async () => {
+      tagManager.clearAllData();
+      const payloadWithDanglingRefs = JSON.stringify({
+        tags: {},
+        pages: {
+          page_dangling: {
+            id: 'page_dangling',
+            url: 'https://dangling.example.com',
+            title: 'Dangling Page',
+            domain: 'dangling.example.com',
+            tags: ['missing_tag'],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          }
+        },
+        version: '1.0',
+        exportDate: new Date().toISOString()
+      });
+
+      const result = await tagManager.importData(payloadWithDanglingRefs, false);
+
+      expect(result.success).toBe(true);
+      expect(() => tagManager.getAllTagUsageCounts()).not.toThrow();
+      expect(() => tagManager.getTaggedPages('missing_tag')).not.toThrow();
+
+      const usageCounts = tagManager.getAllTagUsageCounts();
+      expect(usageCounts.missing_tag).toBeUndefined();
+
+      const danglingPage = tagManager.getPageById('page_dangling');
+      expect(danglingPage).toBeDefined();
+      expect(danglingPage?.tags).toContain('missing_tag');
+
+      expect(tagManager.deleteTag('missing_tag')).toBe(false);
+      expect(() => tagManager.createTag('恢复正常')).not.toThrow();
+    });
+
     it('完整的导出导入流程应该保持数据一致性', async () => {
       const originalStats = tagManager.getDataStats();
       
@@ -816,6 +927,32 @@ describe('TagManager', () => {
   });
 
   describe('deleteTag 绑定关系清理', () => {
+    it('deleteTag 应该级联清理所有引用并保持其他数据完整', () => {
+      const tagA = tagManager.createTag('TagA');
+      const tagB = tagManager.createTag('TagB');
+      const pageA = tagManager.createOrUpdatePage('https://a.example.com', 'Page A', 'a.example.com');
+      const pageB = tagManager.createOrUpdatePage('https://b.example.com', 'Page B', 'b.example.com');
+
+      tagManager.bindTags(tagA.id, tagB.id);
+
+      tagManager.addTagToPage(pageA.id, tagA.id);
+      tagManager.addTagToPage(pageB.id, tagA.id);
+
+      const deleteResult = tagManager.deleteTag(tagA.id);
+
+      expect(deleteResult).toBe(true);
+      expect(tagManager.getTagById(tagA.id)).toBeUndefined();
+
+      const remainingTagB = tagManager.getTagById(tagB.id);
+      expect(remainingTagB).toBeDefined();
+      expect(remainingTagB?.bindings).not.toContain(tagA.id);
+
+      const updatedPageA = tagManager.getPageById(pageA.id);
+      const updatedPageB = tagManager.getPageById(pageB.id);
+      expect(updatedPageA?.tags).not.toContain(tagA.id);
+      expect(updatedPageB?.tags).not.toContain(tagA.id);
+    });
+
     it('应该清理标签的绑定关系', () => {
       const tag1 = tagManager.createTag('前端');
       const tag2 = tagManager.createTag('后端');

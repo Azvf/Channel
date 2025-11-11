@@ -643,6 +643,7 @@ function PageCard({
 
   return (
     <div
+      data-testid={`page-card-${page.id}`}
       className="rounded-2xl transition-all relative
                  hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]
                  hover:border-[color-mix(in_srgb,var(--c-glass)_28%,transparent)]"
@@ -668,6 +669,7 @@ function PageCard({
         }}
       >
         <button
+          aria-label="更多操作"
           ref={(button) => registerMenuButton(page.id, button)}
           onClick={(e) => onMenuButtonClick(e, page)}
           className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0
