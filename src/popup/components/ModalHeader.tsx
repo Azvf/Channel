@@ -27,20 +27,12 @@ export function ModalHeader({ title, onClose }: ModalHeaderProps) {
 
       <button
         onClick={onClose}
-        className="rounded-lg p-2 transition-all"
+        className="rounded-lg p-2 transition-all hover-destructive"
         style={{
-          background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-          color: 'color-mix(in srgb, var(--c-content) 70%, var(--c-bg))',
+          background: 'transparent',
+          border: '1px solid transparent',
+          color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
           cursor: 'pointer'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-          e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-          e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
         }}
       >
         <X className="w-4 h-4" />

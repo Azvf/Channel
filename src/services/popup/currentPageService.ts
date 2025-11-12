@@ -218,6 +218,28 @@ class CurrentPageService {
   }
 
   /**
+   * [新增] 仅创建新标签
+   */
+  async createTag(tagName: string): Promise<GameplayTag> {
+    try {
+      const response = await this.sendMessageWithTimeout<GameplayTag>({
+        action: 'createTag',
+        data: { name: tagName, description: '' }
+      });
+
+      if (response && response.success && response.data) {
+        return response.data;
+      }
+
+      throw new Error(response?.error || '创建标签失败');
+    } catch (error) {
+      console.error('创建标签失败:', error);
+      if (error instanceof Error) throw error;
+      throw new Error(String(error));
+    }
+  }
+
+  /**
    * 创建标签并添加到当前页面
    */
   async createTagAndAddToPage(tagName: string, pageId: string): Promise<GameplayTag> {

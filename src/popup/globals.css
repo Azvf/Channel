@@ -130,6 +130,21 @@
 
     /* 模块标题颜色 (e.g., "Add Tags", "Search by Tags") */
     --color-text-module-title: color-mix(in srgb, var(--c-content) 70%, var(--c-bg));
+
+    /* --- [新增] HOVER DESIGN TOKENS --- */
+
+    /* 规则 A: "选中" (Glass) - 用于行和容器 */
+    --hover-bg-glass: color-mix(in srgb, var(--c-glass) 15%, transparent);
+    --hover-border-glass: color-mix(in srgb, var(--c-glass) 25%, transparent);
+
+    /* 规则 B: "行动" (Action) - 用于按钮和菜单项 */
+    --hover-bg-action: color-mix(in srgb, var(--c-action) 15%, transparent);
+    --hover-color-action: var(--c-action);
+
+    /* --- [新增] DESTRUCTIVE TOKENS --- */
+    --color-destructive: #D0021B;
+    --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
+    --hover-color-destructive: var(--color-destructive);
   }
   
   /* 只有当 body 有 data-theme-ready 属性时才启用过渡效果 */
@@ -522,6 +537,12 @@ html {
 
 .glass-button.primary:hover {
   background-color: var(--c-action);
+}
+
+/* GlassButton 毁灭性变体 */
+.glass-button.destructive:hover {
+  color: var(--hover-color-destructive) !important;
+  transform: scale(1.05);
 }
 
 /* SVG Filter for Glass Distortion */
@@ -1491,4 +1512,63 @@ body[data-edit-dialog-open] .theme-switcher-container {
 /* [新增] 辅助类，用于隐藏 h2 上强制的滚动条 */
 h2[style*="overflow-y: scroll"]::-webkit-scrollbar {
   display: var(--pseudo-display, block);
+}
+
+/* ========================================
+   [新增] HOVER UTILITY SYSTEM
+   ======================================== */
+
+/* 规则 A: "选中" (Glass)
+   用于 SettingsRow, TagRow 等容器
+*/
+.hover-glass {
+  background-color: transparent;
+  border-color: transparent;
+  transition: background-color var(--transition-fast) var(--ease-smooth),
+              border-color var(--transition-fast) var(--ease-smooth);
+}
+
+.hover-glass:hover {
+  background-color: var(--hover-bg-glass) !important;
+  /* border-color: var(--hover-border-glass) !important; */
+}
+
+/* 规则 B: "行动" (Action)
+   用于按钮、图标、菜单项
+*/
+.hover-action {
+  background-color: transparent;
+  color: var(--c-content);
+  transition: background-color var(--transition-fast) var(--ease-smooth),
+              color var(--transition-fast) var(--ease-smooth);
+}
+
+.hover-action:hover {
+  background-color: var(--hover-bg-action) !important;
+  color: var(--hover-color-action) !important;
+}
+
+.hover-action:hover svg {
+  color: var(--hover-color-action) !important;
+}
+
+/* --- [新增] DESTRUCTIVE HOVER UTILITY --- */
+
+/* 规则 C: "毁灭性行动" (Destructive)
+   用于所有非 GlassButton 的删除按钮
+*/
+.hover-destructive {
+  background-color: transparent;
+  color: color-mix(in srgb, var(--c-content) 60%, transparent);
+  transition: background-color var(--transition-fast) var(--ease-smooth),
+              color var(--transition-fast) var(--ease-smooth);
+}
+
+.hover-destructive:hover {
+  background-color: var(--hover-bg-action) !important;
+  color: var(--hover-color-destructive) !important;
+}
+
+.hover-destructive:hover svg {
+  color: var(--hover-color-destructive) !important;
 }

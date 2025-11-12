@@ -6,6 +6,7 @@ export interface ContextMenuItem {
   label: string;
   onClick: () => void;
   icon?: ReactNode;
+  variant?: 'default' | 'destructive';
 }
 
 interface ContextMenuProps {
@@ -67,20 +68,15 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
                   <li key={index}>
                     <button
                       onClick={() => handleItemClick(item.onClick)}
-                      className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
+                      className={`flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all ${item.variant === 'destructive' ? 'hover-destructive' : 'hover-action'}`}
                       style={{
-                        color: 'var(--c-content)',
+                        color: item.variant === 'destructive'
+                          ? 'color-mix(in srgb, var(--c-content) 60%, transparent)'
+                          : 'var(--c-content)',
+                        background: 'transparent',
                         font: 'var(--font-caption)',
                         letterSpacing: 'var(--letter-spacing-caption)',
                         fontWeight: 500,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 15%, transparent)';
-                        e.currentTarget.style.color = 'var(--c-action)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--c-content)';
                       }}
                     >
                       {item.icon && React.cloneElement(item.icon as any, { className: 'w-3.5 h-3.5' })}

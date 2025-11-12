@@ -62,6 +62,7 @@ interface TaggedPageProps {
   className?: string;
   onOpenSettings: () => void;
   onOpenStats: () => void;
+  onOpenTagLibrary: () => void;
 }
 
 interface PageCardProps {
@@ -73,7 +74,12 @@ interface PageCardProps {
   tagIdToName: Map<string, string>;
 }
 
-export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: TaggedPageProps) {
+export function TaggedPage({
+  className = "",
+  onOpenSettings,
+  onOpenStats,
+  onOpenTagLibrary,
+}: TaggedPageProps) {
   const {
     allPages,
     allTags,
@@ -270,17 +276,18 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
           }
 
           .hud-button:hover {
-            background-color: color-mix(in srgb, var(--c-action) 10%, transparent);
+            background-color: var(--hover-bg-action);
           }
 
           .hud-button:hover .stat-item-icon,
           .hud-button:hover .stat-item-value,
           .hud-button-settings:hover {
-            color: var(--c-action) !important;
+            color: var(--hover-color-action) !important;
           }
 
           .hud-button-settings {
-            padding: 1.5px;
+            padding: 0.375rem;
+            border-radius: 0.5rem;
             color: color-mix(in srgb, var(--c-content) 65%, var(--c-bg));
             transition:
               color 0.2s var(--ease-smooth),
@@ -308,13 +315,22 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                 <StatItem icon={<TagIcon />} value={allTags.length} />
               </button>
 
-              <button
-                onClick={onOpenSettings}
-                title="Settings"
-                className="hud-button hud-button-settings"
-              >
-                <Settings className="w-3.5 h-3.5" strokeWidth={2} />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={onOpenTagLibrary}
+                  title="Tag Library"
+                  className="hud-button hud-button-settings"
+                >
+                  <TagIcon className="w-3.5 h-3.5" strokeWidth={2} />
+                </button>
+                <button
+                  onClick={onOpenSettings}
+                  title="Settings"
+                  className="hud-button hud-button-settings"
+                >
+                  <Settings className="w-3.5 h-3.5" strokeWidth={2} />
+                </button>
+              </div>
             </div>
 
             <div
@@ -537,20 +553,12 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                             handleEditPage(page);
                             handleCloseMenu();
                           }}
-                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
+                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
                           style={{
                             color: "var(--c-content)",
                             fontSize: "0.8rem",
                             fontWeight: 500,
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background =
-                              "color-mix(in srgb, var(--c-action) 15%, transparent)";
-                            e.currentTarget.style.color = "var(--c-action)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "var(--c-content)";
+                            background: "transparent",
                           }}
                         >
                           <Pencil className="w-3.5 h-3.5" />
@@ -563,20 +571,12 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                             navigator.clipboard.writeText(page.url).catch(console.error);
                             handleCloseMenu();
                           }}
-                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
+                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
                           style={{
                             color: "var(--c-content)",
                             fontSize: "0.8rem",
                             fontWeight: 500,
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background =
-                              "color-mix(in srgb, var(--c-action) 15%, transparent)";
-                            e.currentTarget.style.color = "var(--c-action)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "var(--c-content)";
+                            background: "transparent",
                           }}
                         >
                           <Copy className="w-3.5 h-3.5" />
@@ -589,20 +589,12 @@ export function TaggedPage({ className = "", onOpenSettings, onOpenStats }: Tagg
                             removePageFromView(page.id);
                             handleCloseMenu();
                           }}
-                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all"
+                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-destructive"
                           style={{
-                            color: "var(--c-content)",
+                            color: "color-mix(in srgb, var(--c-content) 60%, transparent)",
                             fontSize: "0.8rem",
                             fontWeight: 500,
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background =
-                              "color-mix(in srgb, var(--c-action) 15%, transparent)";
-                            e.currentTarget.style.color = "var(--c-action)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "transparent";
-                            e.currentTarget.style.color = "var(--c-content)";
+                            background: "transparent",
                           }}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -644,9 +636,7 @@ function PageCard({
   return (
     <div
       data-testid={`page-card-${page.id}`}
-      className="rounded-2xl transition-all relative
-                 hover:bg-[color-mix(in_srgb,var(--c-glass)_15%,transparent)]
-                 hover:border-[color-mix(in_srgb,var(--c-glass)_28%,transparent)]"
+      className="rounded-2xl transition-all relative hover-glass"
       style={{
         background: "color-mix(in srgb, var(--c-glass) 8%, transparent)",
         border: "1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)",
@@ -674,10 +664,7 @@ function PageCard({
           onClick={(e) => onMenuButtonClick(e, page)}
           className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0
                      group-hover/more:opacity-100 transition-all
-                     hover:bg-[color-mix(in_srgb,var(--c-action)_20%,transparent)]
-                     hover:border-[color-mix(in_srgb,var(--c-action)_45%,transparent)]
-                     hover:text-[var(--c-action)]
-                     hover:scale-105"
+                     hover-action"
           style={{
             background: "color-mix(in srgb, var(--c-glass) 18%, transparent)",
             backdropFilter: "blur(8px)",

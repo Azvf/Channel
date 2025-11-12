@@ -4,6 +4,7 @@ import { TaggedPage } from "./components/TaggedPage";
 import { TabSwitcher } from "./components/TabSwitcher";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatsWallModal } from "./components/StatsWallModal";
+import { TagManagementPage } from "./components/TagManagementPage";
 import { storageService, STORAGE_KEYS } from "../services/storageService";
 import { usePageSettings } from "./utils/usePageSettings";
 import type { AppInitialState } from "../services/appInitService";
@@ -18,6 +19,7 @@ export default function App({ initialState }: AppProps) {
   const [activeTab, setActiveTab] = useState<"tagging" | "tagged">(initialState.activeTab);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStatsWallOpen, setIsStatsWallOpen] = useState(false);
+  const [isTagLibraryOpen, setIsTagLibraryOpen] = useState(false);
 
   usePageSettings(initialState.pageSettings);
 
@@ -65,6 +67,10 @@ export default function App({ initialState }: AppProps) {
         isOpen={isStatsWallOpen}
         onClose={() => setIsStatsWallOpen(false)}
       />
+      <TagManagementPage
+        isOpen={isTagLibraryOpen}
+        onClose={() => setIsTagLibraryOpen(false)}
+      />
 
       <div
         className="relative flex-1 p-4"
@@ -81,6 +87,7 @@ export default function App({ initialState }: AppProps) {
           <TaggedPage
             onOpenSettings={() => setIsSettingsOpen(true)}
             onOpenStats={() => setIsStatsWallOpen(true)}
+            onOpenTagLibrary={() => setIsTagLibraryOpen(true)}
           />
         )}
       </div>

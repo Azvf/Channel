@@ -21,7 +21,7 @@ export function SettingsRow({
 }: SettingsRowProps) {
   const rowContent = (
     <div
-      className={`settings-row ${className}`}
+      className={`settings-row ${className} ${onClick && !disabled ? 'hover-glass' : ''}`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -30,19 +30,9 @@ export function SettingsRow({
         padding: '0.625rem 0.75rem',
         borderRadius: '0.5rem',
         cursor: onClick && !disabled ? 'pointer' : 'default',
-        transition: 'background-color var(--transition-fast) var(--ease-smooth)',
         opacity: disabled ? 0.6 : 1,
         pointerEvents: disabled ? 'none' : 'auto',
-      }}
-      onMouseEnter={(e) => {
-        if (onClick && !disabled) {
-          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--c-glass) 12%, transparent)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (onClick && !disabled) {
-          e.currentTarget.style.backgroundColor = 'transparent';
-        }
+        background: 'transparent'
       }}
       onClick={onClick && !disabled ? onClick : undefined}
     >

@@ -8,6 +8,7 @@ import { ModalHeader } from "./ModalHeader";
 import { ModalFooter } from "./ModalFooter";
 import { Save } from "lucide-react";
 import { TaggedPage } from "../../types/gameplayTag";
+import { GlassButton } from "./GlassButton";
 
 interface EditPageDialogProps {
   isOpen: boolean;
@@ -334,29 +335,12 @@ export function EditPageDialog({
 
         {/* Footer - 使用标准化的 ModalFooter */}
         <ModalFooter>
-          <button
+          <GlassButton
             onClick={handleCancel}
-            className="px-4 py-2 rounded-lg transition-all"
-            style={{
-              background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)',
-              color: 'var(--c-content)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              letterSpacing: '0.01em',
-              cursor: 'pointer'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
-              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 35%, transparent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 8%, transparent)';
-              e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--c-glass) 25%, transparent)';
-            }}
+            variant="default"
           >
             Cancel
-          </button>
+          </GlassButton>
 
           <button
             onClick={handleSave}

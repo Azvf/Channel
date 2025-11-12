@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Download, Upload, Sun, AppWindow, Video, Tag } from 'lucide-react';
+import { ChevronRight, Download, Upload, Sun, AppWindow, Video } from 'lucide-react';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { Checkbox } from './ui/checkbox';
@@ -9,18 +9,16 @@ import { ThemeSwitcher } from './ThemeSwitcher';
 import { SettingsGroup } from './SettingsGroup';
 import { SettingsRow } from './SettingsRow';
 import { SettingsSectionTitle } from './SettingsSectionTitle';
-import { TagManagementPage } from './TagManagementPage';
 import { usePageSettings } from '../utils/usePageSettings';
 import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
 import { currentPageService } from '../../services/popup/currentPageService';
+import { AlertModal, type AlertModalProps } from './AlertModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTheme: string;
 }
-
-type SettingsPage = 'main' | 'tagLibrary';
 
 export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalProps) {
   // 使用 pageSettings hook 管理"同步视频时间戳"设置
@@ -31,11 +29,49 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   const [selectedAppIcon, setSelectedAppIcon] = useState<string>('default');
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [currentPage, setCurrentPage] = useState<SettingsPage>('main');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [alertState, setAlertState] = useState<Omit<AlertModalProps, 'isOpen' | 'onClose'> | null>(null);
 
   const handleSyncVideoTimestampChange = (checked: boolean) => {
     updateSyncVideoTimestamp(checked);
+  };
+
+  const confirmImport = async (text: string, mergeMode: boolean) => {
+    setAlertState(null);
+    setIsImporting(true);
+
+    try {
+      const result = await currentPageService.importData(text, mergeMode);
+
+      setAlertState({
+        title: '导入成功',
+        intent: 'info',
+        children: `成功导入 ${result.tagsCount || 0} 个标签和 ${result.pagesCount || 0} 个页面。应用将刷新。`,
+        actions: [
+          {
+            id: 'reload',
+            label: '刷新应用',
+            variant: 'primary',
+            onClick: () => window.location.reload(),
+          },
+        ],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setAlertState({
+        title: '导入失败',
+        intent: 'destructive',
+        children: errorMessage,
+        actions: [
+          { id: 'ok', label: '好的', variant: 'primary', onClick: () => setAlertState(null) },
+        ],
+      });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   // 导出数据
@@ -57,7 +93,14 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('导出数据失败:', error);
-      alert('导出数据失败，请重试');
+      setAlertState({
+        title: '导出失败',
+        intent: 'destructive',
+        children: '导出数据时发生错误，请重试。',
+        actions: [
+          { id: 'ok', label: '好的', variant: 'primary', onClick: () => setAlertState(null) },
+        ],
+      });
     } finally {
       setIsExporting(false);
     }
@@ -68,39 +111,45 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
     const file = event.target.files?.[0];
     if (!file) return;
 
-    try {
-      setIsImporting(true);
-      
-      // 读取文件内容
-      const text = await file.text();
-      
-      // 询问用户是覆盖还是合并
-      const mergeMode = window.confirm(
-        '导入模式选择：\n\n' +
-        '点击"确定"：合并模式（保留现有数据，仅添加新数据）\n' +
-        '点击"取消"：覆盖模式（完全替换现有数据）'
-      );
-      
-      const result = await currentPageService.importData(text, mergeMode);
-
-      alert(
-        `导入成功！\n` +
-        `标签：${result.tagsCount || 0} 个\n` +
-        `页面：${result.pagesCount || 0} 个`
-      );
-      
-      // 刷新页面以显示新数据
-      window.location.reload();
-    } catch (error) {
-      console.error('导入数据失败:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      alert(`导入数据失败：${errorMessage}`);
-    } finally {
-      setIsImporting(false);
-      // 重置文件输入
+    const text = await file.text();
+    if (!text) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      return;
+    }
+
+    setAlertState({
+      title: '选择导入模式',
+      intent: 'info',
+      children: (
+        <span>
+          你希望如何导入数据？
+          <br />
+          - <b>合并 (推荐):</b> 保留现有数据，仅添加新数据。
+          <br />
+          - <b>覆盖:</b> 删除所有现有数据，替换为导入的数据。
+        </span>
+      ),
+      actions: [
+        {
+          id: 'overwrite',
+          label: '覆盖',
+          variant: 'destructive',
+          onClick: () => confirmImport(text, false),
+        },
+        {
+          id: 'merge',
+          label: '合并 (推荐)',
+          variant: 'primary',
+          onClick: () => confirmImport(text, true),
+          autoFocus: true,
+        },
+      ],
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -131,8 +180,8 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
       className="fixed inset-0 flex items-center justify-center p-4"
       style={{
         zIndex: 'var(--z-modal-layer)',
-        background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
-        backdropFilter: 'blur(4px)',
+        background: 'color-mix(in srgb, var(--c-bg) 20%, transparent)',
+        backdropFilter: 'blur(8px)',
       }}
       initial="hidden"
       animate="visible"
@@ -148,7 +197,17 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
         onClick={(e) => e.stopPropagation()} // Prevent closing on modal click
         style={{ maxHeight: '90vh', display: 'flex' }}
       >
-        <GlassCard className="p-5 flex flex-col" style={{ width: '100%', maxHeight: '90vh' }}>
+        <GlassCard 
+          className="p-5 flex flex-col" 
+          style={{ 
+            width: '100%', 
+            maxHeight: '90vh',
+            backgroundColor: 'color-mix(in srgb, var(--c-bg) 80%, var(--c-glass) 15%)',
+            backdropFilter: 'blur(16px) saturate(var(--saturation))',
+            WebkitBackdropFilter: 'blur(16px) saturate(var(--saturation))',
+            border: '1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 30%), transparent)'
+          }}
+        >
           {/* Header - 使用标准化的 ModalHeader */}
           <ModalHeader title="Settings" onClose={onClose} />
 
@@ -161,9 +220,6 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
               marginTop: '1rem',
             }}
           >
-            {currentPage === 'tagLibrary' ? (
-              <TagManagementPage onBack={() => setCurrentPage('main')} />
-            ) : (
               <>
             {/* GENERAL Section */}
             <SettingsSectionTitle style={{ marginTop: 0 }}>GENERAL</SettingsSectionTitle>
@@ -202,16 +258,6 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
             </SettingsGroup>
 
             {/* LIBRARY Section */}
-            <SettingsSectionTitle>LIBRARY</SettingsSectionTitle>
-            <SettingsGroup>
-              <SettingsRow
-                icon={<Tag className="w-4 h-4" strokeWidth={1.5} />}
-                label="Manage Tags"
-                control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
-                onClick={() => setCurrentPage('tagLibrary')}
-              />
-            </SettingsGroup>
-
             {/* DATA Section */}
             <SettingsSectionTitle>DATA</SettingsSectionTitle>
             <SettingsGroup>
@@ -252,7 +298,6 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
               </span>
             </div>
               </>
-            )}
           </div>
         </GlassCard>
       </motion.div>
@@ -260,9 +305,21 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   );
 
   return createPortal(
-    <AnimatePresence>
-      {isOpen && modalContent}
-    </AnimatePresence>,
+    <>
+      <AnimatePresence>
+        {isOpen && modalContent}
+      </AnimatePresence>
+
+      <AlertModal
+        isOpen={!!alertState}
+        onClose={() => setAlertState(null)}
+        title={alertState?.title || '提示'}
+        intent={alertState?.intent || 'info'}
+        actions={alertState?.actions || []}
+      >
+        {alertState?.children}
+      </AlertModal>
+    </>,
     document.body
   );
 }

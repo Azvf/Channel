@@ -1,9 +1,9 @@
-interface GlassButtonProps {
+import React from 'react';
+
+interface GlassButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
-  onClick?: () => void;
-  variant?: "default" | "primary";
-  className?: string;
-  disabled?: boolean;
+  variant?: "default" | "primary" | "destructive";
   icon?: React.ReactNode;
 }
 
@@ -13,23 +13,31 @@ export function GlassButton({
   variant = "default",
   className = "",
   disabled = false,
-  icon
+  icon,
+  style,
+  type,
+  ...rest
 }: GlassButtonProps) {
   const isPrimary = variant === "primary";
+  const isDestructive = variant === "destructive";
   const hasChildren = children !== null && children !== undefined && children !== "";
+  const buttonType = type ?? "button";
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`glass-button disabled:opacity-50 disabled:cursor-not-allowed relative ${className} ${isPrimary ? 'primary' : ''}`}
+      type={buttonType}
+      className={`glass-button disabled:opacity-50 disabled:cursor-not-allowed relative ${className} ${isPrimary ? 'primary' : ''} ${isDestructive ? 'destructive' : ''}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: hasChildren ? 'flex-start' : 'center',
         gap: hasChildren ? '0.5rem' : '0',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        ...style
       }}
+      {...rest}
     >
       {icon}
       {hasChildren && (
