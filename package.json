@@ -19,7 +19,8 @@
     "test:ct": "playwright test --config=playwright-ct.config.ts",
     "test:ct:ui": "playwright test --config=playwright-ct.config.ts --ui",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "chromatic": "npx chromatic"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.23.7",
@@ -49,6 +50,7 @@
     "@vitest/coverage-v8": "^4.0.8",
     "autoprefixer": "^10.4.18",
     "babel-jest": "^29.7.0",
+    "chromatic": "^13.3.3",
     "eslint": "^8.45.0",
     "eslint-plugin-storybook": "^10.0.6",
     "identity-obj-proxy": "^3.0.0",
