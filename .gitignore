@@ -123,3 +123,4 @@ pids
 
 *storybook.log
 storybook-static
+/playwright-report-ct
