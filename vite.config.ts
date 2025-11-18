@@ -69,11 +69,6 @@ export default defineConfig(({ mode }) => ({
           src: 'icon.png',
           dest: '.'
         },
-        // Copy background images and any static assets under image/
-        {
-          src: 'image/bg/*',
-          dest: 'image/bg'
-        },
         // Copy preview.html for development
         {
           src: 'preview.html',

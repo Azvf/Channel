@@ -3,13 +3,15 @@ import { createPortal } from 'react-dom';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { ActivityTooltip } from './ActivityTooltip';
-import { currentPageService } from '../../services/popup/currentPageService';
+import { statsWallManager } from '../../services/StatsWallManager';
+import { CalendarLayoutInfo } from '../../types/statsWall';
 
 interface StatsWallModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// 适配器：将 CalendarCell 转换为组件内部使用的格式
 interface DayData {
   id: string;
   date: Date;
@@ -17,125 +19,25 @@ interface DayData {
   items: number;
   dateString: string;
 }
-interface MonthLabel {
-  label: string;
-  colStart: number;
-}
 
 /**
- * [V9 修复] 1. 创建一个 *同步* 函数来生成空的日历结构
- * 这确保了模态框可以立即渲染，*绝不*显示加载器。
- * 它的布局逻辑必须与 loadAndProcessActivityData *完全一致*以防止 Re-Layout。
+ * 将 CalendarLayoutInfo 转换为组件内部使用的格式
  */
-function generateEmptyCalendarDays(): { days: DayData[]; monthLabels: MonthLabel[] } {
-  const days: DayData[] = [];
-  const monthLabels: MonthLabel[] = [];
-  const today = new Date();
-  const endDate = new Date(today);
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 364); // 365 天
-  startDate.setDate(startDate.getDate() - startDate.getDay()); // 回溯到周日
-  endDate.setDate(endDate.getDate() + (6 - endDate.getDay())); // 前进到周六
-
-  let currentMonth = '';
-  let currentWeekCol = 1;
-
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const key = d.toISOString().split('T')[0];
-    // 关键：level 和 items 默认为 0
-    days.push({
-      id: key,
-      date: new Date(d),
-      level: 0, 
-      items: 0,
-      dateString: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    });
-    
-    // 月份对齐逻辑 (V5 修复)
-    const monthKey = d.toLocaleDateString('en-US', { month: 'short' });
-    if (monthKey !== currentMonth) {
-      currentMonth = monthKey;
-      const colStart = d.getDay() === 0 ? currentWeekCol : currentWeekCol + 1;
-      if (!monthLabels.find(m => m.colStart === colStart)) {
-         monthLabels.push({ label: monthKey, colStart: colStart });
-      }
-    }
-    if (d.getDay() === 6) { 
-      currentWeekCol++;
-    }
-  }
-  return { days, monthLabels };
+function convertLayoutToDayData(layout: CalendarLayoutInfo): { days: DayData[]; monthLabels: { label: string; colStart: number }[] } {
+  return {
+    days: layout.cells.map(cell => ({
+      id: cell.id,
+      date: cell.date,
+      level: cell.level,
+      items: cell.count,
+      dateString: cell.label
+    })),
+    monthLabels: layout.months
+  };
 }
 
 /**
- * [V9] 2. 异步数据获取 (保持 V5 逻辑)
- */
-async function loadAndProcessActivityData(): Promise<{ days: DayData[]; monthLabels: MonthLabel[] }> {
-  const pages = await currentPageService.getAllTaggedPages();
-
-  const activityMap = new Map<string, number>();
-  pages.forEach(page => {
-    const date = new Date(page.createdAt);
-    const key = date.toISOString().split('T')[0];
-    activityMap.set(key, (activityMap.get(key) || 0) + 1);
-  });
-  
-  const maxActivity = Math.max(0, ...activityMap.values());
-  const level1 = Math.max(1, Math.ceil(maxActivity * 0.25));
-  const level2 = Math.max(2, Math.ceil(maxActivity * 0.5));
-  const level3 = Math.max(3, Math.ceil(maxActivity * 0.75));
-  
-  const days: DayData[] = [];
-  const monthLabels: MonthLabel[] = [];
-  const today = new Date();
-  const endDate = new Date(today);
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 364);
-  startDate.setDate(startDate.getDate() - startDate.getDay());
-  endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-
-  let currentMonth = '';
-  let currentWeekCol = 1;
-
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const key = d.toISOString().split('T')[0];
-    const items = activityMap.get(key) || 0;
-    
-    let level: DayData['level'] = 0;
-    if (items >= level3) level = 3;
-    else if (items >= level2) level = 2;
-    else if (items >= level1) level = 1;
-
-    days.push({
-      id: key,
-      date: new Date(d),
-      level,
-      items,
-      dateString: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    });
-
-    const monthKey = d.toLocaleDateString('en-US', { month: 'short' });
-    if (monthKey !== currentMonth) {
-      currentMonth = monthKey;
-      const colStart = d.getDay() === 0 ? currentWeekCol : currentWeekCol + 1;
-      if (!monthLabels.find(m => m.colStart === colStart)) {
-         monthLabels.push({ label: monthKey, colStart: colStart });
-      }
-    }
-    if (d.getDay() === 6) { 
-      currentWeekCol++;
-    }
-  }
-  return { days, monthLabels };
-}
-
-// [V9] 3. 状态缓存 (Module-level cache)
-let cachedData: { days: DayData[]; monthLabels: MonthLabel[] } | null = null;
-let lastCacheTime: number = 0;
-const CACHE_DURATION_MS = 60 * 1000; // 1 分钟
-
-/**
- * [V9] 4. 宏观视图 (热图方块) - 使用 React.memo 优化
+ * 宏观视图 (热图方块) - 使用 React.memo 优化
  */
 const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
   const tooltipContent = day.items === 0 
@@ -158,39 +60,26 @@ const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
  */
 export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
   
-  // [V9 修复] 5. 立即使用缓存或空结构进行初始化
-  const [data, setData] = useState(() => cachedData || generateEmptyCalendarDays());
-  // [V9 修复] 移除了 isLoading 和 error 状态
+  // 立即使用空结构进行初始化，避免闪烁
+  const [layoutData, setLayoutData] = useState<CalendarLayoutInfo | null>(() => 
+    statsWallManager.generateEmptyCalendar()
+  );
 
-  // 2. [新] 为滚动容器创建一个 ref
+  // 为滚动容器创建一个 ref
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // [V9 修复] 6. 静默获取 (Silent Fetch)
+  // 静默获取数据 (Manager 处理了缓存)
   useEffect(() => {
     if (isOpen) {
-      const now = Date.now();
-      const isCacheStale = !cachedData || (now - lastCacheTime > CACHE_DURATION_MS);
-      
-      if (cachedData && !isCacheStale) {
-        if (data !== cachedData) {
-          setData(cachedData);
-        }
-        return; 
-      }
-
-      // 静默刷新
-      loadAndProcessActivityData()
-        .then(result => {
-          setData(result);
-          cachedData = result;
-          lastCacheTime = now;
-        })
+      // Manager 处理了缓存和逻辑，React 组件只负责"索要"数据
+      statsWallManager.getStatsWallData()
+        .then(data => setLayoutData(data))
         .catch(err => {
           // 静默失败
           console.error("后台加载活动数据失败:", err);
         });
     }
-  }, [isOpen, data]); // 添加 data 依赖确保状态一致
+  }, [isOpen]);
 
   // 3. [新] 添加 useEffect 来处理滚轮事件
   useEffect(() => {
@@ -215,14 +104,14 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
     }
   }, [isOpen]); // 仅在 isOpen 状态改变时重新附加/移除
 
-  // [MODIFIED] 自动滚动逻辑
+  // 自动滚动逻辑
   useEffect(() => {
     // 仅在模态框打开、滚动容器可用且数据已加载时执行
-    if (isOpen && scrollRef.current && data.days.length > 0) {
+    if (isOpen && scrollRef.current && layoutData && layoutData.cells.length > 0) {
       const element = scrollRef.current;
 
       // 1. 查找第一个有活动的 day 的索引
-      const firstActivityIndex = data.days.findIndex(day => day.items > 0);
+      const firstActivityIndex = layoutData.cells.findIndex(cell => cell.count > 0);
 
       // [修复] 从 CSS 读取动态值，而不是硬编码
       const computedStyle = window.getComputedStyle(element);
@@ -265,13 +154,13 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
 
       return () => cancelAnimationFrame(animationFrameId);
     }
-  }, [isOpen, data]); // 依赖 isOpen 和 data
-  // [END MODIFIED]
+  }, [isOpen, layoutData]); // 依赖 isOpen 和 layoutData
 
-  if (!isOpen) return null;
+  if (!isOpen || !layoutData) return null;
   
-  const { days, monthLabels } = data; // data 永远存在
-  const totalWeeks = Math.ceil(days.length / 7);
+  // 转换为组件内部使用的格式
+  const { days, monthLabels } = convertLayoutToDayData(layoutData);
+  const totalWeeks = layoutData.totalWeeks;
 
   return createPortal(
     <div className="stats-wall-backdrop" onClick={onClose}>
