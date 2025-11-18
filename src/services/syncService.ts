@@ -132,10 +132,20 @@ class SyncService {
     try {
       log.info('开始全量同步...');
 
-      // 1. 从云端拉取最新数据
+      // 1. 保存待删除项信息（在 uploadPendingChanges 清空队列之前）
+      // 用于后续合并时识别已删除的项，避免"僵尸数据"复活
+      const pendingDeletesBeforeUpload = this.pendingChanges
+        .filter((change) => change.operation === 'delete')
+        .map((change) => `${change.type}:${change.id}`);
+
+      // 2. 先上传本地待同步变更（包括删除操作）
+      // 这样可以确保删除操作先同步到云端，避免后续合并时"僵尸数据"复活
+      await this.uploadPendingChanges(authState.user.id);
+
+      // 3. 从云端拉取最新数据（此时已包含刚才上传的删除操作）
       const cloudData = await this.fetchFromCloud(authState.user.id);
 
-      // 2. 从本地获取数据
+      // 4. 从本地获取数据
       const localData = {
         tags: this.tagManager.getAllTags().reduce((acc, tag) => {
           acc[tag.id] = tag;
@@ -147,15 +157,17 @@ class SyncService {
         }, {} as PageCollection),
       };
 
-      // 3. 合并数据（基于 updatedAt）
-      const merged = this.mergeData(localData, cloudData);
+      // 5. 合并数据（基于 updatedAt，并考虑待删除项）
+      // 使用上传前的待删除项列表，因为 uploadPendingChanges 可能已清空队列
+      const merged = this.mergeData(
+        localData,
+        cloudData,
+        pendingDeletesBeforeUpload,
+      );
 
-      // 4. 更新本地数据
+      // 6. 更新本地数据
       this.tagManager.initialize(merged);
       await this.tagManager.syncToStorage();
-
-      // 5. 上传本地变更到云端
-      await this.uploadPendingChanges(authState.user.id);
 
       this.syncState.lastSyncAt = Date.now();
       this.syncState.pendingChangesCount = this.pendingChanges.length;
@@ -224,26 +236,28 @@ class SyncService {
   }
 
   /**
-   * 从云端拉取数据
+   * 从云端拉取数据（只拉取未删除的记录）
    */
   private async fetchFromCloud(userId: string): Promise<{
     tags: TagsCollection;
     pages: PageCollection;
   }> {
     try {
-      // 拉取标签
+      // 拉取标签（只拉取 deleted = false 的记录）
       const { data: tagsData, error: tagsError } = await supabase
         .from('tags')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('deleted', false);
 
       if (tagsError) throw tagsError;
 
-      // 拉取页面
+      // 拉取页面（只拉取 deleted = false 的记录）
       const { data: pagesData, error: pagesError } = await supabase
         .from('pages')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('deleted', false);
 
       if (pagesError) throw pagesError;
 
@@ -251,6 +265,11 @@ class SyncService {
       const tags: TagsCollection = {};
       if (tagsData) {
         for (const row of tagsData) {
+          // 双重保险：即使查询已过滤，也检查 deleted 字段
+          if (row.deleted === true) {
+            log.warn('发现已删除的标签（应该已被过滤）', { tagId: row.id });
+            continue;
+          }
           tags[row.id] = {
             id: row.id,
             name: row.name,
@@ -266,6 +285,11 @@ class SyncService {
       const pages: PageCollection = {};
       if (pagesData) {
         for (const row of pagesData) {
+          // 双重保险：即使查询已过滤，也检查 deleted 字段
+          if (row.deleted === true) {
+            log.warn('发现已删除的页面（应该已被过滤）', { pageId: row.id });
+            continue;
+          }
           pages[row.id] = {
             id: row.id,
             url: row.url,
@@ -289,13 +313,18 @@ class SyncService {
 
   /**
    * 合并本地和云端数据（基于 updatedAt 时间戳）
+   * @param pendingDeleteKeys 待删除项的键列表（格式：'type:id'），用于识别已删除的项，避免"僵尸数据"复活
    */
   private mergeData(
     local: { tags: TagsCollection; pages: PageCollection },
     cloud: { tags: TagsCollection; pages: PageCollection },
+    pendingDeleteKeys: string[] = [],
   ): { tags: TagsCollection; pages: PageCollection } {
     const mergedTags: TagsCollection = {};
     const mergedPages: PageCollection = {};
+
+    // 构建待删除项的集合（用于快速查找）
+    const pendingDeletes = new Set<string>(pendingDeleteKeys);
 
     // 合并标签：保留 updatedAt 更大的版本
     const allTagIds = new Set([
@@ -306,13 +335,26 @@ class SyncService {
     for (const tagId of allTagIds) {
       const localTag = local.tags?.[tagId];
       const cloudTag = cloud.tags?.[tagId];
+      const isPendingDelete = pendingDeletes.has(`tag:${tagId}`);
+
+      // 如果该标签在待删除队列中，且云端也没有，则跳过（不恢复）
+      if (isPendingDelete && !cloudTag) {
+        log.info('跳过已删除的标签（避免僵尸数据复活）', { tagId });
+        continue;
+      }
 
       if (!localTag && cloudTag) {
+        // 只有云端有：使用云端数据
         mergedTags[tagId] = cloudTag;
       } else if (localTag && !cloudTag) {
+        // 只有本地有：可能是新建的未同步数据，保留
+        // 但如果云端已物理删除（且不在待删除队列中），说明是旧数据，应该删除
+        // 由于我们已经先上传了待删除操作，如果云端真的删除了，这里 cloudTag 应该不存在
+        // 如果不在待删除队列中，且本地数据很旧，可能是僵尸数据
+        // 为了安全，我们保留本地数据（因为可能是新建的）
         mergedTags[tagId] = localTag;
       } else if (localTag && cloudTag) {
-        // 保留 updatedAt 更大的版本
+        // 双方都有：保留 updatedAt 更大的版本
         mergedTags[tagId] =
           localTag.updatedAt >= cloudTag.updatedAt ? localTag : cloudTag;
       }
@@ -327,13 +369,22 @@ class SyncService {
     for (const pageId of allPageIds) {
       const localPage = local.pages?.[pageId];
       const cloudPage = cloud.pages?.[pageId];
+      const isPendingDelete = pendingDeletes.has(`page:${pageId}`);
+
+      // 如果该页面在待删除队列中，且云端也没有，则跳过（不恢复）
+      if (isPendingDelete && !cloudPage) {
+        log.info('跳过已删除的页面（避免僵尸数据复活）', { pageId });
+        continue;
+      }
 
       if (!localPage && cloudPage) {
+        // 只有云端有：使用云端数据
         mergedPages[pageId] = cloudPage;
       } else if (localPage && !cloudPage) {
+        // 只有本地有：可能是新建的未同步数据，保留
         mergedPages[pageId] = localPage;
       } else if (localPage && cloudPage) {
-        // 保留 updatedAt 更大的版本
+        // 双方都有：保留 updatedAt 更大的版本
         mergedPages[pageId] =
           localPage.updatedAt >= cloudPage.updatedAt ? localPage : cloudPage;
       }
@@ -352,13 +403,15 @@ class SyncService {
     userId: string,
   ): Promise<void> {
     if (operation === 'delete') {
+      // 使用软删除：设置 deleted = true，而不是物理删除
       const { error } = await supabase
         .from('tags')
-        .delete()
+        .update({ deleted: true, updated_at: Date.now() })
         .eq('id', tagId)
         .eq('user_id', userId);
 
       if (error) throw error;
+      log.info('标签已软删除', { tagId });
       return;
     }
 
@@ -377,6 +430,7 @@ class SyncService {
         bindings: tag.bindings || [],
         created_at: tag.createdAt,
         updated_at: tag.updatedAt,
+        deleted: false, // 确保创建/更新时 deleted = false
       },
       {
         onConflict: 'id,user_id',
@@ -396,13 +450,15 @@ class SyncService {
     userId: string,
   ): Promise<void> {
     if (operation === 'delete') {
+      // 使用软删除：设置 deleted = true，而不是物理删除
       const { error } = await supabase
         .from('pages')
-        .delete()
+        .update({ deleted: true, updated_at: Date.now() })
         .eq('id', pageId)
         .eq('user_id', userId);
 
       if (error) throw error;
+      log.info('页面已软删除', { pageId });
       return;
     }
 
@@ -423,6 +479,7 @@ class SyncService {
         updated_at: page.updatedAt,
         favicon: page.favicon || null,
         description: page.description || null,
+        deleted: false, // 确保创建/更新时 deleted = false
       },
       {
         onConflict: 'id,user_id',
@@ -434,6 +491,7 @@ class SyncService {
 
   /**
    * 上传待同步的变更
+   * 优先处理删除操作，避免"僵尸数据"复活
    */
   private async uploadPendingChanges(userId: string): Promise<void> {
     if (this.pendingChanges.length === 0) {
@@ -445,7 +503,14 @@ class SyncService {
     const changes = [...this.pendingChanges];
     this.pendingChanges = [];
 
-    for (const change of changes) {
+    // 优先处理删除操作，确保删除先同步到云端
+    const sortedChanges = changes.sort((a, b) => {
+      if (a.operation === 'delete' && b.operation !== 'delete') return -1;
+      if (a.operation !== 'delete' && b.operation === 'delete') return 1;
+      return 0;
+    });
+
+    for (const change of sortedChanges) {
       try {
         if (change.type === 'tag') {
           await this.syncTagToCloud(
@@ -579,6 +644,7 @@ class SyncService {
 
   /**
    * 处理实时变更
+   * 注意：由于使用软删除，DELETE 事件不会触发，需要检查 UPDATE 事件中的 deleted 字段
    */
   private async handleRealtimeChange(
     type: SyncChangeType,
@@ -588,14 +654,30 @@ class SyncService {
       const { eventType, new: newRecord, old: oldRecord } = payload;
 
       if (type === 'tag') {
+        // 处理物理删除（虽然现在使用软删除，但保留兼容性）
         if (eventType === 'DELETE') {
-          const tagId = oldRecord.id;
-          const tag = this.tagManager.getTagById(tagId);
-          if (tag) {
-            this.tagManager.deleteTag(tagId);
-            await this.tagManager.syncToStorage();
+          const tagId = oldRecord?.id;
+          if (tagId) {
+            const tag = this.tagManager.getTagById(tagId);
+            if (tag) {
+              this.tagManager.deleteTag(tagId);
+              await this.tagManager.syncToStorage();
+            }
           }
         } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          // 检查软删除：如果 deleted = true，则从本地删除
+          if (newRecord.deleted === true) {
+            const tagId = newRecord.id;
+            const tag = this.tagManager.getTagById(tagId);
+            if (tag) {
+              log.info('收到标签软删除事件', { tagId });
+              this.tagManager.deleteTag(tagId);
+              await this.tagManager.syncToStorage();
+            }
+            return;
+          }
+
+          // 处理创建/更新（deleted = false 或未设置）
           const tag: GameplayTag = {
             id: newRecord.id,
             name: newRecord.name,
@@ -625,9 +707,24 @@ class SyncService {
           }
         }
       } else if (type === 'page') {
+        // 处理物理删除（虽然现在使用软删除，但保留兼容性）
         if (eventType === 'DELETE') {
-          // 页面删除通常不需要特殊处理，因为 TagManager 不直接删除页面
+          const pageId = oldRecord?.id;
+          if (pageId) {
+            // 页面删除通常不需要特殊处理，因为 TagManager 不直接删除页面
+            log.info('收到页面物理删除事件', { pageId });
+          }
         } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+          // 检查软删除：如果 deleted = true，则从本地删除
+          if (newRecord.deleted === true) {
+            const pageId = newRecord.id;
+            log.info('收到页面软删除事件', { pageId });
+            // 页面删除通常不需要特殊处理，因为 TagManager 不直接删除页面
+            // 但我们可以从本地存储中移除它（如果需要）
+            return;
+          }
+
+          // 处理创建/更新（deleted = false 或未设置）
           const page: TaggedPage = {
             id: newRecord.id,
             url: newRecord.url,
