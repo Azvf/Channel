@@ -18,6 +18,15 @@ export default {
   testMatch: [
     '**/__tests__/**/*.test.[jt]s?(x)',
     '**/*.test.[jt]s?(x)',
+    '**/tests/**/*.spec.[jt]s?(x)', // 支持集成测试的 .spec.ts 文件
+    '**/__tests__/**/*.spec.[jt]s?(x)',
+  ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/',
+    '/tests/e2e/', // 排除 E2E 测试（由 Playwright 运行）
+    '/tests/ct/', // 排除组件测试（由 Playwright CT 运行）
+    '/tests/example.spec.ts', // 排除示例测试（由 Playwright 运行）
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

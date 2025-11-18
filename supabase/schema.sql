@@ -73,41 +73,45 @@ ALTER TABLE pages ENABLE ROW LEVEL SECURITY;
 
 -- Tags 表 RLS 策略
 -- 用户只能访问自己的标签
+-- 注意：使用 (select auth.uid()) 而不是 auth.uid() 以优化性能
+-- 这样可以避免在每个行上都重新评估 auth.uid()
 CREATE POLICY IF NOT EXISTS "Users can view their own tags"
   ON tags FOR SELECT
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY IF NOT EXISTS "Users can insert their own tags"
   ON tags FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY IF NOT EXISTS "Users can update their own tags"
   ON tags FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY IF NOT EXISTS "Users can delete their own tags"
   ON tags FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- Pages 表 RLS 策略
 -- 用户只能访问自己的页面
+-- 注意：使用 (select auth.uid()) 而不是 auth.uid() 以优化性能
+-- 这样可以避免在每个行上都重新评估 auth.uid()
 CREATE POLICY IF NOT EXISTS "Users can view their own pages"
   ON pages FOR SELECT
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY IF NOT EXISTS "Users can insert their own pages"
   ON pages FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY IF NOT EXISTS "Users can update their own pages"
   ON pages FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY IF NOT EXISTS "Users can delete their own pages"
   ON pages FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- ==========================================
 -- 5. 注释说明

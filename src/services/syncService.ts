@@ -42,7 +42,7 @@ interface SyncState {
  * 数据同步服务
  * 负责本地数据与云端数据的双向同步
  */
-class SyncService {
+export class SyncService {
   private static instance: SyncService;
   private tagManager: TagManager;
   private isInitialized = false;

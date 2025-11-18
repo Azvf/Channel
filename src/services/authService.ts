@@ -136,7 +136,17 @@ class AuthService {
       log.info('存储数据已清空');
 
       // 3. 登出 Supabase 会话
-      await supabase.auth.signOut();
+      // 使用超时包装，防止网络请求挂起（特别是在测试环境中）
+      try {
+        const signOutPromise = supabase.auth.signOut();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Sign out timeout')), 10000)
+        );
+        await Promise.race([signOutPromise, timeoutPromise]);
+      } catch (error) {
+        // 如果超时或失败，仍然继续清理本地数据
+        log.warn('Supabase sign out failed or timeout, but continuing with local cleanup', { error });
+      }
       
       // 状态更新会由 onAuthStateChange 触发，但为了 UI 响应速度，也可以手动触发
       this.updateState(ANONYMOUS_STATE);

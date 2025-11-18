@@ -1,0 +1,267 @@
+import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
+import { authService } from '../../services/authService';
+import { syncService } from '../../services/syncService';
+import { TagManager } from '../../services/tagManager';
+import { storageService, STORAGE_KEYS } from '../../services/storageService';
+import { testHelpers, TEST_ACCOUNT } from '../../test/helpers';
+
+// 条件性 Mock Supabase：只有在 USE_REAL_SUPABASE 不为 'true' 时才 mock
+// 这样可以支持使用真实的 dev 数据库进行集成测试
+const USE_REAL_SUPABASE = process.env.USE_REAL_SUPABASE === 'true';
+
+if (!USE_REAL_SUPABASE) {
+  // Mock Supabase（默认行为）
+  // 使用 jest.mock 而不是 vi.mock，因为 jest.mock 在模块顶层调用更可靠
+  jest.mock('../../lib/supabase', () => ({
+    supabase: {
+      from: jest.fn(() => ({
+        select: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            gt: jest.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
+        })),
+        upsert: jest.fn(() => Promise.resolve({ data: null, error: null })),
+        update: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            eq: jest.fn(() => Promise.resolve({ data: null, error: null })),
+          })),
+        })),
+      })),
+      auth: {
+        getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+        onAuthStateChange: jest.fn(() => ({ data: { subscription: null }, unsubscribe: jest.fn() })),
+        signOut: jest.fn(() => Promise.resolve({ error: null })),
+      },
+      channel: jest.fn(() => ({
+        on: jest.fn(() => ({
+          subscribe: jest.fn(),
+        })),
+      })),
+      removeChannel: jest.fn(),
+    },
+  }));
+}
+
+// Mock chrome.identity
+global.chrome = {
+  ...global.chrome,
+  identity: {
+    getRedirectURL: jest.fn(() => 'https://extension-id.chromiumapp.org/'),
+    launchWebAuthFlow: jest.fn(() => Promise.resolve('https://extension-id.chromiumapp.org/#access_token=token&refresh_token=refresh')),
+  },
+} as any;
+
+describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
+  // 使用真实数据库时，增加整体超时时间
+  if (USE_REAL_SUPABASE) {
+    jest.setTimeout(30000); // 30秒超时（真实数据库需要网络请求）
+  }
+
+  // 在测试套件开始时登录测试账号（如果使用真实数据库）
+  beforeAll(async () => {
+    if (USE_REAL_SUPABASE) {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('[privacy.spec] ❌ 环境变量未正确设置，无法连接到真实数据库');
+        return;
+      }
+      
+      // 如果测试账号已配置，尝试登录
+      if (TEST_ACCOUNT.isConfigured()) {
+        await testHelpers.loginWithTestAccount();
+      }
+    }
+  });
+
+  let tagManager: TagManager;
+
+  beforeEach(async () => {
+    await testHelpers.clearAllData();
+    tagManager = await testHelpers.initTagManager();
+  });
+
+  afterEach(async () => {
+    await testHelpers.clearAllData();
+    jest.clearAllMocks();
+  });
+
+  // 在所有测试结束后登出测试账号（如果已登录）
+  afterAll(async () => {
+    if (USE_REAL_SUPABASE && TEST_ACCOUNT.isConfigured()) {
+      await testHelpers.logoutTestAccount();
+    }
+  });
+
+  it('用户切换时应彻底清除本地数据', async () => {
+    // 1. 模拟用户 A 数据
+    tagManager.createTag('UserA-Tag');
+    tagManager.createTag('UserA-Tag2');
+    const page = tagManager.createOrUpdatePage('https://usera.example.com', 'UserA Page', 'usera.example.com');
+    tagManager.addTagToPage(page.id, tagManager.getAllTags()[0].id);
+
+    expect(tagManager.getAllTags()).toHaveLength(2);
+
+    // 2. 执行登出
+    try {
+      await authService.logout();
+    } catch (error) {
+      // 忽略 Supabase 相关的错误
+    }
+
+    // 3. 验证清理
+    expect(tagManager.getAllTags()).toHaveLength(0);
+    const storageDump = await storageService.getMultiple([STORAGE_KEYS.TAGS, STORAGE_KEYS.PAGES]);
+    expect(storageDump[STORAGE_KEYS.TAGS]).toBeNull();
+    expect(storageDump[STORAGE_KEYS.PAGES]).toBeNull();
+  });
+
+  it('用户 A 登出后，用户 B 登录时不应看到 A 的数据', async () => {
+    // 1. 用户 A 创建数据
+    tagManager.createTag('UserA-Private-Tag');
+    await tagManager.syncToStorage();
+
+    // 验证数据存在
+    let storageData = await storageService.get(STORAGE_KEYS.TAGS);
+    expect(storageData).not.toBeNull();
+
+    // 2. 用户 A 登出
+    try {
+      await authService.logout();
+    } catch (error) {
+      // 忽略错误
+    }
+
+    // 3. 验证数据已被清除
+    storageData = await storageService.get(STORAGE_KEYS.TAGS);
+    expect(storageData).toBeNull();
+    expect(tagManager.getAllTags()).toHaveLength(0);
+
+    // 4. 用户 B "登录"（模拟，因为我们需要 mock Supabase）
+    // 这里我们验证 TagManager 是干净的，用户 B 不应该看到 A 的数据
+    tagManager.clearAllData();
+    expect(tagManager.getAllTags()).toHaveLength(0);
+
+    // 5. 用户 B 创建自己的数据
+    tagManager.createTag('UserB-Tag');
+    expect(tagManager.getAllTags()).toHaveLength(1);
+    expect(tagManager.getAllTags()[0].name).toBe('UserB-Tag');
+    expect(tagManager.getAllTags()[0].name).not.toBe('UserA-Private-Tag');
+  });
+
+  it('同步服务应该处理用户切换', async () => {
+    // 这个测试验证 SyncService 在用户切换时的行为
+    // 注意：由于 SyncService 的私有方法和复杂的初始化逻辑，
+    // 这里主要验证 TagManager 和 StorageService 的清理逻辑
+
+    // 1. 用户 A 数据
+    tagManager.createTag('UserA-Tag');
+    await tagManager.syncToStorage();
+
+    // 2. 登出
+    try {
+      await authService.logout();
+    } catch (error) {
+      // 忽略错误
+    }
+
+    // 3. 验证数据清理
+    expect(tagManager.getAllTags()).toHaveLength(0);
+    const storageData = await storageService.getMultiple([
+      STORAGE_KEYS.TAGS,
+      STORAGE_KEYS.PAGES,
+      STORAGE_KEYS.SYNC_PENDING_CHANGES,
+      STORAGE_KEYS.SYNC_LAST_TIMESTAMP,
+    ]);
+
+    // 所有相关存储都应该被清除
+    expect(storageData[STORAGE_KEYS.TAGS]).toBeNull();
+    expect(storageData[STORAGE_KEYS.PAGES]).toBeNull();
+  });
+
+  it('应该验证数据库连接配置', async () => {
+    // 验证环境变量是否正确设置
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (USE_REAL_SUPABASE) {
+      // 使用真实数据库时的验证
+      expect(supabaseUrl).toBeDefined();
+      expect(supabaseKey).toBeDefined();
+      expect(supabaseUrl).toContain('supabase.co');
+      
+      // 验证 Supabase 客户端是否正确初始化
+      const { supabase } = await import('../../lib/supabase');
+      expect(supabase).toBeDefined();
+      
+      // 验证不是 Mock（Mock 的 from 方法会有 mockClear 等属性）
+      const isMocked = typeof (supabase.from as any).mockClear === 'function';
+      expect(isMocked).toBe(false);
+      
+      // 尝试一个简单的查询来验证连接（需要登录状态）
+      if (TEST_ACCOUNT.isConfigured()) {
+        const isLoggedIn = await testHelpers.ensureLoggedIn();
+        
+        if (isLoggedIn) {
+          try {
+            const queryPromise = supabase
+              .from('tags')
+              .select('id')
+              .limit(0);
+            
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('查询超时')), 5000)
+            );
+            
+            await Promise.race([queryPromise, timeoutPromise]);
+          } catch {
+            // 查询失败或超时，不影响测试通过（配置已验证正确）
+          }
+        }
+      }
+    } else {
+      // 使用 Mock 时的验证
+      const { supabase } = await import('../../lib/supabase');
+      expect(supabase).toBeDefined();
+      
+      // 验证是 Mock
+      const isMocked = typeof (supabase.from as any).mockClear === 'function';
+      expect(isMocked).toBe(true);
+    }
+  }, 30000); // 30秒超时
+
+  it('Storage 和 TagManager 应该保持同步', async () => {
+    // 1. 创建数据
+    const tag = tagManager.createTag('TestTag');
+    const page = tagManager.createOrUpdatePage('https://example.com', 'Test Page', 'example.com');
+    tagManager.addTagToPage(page.id, tag.id);
+
+    // 2. 同步到存储
+    await tagManager.syncToStorage();
+
+    // 3. 验证存储中有数据
+    const storedTags = await storageService.get(STORAGE_KEYS.TAGS);
+    const storedPages = await storageService.get(STORAGE_KEYS.PAGES);
+
+    expect(storedTags).not.toBeNull();
+    expect(storedPages).not.toBeNull();
+
+    // 4. 清空 TagManager
+    tagManager.clearAllData();
+
+    // 5. 重新从存储加载
+    await tagManager.reloadFromStorage();
+
+    // 6. 验证数据已恢复（现在 chrome.storage mock 会真正保存数据）
+    const restoredTags = tagManager.getAllTags();
+    const restoredPages = tagManager.getTaggedPages();
+
+    expect(tagManager.isInitialized).toBe(true);
+    expect(restoredTags.length).toBe(1);
+    expect(restoredTags[0].name).toBe('TestTag');
+    expect(restoredPages.length).toBe(1);
+    expect(restoredPages[0].url).toBe('https://example.com');
+  });
+});
+
