@@ -9,6 +9,7 @@ import {
 } from "react";
 import { currentPageService } from "../../services/popup/currentPageService";
 import type { TaggedPage, GameplayTag } from "../../types/gameplayTag";
+import { STORAGE_KEYS } from "../../services/storageService";
 
 interface UserStats {
   todayCount: number;
@@ -55,9 +56,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // 1. 初始加载
     loadAllData().catch((err) => {
       console.error("Failed to initialize app context:", err);
     });
+
+    // 2. 订阅数据变化 - 监听 chrome.storage.onChanged
+    // 当 Background 进程中的 SyncService 更新数据并保存到 storage 时，
+    // Popup 进程可以通过这个监听器自动刷新 UI
+    const handleStorageChange = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: 'sync' | 'local' | 'managed'
+    ) => {
+      // 只处理 local storage 的变化（sync storage 的变化也会触发，但我们主要关注 local）
+      if (areaName !== 'local') {
+        return;
+      }
+
+      // 检查 TAGS 或 PAGES 是否发生变化
+      const tagsChanged = changes[STORAGE_KEYS.TAGS] !== undefined;
+      const pagesChanged = changes[STORAGE_KEYS.PAGES] !== undefined;
+
+      if (tagsChanged || pagesChanged) {
+        console.log('[AppContext] 检测到数据变化，自动刷新 UI', {
+          tagsChanged,
+          pagesChanged,
+        });
+        // 重新加载所有数据
+        loadAllData().catch((err) => {
+          console.error("Failed to refresh app context data:", err);
+        });
+      }
+    };
+
+    // 添加监听器
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+
+      // 清理函数：组件卸载时移除监听器
+      return () => {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    }
   }, [loadAllData]);
 
   const contextValue = useMemo<AppState>(

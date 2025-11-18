@@ -2,6 +2,8 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { AuthState, UserProfile, ANONYMOUS_STATE } from '../types/auth';
 import { logger } from './logger';
+import { TagManager } from './tagManager';
+import { storageService, STORAGE_KEYS } from './storageService';
 
 const log = logger('AuthService');
 
@@ -114,11 +116,27 @@ class AuthService {
 
   /**
    * 登出逻辑
+   * 清空本地数据以保护隐私，防止数据泄露给下一个用户
    */
   public async logout(): Promise<void> {
     this.updateState({ isLoading: true });
     try {
+      // 1. 清空 TagManager 的本地数据
+      const tagManager = TagManager.getInstance();
+      tagManager.clearAllData();
+      log.info('TagManager 数据已清空');
+
+      // 2. 清空存储中的标签和页面数据
+      await storageService.removeMultiple([
+        STORAGE_KEYS.TAGS,
+        STORAGE_KEYS.PAGES,
+        STORAGE_KEYS.SYNC_PENDING_CHANGES,
+      ]);
+      log.info('存储数据已清空');
+
+      // 3. 登出 Supabase 会话
       await supabase.auth.signOut();
+      
       // 状态更新会由 onAuthStateChange 触发，但为了 UI 响应速度，也可以手动触发
       this.updateState(ANONYMOUS_STATE);
       log.info('Logout successful');

@@ -2,12 +2,15 @@ import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../type
 import { logger } from './logger';
 import { storageService, STORAGE_KEYS } from './storageService';
 
+type ChangeListener = () => void;
+
 export class TagManager {
   private static instance: TagManager;
   private tags: TagsCollection = {};
   private pages: PageCollection = {};
 
   private isInitialized = false;
+  private listeners: Set<ChangeListener> = new Set();
 
   private constructor() {
     // 构造函数中不进行异步操作
@@ -18,6 +21,29 @@ export class TagManager {
       TagManager.instance = new TagManager();
     }
     return TagManager.instance;
+  }
+
+  /**
+   * 订阅数据变化事件
+   * @param listener 变化监听器
+   * @returns 取消订阅的函数
+   */
+  public subscribe(listener: ChangeListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  /**
+   * 通知所有监听器数据已变化
+   */
+  private notifyListeners(): void {
+    this.listeners.forEach(cb => {
+      try {
+        cb();
+      } catch (error) {
+        console.error('TagManager: 监听器执行失败', error);
+      }
+    });
   }
 
   /**
@@ -33,9 +59,29 @@ export class TagManager {
       this.tags = data.tags || {};
       this.pages = data.pages || {};
       this.isInitialized = true; // 标记为已初始化
+      this.notifyListeners(); // 通知 UI
     } catch (error) {
       console.error('TagManager 初始化失败:', error);
       this.isInitialized = false; // 失败时重置
+      throw error;
+    }
+  }
+
+  /**
+   * 强制更新数据（即使已经初始化）
+   * 用于同步服务在后台更新数据时使用
+   */
+  public updateData(data: { tags?: TagsCollection | null; pages?: PageCollection | null }): void {
+    try {
+      if (data.tags !== undefined) {
+        this.tags = data.tags;
+      }
+      if (data.pages !== undefined) {
+        this.pages = data.pages;
+      }
+      this.notifyListeners(); // 通知 UI
+    } catch (error) {
+      console.error('TagManager 更新数据失败:', error);
       throw error;
     }
   }
@@ -62,6 +108,7 @@ export class TagManager {
     };
 
     this.tags[id] = tag;
+    this.notifyListeners(); // 通知 UI
 
     // 不在这里调用saveToStorage，让调用者处理
     return tag;
@@ -77,6 +124,7 @@ export class TagManager {
     if (!b.bindings.includes(tagIdA)) b.bindings.push(tagIdA);
     a.updatedAt = Date.now();
     b.updatedAt = Date.now();
+    this.notifyListeners(); // 通知 UI
     return true;
   }
 
@@ -88,6 +136,7 @@ export class TagManager {
     b.bindings = b.bindings.filter(id => id !== tagIdA);
     a.updatedAt = Date.now();
     b.updatedAt = Date.now();
+    this.notifyListeners(); // 通知 UI
     return true;
   }
 
@@ -143,6 +192,7 @@ export class TagManager {
     // 3. 更新名称
     tag.name = trimmedName;
     tag.updatedAt = Date.now();
+    this.notifyListeners(); // 通知 UI
 
     return { success: true };
   }
@@ -229,6 +279,7 @@ export class TagManager {
       this.pages[pageId].tags.push(tagId);
       this.pages[pageId].updatedAt = Date.now();
       log.debug('addTagToPage: added', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
+      this.notifyListeners(); // 通知 UI
       // 不在这里调用saveToStorage，让调用者处理
       return true;
     } else {
@@ -249,6 +300,7 @@ export class TagManager {
       this.pages[pageId].tags.splice(index, 1);
       this.pages[pageId].updatedAt = Date.now();
       log.debug('removeTagFromPage: removed', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
+      this.notifyListeners(); // 通知 UI
       // 不在这里调用saveToStorage，让调用者处理
       
       return true;
@@ -285,6 +337,7 @@ export class TagManager {
       };
     }
 
+    this.notifyListeners(); // 通知 UI
     // 不在这里调用saveToStorage，让调用者处理
     return this.pages[pageId];
   }
@@ -354,6 +407,7 @@ export class TagManager {
       title: trimmedTitle,
       updatedAt: Date.now()
     };
+    this.notifyListeners(); // 通知 UI
     
     return true;
   }
@@ -361,6 +415,8 @@ export class TagManager {
   public clearAllData(): void {
     this.tags = {};
     this.pages = {};
+    this.isInitialized = false; // 重置初始化状态，允许重新初始化
+    this.notifyListeners(); // 通知 UI
   }
 
   public getDataStats(): { tagsCount: number; pagesCount: number } {
@@ -527,6 +583,7 @@ export class TagManager {
         STORAGE_KEYS.PAGES
       ]);
       this.isInitialized = false; // 强制重新初始化
+      // initialize 内部会调用 notifyListeners，这里不需要重复调用
       this.initialize({
         tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,
         pages: storageData[STORAGE_KEYS.PAGES] as PageCollection | null
@@ -597,6 +654,7 @@ export class TagManager {
         this.pages = imported.pages;
       }
 
+      this.notifyListeners(); // 通知 UI
       // 保存到存储
       await this.saveToStorage();
 
@@ -657,6 +715,7 @@ export class TagManager {
 
     // 3. 删除标签本身
     delete this.tags[tagId];
+    this.notifyListeners(); // 通知 UI
     return true;
   }
 

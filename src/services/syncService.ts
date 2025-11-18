@@ -55,6 +55,14 @@ class SyncService {
   };
   private pendingChanges: PendingChange[] = [];
   private realtimeChannels: { tags?: any; pages?: any } = {};
+  // 防止循环更新的标志位
+  private isApplyingRemoteChange = false;
+  // 记录最近处理的变更，避免重复处理（格式：'type:id:updatedAt'）
+  private recentProcessedChanges = new Set<string>();
+  // 最近处理的变更记录的最大数量（防止内存泄漏）
+  private readonly MAX_RECENT_CHANGES = 100;
+  // 跟踪当前用户ID，用于检测用户切换
+  private currentUserId: string | null = null;
 
   private constructor() {
     this.tagManager = TagManager.getInstance();
@@ -80,18 +88,39 @@ class SyncService {
       await this.loadPendingChanges();
 
       // 监听认证状态变化
-      authService.subscribe((authState) => {
-        if (authState.isAuthenticated) {
+      authService.subscribe(async (authState) => {
+        if (authState.isAuthenticated && authState.user) {
+          // 检测用户切换
+          const newUserId = authState.user.id;
+          if (this.currentUserId !== null && this.currentUserId !== newUserId) {
+            // 用户切换：清空本地数据并重置状态
+            log.warn('检测到用户切换，清空本地数据', {
+              oldUserId: this.currentUserId,
+              newUserId,
+            });
+            // 等待数据清空完成后再继续
+            await this.handleUserSwitch();
+          }
+          this.currentUserId = newUserId;
           this.startRealtimeSubscription();
-          this.syncAll();
+          // syncAll 是异步的，但不阻塞，让它在后台执行
+          this.syncAll().catch((error) => {
+            log.error('同步失败', { error });
+          });
         } else {
+          // 用户登出：清空当前用户ID
+          if (this.currentUserId !== null) {
+            log.info('用户登出，清空用户ID');
+            this.currentUserId = null;
+          }
           this.stopRealtimeSubscription();
         }
       });
 
       // 如果已登录，立即开始同步
       const authState = authService.getState();
-      if (authState.isAuthenticated) {
+      if (authState.isAuthenticated && authState.user) {
+        this.currentUserId = authState.user.id;
         this.startRealtimeSubscription();
         this.syncAll();
       }
@@ -650,6 +679,12 @@ class SyncService {
     type: SyncChangeType,
     payload: any,
   ): Promise<void> {
+    // 如果正在应用远程变更，忽略新的变更（防止嵌套调用）
+    if (this.isApplyingRemoteChange) {
+      log.warn('正在应用远程变更，忽略新的 Realtime 变更', { type });
+      return;
+    }
+
     try {
       const { eventType, new: newRecord, old: oldRecord } = payload;
 
@@ -658,21 +693,48 @@ class SyncService {
         if (eventType === 'DELETE') {
           const tagId = oldRecord?.id;
           if (tagId) {
+            // 检查是否已处理过
+            const changeKey = `tag:${tagId}:delete:${oldRecord?.updated_at || Date.now()}`;
+            if (this.recentProcessedChanges.has(changeKey)) {
+              log.debug('已处理过该删除变更，跳过', { tagId });
+              return;
+            }
+
             const tag = this.tagManager.getTagById(tagId);
             if (tag) {
-              this.tagManager.deleteTag(tagId);
-              await this.tagManager.syncToStorage();
+              this.isApplyingRemoteChange = true;
+              try {
+                this.tagManager.deleteTag(tagId);
+                await this.tagManager.syncToStorage();
+                this.recordProcessedChange(changeKey);
+              } finally {
+                this.isApplyingRemoteChange = false;
+              }
             }
           }
         } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
           // 检查软删除：如果 deleted = true，则从本地删除
           if (newRecord.deleted === true) {
             const tagId = newRecord.id;
+            const changeKey = `tag:${tagId}:delete:${newRecord.updated_at || Date.now()}`;
+            
+            // 检查是否已处理过
+            if (this.recentProcessedChanges.has(changeKey)) {
+              log.debug('已处理过该软删除变更，跳过', { tagId });
+              return;
+            }
+
             const tag = this.tagManager.getTagById(tagId);
             if (tag) {
-              log.info('收到标签软删除事件', { tagId });
-              this.tagManager.deleteTag(tagId);
-              await this.tagManager.syncToStorage();
+              this.isApplyingRemoteChange = true;
+              try {
+                log.info('收到标签软删除事件', { tagId });
+                this.tagManager.deleteTag(tagId);
+                await this.tagManager.syncToStorage();
+                this.recordProcessedChange(changeKey);
+              } finally {
+                this.isApplyingRemoteChange = false;
+              }
             }
             return;
           }
@@ -688,22 +750,53 @@ class SyncService {
             updatedAt: newRecord.updated_at || Date.now(),
           };
 
+          // 生成变更键，用于去重
+          const changeKey = `tag:${tag.id}:${tag.updatedAt}`;
+          
+          // 检查是否已处理过（避免重复处理）
+          if (this.recentProcessedChanges.has(changeKey)) {
+            log.debug('已处理过该变更，跳过', { tagId: tag.id, updatedAt: tag.updatedAt });
+            return;
+          }
+
           // 检查本地是否有更新（避免循环同步）
           const localTag = this.tagManager.getTagById(tag.id);
-          if (!localTag || localTag.updatedAt < tag.updatedAt) {
-            // 更新本地数据：获取所有现有数据，然后更新特定标签
-            const existingTags = this.tagManager.getAllTags().reduce((acc, t) => {
-              acc[t.id] = t;
-              return acc;
-            }, {} as TagsCollection);
-            const existingPages = this.tagManager.getTaggedPages().reduce((acc, p) => {
-              acc[p.id] = p;
-              return acc;
-            }, {} as PageCollection);
+          // 使用 <= 而不是 <，避免时间戳完全一致时的重复处理
+          if (!localTag || localTag.updatedAt <= tag.updatedAt) {
+            // 如果时间戳完全一致，检查内容是否相同（避免不必要的更新）
+            if (localTag && localTag.updatedAt === tag.updatedAt) {
+              const isSame = 
+                localTag.name === tag.name &&
+                localTag.description === tag.description &&
+                localTag.color === tag.color &&
+                JSON.stringify(localTag.bindings) === JSON.stringify(tag.bindings);
+              
+              if (isSame) {
+                log.debug('本地数据与远程数据相同，跳过更新', { tagId: tag.id });
+                this.recordProcessedChange(changeKey);
+                return;
+              }
+            }
 
-            existingTags[tag.id] = tag;
-            this.tagManager.initialize({ tags: existingTags, pages: existingPages });
-            await this.tagManager.syncToStorage();
+            this.isApplyingRemoteChange = true;
+            try {
+              // 更新本地数据：获取所有现有数据，然后更新特定标签
+              const existingTags = this.tagManager.getAllTags().reduce((acc, t) => {
+                acc[t.id] = t;
+                return acc;
+              }, {} as TagsCollection);
+              const existingPages = this.tagManager.getTaggedPages().reduce((acc, p) => {
+                acc[p.id] = p;
+                return acc;
+              }, {} as PageCollection);
+
+              existingTags[tag.id] = tag;
+              this.tagManager.updateData({ tags: existingTags, pages: existingPages });
+              await this.tagManager.syncToStorage();
+              this.recordProcessedChange(changeKey);
+            } finally {
+              this.isApplyingRemoteChange = false;
+            }
           }
         }
       } else if (type === 'page') {
@@ -737,27 +830,78 @@ class SyncService {
             description: newRecord.description || undefined,
           };
 
+          // 生成变更键，用于去重
+          const changeKey = `page:${page.id}:${page.updatedAt}`;
+          
+          // 检查是否已处理过（避免重复处理）
+          if (this.recentProcessedChanges.has(changeKey)) {
+            log.debug('已处理过该变更，跳过', { pageId: page.id, updatedAt: page.updatedAt });
+            return;
+          }
+
           // 检查本地是否有更新（避免循环同步）
           const localPage = this.tagManager.getPageById(page.id);
-          if (!localPage || localPage.updatedAt < page.updatedAt) {
-            // 更新本地数据：获取所有现有数据，然后更新特定页面
-            const existingTags = this.tagManager.getAllTags().reduce((acc, t) => {
-              acc[t.id] = t;
-              return acc;
-            }, {} as TagsCollection);
-            const existingPages = this.tagManager.getTaggedPages().reduce((acc, p) => {
-              acc[p.id] = p;
-              return acc;
-            }, {} as PageCollection);
+          // 使用 <= 而不是 <，避免时间戳完全一致时的重复处理
+          if (!localPage || localPage.updatedAt <= page.updatedAt) {
+            // 如果时间戳完全一致，检查内容是否相同（避免不必要的更新）
+            if (localPage && localPage.updatedAt === page.updatedAt) {
+              const isSame = 
+                localPage.url === page.url &&
+                localPage.title === page.title &&
+                localPage.domain === page.domain &&
+                JSON.stringify(localPage.tags) === JSON.stringify(page.tags) &&
+                localPage.favicon === page.favicon &&
+                localPage.description === page.description;
+              
+              if (isSame) {
+                log.debug('本地数据与远程数据相同，跳过更新', { pageId: page.id });
+                this.recordProcessedChange(changeKey);
+                return;
+              }
+            }
 
-            existingPages[page.id] = page;
-            this.tagManager.initialize({ tags: existingTags, pages: existingPages });
-            await this.tagManager.syncToStorage();
+            this.isApplyingRemoteChange = true;
+            try {
+              // 更新本地数据：获取所有现有数据，然后更新特定页面
+              const existingTags = this.tagManager.getAllTags().reduce((acc, t) => {
+                acc[t.id] = t;
+                return acc;
+              }, {} as TagsCollection);
+              const existingPages = this.tagManager.getTaggedPages().reduce((acc, p) => {
+                acc[p.id] = p;
+                return acc;
+              }, {} as PageCollection);
+
+              existingPages[page.id] = page;
+              this.tagManager.updateData({ tags: existingTags, pages: existingPages });
+              await this.tagManager.syncToStorage();
+              this.recordProcessedChange(changeKey);
+            } finally {
+              this.isApplyingRemoteChange = false;
+            }
           }
         }
       }
     } catch (error) {
       log.error('处理实时变更失败', { type, error });
+      // 确保在出错时也重置标志位
+      this.isApplyingRemoteChange = false;
+    }
+  }
+
+  /**
+   * 记录已处理的变更，避免重复处理
+   */
+  private recordProcessedChange(changeKey: string): void {
+    this.recentProcessedChanges.add(changeKey);
+    
+    // 限制记录数量，防止内存泄漏
+    // 当超过限制时，清空所有记录（去重主要用于防止短时间内重复，清空后重新开始也是安全的）
+    if (this.recentProcessedChanges.size > this.MAX_RECENT_CHANGES) {
+      log.debug('已处理变更记录数超过限制，清空记录', { size: this.recentProcessedChanges.size });
+      this.recentProcessedChanges.clear();
+      // 重新添加当前变更
+      this.recentProcessedChanges.add(changeKey);
     }
   }
 
@@ -789,6 +933,47 @@ class SyncService {
       );
     } catch (error) {
       log.warn('保存待同步变更队列失败', { error });
+    }
+  }
+
+  /**
+   * 处理用户切换：清空本地数据并重置状态
+   * 防止上一个用户的数据泄露给新用户
+   */
+  private async handleUserSwitch(): Promise<void> {
+    try {
+      // 1. 停止实时订阅
+      this.stopRealtimeSubscription();
+
+      // 2. 清空 TagManager 数据
+      this.tagManager.clearAllData();
+      log.info('TagManager 数据已清空（用户切换）');
+
+      // 3. 清空待同步队列（这些变更属于上一个用户）
+      this.pendingChanges = [];
+      await this.savePendingChanges();
+      this.syncState.pendingChangesCount = 0;
+      log.info('待同步队列已清空（用户切换）');
+
+      // 4. 清空存储中的标签和页面数据
+      await storageService.removeMultiple([
+        STORAGE_KEYS.TAGS,
+        STORAGE_KEYS.PAGES,
+        STORAGE_KEYS.SYNC_PENDING_CHANGES,
+      ]);
+      log.info('存储数据已清空（用户切换）');
+
+      // 5. 重置同步状态
+      this.syncState.lastSyncAt = null;
+      this.syncState.error = null;
+      this.recentProcessedChanges.clear();
+
+      // 6. 重置 TagManager 初始化状态（允许重新初始化）
+      // 注意：TagManager 没有公开的 reset 方法，但 clearAllData 已经清空了数据
+      // 如果需要，可以在这里重新初始化 TagManager
+    } catch (error) {
+      log.error('处理用户切换失败', { error });
+      throw error;
     }
   }
 }
