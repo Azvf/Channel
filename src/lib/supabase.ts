@@ -3,16 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 
 // 1. 定义 Supabase 配置
 // 从环境变量读取（在构建时由 Vite 注入）
-// Vite 会自动处理以 VITE_ 开头的环境变量
-const SUPABASE_URL = 
-  import.meta.env.VITE_SUPABASE_URL || 'https://your-project-id.supabase.co';
-const SUPABASE_ANON_KEY = 
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+// Vite 会在构建时根据 mode 自动替换 import.meta.env 的值
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// 开发环境警告
-if (SUPABASE_URL === 'https://your-project-id.supabase.co' || SUPABASE_ANON_KEY === 'your-anon-key') {
-  console.warn(
-    '[Supabase] 警告: 未配置 Supabase 环境变量。请创建 .env 文件并设置 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY'
+// 防御性检查，防止构建配置错误
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    'Supabase URL or Key is missing. Check your .env files. ' +
+    'Please create .env.development (for dev) or .env.production (for prod) ' +
+    'and set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
   );
 }
 
@@ -40,7 +40,7 @@ const chromeStorageAdapter = {
 };
 
 // 3. 初始化客户端
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     storage: chromeStorageAdapter,
     autoRefreshToken: true,

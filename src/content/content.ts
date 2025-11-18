@@ -17,6 +17,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             handleAddCustomStyle(message.css, sendResponse);
             return true; // 标记为异步
             
+        case 'GET_VIDEO_TIMESTAMP':
+            const status = detectBestVideo();
+            sendResponse(status);
+            return true; // 标记为异步
+            
         default:
             // ** 修复：消息不是发给我的，忽略它 **
             // 通过不返回任何值（返回 undefined）来表明不处理此消息
@@ -121,6 +126,59 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeContentScript);
 } else {
     initializeContentScript();
+}
+
+interface VideoStatus {
+    hasVideo: boolean;
+    currentTime: number;
+    isPlaying: boolean;
+    duration: number;
+    area: number; // 视频面积，用于判断是否为主视频
+}
+
+/**
+ * 启发式算法：找到"用户正在看的主视频"
+ * 通过面积、播放状态、时间进度等指标进行评分
+ */
+function detectBestVideo(): VideoStatus | null {
+    const videos = document.querySelectorAll('video');
+    if (videos.length === 0) return null;
+
+    let bestVideo: HTMLVideoElement | null = null;
+    let maxScore = -1;
+
+    videos.forEach((video) => {
+        // 启发式评分算法：
+        // 1. 面积越大，权重越高 (排除角落的小广告视频)
+        // 2. 正在播放，权重极高
+        // 3. 有时间进度，权重高
+        
+        const rect = video.getBoundingClientRect();
+        const area = rect.width * rect.height;
+        
+        // 排除不可见视频 (width/height ~ 0)
+        if (area < 100) return; 
+
+        let score = area;
+        if (!video.paused) score *= 2; // 正在播放的优先级最高
+        if (video.currentTime > 0) score *= 1.5; // 有进度的优先级高
+
+        if (score > maxScore) {
+            maxScore = score;
+            bestVideo = video;
+        }
+    });
+
+    if (bestVideo === null) return null;
+
+    const video = bestVideo as HTMLVideoElement;
+    return {
+        hasVideo: true,
+        currentTime: video.currentTime,
+        isPlaying: !video.paused,
+        duration: video.duration,
+        area: maxScore // 简化处理，用分数代表权重
+    };
 }
 
 function initializeContentScript() {

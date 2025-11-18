@@ -263,14 +263,58 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void): Prom
 
     if (syncVideoTimestamp) {
       try {
+        // 向所有 Frame 广播检测请求，使用 allFrames: true 遍历所有 frame
         const results = await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: detectVideoTimestamp,
+          target: { tabId: tab.id, allFrames: true }, // 关键：遍历所有 Frame
+          func: () => {
+            // 这里复用 content.ts 的 detectBestVideo 逻辑的简化版
+            const videos = document.querySelectorAll('video');
+            let bestVideo: HTMLVideoElement | null = null;
+            let maxScore = -1;
+
+            videos.forEach((video) => {
+              const rect = video.getBoundingClientRect();
+              const area = rect.width * rect.height;
+              
+              // 排除不可见视频
+              if (area < 100) return;
+
+              let score = area;
+              if (!video.paused) score *= 2; // 正在播放的优先级最高
+              if (video.currentTime > 0) score *= 1.5; // 有进度的优先级高
+
+              if (score > maxScore) {
+                maxScore = score;
+                bestVideo = video;
+              }
+            });
+
+            // 如果找到最佳视频，返回其时间戳
+            if (bestVideo !== null) {
+              const video = bestVideo as HTMLVideoElement;
+              if (video.currentTime > 0 && !video.paused) {
+                return Math.floor(video.currentTime);
+              }
+              // 如果暂停但有进度
+              if (video.currentTime > 0) {
+                return Math.floor(video.currentTime);
+              }
+            }
+            return 0;
+          },
         });
-        if (results && results.length > 0 && results[0].result) {
-          const timestamp = results[0].result as number;
-          if (timestamp > 0) {
-            resolvedUrl = addTimestampToUrl(tab.url, timestamp);
+
+        // results 是一个数组，包含所有 Frame 的执行结果
+        // 我们取最大的那个时间戳，或者按照优先级取
+        const validResults = results
+          .map(r => r.result as number)
+          .filter(timestamp => timestamp > 0);
+        
+        if (validResults.length > 0) {
+          // 取最大的时间戳（通常表示最活跃的视频）
+          const videoTimestamp = Math.max(...validResults);
+          if (videoTimestamp > 0) {
+            resolvedUrl = addTimestampToUrl(tab.url, videoTimestamp);
           }
         }
       } catch (error) {
@@ -313,7 +357,9 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void): Prom
   }
 }
 
-function detectVideoTimestamp(): number {
+// 未使用的函数，保留以备将来使用
+// @ts-expect-error - 保留以备将来使用
+function _detectVideoTimestamp(): number {
   try {
     const videos = document.querySelectorAll('video');
 

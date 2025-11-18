@@ -9,8 +9,12 @@ export class TagManager {
   private tags: TagsCollection = {};
   private pages: PageCollection = {};
 
-  private isInitialized = false;
+  private _isInitialized = false;
   private listeners: Set<ChangeListener> = new Set();
+  
+  public get isInitialized(): boolean {
+    return this._isInitialized;
+  }
 
   private constructor() {
     // 构造函数中不进行异步操作
@@ -51,18 +55,18 @@ export class TagManager {
    * 保持幂等性（防止重复初始化）
    */
   public initialize(data: { tags?: TagsCollection | null; pages?: PageCollection | null }): void {
-    if (this.isInitialized) {
+    if (this._isInitialized) {
       return; // 已经初始化
     }
     
     try {
-      this.tags = data.tags || {};
-      this.pages = data.pages || {};
-      this.isInitialized = true; // 标记为已初始化
+      this.tags = data.tags ?? {};
+      this.pages = data.pages ?? {};
+      this._isInitialized = true; // 标记为已初始化
       this.notifyListeners(); // 通知 UI
     } catch (error) {
       console.error('TagManager 初始化失败:', error);
-      this.isInitialized = false; // 失败时重置
+      this._isInitialized = false; // 失败时重置
       throw error;
     }
   }
@@ -74,10 +78,10 @@ export class TagManager {
   public updateData(data: { tags?: TagsCollection | null; pages?: PageCollection | null }): void {
     try {
       if (data.tags !== undefined) {
-        this.tags = data.tags;
+        this.tags = data.tags ?? {};
       }
       if (data.pages !== undefined) {
-        this.pages = data.pages;
+        this.pages = data.pages ?? {};
       }
       this.notifyListeners(); // 通知 UI
     } catch (error) {
@@ -415,7 +419,7 @@ export class TagManager {
   public clearAllData(): void {
     this.tags = {};
     this.pages = {};
-    this.isInitialized = false; // 重置初始化状态，允许重新初始化
+    this._isInitialized = false; // 重置初始化状态，允许重新初始化
     this.notifyListeners(); // 通知 UI
   }
 
@@ -582,7 +586,7 @@ export class TagManager {
         STORAGE_KEYS.TAGS,
         STORAGE_KEYS.PAGES
       ]);
-      this.isInitialized = false; // 强制重新初始化
+      this._isInitialized = false; // 强制重新初始化
       // initialize 内部会调用 notifyListeners，这里不需要重复调用
       this.initialize({
         tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,

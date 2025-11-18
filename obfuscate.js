@@ -1,23 +1,29 @@
-const JavaScriptObfuscator = require('javascript-obfuscator');
-const fs = require('fs');
-const path = require('path');
-const config = require('./obfuscator.config.js');
+import JavaScriptObfuscator from 'javascript-obfuscator';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import config from './obfuscator.config.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 console.log('开始混淆构建输出文件...\n');
 
 // 需要混淆的文件列表
 const filesToObfuscate = [
   'dist/background.js',
-  'dist/popup.js',
+  'dist/main.js',  // popup 的主文件
   'dist/content.js',
-  'dist/injected.js'
+  'dist/injected.js',
+  'dist/pageSettings.js'  // 如果存在也混淆
 ];
 
 let successCount = 0;
 let failCount = 0;
 
 filesToObfuscate.forEach(file => {
-  const filePath = path.resolve(file);
+  const filePath = path.resolve(__dirname, file);
   
   try {
     if (!fs.existsSync(filePath)) {

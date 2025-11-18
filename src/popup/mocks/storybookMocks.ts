@@ -83,7 +83,7 @@ export function setupStorybookMocks() {
 
   // 提供最小的 chrome API mock，防止服务层抛错
   if (typeof globalThis.chrome === 'undefined') {
-    (globalThis as unknown as { chrome: typeof chrome }).chrome = {
+    (globalThis as any).chrome = {
       runtime: {
         sendMessage: () => {},
         lastError: undefined,

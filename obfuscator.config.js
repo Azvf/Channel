@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   // 控制流扁平化 - 打乱代码执行流程
   compact: true,
   controlFlowFlattening: true,

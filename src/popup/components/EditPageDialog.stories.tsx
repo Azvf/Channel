@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from 'storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 import { EditPageDialog } from './EditPageDialog';
 import type { TaggedPage } from '../../types/gameplayTag';
 
@@ -56,7 +56,7 @@ export const ScrollLock: Story = {
   args: {
     ...Default.args,
   },
-  render: (args) => (
+  render: (args: any) => (
     <>
       <div data-testid="background" style={{ height: '200vh' }} />
       <EditPageDialog {...args} />

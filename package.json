@@ -4,8 +4,9 @@
   "description": "A modern Edge browser extension",
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "build:prod": "vite build && npm run obfuscate",
+    "build": "tsc && vite build",
+    "build:dev": "tsc && vite build --mode development",
+    "build:prod": "tsc && vite build && npm run obfuscate",
     "obfuscate": "node obfuscate.js",
     "dev": "vite build --watch",
     "preview": "vite --open /src/preview/dev-preview.html",

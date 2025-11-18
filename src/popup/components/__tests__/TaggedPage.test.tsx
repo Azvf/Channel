@@ -98,6 +98,7 @@ const MOCK_STATS = { todayCount: 3, streak: 7 };
 const defaultProps = {
   onOpenSettings: jest.fn(),
   onOpenStats: jest.fn(),
+  onOpenTagLibrary: jest.fn(),
 };
 
 async function renderTaggedPage() {

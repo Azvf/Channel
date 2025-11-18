@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from 'storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 
 import { StatsWallModal } from './StatsWallModal';
 import { setMockPages } from '../mocks/storybookMocks';
@@ -98,7 +98,7 @@ export const Default: Story = {};
 
 export const Empty: Story = {
   name: 'Empty Activity',
-  render: (args) => {
+  render: (args: any) => {
     setMockPages([]);
     return <StatsWallModal {...args} />;
   },
@@ -106,7 +106,7 @@ export const Empty: Story = {
 
 export const Dense: Story = {
   name: 'Dense Activity',
-  render: (args) => {
+  render: (args: any) => {
     setMockPages(heavyActivity);
     return <StatsWallModal {...args} />;
   },
@@ -114,7 +114,7 @@ export const Dense: Story = {
 
 export const VeryHeavy: Story = {
   name: 'Very Heavy Activity (1 Year)',
-  render: (args) => {
+  render: (args: any) => {
     setMockPages(veryHeavyActivity);
     return <StatsWallModal {...args} />;
   },
@@ -122,7 +122,7 @@ export const VeryHeavy: Story = {
 
 export const SingleDay: Story = {
   name: 'Single Day Activity',
-  render: (args) => {
+  render: (args: any) => {
     setMockPages(singleDayActivity);
     return <StatsWallModal {...args} />;
   },
@@ -130,7 +130,7 @@ export const SingleDay: Story = {
 
 export const OldActivity: Story = {
   name: 'Old Activity (First Activity Far Back)',
-  render: (args) => {
+  render: (args: any) => {
     setMockPages(oldActivity);
     return <StatsWallModal {...args} />;
   },
@@ -138,7 +138,7 @@ export const OldActivity: Story = {
 
 export const RecentOnly: Story = {
   name: 'Recent Only Activity',
-  render: (args) => {
+  render: (args: any) => {
     setMockPages(recentOnlyActivity);
     return <StatsWallModal {...args} />;
   },
@@ -146,7 +146,7 @@ export const RecentOnly: Story = {
 
 export const Sparse: Story = {
   name: 'Sparse Activity',
-  render: (args) => {
+  render: (args: any) => {
     setMockPages(sparseActivity);
     return <StatsWallModal {...args} />;
   },

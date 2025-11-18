@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from 'storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 
 import { TaggedPage as TaggedPageComponent } from './TaggedPage';
 import { setMockPages } from '../mocks/storybookMocks';
@@ -59,14 +59,14 @@ export default meta;
 type Story = StoryObj<typeof TaggedPageComponent>;
 
 export const Default: Story = {
-  render: (args) => {
+  render: (args: any) => {
     setMockPages(basePages);
     return <TaggedPageComponent {...args} />;
   },
 };
 
 export const WithManyPages: Story = {
-  render: (args) => {
+  render: (args: any) => {
     const extendedPages: TaggedPage[] = [
       ...basePages,
       ...Array.from({ length: 6 }).map((_, index) => ({
@@ -87,7 +87,7 @@ export const WithManyPages: Story = {
 };
 
 export const EmptyState: Story = {
-  render: (args) => {
+  render: (args: any) => {
     setMockPages([]);
     return <TaggedPageComponent {...args} />;
   },

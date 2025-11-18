@@ -14,7 +14,7 @@ const VIEWPORT_MARGIN = 8; // 8px 边距
 export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
   const [show, setShow] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout>();
 
@@ -94,12 +94,14 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
   // 克隆 children (activity-bar 或其他元素) 并附加 ref 和事件
   const trigger = React.cloneElement(children, {
     ref: (node: HTMLElement | null) => {
-      triggerRef.current = node;
+      // 使用类型断言来处理 ref
+      (triggerRef as React.MutableRefObject<HTMLElement | null>).current = node;
       // 如果 children 有 ref，也调用它
-      if (typeof children.ref === 'function') {
-        children.ref(node);
-      } else if (children.ref && 'current' in children.ref) {
-        (children.ref as React.MutableRefObject<HTMLElement | null>).current = node;
+      const childRef = (children as any).ref;
+      if (typeof childRef === 'function') {
+        childRef(node);
+      } else if (childRef && 'current' in childRef) {
+        (childRef as React.MutableRefObject<HTMLElement | null>).current = node;
       }
     },
     onMouseEnter: handleMouseEnter,

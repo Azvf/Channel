@@ -91,11 +91,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // 添加监听器
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
-      chrome.storage.onChanged.addListener(handleStorageChange);
+      chrome.storage.onChanged.addListener(handleStorageChange as any);
 
       // 清理函数：组件卸载时移除监听器
       return () => {
-        chrome.storage.onChanged.removeListener(handleStorageChange);
+        chrome.storage.onChanged.removeListener(handleStorageChange as any);
       };
     }
   }, [loadAllData]);

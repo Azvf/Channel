@@ -32,6 +32,7 @@ export const STORAGE_KEYS = {
   
   // 同步相关
   SYNC_PENDING_CHANGES: 'sync_pending_changes',
+  SYNC_LAST_TIMESTAMP: 'sync_last_timestamp', // [新增] 同步游标
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS] | string;

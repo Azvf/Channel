@@ -159,22 +159,41 @@ class SyncService {
     this.syncState.error = null;
 
     try {
-      log.info('开始全量同步...');
+      log.info('开始同步流程...');
 
-      // 1. 保存待删除项信息（在 uploadPendingChanges 清空队列之前）
+      // 1. 获取上次同步时间游标
+      const lastSyncTs = await storageService.get<number>(STORAGE_KEYS.SYNC_LAST_TIMESTAMP) || 0;
+      
+      // 2. 计算本次拉取的起始时间 (引入 2 分钟缓冲，防止时钟漂移漏数据)
+      // 如果是 0 (首次)，则保持 0 以拉取全量
+      const fetchCursor = lastSyncTs > 0 ? lastSyncTs - 2 * 60 * 1000 : 0;
+      
+      // 记录当前时间作为新的游标 (在请求发出前记录，确保不漏掉同步期间产生的数据)
+      const newSyncTs = Date.now();
+
+      // 3. 保存待删除项信息（在 uploadPendingChanges 清空队列之前）
       // 用于后续合并时识别已删除的项，避免"僵尸数据"复活
       const pendingDeletesBeforeUpload = this.pendingChanges
         .filter((change) => change.operation === 'delete')
         .map((change) => `${change.type}:${change.id}`);
 
-      // 2. 先上传本地待同步变更（包括删除操作）
-      // 这样可以确保删除操作先同步到云端，避免后续合并时"僵尸数据"复活
+      // 4. 先上传本地变更 (Push)
       await this.uploadPendingChanges(authState.user.id);
 
-      // 3. 从云端拉取最新数据（此时已包含刚才上传的删除操作）
-      const cloudData = await this.fetchFromCloud(authState.user.id);
+      // 5. 拉取云端数据 (Pull - Incremental)
+      const cloudData = await this.fetchFromCloud(authState.user.id, fetchCursor);
+      const cloudCount = Object.keys(cloudData.tags).length + Object.keys(cloudData.pages).length;
+      
+      if (cloudCount === 0 && this.pendingChanges.length === 0) {
+        log.info('端云数据均无变更，跳过合并');
+        // 依然要更新时间戳，防止下次还要扫描很久以前的数据
+        await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
+        this.syncState.lastSyncAt = newSyncTs;
+        this.syncState.pendingChangesCount = this.pendingChanges.length;
+        return; 
+      }
 
-      // 4. 从本地获取数据
+      // 6. 从本地获取数据（全量）
       const localData = {
         tags: this.tagManager.getAllTags().reduce((acc, tag) => {
           acc[tag.id] = tag;
@@ -186,28 +205,38 @@ class SyncService {
         }, {} as PageCollection),
       };
 
-      // 5. 合并数据（基于 updatedAt，并考虑待删除项）
-      // 使用上传前的待删除项列表，因为 uploadPendingChanges 可能已清空队列
+      // 7. 合并数据
+      // 注意：这里 localData 是全量的，但 cloudData 是增量的（只有变动项）
+      // 你的 mergeData 逻辑天然支持这种模式，因为：
+      // - 如果云端没返回某条数据（因为它没变），cloudTag 为空
+      // - 你的逻辑：else if (localTag && !cloudTag) { mergedTags[tagId] = localTag; }
+      // - 结果：保留了本地未变动的旧数据。完全正确！
       const merged = this.mergeData(
         localData,
         cloudData,
         pendingDeletesBeforeUpload,
       );
 
-      // 6. 更新本地数据
+      // 8. 更新本地数据库
       this.tagManager.initialize(merged);
       await this.tagManager.syncToStorage();
 
-      this.syncState.lastSyncAt = Date.now();
+      // 9. [关键] 只有在所有步骤成功后，才更新游标
+      await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
+
+      this.syncState.lastSyncAt = newSyncTs;
       this.syncState.pendingChangesCount = this.pendingChanges.length;
-      log.info('全量同步完成', {
+      log.info('同步完成', { 
+        mode: fetchCursor > 0 ? 'Incremental' : 'Full', 
+        fetchedItems: cloudCount,
         tagsCount: Object.keys(merged.tags || {}).length,
         pagesCount: Object.keys(merged.pages || {}).length,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '同步失败';
       this.syncState.error = errorMessage;
-      log.error('全量同步失败', { error: errorMessage });
+      log.error('同步失败', { error: errorMessage });
+      // 失败时不更新游标，下次重试会重新拉取这段时间的数据
       throw error;
     } finally {
       this.syncState.isSyncing = false;
@@ -266,26 +295,34 @@ class SyncService {
 
   /**
    * 从云端拉取数据（包括已删除的记录，用于同步）
+   * @param userId 用户ID
+   * @param sinceTimestamp 增量同步游标（时间戳，毫秒）。如果为0，则执行全量拉取
    */
-  private async fetchFromCloud(userId: string): Promise<{
+  private async fetchFromCloud(userId: string, sinceTimestamp: number = 0): Promise<{
     tags: TagsCollection;
     pages: PageCollection;
   }> {
     try {
-      // 拉取标签（包括已删除的记录）
-      const { data: tagsData, error: tagsError } = await supabase
-        .from('tags')
-        .select('*')
-        .eq('user_id', userId);
+      // A. 构建基础查询
+      let tagsQuery = supabase.from('tags').select('*').eq('user_id', userId);
+      let pagesQuery = supabase.from('pages').select('*').eq('user_id', userId);
+
+      // B. 应用增量过滤 (如果不是首次同步)
+      if (sinceTimestamp > 0) {
+        // 转化为 bigint (毫秒)，直接比较
+        tagsQuery = tagsQuery.gt('updated_at', sinceTimestamp);
+        pagesQuery = pagesQuery.gt('updated_at', sinceTimestamp);
+        
+        log.info('执行增量拉取', { since: new Date(sinceTimestamp).toISOString() });
+      } else {
+        log.info('执行全量拉取 (首次同步或重置)');
+      }
+
+      // C. 执行并行请求
+      const { data: tagsData, error: tagsError } = await tagsQuery;
+      const { data: pagesData, error: pagesError } = await pagesQuery;
 
       if (tagsError) throw tagsError;
-
-      // 拉取页面（包括已删除的记录）
-      const { data: pagesData, error: pagesError } = await supabase
-        .from('pages')
-        .select('*')
-        .eq('user_id', userId);
-
       if (pagesError) throw pagesError;
 
       // 转换为本地格式（保留 deleted 字段）
@@ -363,6 +400,11 @@ class SyncService {
       }
 
       if (!localTag && cloudTag) {
+        // [防御] 如果这是本次同步刚提交删除的项，即使云端返回了数据（可能是旧缓存），我们也应当忽略
+        if (isPendingDelete) {
+          log.info('忽略刚删除的项（防御云端旧数据复活）', { tagId });
+          continue;
+        }
         // 只有云端有：检查云端是否标记为删除
         if (cloudTag.deleted) {
           // 云端已删，本地也应该删（不加入 mergedTags，相当于删除）
@@ -410,6 +452,11 @@ class SyncService {
       }
 
       if (!localPage && cloudPage) {
+        // [防御] 如果这是本次同步刚提交删除的项，即使云端返回了数据（可能是旧缓存），我们也应当忽略
+        if (isPendingDelete) {
+          log.info('忽略刚删除的项（防御云端旧数据复活）', { pageId });
+          continue;
+        }
         // 只有云端有：检查云端是否标记为删除
         if (cloudPage.deleted) {
           // 云端已删，本地也应该删（不加入 mergedPages，相当于删除）
@@ -976,6 +1023,7 @@ class SyncService {
         STORAGE_KEYS.TAGS,
         STORAGE_KEYS.PAGES,
         STORAGE_KEYS.SYNC_PENDING_CHANGES,
+        STORAGE_KEYS.SYNC_LAST_TIMESTAMP, // [新增] 必须清除游标
       ]);
       log.info('存储数据已清空（用户切换）');
 

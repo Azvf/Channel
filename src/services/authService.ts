@@ -131,6 +131,7 @@ class AuthService {
         STORAGE_KEYS.TAGS,
         STORAGE_KEYS.PAGES,
         STORAGE_KEYS.SYNC_PENDING_CHANGES,
+        STORAGE_KEYS.SYNC_LAST_TIMESTAMP, // [新增] 必须清除游标
       ]);
       log.info('存储数据已清空');
 

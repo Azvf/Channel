@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -19,7 +19,7 @@ export function Tooltip({
 }: TooltipProps) {
   const [show, setShow] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout>();
 
@@ -75,7 +75,8 @@ export function Tooltip({
   // 劫持子组件以注入事件和 Ref
   const trigger = React.cloneElement(children, {
     ref: (node: HTMLElement | null) => {
-      triggerRef.current = node;
+      // 使用类型断言来处理 ref
+      (triggerRef as React.MutableRefObject<HTMLElement | null>).current = node;
       const { ref } = children as any;
       if (typeof ref === 'function') ref(node);
       else if (ref) ref.current = node;

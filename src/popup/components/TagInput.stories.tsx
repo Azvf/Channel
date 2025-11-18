@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Meta, StoryObj } from 'storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 
 import { TagInput } from './TagInput';
 
@@ -69,7 +69,7 @@ export const Interactive: Story = {
     suggestions,
     tags: [],
   },
-  render: (args) => {
+  render: (args: any) => {
     const [tags, setTags] = useState<string[]>(args.tags ?? []);
     return <TagInput {...args} tags={tags} onTagsChange={setTags} />;
   },

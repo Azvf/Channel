@@ -89,7 +89,7 @@ describe('IPC 桥集成测试', () => {
     const createdTag = await currentPageService.createTagAndAddToPage('New Tag', page.id);
 
     expect(memoryStorage[STORAGE_KEYS.TAGS]).toBeDefined();
-    const storedTags = Object.values(memoryStorage[STORAGE_KEYS.TAGS]);
+    const storedTags = Object.values(memoryStorage[STORAGE_KEYS.TAGS]) as any[];
     expect(storedTags).toHaveLength(1);
     expect(storedTags[0].name).toBe('New Tag');
 
@@ -118,10 +118,13 @@ describe('IPC 桥集成测试', () => {
     expect(storedPage.title).toBe('New Title');
 
     expect(memoryStorage[STORAGE_KEYS.TAGS]).toBeDefined();
-    const storedTags = Object.values(memoryStorage[STORAGE_KEYS.TAGS]);
+    const storedTags = Object.values(memoryStorage[STORAGE_KEYS.TAGS]) as any[];
     const tagA = storedTags.find((tag: any) => tag.name === 'Tag A');
     expect(tagA).toBeDefined();
-    expect(storedPage.tags).toContain(tagA.id);
+    expect(tagA).not.toBeUndefined();
+    if (tagA) {
+      expect(storedPage.tags).toContain(tagA.id);
+    }
   });
 
   it('应该完整测试：删除标签并同步页面引用', async () => {

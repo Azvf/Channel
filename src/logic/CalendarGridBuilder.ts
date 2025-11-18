@@ -4,10 +4,11 @@ import { CalendarLayoutInfo, CalendarCell, ActivityLevel } from '../types/statsW
 export class CalendarGridBuilder {
   // lookbackDays 现在作为"如果没有数据时的默认回溯天数"或者"最大回溯限制"（如果需要）
   // 在当前需求下，主要依靠数据驱动
-  private defaultLookbackDays: number = 30; 
+  // @ts-expect-error - 保留以备将来使用
+  private _defaultLookbackDays: number = 30; 
 
   constructor(lookbackDays: number = 30) {
-    this.defaultLookbackDays = lookbackDays;
+    this._defaultLookbackDays = lookbackDays;
   }
 
   /**
@@ -67,9 +68,9 @@ export class CalendarGridBuilder {
     endDate.setHours(0, 0, 0, 0);
 
     // 预分配数组内存 (微优化)
-    // 计算大概的天数差
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    // 计算大概的天数差（保留用于将来可能的优化）
+    // const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+    // const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
     
     let currentMonthLabel = '';
     let currentWeekIndex = 1;

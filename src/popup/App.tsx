@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect, useRef } from "react";
+import { useState, useLayoutEffect, useRef } from "react";
 import { TaggingPage } from "./components/TaggingPage";
 import { TaggedPage } from "./components/TaggedPage";
 import { TabSwitcher } from "./components/TabSwitcher";

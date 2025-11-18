@@ -1,4 +1,4 @@
-import React from 'react';
+// React import not needed in React 17+
 import { X } from 'lucide-react';
 
 interface ModalHeaderProps {
