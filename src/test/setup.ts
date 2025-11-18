@@ -104,3 +104,7 @@ global.console = {
   error: jest.fn(),
 };
 
+// Mock import.meta.env for Jest
+// Note: This is a workaround for Jest not supporting import.meta
+// The actual mocking is done via __mocks__ directory for supabase.ts
+

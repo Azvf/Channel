@@ -1,5 +1,43 @@
 import { storageService } from '../../services/storageService';
 
+// Mock supabase before any imports
+jest.mock('../../lib/supabase', () => {
+  const { createClient } = require('@supabase/supabase-js');
+  const mockSupabaseUrl = 'https://mock.supabase.co';
+  const mockSupabaseKey = 'mock-anon-key';
+  
+  const chromeStorageAdapter = {
+    getItem: async (key: string): Promise<string | null> => {
+      return new Promise((resolve) => {
+        chrome.storage.local.get([key], (result) => {
+          resolve(result[key] || null);
+        });
+      });
+    },
+    setItem: async (key: string, value: string): Promise<void> => {
+      return new Promise((resolve) => {
+        chrome.storage.local.set({ [key]: value }, () => resolve());
+      });
+    },
+    removeItem: async (key: string): Promise<void> => {
+      return new Promise((resolve) => {
+        chrome.storage.local.remove(key, () => resolve());
+      });
+    },
+  };
+
+  return {
+    supabase: createClient(mockSupabaseUrl, mockSupabaseKey, {
+      auth: {
+        storage: chromeStorageAdapter,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    }),
+  };
+});
+
 type MessageHandlerModule = typeof import('../messageHandler');
 
 const createMockTagManager = () => ({
@@ -45,6 +83,24 @@ jest.mock('../../services/storageService', () => {
     },
     syncStorageService: {
       setMultiple: jest.fn(() => Promise.resolve()),
+    },
+  };
+});
+
+// Mock syncService to avoid import.meta.env issues
+jest.mock('../../services/syncService', () => {
+  return {
+    syncService: {
+      initialize: jest.fn(() => Promise.resolve()),
+      markTagChange: jest.fn(() => Promise.resolve()),
+      markPageChange: jest.fn(() => Promise.resolve()),
+      sync: jest.fn(() => Promise.resolve()),
+      getSyncState: jest.fn(() => ({
+        isSyncing: false,
+        lastSyncAt: null,
+        pendingChangesCount: 0,
+        error: null,
+      })),
     },
   };
 });
