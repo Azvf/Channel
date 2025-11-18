@@ -292,8 +292,9 @@ export function TagInput({
           manuallyOpenedRef.current = false;
         }
         // 移动到下一个选项（循环）
+        // 如果当前没有选中（-1），则选择第一个（0）
         setSelectedIndex((prev) => {
-          const nextIndex = prev < filteredSuggestions.length - 1 ? prev + 1 : 0;
+          const nextIndex = prev < 0 ? 0 : (prev < filteredSuggestions.length - 1 ? prev + 1 : 0);
           // 滚动到可见区域
           setTimeout(() => {
             suggestionButtonsRef.current[nextIndex]?.scrollIntoView({

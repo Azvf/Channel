@@ -50,6 +50,7 @@ const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
       <div 
         className="activity-day-square" 
         data-level={day.level}
+        title={tooltipContent}
       />
     </Tooltip>
   );

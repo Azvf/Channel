@@ -1,11 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
 // import dotenv from 'dotenv';
-// import path from 'path';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 /**
@@ -36,7 +40,16 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // 加载扩展 - 仅对 chromium 项目启用
+        launchOptions: {
+          args: [
+            `--disable-extensions-except=${path.resolve(__dirname, 'dist')}`,
+            `--load-extension=${path.resolve(__dirname, 'dist')}`,
+          ],
+        },
+      },
     },
 
     {

@@ -108,7 +108,11 @@ export function Tooltip({
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
               className="fixed z-[var(--z-tooltip-layer)]"
-              style={{ top: position.top, left: position.left }}
+              style={{ 
+                top: position.top, 
+                left: position.left,
+                pointerEvents: 'none'
+              }}
             >
               <div className="frost-tooltip-content">
                 {content}

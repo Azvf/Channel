@@ -45,7 +45,9 @@ test.describe('TagInput', () => {
 
     const input = page.locator('input');
     await input.type('s');
-    await page.waitForTimeout(100);
+    
+    // 等待建议列表出现并包含期望的选项
+    await expect(page.locator('button:has-text("Svelte")')).toBeVisible();
 
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
