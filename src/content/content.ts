@@ -200,3 +200,6 @@ function initializeContentScript() {
         subtree: true
     });
 }
+
+// 导出默认值以使此文件成为有效的 ES 模块（用于测试）
+export default {};
