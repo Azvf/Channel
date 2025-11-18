@@ -23,6 +23,25 @@ src/
 └── types/           # 类型定义
 ```
 
+## 环境配置
+
+在构建之前，需要配置 Supabase 环境变量：
+
+1. 复制环境变量示例文件：
+```bash
+cp .env.development.example .env.development
+```
+
+2. 编辑 `.env.development` 文件，填入你的 Supabase 配置：
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+这些值可以从 Supabase Dashboard -> Settings -> API 获取。
+
+**重要**：`.env.development` 文件已在 `.gitignore` 中，不会提交到版本控制。
+
 ## 构建
 
 ```bash
@@ -32,6 +51,9 @@ npm install
 # 开发模式（监听文件变化）
 npm run dev
 
+# 开发构建
+npm run build:dev
+
 # 生产构建
 npm run build
 
@@ -40,6 +62,12 @@ npm run build:prod
 ```
 
 构建输出到 `dist/` 目录，在 Edge 中加载该目录即可。
+
+**注意**：如果没有配置环境变量，构建后的扩展在加载时会报错：
+- `Service worker registration failed. Status code: 15`
+- `Supabase URL or Key is missing`
+
+这是因为 Supabase 客户端在初始化时需要这些环境变量。
 
 ## 核心功能
 

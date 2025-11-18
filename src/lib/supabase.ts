@@ -6,24 +6,19 @@ import { createClient } from '@supabase/supabase-js';
 // Vite 会在构建时根据 mode 自动替换 import.meta.env 的值
 // 在测试环境中，如果没有 import.meta.env，尝试从 process.env 读取
 
-// 使用函数来动态获取环境变量，避免 Jest 解析时的 import.meta 错误
+// 获取环境变量
+// Vite 在构建时会静态替换 import.meta.env.VITE_* 为实际值
+// 测试环境使用 process.env（在 src/test/setup.ts 中设置）
 function getSupabaseUrl(): string | undefined {
   // 优先使用 process.env（测试环境）
   if (typeof process !== 'undefined' && process.env.VITE_SUPABASE_URL) {
     return process.env.VITE_SUPABASE_URL;
   }
   
-  // Vite 环境：使用 import.meta.env
-  // 注意：Jest 在解析时会报错，但实际运行时 Vite 已经替换了这些值
-  // 所以只有在没有 process.env 的情况下才会到达这里
-  // 使用 eval 来避免 Jest 解析时的错误
-  try {
-    // eslint-disable-next-line no-eval
-    const metaEnv = eval('typeof import.meta !== "undefined" ? import.meta.env : undefined');
-    return metaEnv?.VITE_SUPABASE_URL;
-  } catch {
-    return undefined;
-  }
+  // Vite 构建环境：直接使用 import.meta.env
+  // Vite 会在构建时静态替换 import.meta.env.VITE_SUPABASE_URL 为实际值
+  // 这里必须直接引用，不能使用 eval 或动态访问，否则 Vite 无法静态分析
+  return import.meta.env.VITE_SUPABASE_URL;
 }
 
 function getSupabaseKey(): string | undefined {
@@ -32,14 +27,9 @@ function getSupabaseKey(): string | undefined {
     return process.env.VITE_SUPABASE_ANON_KEY;
   }
   
-  // Vite 环境：使用 import.meta.env
-  try {
-    // eslint-disable-next-line no-eval
-    const metaEnv = eval('typeof import.meta !== "undefined" ? import.meta.env : undefined');
-    return metaEnv?.VITE_SUPABASE_ANON_KEY;
-  } catch {
-    return undefined;
-  }
+  // Vite 构建环境：直接使用 import.meta.env
+  // Vite 会在构建时静态替换 import.meta.env.VITE_SUPABASE_ANON_KEY 为实际值
+  return import.meta.env.VITE_SUPABASE_ANON_KEY;
 }
 
 const supabaseUrl = getSupabaseUrl();
