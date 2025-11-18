@@ -26,7 +26,10 @@ function postBuildPlugin() {
   }
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  // 加载环境变量（Vite 会自动处理 VITE_ 前缀的环境变量）
+  // 在代码中可以直接使用 import.meta.env.VITE_SUPABASE_URL
+  return {
   // 开发服务器配置（用于预览）
   server: {
     port: 3000,
@@ -77,4 +80,5 @@ export default defineConfig(({ mode }) => ({
       ]
     })
   ]
-}))
+  }
+})

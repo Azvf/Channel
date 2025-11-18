@@ -77,6 +77,7 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.81.1",
     "framer-motion": "^12.23.24",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.3",

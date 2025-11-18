@@ -1,5 +1,6 @@
 import { TagManager } from '../services/tagManager';
 import { syncStorageService, storageService, STORAGE_KEYS } from '../services/storageService';
+import { syncService } from '../services/syncService';
 import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../types/pageSettings';
 import { TagsCollection, PageCollection } from '../types/gameplayTag';
 
@@ -52,6 +53,9 @@ export async function getInitializationPromise(): Promise<void> {
             ? pageSettings.syncVideoTimestamp
             : DEFAULT_PAGE_SETTINGS.syncVideoTimestamp,
       };
+
+      // 初始化同步服务
+      await syncService.initialize();
 
       console.log('Background: 初始化完成。');
     } catch (error) {
@@ -291,6 +295,13 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void): Prom
       tab.favIconUrl,
     );
 
+    // 如果是新创建的页面，标记同步变更
+    if (page.createdAt === page.updatedAt) {
+      await syncService.markPageChange('create', page.id, page);
+    } else {
+      await syncService.markPageChange('update', page.id, page);
+    }
+
     console.log('[handleGetCurrentPage] 成功获取页面，准备发送响应');
     sendResponse({ success: true, data: page });
     console.log('[handleGetCurrentPage] 响应已发送');
@@ -378,6 +389,8 @@ async function handleCreateTag(data: any, sendResponse: (response: any) => void)
 
     const tag = tagManager.createTag(data.name, data.description, data.color);
     await tagManager.syncToStorage();
+    // 标记同步变更
+    await syncService.markTagChange('create', tag.id, tag);
     sendResponse({ success: true, data: tag });
   } catch (error) {
     console.error('创建标签失败:', error);
@@ -396,6 +409,10 @@ async function handleAddTagToPage(data: any, sendResponse: (response: any) => vo
     const success = tagManager.addTagToPage(data.pageId, data.tagId);
     if (success) {
       await tagManager.syncToStorage();
+      const page = tagManager.getPageById(data.pageId);
+      if (page) {
+        await syncService.markPageChange('update', page.id, page);
+      }
       sendResponse({ success: true });
     } else {
       sendResponse({ success: false, error: '添加标签到页面失败' });
@@ -416,6 +433,12 @@ async function handleCreateTagAndAddToPage(data: any, sendResponse: (response: a
 
     const tag = tagManager.createTagAndAddToPage(data.tagName, data.pageId);
     await tagManager.syncToStorage();
+    // 标记同步变更
+    await syncService.markTagChange('create', tag.id, tag);
+    const page = tagManager.getPageById(data.pageId);
+    if (page) {
+      await syncService.markPageChange('update', page.id, page);
+    }
     sendResponse({ success: true, data: tag });
   } catch (error) {
     console.error('创建标签并添加到页面失败:', error);
@@ -434,6 +457,10 @@ async function handleRemoveTagFromPage(data: any, sendResponse: (response: any) 
     const success = tagManager.removeTagFromPage(data.pageId, data.tagId);
     if (success) {
       await tagManager.syncToStorage();
+      const page = tagManager.getPageById(data.pageId);
+      if (page) {
+        await syncService.markPageChange('update', page.id, page);
+      }
       sendResponse({ success: true });
     } else {
       sendResponse({ success: false, error: '从页面移除标签失败' });
@@ -515,6 +542,9 @@ async function handleUpdatePageTags(data: UpdatePageTagsPayload, sendResponse: (
       return;
     }
 
+    // 标记同步变更
+    await syncService.markPageChange('update', updatedPage.id, updatedPage);
+
     const stats = tagManager.getUserStats();
 
     sendResponse({
@@ -541,6 +571,10 @@ async function handleUpdatePageTitle(data: any, sendResponse: (response: any) =>
     const success = tagManager.updatePageTitle(data.pageId, data.title);
     if (success) {
       await tagManager.syncToStorage();
+      const page = tagManager.getPageById(data.pageId);
+      if (page) {
+        await syncService.markPageChange('update', page.id, page);
+      }
       sendResponse({ success: true });
     } else {
       sendResponse({ success: false, error: '更新页面标题失败' });
@@ -620,6 +654,10 @@ async function handleUpdatePageDetails(
 
     if (titleUpdated || tagsUpdated) {
       await tagManager.syncToStorage();
+      const updatedPage = tagManager.getPageById(pageId);
+      if (updatedPage) {
+        await syncService.markPageChange('update', updatedPage.id, updatedPage);
+      }
     }
 
     sendResponse({ success: true });
@@ -691,6 +729,10 @@ async function handleUpdateTag(
 
     if (result.success) {
       await tagManager.syncToStorage();
+      const tag = tagManager.getTagById(data.tagId);
+      if (tag) {
+        await syncService.markTagChange('update', tag.id, tag);
+      }
       sendResponse({ success: true });
     } else {
       sendResponse({ success: false, error: result.error });
@@ -717,6 +759,7 @@ async function handleDeleteTag(
 
     if (success) {
       await tagManager.syncToStorage();
+      await syncService.markTagChange('delete', data.tagId);
       sendResponse({ success: true });
     } else {
       sendResponse({ success: false, error: '删除标签失败（可能标签不存在）' });

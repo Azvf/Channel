@@ -26,6 +26,12 @@ export const STORAGE_KEYS = {
   
   // UI 状态相关
   ACTIVE_TAB: 'active_tab',
+  
+  // 认证相关
+  AUTH_SESSION: 'auth_session',
+  
+  // 同步相关
+  SYNC_PENDING_CHANGES: 'sync_pending_changes',
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS] | string;
