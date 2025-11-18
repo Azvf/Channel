@@ -498,6 +498,18 @@ html {
               box-shadow var(--transition-slow) var(--ease-glass);
 }
 
+/* 隐藏滚动条但保持滚动功能 */
+.scrollbar-hide {
+  /* Firefox */
+  scrollbar-width: none;
+  /* Chrome, Safari, Edge */
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ========================================
    PREMIUM GLASS EFFECT STYLES
    Based on switcher design system
