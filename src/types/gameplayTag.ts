@@ -8,6 +8,7 @@ export interface GameplayTag {
   updatedAt: number;
   // 绑定关系：存储与本标签绑定的其他标签ID（双向绑定由管理器保证）
   bindings: string[];
+  deleted?: boolean; // 标记是否已删除（用于同步）
 }
 
 export interface TaggedPage {
@@ -20,6 +21,7 @@ export interface TaggedPage {
   updatedAt: number;
   favicon?: string;
   description?: string;
+  deleted?: boolean; // 标记是否已删除（用于同步）
 }
 
 export interface TagsCollection {

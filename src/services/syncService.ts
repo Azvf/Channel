@@ -265,40 +265,33 @@ class SyncService {
   }
 
   /**
-   * 从云端拉取数据（只拉取未删除的记录）
+   * 从云端拉取数据（包括已删除的记录，用于同步）
    */
   private async fetchFromCloud(userId: string): Promise<{
     tags: TagsCollection;
     pages: PageCollection;
   }> {
     try {
-      // 拉取标签（只拉取 deleted = false 的记录）
+      // 拉取标签（包括已删除的记录）
       const { data: tagsData, error: tagsError } = await supabase
         .from('tags')
         .select('*')
-        .eq('user_id', userId)
-        .eq('deleted', false);
+        .eq('user_id', userId);
 
       if (tagsError) throw tagsError;
 
-      // 拉取页面（只拉取 deleted = false 的记录）
+      // 拉取页面（包括已删除的记录）
       const { data: pagesData, error: pagesError } = await supabase
         .from('pages')
         .select('*')
-        .eq('user_id', userId)
-        .eq('deleted', false);
+        .eq('user_id', userId);
 
       if (pagesError) throw pagesError;
 
-      // 转换为本地格式
+      // 转换为本地格式（保留 deleted 字段）
       const tags: TagsCollection = {};
       if (tagsData) {
         for (const row of tagsData) {
-          // 双重保险：即使查询已过滤，也检查 deleted 字段
-          if (row.deleted === true) {
-            log.warn('发现已删除的标签（应该已被过滤）', { tagId: row.id });
-            continue;
-          }
           tags[row.id] = {
             id: row.id,
             name: row.name,
@@ -307,6 +300,7 @@ class SyncService {
             bindings: row.bindings || [],
             createdAt: row.created_at || Date.now(),
             updatedAt: row.updated_at || Date.now(),
+            deleted: row.deleted || false,
           };
         }
       }
@@ -314,11 +308,6 @@ class SyncService {
       const pages: PageCollection = {};
       if (pagesData) {
         for (const row of pagesData) {
-          // 双重保险：即使查询已过滤，也检查 deleted 字段
-          if (row.deleted === true) {
-            log.warn('发现已删除的页面（应该已被过滤）', { pageId: row.id });
-            continue;
-          }
           pages[row.id] = {
             id: row.id,
             url: row.url,
@@ -329,6 +318,7 @@ class SyncService {
             updatedAt: row.updated_at || Date.now(),
             favicon: row.favicon || undefined,
             description: row.description || undefined,
+            deleted: row.deleted || false,
           };
         }
       }
@@ -373,7 +363,13 @@ class SyncService {
       }
 
       if (!localTag && cloudTag) {
-        // 只有云端有：使用云端数据
+        // 只有云端有：检查云端是否标记为删除
+        if (cloudTag.deleted) {
+          // 云端已删，本地也应该删（不加入 mergedTags，相当于删除）
+          log.info('云端已删除标签，本地同步删除', { tagId });
+          continue;
+        }
+        // 使用云端数据
         mergedTags[tagId] = cloudTag;
       } else if (localTag && !cloudTag) {
         // 只有本地有：可能是新建的未同步数据，保留
@@ -383,6 +379,13 @@ class SyncService {
         // 为了安全，我们保留本地数据（因为可能是新建的）
         mergedTags[tagId] = localTag;
       } else if (localTag && cloudTag) {
+        // 检查云端是否标记为删除
+        if (cloudTag.deleted) {
+          // 云端已删，本地也应该删
+          // 除非本地有更新的操作且时间晚于云端删除时间（冲突处理），简单起见先以云端为准
+          log.info('云端已删除标签，本地同步删除', { tagId });
+          continue;
+        }
         // 双方都有：保留 updatedAt 更大的版本
         mergedTags[tagId] =
           localTag.updatedAt >= cloudTag.updatedAt ? localTag : cloudTag;
@@ -407,12 +410,25 @@ class SyncService {
       }
 
       if (!localPage && cloudPage) {
-        // 只有云端有：使用云端数据
+        // 只有云端有：检查云端是否标记为删除
+        if (cloudPage.deleted) {
+          // 云端已删，本地也应该删（不加入 mergedPages，相当于删除）
+          log.info('云端已删除页面，本地同步删除', { pageId });
+          continue;
+        }
+        // 使用云端数据
         mergedPages[pageId] = cloudPage;
       } else if (localPage && !cloudPage) {
         // 只有本地有：可能是新建的未同步数据，保留
         mergedPages[pageId] = localPage;
       } else if (localPage && cloudPage) {
+        // 检查云端是否标记为删除
+        if (cloudPage.deleted) {
+          // 云端已删，本地也应该删
+          // 除非本地有更新的操作且时间晚于云端删除时间（冲突处理），简单起见先以云端为准
+          log.info('云端已删除页面，本地同步删除', { pageId });
+          continue;
+        }
         // 双方都有：保留 updatedAt 更大的版本
         mergedPages[pageId] =
           localPage.updatedAt >= cloudPage.updatedAt ? localPage : cloudPage;
