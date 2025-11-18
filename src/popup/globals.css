@@ -1239,37 +1239,55 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 
 /* ========================================
-   ACTIVITY CALENDAR - 日历热图 (V10: 重构为固定列布局)
+   ACTIVITY CALENDAR - 日历热图 (V12: 安全缓冲区布局)
    ======================================== */
 
-/* [移除] -------------------------- */
-/* .activity-calendar-container { ... } */
-/* (删除整个 .activity-calendar-container 样式块) */
-
-/* [新增] 1. 主日历布局 (Grid) */
-/* 这个新样式定义了模态框内容区的布局 */
 .stats-wall-calendar-layout {
-  /* [V-Mod] 重新设计以 24px Tile 为核心 */
-  --square-size: 24px;   /* 原为 16px */
-  --gap-size: 4px;       /* 原为 5px。减小间距，使大方块更紧凑 */
-  --day-label-width: 30px; /* 原为 24px。为标签提供足够空间 */
+  /* --- [核心变量配置] --- */
+  /* 1. Tile 尺寸 */
+  --square-size: 24px;   
+  --gap-size: 4px;       
   
+  /* 2. 布局尺寸 */
+  --day-label-width: 30px; 
+  
+  /* 3. 头部高度 (月份标签高度 + 它的下边距) */
+  --month-label-height: 1rem; 
+  --month-label-margin: 6px;
+  
+  /* 4. [新增] 安全缓冲区 (Padding)
+     Tile 24px * 1.15 (scale) ≈ 27.6px -> 每边溢出 ~1.8px
+     Shadow 扩散 ≈ 8px
+     因此我们需要至少 10px 的 padding 来防止 hover 被切断
+  */
+  --grid-safe-padding: 10px;
+
+  /* 5. [自动计算] 顶部对齐偏移量
+     左侧星期标签的 padding-top 必须等于：
+     (右侧容器内 padding-top) + (月份标签总高度)
+  */
+  --header-offset: calc(var(--grid-safe-padding) + var(--month-label-height) + var(--month-label-margin));
+
   display: grid;
-  /* Col 1: 固定标签 (20px), Col 2: 滚动内容 (剩余空间) */
+  /* Col 1: 固定星期标签, Col 2: 滚动内容 */
   grid-template-columns: var(--day-label-width) 1fr;
-  /* Row 1: 月份 (auto), Row 2: Grid (1fr) */
-  grid-template-rows: auto 1fr;
-  gap: var(--gap-size);
+  grid-template-rows: 1fr;
+  /* 减小列间距，因为右侧现在有了 padding-left，视觉上会增加间距 */
+  gap: 0px; 
   
-  flex: 1; /* 关键：让这个 Grid 填满剩余空间 */
-  min-height: 0; /* 关键：允许子元素在 flex 布局中正确溢出 */
-  padding-top: 0.5rem;
+  flex: 1;
+  min-height: 0;
+  /* 移除旧的 padding-top，现在由内部 padding 控制 */
+  padding-top: 0; 
 }
 
-/* [新增] 2. 固定的星期标签 (M, W, F) */
+/* [左侧] 固定的星期标签 (M, W, F) */
 .day-labels-fixed {
-  grid-column: 1 / 2;
-  grid-row: 2 / 3; /* [关键] 放在第2行，与 .activity-grid 对齐 */
+  /* [关键修复] 使用计算出的偏移量，确保与右侧 Grid 的第一行严格对齐 */
+  padding-top: var(--header-offset);
+  
+  /* [新增] 左侧加一点 padding 以防 scale 溢出左边界 (虽然 Label 不缩放，但为了对称美观) */
+  padding-left: 4px;
   
   display: grid;
   grid-template-rows: repeat(7, var(--square-size));
@@ -1278,80 +1296,65 @@ body[data-edit-dialog-open] .theme-switcher-container {
   font-size: 0.6rem;
   font-weight: 500;
   color: color-mix(in srgb, var(--c-content) 50%, transparent);
+  
+  align-items: center;
+  justify-items: start;
 }
-.day-labels-fixed span {
-  height: var(--square-size);
-  line-height: var(--square-size);
-}
-/* 对齐 M, W, F */
-.day-labels-fixed span:nth-child(1) { grid-row: 2; } /* M */
-.day-labels-fixed span:nth-child(2) { grid-row: 4; } /* W */
-.day-labels-fixed span:nth-child(3) { grid-row: 6; } /* F */
 
-/* [修改] 3. 可滚动的内容区域 */
+/* Grid Index: 1=Sun, 2=Mon, 3=Tue, 4=Wed, 5=Thu, 6=Fri, 7=Sat */
+.day-labels-fixed span:nth-child(1) { grid-row: 2; } /* Mon */
+.day-labels-fixed span:nth-child(2) { grid-row: 4; } /* Wed */
+.day-labels-fixed span:nth-child(3) { grid-row: 6; } /* Fri */
+
+
+
+/* [右侧] 可滚动的内容区域 */
 .stats-wall-scroll-content {
-  grid-column: 2 / 3;
-  grid-row: 1 / 3; /* [关键] 跨越两行 (月份 + 日期) */
-
   overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 5px;
+  overflow-y: hidden; /* 保持 hidden 防止垂直滚动条 */
+  
+  /* [关键修复] 添加四周内边距，作为 hover 缩放的安全缓冲区 */
+  padding: var(--grid-safe-padding);
+  
   min-width: 0;
-  
-  /* [移除] flex: 1; (不再需要) */
-  
-  /* ... (滚动条样式保持不变) ... */
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--c-glass) 40%, transparent) color-mix(in srgb, var(--c-glass) 10%, transparent);
 }
-.stats-wall-scroll-content::-webkit-scrollbar {
-  height: 8px;
-}
-.stats-wall-scroll-content::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--c-glass) 10%, transparent);
-  border-radius: 4px;
-}
-.stats-wall-scroll-content::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--c-glass) 40%, transparent);
-  border-radius: 4px;
-}
-.stats-wall-scroll-content::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--c-action) 60%, transparent);
-}
 
-/* [修改] 4. 月份标签 (现在在滚动区内部) */
+/* [右侧内部] 月份标签 */
 .month-labels {
-  /* [移除] grid-column 和 grid-row */
-  
   display: grid;
   grid-auto-flow: column;
-  /* grid-template-columns 由 JS 动态设置 */
   gap: var(--gap-size);
   
-  height: 1rem; /* [新增] 固定高度 */
-  margin-bottom: 5px; /* [新增] 与下方网格的间距 */
+  height: var(--month-label-height);
+  margin-bottom: var(--month-label-margin);
+  
+  /* [新增] 简单的 z-index 提升，防止被下方 grid hover 时遮挡 (虽然主要靠 padding) */
+  position: relative;
+  z-index: var(--z-base);
 }
+
 .month-labels span {
   font-size: 0.6rem;
   font-weight: 500;
   color: color-mix(in srgb, var(--c-content) 50%, transparent);
   white-space: nowrap; 
-  display: inline-block;
+  display: flex;
+  align-items: end;
+  line-height: 1;
   overflow: hidden;
 }
 
-/* [移除] 5. 删除旧的 .day-labels 样式 */
-/* .day-labels { ... } */
-
-/* [修改] 6. 核心热图网格 (现在在滚动区内部) */
+/* [右侧内部] 核心热图网格 */
 .activity-grid {
-  /* [移除] grid-column, grid-row, position, z-index */
-  
   display: grid;
   grid-template-rows: repeat(7, var(--square-size));
   grid-auto-flow: column;
-  /* grid-template-columns 由 JS 动态设置 */
   gap: var(--gap-size);
+  
+  /* 确保 grid 本身也有层级上下文 */
+  position: relative;
 }
 
 /* 9. 活动方块 (V9 修复：添加背景色过渡) */

@@ -37,6 +37,41 @@ const heavyActivity = createMockPages(
   }))
 );
 
+// 大量活动数据（用于测试滚动和性能）
+const veryHeavyActivity = createMockPages(
+  Array.from({ length: 365 }).map((_, index) => ({
+    offset: index,
+    items: Math.floor(Math.random() * 5) + 1,
+  }))
+);
+
+// 单日活动（用于测试单个活动的情况）
+const singleDayActivity = createMockPages([
+  { offset: 1, items: 10 },
+]);
+
+// 远古活动（用于测试自动滚动到最早活动）
+const oldActivity = createMockPages([
+  { offset: 300, items: 5 }, // 300天前
+  { offset: 200, items: 3 },
+  { offset: 100, items: 2 },
+  { offset: 1, items: 1 },
+]);
+
+// 边界活动（在很晚的位置）
+const recentOnlyActivity = createMockPages([
+  { offset: 0, items: 8 },
+  { offset: 1, items: 5 },
+  { offset: 2, items: 3 },
+]);
+
+// 稀疏活动（用于测试低活动度场景）
+const sparseActivity = createMockPages([
+  { offset: 100, items: 1 },
+  { offset: 150, items: 1 },
+  { offset: 200, items: 1 },
+]);
+
 // 默认数据
 setMockPages(lightActivity);
 
@@ -74,6 +109,53 @@ export const Dense: Story = {
   render: (args) => {
     setMockPages(heavyActivity);
     return <StatsWallModal {...args} />;
+  },
+};
+
+export const VeryHeavy: Story = {
+  name: 'Very Heavy Activity (1 Year)',
+  render: (args) => {
+    setMockPages(veryHeavyActivity);
+    return <StatsWallModal {...args} />;
+  },
+};
+
+export const SingleDay: Story = {
+  name: 'Single Day Activity',
+  render: (args) => {
+    setMockPages(singleDayActivity);
+    return <StatsWallModal {...args} />;
+  },
+};
+
+export const OldActivity: Story = {
+  name: 'Old Activity (First Activity Far Back)',
+  render: (args) => {
+    setMockPages(oldActivity);
+    return <StatsWallModal {...args} />;
+  },
+};
+
+export const RecentOnly: Story = {
+  name: 'Recent Only Activity',
+  render: (args) => {
+    setMockPages(recentOnlyActivity);
+    return <StatsWallModal {...args} />;
+  },
+};
+
+export const Sparse: Story = {
+  name: 'Sparse Activity',
+  render: (args) => {
+    setMockPages(sparseActivity);
+    return <StatsWallModal {...args} />;
+  },
+};
+
+export const Closed: Story = {
+  name: 'Closed Modal',
+  args: {
+    isOpen: false,
   },
 };
 

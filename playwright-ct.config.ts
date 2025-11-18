@@ -2,6 +2,8 @@ import { defineConfig } from '@playwright/experimental-ct-react';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'url';
 import { resolve } from 'path';
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url));
 
@@ -20,6 +22,14 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': resolve(projectRoot, 'src'),
+      },
+    },
+    css: {
+      postcss: {
+        plugins: [
+          tailwindcss(),
+          autoprefixer(),
+        ],
       },
     },
     server: {
