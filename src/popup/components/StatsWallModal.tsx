@@ -2,7 +2,7 @@ import React, { useState, useEffect, memo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
-import { ActivityTooltip } from './ActivityTooltip';
+import { Tooltip } from './Tooltip';
 import { statsWallManager } from '../../services/StatsWallManager';
 import { CalendarLayoutInfo } from '../../types/statsWall';
 
@@ -45,13 +45,13 @@ const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
     : `${day.items} items on ${day.dateString}`;
 
   return (
-    <ActivityTooltip content={tooltipContent}>
+    // 使用 delay={100} 实现即时反馈，符合查看数据的心理预期
+    <Tooltip content={tooltipContent} delay={100}>
       <div 
         className="activity-day-square" 
         data-level={day.level}
-        title={tooltipContent}
       />
-    </ActivityTooltip>
+    </Tooltip>
   );
 });
 

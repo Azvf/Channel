@@ -145,6 +145,35 @@
     --color-destructive: #D0021B;
     --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
     --hover-color-destructive: var(--color-destructive);
+
+    /* --- Frost Tooltip System --- */
+
+    /* 1. Visual (视觉层) - 霜化质感 */
+    /* 混合 85% 背景色 + 10% 玻璃色，保证高可读性同时保留通透感 */
+    --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
+    --tooltip-border: 1px solid color-mix(in srgb, var(--c-glass) 20%, transparent);
+    --tooltip-radius: 0.5rem; /* 8px - 精致的小圆角 */
+    
+    /* 2. Depth (深度层) - 顶部微高光 */
+    --tooltip-shadow: 
+      0 4px 12px -2px rgba(0, 0, 0, 0.12), /* 柔和的弥散阴影 */
+      inset 0 1px 0 0 color-mix(in srgb, var(--c-light) 40%, transparent); /* 顶部高光，模拟厚度 */
+
+    /* 3. Typography (排版层) - 极小字号 */
+    --tooltip-font-size: 0.75rem; /* 12px */
+    --tooltip-line-height: 1.2;
+    --tooltip-font-weight: 500;
+    --tooltip-letter-spacing: 0.01em;
+    --tooltip-text-color: var(--c-content);
+    
+    /* 4. Spacing (间距层) */
+    --tooltip-padding: 0.3rem 0.6rem; /* 紧凑的内边距 */
+    --tooltip-offset: 6px; /* 悬浮距离 */
+
+    /* 5. Motion (动效层) - 瞬时响应 */
+    --tooltip-transition-duration: 150ms;
+    --tooltip-transition-ease: var(--ease-smooth);
+    --tooltip-delay: 400ms; /* 防抖延迟，避免鼠标划过时闪烁 */
   }
   
   /* 只有当 body 有 data-theme-ready 属性时才启用过渡效果 */
@@ -269,6 +298,35 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  /* --- Frost Tooltip System --- */
+
+  /* 1. Visual (视觉层) - 霜化质感 */
+  /* 混合 85% 背景色 + 10% 玻璃色，保证高可读性同时保留通透感 */
+  --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
+  --tooltip-border: 1px solid color-mix(in srgb, var(--c-glass) 20%, transparent);
+  --tooltip-radius: 0.5rem; /* 8px - 精致的小圆角 */
+  
+  /* 2. Depth (深度层) - 顶部微高光 */
+  --tooltip-shadow: 
+    0 4px 12px -2px rgba(0, 0, 0, 0.12), /* 柔和的弥散阴影 */
+    inset 0 1px 0 0 color-mix(in srgb, var(--c-light) 40%, transparent); /* 顶部高光，模拟厚度 */
+
+  /* 3. Typography (排版层) - 极小字号 */
+  --tooltip-font-size: 0.75rem; /* 12px */
+  --tooltip-line-height: 1.2;
+  --tooltip-font-weight: 500;
+  --tooltip-letter-spacing: 0.01em;
+  --tooltip-text-color: var(--c-content);
+  
+  /* 4. Spacing (间距层) */
+  --tooltip-padding: 0.3rem 0.6rem; /* 紧凑的内边距 */
+  --tooltip-offset: 6px; /* 悬浮距离 */
+
+  /* 5. Motion (动效层) - 瞬时响应 */
+  --tooltip-transition-duration: 150ms;
+  --tooltip-transition-ease: var(--ease-smooth);
+  --tooltip-delay: 400ms; /* 防抖延迟，避免鼠标划过时闪烁 */
 }
 
 /* Theme variables mapping */
@@ -1574,4 +1632,28 @@ h2[style*="overflow-y: scroll"]::-webkit-scrollbar {
 
 .hover-destructive:hover svg {
   color: var(--hover-color-destructive) !important;
+}
+
+/* ========================================
+   FROST TOOLTIP SYSTEM - 通用样式类
+   ======================================== */
+
+/* 通用样式类 (供非 React 场景使用) */
+.frost-tooltip-content {
+  background-color: var(--tooltip-bg);
+  border: var(--tooltip-border);
+  border-radius: var(--tooltip-radius);
+  box-shadow: var(--tooltip-shadow);
+  color: var(--tooltip-text-color);
+  font-size: var(--tooltip-font-size);
+  font-weight: var(--tooltip-font-weight);
+  line-height: var(--tooltip-line-height);
+  letter-spacing: var(--tooltip-letter-spacing);
+  padding: var(--tooltip-padding);
+  backdrop-filter: blur(8px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  z-index: var(--z-tooltip-layer);
 }

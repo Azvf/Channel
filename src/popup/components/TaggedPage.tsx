@@ -6,6 +6,7 @@ import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
 import { PageIcon } from "./PageIcon";
 import { EditPageDialog } from "./EditPageDialog";
+import { Tooltip } from "./Tooltip";
 import {
   Search,
   Inbox,
@@ -705,17 +706,20 @@ function PageCard({
             <PageIcon url={page.url} />
           </div>
 
-          <p
-            className="truncate flex-1"
-            style={{
-              color: "var(--color-text-secondary)",
-              font: "var(--font-caption)",
-              letterSpacing: "var(--letter-spacing-caption)",
-              margin: 0,
-            }}
-          >
-            {page.url}
-          </p>
+          {/* 仅在文本被截断时显示完整 URL，延迟稍长以免干扰 */}
+          <Tooltip content={page.url} delay={600} side="bottom">
+            <p
+              className="truncate flex-1"
+              style={{
+                color: "var(--color-text-secondary)",
+                font: "var(--font-caption)",
+                letterSpacing: "var(--letter-spacing-caption)",
+                margin: 0,
+              }}
+            >
+              {page.url}
+            </p>
+          </Tooltip>
         </div>
 
         <div className="flex flex-wrap gap-2.5">
