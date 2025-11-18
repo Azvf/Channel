@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
 import { authService } from '../../services/authService';
-import { syncService } from '../../services/syncService';
 import { TagManager } from '../../services/tagManager';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
 import { testHelpers, TEST_ACCOUNT } from '../../test/helpers';

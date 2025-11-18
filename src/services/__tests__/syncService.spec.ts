@@ -57,17 +57,14 @@ jest.mock('../authService', () => ({
 
 // 现在可以安全地导入 SyncService
 import { SyncService } from '../syncService';
-import { TagManager } from '../tagManager';
-import { storageService, STORAGE_KEYS } from '../storageService';
 import { testHelpers } from '../../test/helpers';
 
 describe('SyncService Merge Logic', () => {
   let syncService: SyncService;
-  let tagManager: TagManager;
 
   beforeEach(async () => {
     await testHelpers.clearAllData();
-    tagManager = await testHelpers.initTagManager();
+    await testHelpers.initTagManager();
     syncService = SyncService.getInstance();
   });
 

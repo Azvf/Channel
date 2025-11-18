@@ -53,10 +53,7 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
       action: 'getCurrentPage',
     };
 
-    let responseData: any = null;
-    const sendResponse = (response: any) => {
-      responseData = response;
-    };
+    const sendResponse = jest.fn();
 
     // 需要确保初始化完成
     // 由于 messageHandler 内部有异步初始化逻辑，我们需要等待
