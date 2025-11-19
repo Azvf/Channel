@@ -22,6 +22,7 @@ interface AppState {
   stats: UserStats;
   loading: boolean;
   error: string | null;
+  isInitializing: boolean;
   refreshAllData: () => Promise<void>;
 }
 
@@ -33,9 +34,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [stats, setStats] = useState<UserStats>({ todayCount: 0, streak: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // 新增：区分初始加载和后台刷新
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  const loadAllData = useCallback(async () => {
-    setLoading(true);
+  const loadAllData = useCallback(async (isSilent = false) => {
+    // 如果是静默刷新，不要设置全局 loading，避免 UI 闪烁
+    if (!isSilent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [tagsData, pagesData, statsData] = await Promise.all([
@@ -49,15 +55,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Failed to load app context data:", err);
       const message = err instanceof Error ? err.message : "Failed to load data";
-      setError(message);
+      // 静默刷新时，不要设置 error，避免打断用户操作
+      if (!isSilent) {
+        setError(message);
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
+      setIsInitializing(false);
     }
   }, []);
 
   useEffect(() => {
-    // 1. 初始加载
-    loadAllData().catch((err) => {
+    // 1. 初始加载 (非静默)
+    loadAllData(false).catch((err) => {
       console.error("Failed to initialize app context:", err);
     });
 
@@ -78,12 +90,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const pagesChanged = changes[STORAGE_KEYS.PAGES] !== undefined;
 
       if (tagsChanged || pagesChanged) {
-        console.log('[AppContext] 检测到数据变化，自动刷新 UI', {
+        console.log('[AppContext] 检测到数据变化，静默刷新 UI', {
           tagsChanged,
           pagesChanged,
         });
-        // 重新加载所有数据
-        loadAllData().catch((err) => {
+        // 关键：这里使用静默刷新，避免 UI 闪烁
+        loadAllData(true).catch((err) => {
           console.error("Failed to refresh app context data:", err);
         });
       }
@@ -107,9 +119,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       stats,
       loading,
       error,
-      refreshAllData: loadAllData,
+      isInitializing,
+      refreshAllData: () => loadAllData(false),
     }),
-    [allTags, allPages, stats, loading, error, loadAllData],
+    [allTags, allPages, stats, loading, error, isInitializing, loadAllData],
   );
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
