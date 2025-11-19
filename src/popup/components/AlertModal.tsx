@@ -87,50 +87,80 @@ export function AlertModal({
       exit="hidden"
       variants={backdropVariants}
       transition={{ duration: 0.2, ease: 'easeOut' }}
+      onClick={onClose}
     >
       <motion.div
-        className="w-full max-w-sm"
+        className="w-full max-w-sm flex flex-col"
+        style={{
+          // 1. 硬性限制模态框最大高度，留出上下边距
+          maxHeight: '85vh',
+        }}
         variants={modalVariants}
         transition={{ duration: 0.2, ease: 'easeOut' }}
         onClick={(event) => event.stopPropagation()}
       >
         <GlassCard
-          className="overflow-hidden flex flex-col"
-          style={{ width: '100%' }}
+          // 2. 核心修复：使用 [&>...] 语法穿透控制 GlassCard 内部的 .liquidGlass-content
+          // - [&>.liquidGlass-content]:flex-col : 让内部内容垂直排列
+          // - [&>.liquidGlass-content]:h-full : 让内部内容撑满卡片高度
+          // - [&>.liquidGlass-content]:overflow-hidden : 防止圆角溢出
+          className="flex flex-col min-h-0 overflow-hidden [&>.liquidGlass-content]:flex [&>.liquidGlass-content]:flex-col [&>.liquidGlass-content]:h-full [&>.liquidGlass-content]:max-h-full [&>.liquidGlass-content]:overflow-hidden"
+          style={{
+            width: '100%',
+            height: 'auto', // 允许高度自适应（内容少时变矮）
+            maxHeight: '100%', // 继承父级的 85vh 限制（内容多时受限）
+          }}
         >
-          <ModalHeader title={title} onClose={onClose} />
+          {/* Header: 固定高度 (flex-shrink-0 防止被压缩) */}
+          <div className="flex-shrink-0">
+            <ModalHeader title={title} onClose={onClose} />
+          </div>
 
-          <div className="flex items-start gap-4 p-5">
-            <div className="flex-shrink-0 mt-1">
-              <Icon className="w-6 h-6" style={{ color }} />
-            </div>
-            <div
-              className="flex-1 min-w-0"
-              style={{
-                font: 'var(--font-body)',
-                color: 'var(--color-text-primary)',
-                letterSpacing: 'var(--letter-spacing-body)',
-              }}
-            >
-              {children}
+          {/* Content: 弹性区域 (flex-1)，负责滚动 (overflow-y-auto) */}
+          <div 
+            className="flex-1 overflow-y-auto px-5 py-5 min-h-0"
+            style={{
+              scrollbarWidth: 'thin', // Firefox 细滚动条
+              scrollbarColor: 'color-mix(in srgb, var(--c-content) 20%, transparent) transparent',
+            }}
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 mt-1">
+                <Icon className="w-6 h-6" style={{ color }} />
+              </div>
+              <div
+                className="flex-1 min-w-0"
+                style={{
+                  font: 'var(--font-body)',
+                  color: 'var(--color-text-primary)',
+                  letterSpacing: 'var(--letter-spacing-body)',
+                  wordBreak: 'break-word', // 防止长文本撑破布局
+                  overflowWrap: 'break-word'
+                }}
+              >
+                {children}
+              </div>
             </div>
           </div>
 
-          <ModalFooter>
-            {actions.map((action) => {
-              const { id, label, variant, onClick: handleClick, autoFocus } = action;
-              return (
-                <GlassButton
-                  key={id}
-                  onClick={handleClick}
-                  variant={variant}
-                  autoFocus={autoFocus ?? id === resolvedAutoFocusId}
-                >
-                  {label}
-                </GlassButton>
-              );
-            })}
-          </ModalFooter>
+          {/* Footer: 固定高度 */}
+          <div className="flex-shrink-0">
+            <ModalFooter>
+              {actions.map((action) => {
+                const { id, label, variant, onClick: handleClick, autoFocus } = action;
+                return (
+                  <GlassButton
+                    key={id}
+                    onClick={handleClick}
+                    variant={variant}
+                    autoFocus={autoFocus ?? id === resolvedAutoFocusId}
+                  >
+                    {label}
+                  </GlassButton>
+                );
+              })}
+            </ModalFooter>
+          </div>
         </GlassCard>
       </motion.div>
     </motion.div>
@@ -141,4 +171,3 @@ export function AlertModal({
     document.body
   );
 }
-

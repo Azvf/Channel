@@ -20,13 +20,13 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
       <div 
         className="liquidGlass-wrapper relative"
         style={{
-          borderRadius: '99em' // 覆盖默认的 1.4em，保持 tag 的圆形外观
+          borderRadius: '99em'
         }}
       >
-        {/* [修复] 移除 "liquidGlass-content"，它带来了 `width: 100%` 的副作用 */}
-        <div className="tag-content flex items-center gap-2 group">
+        {/* 调整 padding-right (pr-1 -> pr-1.5) 给删除按钮更多呼吸空间 */}
+        <div className="tag-content flex items-center gap-0.5 pl-2.5 pr-1.5 py-1 group">
           <span 
-            className="whitespace-nowrap px-2.5 py-1"
+            className="whitespace-nowrap mr-0.5"
             style={{
               color: 'var(--color-text-primary)',
               font: 'var(--font-tag)',
@@ -39,18 +39,22 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           
           {onRemove && (
             <button
-              onClick={onRemove}
-              className="transition-all rounded-full p-0.5 mr-1.5 hover-destructive"
-              aria-label="Remove tag"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              // [修改] 使用无背景的 .hover-destructive-icon
+              className="hover-destructive-icon w-5 h-5"
+              aria-label={`Remove ${label}`}
               style={{
-                color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
-                background: 'transparent',
-                flexShrink: 0
+                flexShrink: 0,
+                // 微调 margin 以视觉居中
+                marginRight: '-2px' 
               }}
             >
               <X 
                 className="w-3 h-3" 
-                strokeWidth={2}
+                strokeWidth={2.5} 
               />
             </button>
           )}

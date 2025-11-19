@@ -1,3 +1,10 @@
+export interface Device {
+  id: string;
+  name: string;
+  lastSync: number;
+  isCurrent: boolean;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -5,6 +12,7 @@ export interface UserProfile {
   avatarUrl?: string;
   provider: 'google' | 'apple';
   plan: 'free' | 'pro';
+  devices?: Device[];
 }
 
 export interface AuthState {

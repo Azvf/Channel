@@ -57,8 +57,10 @@ class AuthService {
       // A. 获取重定向 URL (需要在 Supabase Dashboard -> Auth -> URL Configuration 中添加此 URL)
       // 格式通常为: https://<extension-id>.chromiumapp.org/
       const redirectUrl = chrome.identity.getRedirectURL();
+      log.info('Got redirect URL from Chrome Identity', { redirectUrl });
       
       // B. 从 Supabase 获取授权 URL (skipBrowserRedirect: true 是关键)
+      log.info('Requesting OAuth URL from Supabase', { provider, redirectUrl });
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -67,36 +69,102 @@ class AuthService {
         }
       });
 
-      if (error) throw error;
-      if (!data?.url) throw new Error('No authentication URL returned');
+      if (error) {
+        log.error('Supabase OAuth URL request failed', { error: error.message });
+        throw error;
+      }
+      
+      if (!data?.url) {
+        log.error('No authentication URL returned from Supabase', { data });
+        throw new Error('No authentication URL returned');
+      }
+
+      log.info('Received OAuth URL from Supabase', { urlLength: data.url.length });
 
       // C. 启动 Chrome 原生 Web 认证流
       // 这会弹出一个独立的浏览器窗口，用户登录后窗口自动关闭
+      log.info('Launching Chrome Web Auth Flow', { interactive: true });
       const responseUrl = await chrome.identity.launchWebAuthFlow({
         url: data.url,
         interactive: true
       });
 
-      if (!responseUrl) throw new Error('Authentication window closed');
+      if (!responseUrl) {
+        log.warn('Authentication window was closed by user');
+        throw new Error('Authentication window closed');
+      }
 
-      // D. 解析回调 URL 中的 Tokens
+      log.info('Web Auth Flow completed', { responseUrlLength: responseUrl.length });
+
+      // D. 严格解析回调 URL 中的 Tokens
       // 回调 URL 格式: https://<id>.chromiumapp.org/#access_token=...&refresh_token=...
-      const params = new URLSearchParams(new URL(responseUrl).hash.substring(1));
+      log.info('Parsing tokens from redirect URL', { url: responseUrl.substring(0, 100) + '...' });
+      
+      let urlObj: URL;
+      try {
+        urlObj = new URL(responseUrl);
+      } catch (err) {
+        throw new Error(`Invalid redirect URL: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+
+      // 从 hash fragment 中解析参数
+      const hashFragment = urlObj.hash.substring(1); // 移除开头的 '#'
+      if (!hashFragment) {
+        throw new Error('No hash fragment found in redirect URL');
+      }
+
+      const params = new URLSearchParams(hashFragment);
       const access_token = params.get('access_token');
       const refresh_token = params.get('refresh_token');
+      const oauthError = params.get('error');
+      const error_description = params.get('error_description');
 
-      if (!access_token || !refresh_token) throw new Error('No tokens found in redirect URL');
+      // 检查是否有错误
+      if (oauthError) {
+        const errorMsg = error_description || oauthError;
+        log.error('OAuth error in redirect', { error: oauthError, error_description });
+        throw new Error(`OAuth authentication failed: ${errorMsg}`);
+      }
+
+      // 严格验证 tokens 是否存在且非空
+      if (!access_token || access_token.trim() === '') {
+        log.error('Missing or empty access_token', { hasAccessToken: !!access_token });
+        throw new Error('No access_token found in redirect URL');
+      }
+
+      if (!refresh_token || refresh_token.trim() === '') {
+        log.error('Missing or empty refresh_token', { hasRefreshToken: !!refresh_token });
+        throw new Error('No refresh_token found in redirect URL');
+      }
+
+      log.info('Tokens extracted successfully', { 
+        hasAccessToken: true, 
+        hasRefreshToken: true,
+        accessTokenLength: access_token.length,
+        refreshTokenLength: refresh_token.length
+      });
 
       // E. 将 Token 注入 Supabase Client
+      log.info('Setting session in Supabase client');
       const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
         access_token,
         refresh_token
       });
 
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        log.error('Failed to set session in Supabase', { error: sessionError.message });
+        throw sessionError;
+      }
+      
       if (sessionData.session) {
         this.syncStateWithSession(sessionData.session);
-        log.info('Login successful');
+        log.info('Login successful', { 
+          userId: sessionData.session.user.id,
+          email: sessionData.session.user.email 
+        });
+      } else {
+        log.warn('Session data returned but no session object found', { sessionData });
+        throw new Error('Session not created after setting tokens');
       }
 
     } catch (err) {
