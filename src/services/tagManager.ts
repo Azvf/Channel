@@ -393,6 +393,15 @@ export class TagManager {
   }
 
   /**
+   * [架构修复] 新增：根据 URL 获取页面
+   * 用于在创建/更新前检查页面是否存在，防止元数据（如自定义标题）被覆盖
+   */
+  public getPageByUrl(url: string): TaggedPage | undefined {
+    const id = this.generatePageId(url);
+    return this.pages[id];
+  }
+
+  /**
    * 更新页面标题
    */
   public updatePageTitle(pageId: string, title: string): boolean {

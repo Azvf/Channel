@@ -322,7 +322,7 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void): Prom
       }
     }
 
-    console.log('[handleGetCurrentPage] 准备调用 tagManager.createOrUpdatePage');
+    console.log('[handleGetCurrentPage] 准备更新页面数据');
 
     let domain: string;
     try {
@@ -332,9 +332,21 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void): Prom
       domain = protocolMatch ? `${protocolMatch[1]}-page` : 'internal-page';
     }
 
+    // [架构修复核心点]
+    // 1. 先尝试通过 URL 获取已存在的页面数据
+    const existingPage = tagManager.getPageByUrl(resolvedUrl);
+    
+    // 2. 决策标题策略：
+    // - 如果页面已存在：使用数据库中的标题 (existingPage.title)。这意味着用户可能编辑过它，或者是刚刚保存的新标题。
+    // - 如果页面不存在：使用浏览器 Tab 的标题 (tab.title) 作为初始值。
+    const titleToUse = existingPage ? existingPage.title : (tab.title || '无标题');
+
+    // 3. 调用 createOrUpdatePage
+    // 注意：这里我们传入的是 titleToUse，从而保护了可能存在的自定义标题不被覆盖
+    // 同时，createOrUpdatePage 依然会更新 updatedAt, favicon 等其他我们希望更新的字段
     const page = tagManager.createOrUpdatePage(
       resolvedUrl,
-      tab.title || '无标题',
+      titleToUse, 
       domain,
       tab.favIconUrl,
     );
