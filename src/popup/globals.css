@@ -141,12 +141,10 @@
     --hover-bg-action: color-mix(in srgb, var(--c-action) 15%, transparent);
     --hover-color-action: var(--c-action);
 
-    /* === [更新] Destructive Tokens (语义化命名) === */
-    /* 默认状态是中性色，这里定义的是"激活/悬停"时的红色值 */
-    
-    /* Light Mode Red: 深沉的红文字 + 极淡的红背景 */
-    --token-destructive-text: #D70015; 
-    --token-destructive-bg-hover: rgba(255, 59, 48, 0.10);
+    /* --- [新增] DESTRUCTIVE TOKENS --- */
+    --color-destructive: #D0021B;
+    --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
+    --hover-color-destructive: var(--color-destructive);
 
     /* --- Frost Tooltip System --- */
 
@@ -204,10 +202,6 @@
     --glass-reflex-light: 0.3;
     
     --saturation: 150%;
-    
-    /* Dark Mode Red: 柔和的粉红文字 + 稍亮的红背景 (避免眩光) */
-    --token-destructive-text: #FF6961;
-    --token-destructive-bg-hover: rgba(255, 69, 58, 0.15);
   }
 
   body:has(input[value="dim"]:checked),
@@ -225,10 +219,6 @@
     --glass-reflex-light: 0.7;
     
     --saturation: 200%;
-    
-    /* Dim Mode Red: 保持与 Dark 一致，或微调以适应蓝底 */
-    --token-destructive-text: #FF6961;
-    --token-destructive-bg-hover: rgba(255, 69, 58, 0.15);
   }
 }
 
@@ -1635,86 +1625,25 @@ h2[style*="overflow-y: scroll"]::-webkit-scrollbar {
   color: var(--hover-color-action) !important;
 }
 
-/* ========================================
-   [更新] DESTRUCTIVE HOVER UTILITY (方案 B)
-   ======================================== */
+/* --- [新增] DESTRUCTIVE HOVER UTILITY --- */
 
-/* [现有] 规则 C: "毁灭性行动" (标准版 - 带背景) 
-   适用：菜单项、大按钮
+/* 规则 C: "毁灭性行动" (Destructive)
+   用于所有非 GlassButton 的删除按钮
 */
 .hover-destructive {
-  /* 1. Default State (无感) */
   background-color: transparent;
-  /* 使用次要文本颜色，降低视觉权重 */
-  color: color-mix(in srgb, var(--c-content) 40%, transparent); 
-  
-  /* 2. Motion */
+  color: color-mix(in srgb, var(--c-content) 60%, transparent);
   transition: background-color var(--transition-fast) var(--ease-smooth),
-              color var(--transition-fast) var(--ease-smooth),
-              transform 100ms var(--ease-smooth); /* 添加轻微的缩放反馈 */
-  
-  /* 确保图标居中 */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px; /* 统一圆角 */
-  cursor: pointer;
+              color var(--transition-fast) var(--ease-smooth);
 }
 
-/* 3. Interaction State (警示) */
 .hover-destructive:hover {
-  background-color: var(--token-destructive-bg-hover) !important;
-  color: var(--token-destructive-text) !important;
-  /* 增加微弱的触觉暗示 */
-  transform: scale(1.05); 
+  background-color: var(--hover-bg-action) !important;
+  color: var(--hover-color-destructive) !important;
 }
 
-/* 4. Active/Pressed State (确认) */
-.hover-destructive:active {
-  transform: scale(0.95);
-  /* 按下时背景加深一点点，增加实感 */
-  background-color: color-mix(in srgb, var(--token-destructive-bg-hover) 100%, black 5%) !important;
-}
-
-/* 确保内部 SVG 图标颜色跟随父级 */
-.hover-destructive svg {
-  transition: color var(--transition-fast) var(--ease-smooth);
-  color: currentColor; 
-}
-
-/* [新增] 规则 D: "毁灭性行动" (幽灵版/图标版 - 无背景) 
-   适用：Tag 删除按钮、内联小图标
-   逻辑：仅文字/图标变红，无背景干扰
-*/
-.hover-destructive-icon {
-  background-color: transparent;
-  color: color-mix(in srgb, var(--c-content) 40%, transparent);
-  transition: color var(--transition-fast) var(--ease-smooth),
-              transform 100ms var(--ease-smooth);
-  
-  /* 确保图标居中 */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 99em;
-  cursor: pointer;
-}
-
-.hover-destructive-icon:hover {
-  /* 关键：没有 background-color */
-  background-color: transparent !important;
-  color: var(--token-destructive-text) !important;
-  transform: scale(1.15); /* 稍微加大缩放幅度以补偿背景的缺失，增加反馈感 */
-}
-
-.hover-destructive-icon:active {
-  transform: scale(0.95);
-  opacity: 0.8;
-}
-
-.hover-destructive-icon svg {
-  transition: color var(--transition-fast) var(--ease-smooth);
-  color: currentColor;
+.hover-destructive:hover svg {
+  color: var(--hover-color-destructive) !important;
 }
 
 /* ========================================

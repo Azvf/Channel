@@ -41,7 +41,6 @@ export function TagInput({
   const [selectedIndex, setSelectedIndex] = useState(-1); // 当前选中的下拉菜单选项索引
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const [isPositionReady, setIsPositionReady] = useState(false);
-  const [highlightedTagIndex, setHighlightedTagIndex] = useState<number | null>(null); // [新增] 追踪即将被删除的标签索引，null 表示没有标签被高亮
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -281,30 +280,9 @@ export function TagInput({
 
   const removeTag = (index: number) => {
     onTagsChange(tags.filter((_, i) => i !== index));
-    setHighlightedTagIndex(null); // 确保状态重置
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    // [优化] 处理 Backspace 删除逻辑 - 两段式删除
-    if (e.key === "Backspace" && !inputValue && tags.length > 0 && mode === "list") {
-      // 只有当输入框为空时才触发
-      if (highlightedTagIndex === tags.length - 1) {
-        // 如果最后一个标签已经是高亮状态 -> 执行删除
-        e.preventDefault();
-        removeTag(tags.length - 1);
-      } else {
-        // 否则 -> 仅仅高亮最后一个标签
-        e.preventDefault();
-        setHighlightedTagIndex(tags.length - 1);
-      }
-      return; // 提前返回，不执行后续逻辑
-    }
-    
-    // 2. 任何其他按键操作都应该取消高亮状态
-    if (highlightedTagIndex !== null) {
-      setHighlightedTagIndex(null);
-    }
-    
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (filteredSuggestions.length > 0) {
@@ -380,6 +358,10 @@ export function TagInput({
           inputRef.current.setSelectionRange(autocompleteValue.length, autocompleteValue.length);
         }
       }, 0);
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0 && mode === "list") {
+      // 只在list模式下支持Backspace删除标签
+      e.preventDefault();
+      removeTag(tags.length - 1);
     } else {
       // 其他按键输入时，重置选中索引
       setSelectedIndex(-1);
@@ -431,18 +413,8 @@ export function TagInput({
                 ref={inputRef}
                 type="text"
                 value={inputValue}
-                onChange={(e) => {
-                  setInputValue(e.target.value);
-                  // 输入文字时取消高亮
-                  if (highlightedTagIndex !== null) {
-                    setHighlightedTagIndex(null);
-                  }
-                }}
+                onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                onBlur={() => {
-                  // [补充] 失去焦点时取消高亮
-                  setHighlightedTagIndex(null);
-                }}
                 onFocus={() => {
                   // 只有当输入框有内容时才自动显示下拉菜单
                   if (suggestions.length > 0 && inputValue.trim() && !isAddingTagRef.current && !disabled) {
