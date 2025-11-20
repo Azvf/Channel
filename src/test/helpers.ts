@@ -1,6 +1,11 @@
 import type { GameplayTag } from '../types/gameplayTag';
 import { TagManager } from '../services/tagManager';
 import { authService } from '../services/authService';
+
+// Mock supabase before importing it
+// This prevents import.meta.env errors in Jest
+jest.mock('../lib/supabase', () => require('../lib/__mocks__/supabase'));
+
 import { supabase } from '../lib/supabase';
 
 /**

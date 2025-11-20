@@ -19,6 +19,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     stats,
     loading: appLoading, // 全局 loading (通常只在 App 启动时为 true)
     error: appError,
+    refreshAllData, // 添加刷新函数
   } = useAppContext();
 
   // [核心修改] 使用 useCachedResource 替代 useEffect + useState
@@ -103,8 +104,10 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       // 直接更新缓存，UI 会自动重绘
       mutatePage(newPage);
       
-      // 这里不需要 refreshAllData()，因为 background 会触发 storage 变更，
-      // AppContext 会自动处理全局标签列表的更新
+      // 刷新全局数据（标签列表、统计信息等）
+      // 虽然 background 会触发 storage 变更，但在测试环境中可能需要手动刷新
+      // 在生产环境中，AppContext 的 storage 监听器也会触发刷新，但调用 refreshAllData 是安全的（幂等操作）
+      await refreshAllData();
       
     } catch (error) {
       console.error("更新标签失败:", error);

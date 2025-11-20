@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+
+// Mock supabase before importing messageHandler (which may import supabase)
+jest.mock('../../lib/supabase', () => require('../../lib/__mocks__/supabase'));
+
 import { messageHandler } from '../../background/messageHandler';
 
 // Mock chrome APIs

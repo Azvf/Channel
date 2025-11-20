@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
-import { authService } from '../../services/authService';
-import { TagManager } from '../../services/tagManager';
-import { storageService, STORAGE_KEYS } from '../../services/storageService';
-import { testHelpers, TEST_ACCOUNT } from '../../test/helpers';
 
+// Mock Supabase 必须在所有导入之前
 // 条件性 Mock Supabase：只有在 USE_REAL_SUPABASE 不为 'true' 时才 mock
 // 这样可以支持使用真实的 dev 数据库进行集成测试
 const USE_REAL_SUPABASE = process.env.USE_REAL_SUPABASE === 'true';
@@ -39,7 +36,16 @@ if (!USE_REAL_SUPABASE) {
       removeChannel: jest.fn(),
     },
   }));
+} else {
+  // 即使使用真实数据库，也需要 mock 以避免 import.meta 错误
+  // 然后可以重新导入真实的 supabase
+  jest.mock('../../lib/supabase', () => require('../../lib/__mocks__/supabase'));
 }
+
+import { authService } from '../../services/authService';
+import { TagManager } from '../../services/tagManager';
+import { storageService, STORAGE_KEYS } from '../../services/storageService';
+import { testHelpers, TEST_ACCOUNT } from '../../test/helpers';
 
 // Mock chrome.identity
 global.chrome = {

@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 // 获取环境变量
 // Vite 在构建时会静态替换 import.meta.env.VITE_* 为实际值
 // 测试环境使用 process.env（在 src/test/setup.ts 中设置）
+
 function getSupabaseUrl(): string | undefined {
   // 优先使用 process.env（测试环境）
   if (typeof process !== 'undefined' && process.env.VITE_SUPABASE_URL) {
@@ -18,6 +19,7 @@ function getSupabaseUrl(): string | undefined {
   // Vite 构建环境：直接使用 import.meta.env
   // Vite 会在构建时静态替换 import.meta.env.VITE_SUPABASE_URL 为实际值
   // 这里必须直接引用，不能使用 eval 或动态访问，否则 Vite 无法静态分析
+  // 在测试环境中，这个文件应该被 mock 替换，所以这里不会被执行
   return import.meta.env.VITE_SUPABASE_URL;
 }
 
@@ -29,6 +31,7 @@ function getSupabaseKey(): string | undefined {
   
   // Vite 构建环境：直接使用 import.meta.env
   // Vite 会在构建时静态替换 import.meta.env.VITE_SUPABASE_ANON_KEY 为实际值
+  // 在测试环境中，这个文件应该被 mock 替换，所以这里不会被执行
   return import.meta.env.VITE_SUPABASE_ANON_KEY;
 }
 
