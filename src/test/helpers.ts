@@ -1,12 +1,18 @@
 import type { GameplayTag } from '../types/gameplayTag';
 import { TagManager } from '../services/tagManager';
-import { authService } from '../services/authService';
 
-// Mock supabase before importing it
-// This prevents import.meta.env errors in Jest
-jest.mock('../lib/supabase', () => require('../lib/__mocks__/supabase'));
+// 条件性 Mock Supabase：只有在 USE_REAL_SUPABASE 不为 'true' 时才 mock
+// 这样可以支持使用真实的 dev 数据库进行集成测试
+const USE_REAL_SUPABASE = process.env.USE_REAL_SUPABASE === 'true';
+
+if (!USE_REAL_SUPABASE) {
+  // Mock supabase before importing it
+  // This prevents import.meta.env errors in Jest
+  jest.mock('../lib/supabase', () => require('../lib/__mocks__/supabase'));
+}
 
 import { supabase } from '../lib/supabase';
+import { authService } from '../services/authService';
 
 /**
  * 测试账号配置
@@ -99,11 +105,32 @@ export const testHelpers = {
     }
 
     try {
-      // 检查是否有会话，如果有先登出
-      const { data: sessionData } = await supabase.auth.getSession();
+      // 使用模块顶层的 supabase（可能是 mock 或真实版本）
+      // 如果使用真实数据库，privacy.spec.ts 会确保使用真实的 supabase
+      const client = supabase;
+
+      // 检查是否有会话，如果有先登出（添加超时保护）
+      const getSessionPromise = client.auth.getSession();
+      const getSessionTimeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Get session timeout')), 5000)
+      );
+      
+      let sessionData;
+      try {
+        const result = await Promise.race([getSessionPromise, getSessionTimeout]) as any;
+        sessionData = result.data;
+      } catch (error) {
+        if (error instanceof Error && error.message === 'Get session timeout') {
+          console.warn('[testHelpers] getSession 超时（5秒），继续登录流程');
+        } else {
+          throw error;
+        }
+        sessionData = { session: null };
+      }
+      
       if (sessionData?.session) {
         try {
-          const signOutPromise = supabase.auth.signOut();
+          const signOutPromise = client.auth.signOut();
           const signOutTimeout = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Sign out timeout')), 5000)
           );
@@ -114,7 +141,7 @@ export const testHelpers = {
       }
 
       // 使用邮箱+密码登录（添加超时保护）
-      const loginPromise = supabase.auth.signInWithPassword({
+      const loginPromise = client.auth.signInWithPassword({
         email: TEST_ACCOUNT.email!,
         password: TEST_ACCOUNT.password!,
       });

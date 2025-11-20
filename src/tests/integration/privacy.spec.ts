@@ -37,9 +37,58 @@ if (!USE_REAL_SUPABASE) {
     },
   }));
 } else {
-  // 即使使用真实数据库，也需要 mock 以避免 import.meta 错误
-  // 然后可以重新导入真实的 supabase
-  jest.mock('../../lib/supabase', () => require('../../lib/__mocks__/supabase'));
+  // 使用真实数据库时，也需要 mock 以避免 import.meta 错误
+  // 但返回真实的 Supabase 客户端实例
+  jest.mock('../../lib/supabase', () => {
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set in environment');
+    }
+    
+    // 使用与真实 supabase.ts 相同的存储适配器
+    // 注意：setup.ts 中的 chrome.storage.local 返回 Promise，所以直接使用 await
+    const chromeStorageAdapter = {
+      getItem: async (key: string): Promise<string | null> => {
+        try {
+          const result = await chrome.storage.local.get([key]);
+          return result[key] || null;
+        } catch (error) {
+          console.warn('[Supabase] Storage getItem failed:', error);
+          return null;
+        }
+      },
+      setItem: async (key: string, value: string): Promise<void> => {
+        try {
+          await chrome.storage.local.set({ [key]: value });
+        } catch (error) {
+          console.warn('[Supabase] Storage setItem failed:', error);
+          throw error;
+        }
+      },
+      removeItem: async (key: string): Promise<void> => {
+        try {
+          await chrome.storage.local.remove(key);
+        } catch (error) {
+          console.warn('[Supabase] Storage removeItem failed:', error);
+          throw error;
+        }
+      },
+    };
+    
+    return {
+      supabase: createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          storage: chromeStorageAdapter,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
+      }),
+    };
+  });
 }
 
 import { authService } from '../../services/authService';
@@ -57,10 +106,8 @@ global.chrome = {
 } as any;
 
 describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
-  // 使用真实数据库时，增加整体超时时间
-  if (USE_REAL_SUPABASE) {
-    jest.setTimeout(30000); // 30秒超时（真实数据库需要网络请求）
-  }
+  // 所有超时都设置为 10 秒
+  jest.setTimeout(10000);
 
   // 在测试套件开始时登录测试账号（如果使用真实数据库）
   beforeAll(async () => {
@@ -78,7 +125,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
         await testHelpers.loginWithTestAccount();
       }
     }
-  });
+  }, 10000); // 10秒超时
 
   let tagManager: TagManager;
 
@@ -244,7 +291,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
       const isMocked = typeof (supabase.from as any).mockClear === 'function';
       expect(isMocked).toBe(true);
     }
-  }, 30000); // 30秒超时
+  }, 10000); // 10秒超时
 
   it('Storage 和 TagManager 应该保持同步', async () => {
     // 1. 创建数据
