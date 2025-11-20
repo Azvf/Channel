@@ -29,7 +29,9 @@ export function AccountSection() {
   const [authErrorAlert, setAuthErrorAlert] = useState<string | null>(null);
   const [alertState, setAlertState] = useState<any>(null);
 
-  // 使用 useCachedResource Hook 获取设备列表
+  // [关键修复]
+  // 1. enabled: 仅依赖 isAuthenticated。只要已登录，Popup 打开时必须立即检查设备。
+  // 2. fetcher: 即使 register 失败（在 service 内部捕获），getDevices 也会执行，确保能拿到列表判断是否超限。
   const { 
     data: devicesData, 
     isLoading: isDevicesLoading, 
@@ -38,13 +40,15 @@ export function AccountSection() {
     mutate: mutateDevices
   } = useCachedResource<Device[]>({
     key: `devices_${user?.id || ''}`,
-    enabled: isAuthenticated && isExpanded,
+    enabled: isAuthenticated, // <--- 修复点：移除 && isExpanded
     initialData: [],
     fetcher: async () => {
-      // 保持 Fetcher 纯粹：先注册心跳，再获取设备
+      // 串行执行：先心跳（容错），再读取
       await deviceService.registerCurrentDevice();
       return await deviceService.getDevices();
-    }
+    },
+    // 缩短 TTL 以确保设备状态相对实时，特别是对于刚登录的情况
+    ttl: 60 * 1000 
   });
 
   const activeDevices = devicesData ?? [];
@@ -57,26 +61,29 @@ export function AccountSection() {
   };
   
   const handleRemoveDevice = useCallback(async (deviceId: string) => {
-    // 1. 乐观更新 UI
+    // 乐观更新
     const previousDevices = [...activeDevices];
     mutateDevices(activeDevices.filter(d => d.id !== deviceId));
-    setAlertState(null);
+    
+    // 如果移除了设备后不再超限，关闭警报
+    if (activeDevices.length - 1 <= MAX_FREE_DEVICES) {
+        setAlertState(null);
+    }
 
-    // 2. 调用真实 API
     try {
       await deviceService.removeDevice(deviceId);
-      // 成功后刷新数据
       await refreshDevices();
     } catch (err) {
-      // 失败回滚
       mutateDevices(previousDevices);
       setAuthErrorAlert(err instanceof Error ? err.message : '移除设备失败');
     }
   }, [activeDevices, mutateDevices, refreshDevices]);
 
+  // 构建警报内容
   const limitReachedAlert = useMemo(() => {
     if (!isAuthenticated || !isLimitReached) return null;
 
+    // 找出非当前设备（只能踢别人）
     const removableDevices = activeDevices.filter(d => !d.is_current);
     
     return {
@@ -88,7 +95,13 @@ export function AccountSection() {
                     您的免费账户已绑定 {deviceCount} 台设备（上限 {MAX_FREE_DEVICES} 台）。请移除旧设备以继续同步。
                 </p>
                 
-                <div style={{ padding: '0.25rem' }}>
+                <div style={{ 
+                    maxHeight: '200px', 
+                    overflowY: 'auto',
+                    border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
+                    borderRadius: '0.5rem',
+                    padding: '0.25rem'
+                }}>
                     {removableDevices.map(device => (
                         <SettingsRow
                             key={device.id}
@@ -103,6 +116,7 @@ export function AccountSection() {
                                     }}
                                     className="p-1.5 rounded-md transition-all hover-destructive"
                                     title="移除此设备"
+                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -111,16 +125,24 @@ export function AccountSection() {
                             className="p-1.5"
                         />
                     ))}
+                    {removableDevices.length === 0 && (
+                        <p className="text-center text-xs text-gray-500 py-2">没有可移除的其他设备</p>
+                    )}
                 </div>
             </div>
         ),
         actions: [
             { id: 'upgrade', label: '升级至 Pro', variant: 'primary' as const, onClick: () => alert("跳转支付...") },
+            // 添加一个暂时关闭的按钮，防止用户死循环无法操作其他功能（可选）
+            { id: 'later', label: '稍后处理', variant: 'default' as const, onClick: () => setAlertState(null) }
         ],
     };
   }, [isAuthenticated, isLimitReached, deviceCount, activeDevices, handleRemoveDevice]);
 
+  // 监听超限状态并弹出警报
   useEffect(() => {
+    // 增加 !alertState 判断，防止重复弹窗
+    // 增加 !isDevicesLoading 判断，确保数据加载完再弹
     if (isLimitReached && isAuthenticated && !alertState && !authErrorAlert && !isDevicesLoading) {
         setAlertState(limitReachedAlert);
     }

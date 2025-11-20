@@ -2,48 +2,61 @@
 import { supabase } from '../lib/supabase';
 import { getDeviceId, getDeviceName } from '../popup/utils/device';
 import { cacheService } from './cacheService';
+import { logger } from './logger';
+
+const log = logger('DeviceService');
 
 export interface Device {
   id: string;
   name: string;
   last_sync_at: string;
-  is_current: boolean; // 这是一个前端计算属性，数据库中不存储
+  is_current: boolean;
 }
 
 class DeviceService {
   /**
    * 注册或更新当前设备的心跳
-   * (通常在登录成功后或每次同步时调用)
+   * [最佳实践]：包含 try-catch 容错，确保不阻塞主流程
    */
   async registerCurrentDevice(): Promise<void> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
 
-    const id = getDeviceId();
-    const name = getDeviceName();
+      const id = getDeviceId();
+      const name = getDeviceName();
 
-    const { error } = await supabase.from('devices').upsert({
-      id,
-      user_id: session.user.id,
-      name,
-      last_sync_at: new Date().toISOString()
-    });
+      // 使用 upsert 更新心跳
+      const { error } = await supabase.from('devices').upsert({
+        id,
+        user_id: session.user.id,
+        name,
+        last_sync_at: new Date().toISOString()
+      });
 
-    if (error) throw error;
-    
-    // 注册成功后，让缓存失效，以便下次拉取最新时间
-    await cacheService.remove(`devices_${session.user.id}`);
+      if (error) {
+        // 记录错误但不抛出，防止阻塞后续的数据读取
+        log.warn('Heartbeat update failed (non-critical)', { error: error.message });
+      } else {
+        // 仅在成功时失效缓存，强制下次读取最新数据
+        await cacheService.remove(`devices_${session.user.id}`);
+      }
+    } catch (error) {
+      // 捕获所有网络或未知错误
+      log.error('Unexpected error during heartbeat', { error });
+    }
   }
 
   /**
-   * 获取设备列表 (纯粹的数据获取，不处理缓存)
-   * 缓存逻辑由 useCachedResource Hook 处理
+   * 获取设备列表
+   * 这里应该抛出错误供 UI 层处理（显示重试按钮等），因为读不到数据是关键错误
    */
   async getDevices(): Promise<Device[]> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return [];
 
     const currentDeviceId = getDeviceId();
+    
     const { data, error } = await supabase
       .from('devices')
       .select('*')
