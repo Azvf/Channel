@@ -221,6 +221,7 @@ export class SyncService {
 
       // 8. 更新本地数据库
       this.tagManager.initialize(merged);
+      // initialize 不会标记为 dirty，所以这里直接保存（或使用 commit，但此时 isDirty 为 false）
       await this.tagManager.syncToStorage();
 
       // 9. [关键] 只有在所有步骤成功后，才更新游标
@@ -648,7 +649,7 @@ export class SyncService {
               this.isApplyingRemoteChange = true;
               try {
                 this.tagManager.deleteTag(tagId);
-                await this.tagManager.syncToStorage();
+                await this.tagManager.commit();
                 this.recordProcessedChange(changeKey);
               } finally {
                 this.isApplyingRemoteChange = false;
@@ -673,7 +674,7 @@ export class SyncService {
               try {
                 log.info('收到标签软删除事件', { tagId });
                 this.tagManager.deleteTag(tagId);
-                await this.tagManager.syncToStorage();
+                await this.tagManager.commit();
                 this.recordProcessedChange(changeKey);
               } finally {
                 this.isApplyingRemoteChange = false;
@@ -735,7 +736,7 @@ export class SyncService {
 
               existingTags[tag.id] = tag;
               this.tagManager.updateData({ tags: existingTags, pages: existingPages });
-              await this.tagManager.syncToStorage();
+              await this.tagManager.commit();
               this.recordProcessedChange(changeKey);
             } finally {
               this.isApplyingRemoteChange = false;
@@ -817,7 +818,7 @@ export class SyncService {
 
               existingPages[page.id] = page;
               this.tagManager.updateData({ tags: existingTags, pages: existingPages });
-              await this.tagManager.syncToStorage();
+              await this.tagManager.commit();
               this.recordProcessedChange(changeKey);
             } finally {
               this.isApplyingRemoteChange = false;

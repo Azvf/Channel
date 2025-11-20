@@ -31,6 +31,42 @@ function triggerBackgroundSync(syncPromise: Promise<void>): void {
   });
 }
 
+/**
+ * 【核心设计】事务操作包装器
+ * @param handler 具体的业务逻辑函数
+ */
+const withTransaction = <T>(
+  handler: (data: any) => T | Promise<T>
+) => {
+  return async (data: any, sendResponse: (response: any) => void) => {
+    try {
+      // 1. 准备阶段：确保内存数据是最新的 (Rehydration)
+      // 如果 SW 刚唤醒，这里会从 Storage 加载数据；如果活着，则是空操作
+      await getInitializationPromise();
+
+      // 2. 执行阶段：运行纯业务逻辑 (In-Memory, Fast)
+      const result = await handler(data);
+
+      // 3. 提交阶段：原子化持久化 (Atomic Commit)
+      // 只有当业务逻辑成功且数据脏了时，才写入 Storage
+      // 这就是 "Barrier"，确保在 SW 终止前数据落地
+      await tagManager.commit();
+
+      // 4. 响应阶段：此时数据已安全
+      sendResponse({ success: true, data: result });
+
+      // 5. 副作用阶段：触发后台同步 (Fire-and-forget)
+      // 即使 SW 在这之后死掉，数据已在 Storage 中，下次唤醒会通过 pendingChanges 上传
+      // 注意：这里需要根据具体的操作类型触发相应的同步
+      // 由于不同操作需要不同的同步逻辑，这部分在具体的 handler 中处理
+
+    } catch (error) {
+      console.error('Transaction failed:', error);
+      sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  };
+};
+
 export function resetInitializationForTests(): void {
   initPromise = null;
   currentPageSettings = DEFAULT_PAGE_SETTINGS;
@@ -131,25 +167,25 @@ export const handleMessageAsync = async (
         await handleGetAllTaggedPages(sendResponse);
         break;
       case 'createTag':
-        await handleCreateTag(message.data, sendResponse);
+        handleCreateTag(message.data, sendResponse);
         break;
       case 'addTagToPage':
-        await handleAddTagToPage(message.data, sendResponse);
+        handleAddTagToPage(message.data, sendResponse);
         break;
       case 'createTagAndAddToPage':
-        await handleCreateTagAndAddToPage(message.data, sendResponse);
+        handleCreateTagAndAddToPage(message.data, sendResponse);
         break;
       case 'removeTagFromPage':
-        await handleRemoveTagFromPage(message.data, sendResponse);
+        handleRemoveTagFromPage(message.data, sendResponse);
         break;
       case 'updatePageTags':
-        await handleUpdatePageTags(message.data, sendResponse);
+        handleUpdatePageTags(message.data, sendResponse);
         break;
       case 'updatePageTitle':
-        await handleUpdatePageTitle(message.data, sendResponse);
+        handleUpdatePageTitle(message.data, sendResponse);
         break;
       case 'updatePageDetails':
-        await handleUpdatePageDetails(message.data, sendResponse);
+        handleUpdatePageDetails(message.data, sendResponse);
         break;
       case 'getUserStats':
         await handleGetUserStats(sendResponse);
@@ -158,13 +194,13 @@ export const handleMessageAsync = async (
         await handleExportData(sendResponse);
         break;
       case 'importData':
-        await handleImportData(message.data, sendResponse);
+        handleImportData(message.data, sendResponse);
         break;
       case 'updateTag':
-        await handleUpdateTag(message.data, sendResponse);
+        handleUpdateTag(message.data, sendResponse);
         break;
       case 'deleteTag':
-        await handleDeleteTag(message.data, sendResponse);
+        handleDeleteTag(message.data, sendResponse);
         break;
       case 'getAllTagUsageCounts':
         await handleGetAllTagUsageCounts(sendResponse);
@@ -375,6 +411,9 @@ async function handleGetCurrentPage(sendResponse: (response: any) => void): Prom
       tab.favIconUrl,
     );
 
+    // 4. 提交事务（确保数据已保存）
+    await tagManager.commit();
+
     // [修改] 异步触发同步，不等待
     if (page.createdAt === page.updatedAt) {
       triggerBackgroundSync(syncService.markPageChange('create', page.id, page));
@@ -462,103 +501,75 @@ async function handleGetAllTaggedPages(sendResponse: (response: any) => void): P
   }
 }
 
-async function handleCreateTag(data: any, sendResponse: (response: any) => void): Promise<void> {
-  try {
-    if (!data?.name) {
-      sendResponse({ success: false, error: '标签名称不能为空' });
-      return;
-    }
-
-    const tag = tagManager.createTag(data.name, data.description, data.color);
-    await tagManager.syncToStorage(); // 本地存储必须等待
-    
-    // [修改] 网络同步异步执行
-    triggerBackgroundSync(syncService.markTagChange('create', tag.id, tag));
-    
-    sendResponse({ success: true, data: tag });
-  } catch (error) {
-    console.error('创建标签失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '创建标签失败';
-    sendResponse({ success: false, error: errorMessage });
+// 1. 创建标签
+const handleCreateTag = withTransaction((data) => {
+  if (!data?.name) {
+    throw new Error('标签名称不能为空');
   }
-}
 
-async function handleAddTagToPage(data: any, sendResponse: (response: any) => void): Promise<void> {
-  try {
-    if (!data?.pageId || !data?.tagId) {
-      sendResponse({ success: false, error: '页面ID和标签ID不能为空' });
-      return;
-    }
+  const tag = tagManager.createTag(data.name, data.description, data.color);
+  
+  // 触发后台同步（在事务提交后，由 withTransaction 的副作用阶段处理）
+  // 但为了保持现有逻辑，我们在这里也触发（fire-and-forget）
+  triggerBackgroundSync(syncService.markTagChange('create', tag.id, tag));
+  
+  return tag;
+});
 
-    const success = tagManager.addTagToPage(data.pageId, data.tagId);
-    if (success) {
-      await tagManager.syncToStorage();
-      const page = tagManager.getPageById(data.pageId);
-      if (page) {
-        // [修改] 异步触发
-        triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
-      }
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: '添加标签到页面失败' });
-    }
-  } catch (error) {
-    console.error('添加标签到页面失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '添加标签到页面失败';
-    sendResponse({ success: false, error: errorMessage });
+// 2. 添加标签到页面
+const handleAddTagToPage = withTransaction((data) => {
+  if (!data?.pageId || !data?.tagId) {
+    throw new Error('页面ID和标签ID不能为空');
   }
-}
 
-async function handleCreateTagAndAddToPage(data: any, sendResponse: (response: any) => void): Promise<void> {
-  try {
-    if (!data?.tagName || !data?.pageId) {
-      sendResponse({ success: false, error: '标签名称和页面ID不能为空' });
-      return;
-    }
-
-    const tag = tagManager.createTagAndAddToPage(data.tagName, data.pageId);
-    await tagManager.syncToStorage();
-    
-    // [修改] 异步触发同步 (Tag 和 Page 都异步)
-    triggerBackgroundSync(syncService.markTagChange('create', tag.id, tag));
-    const page = tagManager.getPageById(data.pageId);
-    if (page) {
-      triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
-    }
-    
-    sendResponse({ success: true, data: tag });
-  } catch (error) {
-    console.error('创建标签并添加到页面失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '创建标签并添加到页面失败';
-    sendResponse({ success: false, error: errorMessage });
+  const success = tagManager.addTagToPage(data.pageId, data.tagId);
+  if (!success) {
+    throw new Error('添加标签到页面失败');
   }
-}
 
-async function handleRemoveTagFromPage(data: any, sendResponse: (response: any) => void): Promise<void> {
-  try {
-    if (!data?.pageId || !data?.tagId) {
-      sendResponse({ success: false, error: '页面ID和标签ID不能为空' });
-      return;
-    }
-
-    const success = tagManager.removeTagFromPage(data.pageId, data.tagId);
-    if (success) {
-      await tagManager.syncToStorage();
-      const page = tagManager.getPageById(data.pageId);
-      if (page) {
-        // [修改] 异步触发
-        triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
-      }
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: '从页面移除标签失败' });
-    }
-  } catch (error) {
-    console.error('从页面移除标签失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '从页面移除标签失败';
-    sendResponse({ success: false, error: errorMessage });
+  const page = tagManager.getPageById(data.pageId);
+  if (page) {
+    triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
   }
-}
+  
+  return { success: true };
+});
+
+// 3. 创建标签并添加到页面
+const handleCreateTagAndAddToPage = withTransaction((data) => {
+  if (!data?.tagName || !data?.pageId) {
+    throw new Error('标签名称和页面ID不能为空');
+  }
+
+  const tag = tagManager.createTagAndAddToPage(data.tagName, data.pageId);
+  
+  triggerBackgroundSync(syncService.markTagChange('create', tag.id, tag));
+  const page = tagManager.getPageById(data.pageId);
+  if (page) {
+    triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
+  }
+  
+  return tag;
+});
+
+// 4. 从页面移除标签
+const handleRemoveTagFromPage = withTransaction((data) => {
+  if (!data?.pageId || !data?.tagId) {
+    throw new Error('页面ID和标签ID不能为空');
+  }
+
+  const success = tagManager.removeTagFromPage(data.pageId, data.tagId);
+  if (!success) {
+    throw new Error('从页面移除标签失败');
+  }
+
+  const page = tagManager.getPageById(data.pageId);
+  if (page) {
+    triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
+  }
+  
+  return { success: true };
+});
 
 interface UpdatePageTagsPayload {
   pageId: string;
@@ -573,190 +584,157 @@ interface UpdatePageDetailsPayload {
   tagsToRemove?: string[];
 }
 
-async function handleUpdatePageTags(data: UpdatePageTagsPayload, sendResponse: (response: any) => void): Promise<void> {
-  try {
-    if (!data?.pageId) {
-      sendResponse({ success: false, error: '页面ID不能为空' });
+// 5. 批量更新页面标签
+const handleUpdatePageTags = withTransaction((data: UpdatePageTagsPayload) => {
+  if (!data?.pageId) {
+    throw new Error('页面ID不能为空');
+  }
+
+  const tagsToAdd = Array.isArray(data.tagsToAdd) ? data.tagsToAdd : [];
+  const tagsToRemove = Array.isArray(data.tagsToRemove) ? data.tagsToRemove : [];
+
+  const normalizedTagsToAdd = Array.from(
+    new Set(
+      tagsToAdd
+        .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter(tag => tag.length > 0),
+    ),
+  );
+
+  const normalizedTagsToRemove = Array.from(
+    new Set(
+      tagsToRemove
+        .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter(tag => tag.length > 0),
+    ),
+  );
+
+  const page = tagManager.getPageById(data.pageId);
+  if (!page) {
+    throw new Error('页面不存在');
+  }
+
+  normalizedTagsToAdd.forEach(tagName => {
+    tagManager.createTagAndAddToPage(tagName, data.pageId);
+  });
+
+  normalizedTagsToRemove.forEach(tagIdentifier => {
+    const existingById = tagManager.getTagById(tagIdentifier);
+    if (existingById) {
+      tagManager.removeTagFromPage(data.pageId, existingById.id);
       return;
     }
 
-    const tagsToAdd = Array.isArray(data.tagsToAdd) ? data.tagsToAdd : [];
-    const tagsToRemove = Array.isArray(data.tagsToRemove) ? data.tagsToRemove : [];
-
-    const normalizedTagsToAdd = Array.from(
-      new Set(
-        tagsToAdd
-          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
-          .filter(tag => tag.length > 0),
-      ),
-    );
-
-    const normalizedTagsToRemove = Array.from(
-      new Set(
-        tagsToRemove
-          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
-          .filter(tag => tag.length > 0),
-      ),
-    );
-
-    const page = tagManager.getPageById(data.pageId);
-    if (!page) {
-      sendResponse({ success: false, error: '页面不存在' });
-      return;
+    const existingByName = tagManager.findTagByName(tagIdentifier);
+    if (existingByName) {
+      tagManager.removeTagFromPage(data.pageId, existingByName.id);
     }
+  });
 
+  const updatedPage = tagManager.getPageById(data.pageId);
+  if (!updatedPage) {
+    throw new Error('更新页面失败');
+  }
+
+  triggerBackgroundSync(syncService.markPageChange('update', updatedPage.id, updatedPage));
+
+  const stats = tagManager.getUserStats();
+
+  return {
+    newPage: updatedPage,
+    newStats: stats,
+  };
+});
+
+// 6. 更新页面标题
+const handleUpdatePageTitle = withTransaction((data) => {
+  if (!data?.pageId || !data?.title) {
+    throw new Error('页面ID和标题不能为空');
+  }
+
+  const success = tagManager.updatePageTitle(data.pageId, data.title);
+  if (!success) {
+    throw new Error('更新页面标题失败');
+  }
+
+  const page = tagManager.getPageById(data.pageId);
+  if (page) {
+    triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
+  }
+  
+  return { success: true };
+});
+
+// 7. 更新页面详情
+const handleUpdatePageDetails = withTransaction((data: UpdatePageDetailsPayload) => {
+  const { pageId, title, tagsToAdd = [], tagsToRemove = [] } = data ?? {};
+
+  if (!pageId) {
+    throw new Error('页面ID不能为空');
+  }
+
+  const page = tagManager.getPageById(pageId);
+  if (!page) {
+    throw new Error('页面不存在');
+  }
+
+  let titleUpdated = false;
+  let tagsUpdated = false;
+
+  const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+  if (normalizedTitle && normalizedTitle !== page.title) {
+    const success = tagManager.updatePageTitle(pageId, normalizedTitle);
+    if (success) {
+      titleUpdated = true;
+    }
+  }
+
+  const normalizedTagsToAdd = Array.from(
+    new Set(
+      tagsToAdd
+        .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter(tag => tag.length > 0),
+    ),
+  );
+
+  const normalizedTagsToRemove = Array.from(
+    new Set(
+      tagsToRemove
+        .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter(tag => tag.length > 0),
+    ),
+  );
+
+  if (normalizedTagsToAdd.length > 0 || normalizedTagsToRemove.length > 0) {
     normalizedTagsToAdd.forEach(tagName => {
-      tagManager.createTagAndAddToPage(tagName, data.pageId);
+      tagManager.createTagAndAddToPage(tagName, pageId);
     });
 
     normalizedTagsToRemove.forEach(tagIdentifier => {
       const existingById = tagManager.getTagById(tagIdentifier);
       if (existingById) {
-        tagManager.removeTagFromPage(data.pageId, existingById.id);
+        tagManager.removeTagFromPage(pageId, existingById.id);
         return;
       }
 
       const existingByName = tagManager.findTagByName(tagIdentifier);
       if (existingByName) {
-        tagManager.removeTagFromPage(data.pageId, existingByName.id);
+        tagManager.removeTagFromPage(pageId, existingByName.id);
       }
     });
 
-    await tagManager.syncToStorage();
-
-    const updatedPage = tagManager.getPageById(data.pageId);
-    if (!updatedPage) {
-      sendResponse({ success: false, error: '更新页面失败' });
-      return;
-    }
-
-    // [修改] 异步触发同步
-    triggerBackgroundSync(syncService.markPageChange('update', updatedPage.id, updatedPage));
-
-    const stats = tagManager.getUserStats();
-
-    sendResponse({
-      success: true,
-      data: {
-        newPage: updatedPage,
-        newStats: stats,
-      },
-    });
-  } catch (error) {
-    console.error('批量更新页面标签失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '批量更新页面标签失败';
-    sendResponse({ success: false, error: errorMessage });
+    tagsUpdated = true;
   }
-}
 
-async function handleUpdatePageTitle(data: any, sendResponse: (response: any) => void): Promise<void> {
-  try {
-    if (!data?.pageId || !data?.title) {
-      sendResponse({ success: false, error: '页面ID和标题不能为空' });
-      return;
+  if (titleUpdated || tagsUpdated) {
+    const updatedPage = tagManager.getPageById(pageId);
+    if (updatedPage) {
+      triggerBackgroundSync(syncService.markPageChange('update', updatedPage.id, updatedPage));
     }
-
-    const success = tagManager.updatePageTitle(data.pageId, data.title);
-    if (success) {
-      await tagManager.syncToStorage();
-      const page = tagManager.getPageById(data.pageId);
-      if (page) {
-        // [修改] 异步触发
-        triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
-      }
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: '更新页面标题失败' });
-    }
-  } catch (error) {
-    console.error('更新页面标题失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '更新页面标题失败';
-    sendResponse({ success: false, error: errorMessage });
   }
-}
 
-async function handleUpdatePageDetails(
-  data: UpdatePageDetailsPayload,
-  sendResponse: (response: any) => void,
-): Promise<void> {
-  try {
-    const { pageId, title, tagsToAdd = [], tagsToRemove = [] } = data ?? {};
-
-    if (!pageId) {
-      sendResponse({ success: false, error: '页面ID不能为空' });
-      return;
-    }
-
-    const page = tagManager.getPageById(pageId);
-    if (!page) {
-      sendResponse({ success: false, error: '页面不存在' });
-      return;
-    }
-
-    let titleUpdated = false;
-    let tagsUpdated = false;
-
-    const normalizedTitle = typeof title === 'string' ? title.trim() : '';
-    if (normalizedTitle && normalizedTitle !== page.title) {
-      const success = tagManager.updatePageTitle(pageId, normalizedTitle);
-      if (success) {
-        titleUpdated = true;
-      }
-    }
-
-    const normalizedTagsToAdd = Array.from(
-      new Set(
-        tagsToAdd
-          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
-          .filter(tag => tag.length > 0),
-      ),
-    );
-
-    const normalizedTagsToRemove = Array.from(
-      new Set(
-        tagsToRemove
-          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
-          .filter(tag => tag.length > 0),
-      ),
-    );
-
-    if (normalizedTagsToAdd.length > 0 || normalizedTagsToRemove.length > 0) {
-      normalizedTagsToAdd.forEach(tagName => {
-        tagManager.createTagAndAddToPage(tagName, pageId);
-      });
-
-      normalizedTagsToRemove.forEach(tagIdentifier => {
-        const existingById = tagManager.getTagById(tagIdentifier);
-        if (existingById) {
-          tagManager.removeTagFromPage(pageId, existingById.id);
-          return;
-        }
-
-        const existingByName = tagManager.findTagByName(tagIdentifier);
-        if (existingByName) {
-          tagManager.removeTagFromPage(pageId, existingByName.id);
-        }
-      });
-
-      tagsUpdated = true;
-    }
-
-    if (titleUpdated || tagsUpdated) {
-      await tagManager.syncToStorage();
-      const updatedPage = tagManager.getPageById(pageId);
-      if (updatedPage) {
-        // [修改] 异步触发
-        triggerBackgroundSync(syncService.markPageChange('update', updatedPage.id, updatedPage));
-      }
-    }
-
-    sendResponse({ success: true });
-  } catch (error) {
-    console.error('事务性更新页面详情失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '事务性更新页面详情失败';
-    sendResponse({ success: false, error: errorMessage });
-  }
-}
+  return { success: true };
+});
 
 async function handleGetUserStats(sendResponse: (response: any) => void): Promise<void> {
   try {
@@ -780,88 +758,58 @@ async function handleExportData(sendResponse: (response: any) => void): Promise<
   }
 }
 
-async function handleImportData(
-  data: { jsonData: string; mergeMode: boolean },
-  sendResponse: (response: any) => void,
-): Promise<void> {
-  try {
-    if (!data || typeof data.jsonData !== 'string') {
-      sendResponse({ success: false, error: '无效的导入数据' });
-      return;
-    }
-
-    const result = await tagManager.importData(data.jsonData, data.mergeMode);
-
-    if (result.success) {
-      sendResponse({ success: true, data: result.imported });
-    } else {
-      sendResponse({ success: false, error: result.error });
-    }
-  } catch (error) {
-    console.error('导入数据失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '导入数据失败';
-    sendResponse({ success: false, error: errorMessage });
+// 8. 批量导入
+const handleImportData = withTransaction(async (data: { jsonData: string; mergeMode: boolean }) => {
+  if (!data || typeof data.jsonData !== 'string') {
+    throw new Error('无效的导入数据');
   }
-}
 
-// [新增]
-async function handleUpdateTag(
-  data: { tagId: string; newName: string },
-  sendResponse: (response: any) => void,
-): Promise<void> {
-  try {
-    if (!data?.tagId || !data?.newName) {
-      sendResponse({ success: false, error: '标签ID和新名称不能为空' });
-      return;
-    }
+  // 即使内部循环创建了1000个标签，commit() 只会在最后执行一次
+  const result = await tagManager.importData(data.jsonData, data.mergeMode);
 
-    const result = tagManager.updateTagName(data.tagId, data.newName);
-
-    if (result.success) {
-      await tagManager.syncToStorage();
-      const tag = tagManager.getTagById(data.tagId);
-      if (tag) {
-        // [修改] 异步触发
-        triggerBackgroundSync(syncService.markTagChange('update', tag.id, tag));
-      }
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: result.error });
-    }
-  } catch (error) {
-    console.error('更新标签失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '更新标签失败';
-    sendResponse({ success: false, error: errorMessage });
+  if (!result.success) {
+    throw new Error(result.error || '导入数据失败');
   }
-}
 
-// [新增]
-async function handleDeleteTag(
-  data: { tagId: string },
-  sendResponse: (response: any) => void,
-): Promise<void> {
-  try {
-    if (!data?.tagId) {
-      sendResponse({ success: false, error: '标签ID不能为空' });
-      return;
-    }
+  return result.imported;
+});
 
-    const success = tagManager.deleteTag(data.tagId);
-
-    if (success) {
-      await tagManager.syncToStorage();
-      // [修改] 异步触发
-      triggerBackgroundSync(syncService.markTagChange('delete', data.tagId));
-      sendResponse({ success: true });
-    } else {
-      sendResponse({ success: false, error: '删除标签失败（可能标签不存在）' });
-    }
-  } catch (error) {
-    console.error('删除标签失败:', error);
-    const errorMessage = error instanceof Error ? error.message : '删除标签失败';
-    sendResponse({ success: false, error: errorMessage });
+// 9. 更新标签
+const handleUpdateTag = withTransaction((data: { tagId: string; newName: string }) => {
+  if (!data?.tagId || !data?.newName) {
+    throw new Error('标签ID和新名称不能为空');
   }
-}
+
+  const result = tagManager.updateTagName(data.tagId, data.newName);
+
+  if (!result.success) {
+    throw new Error(result.error || '更新标签失败');
+  }
+
+  const tag = tagManager.getTagById(data.tagId);
+  if (tag) {
+    triggerBackgroundSync(syncService.markTagChange('update', tag.id, tag));
+  }
+  
+  return { success: true };
+});
+
+// 10. 删除标签
+const handleDeleteTag = withTransaction((data: { tagId: string }) => {
+  if (!data?.tagId) {
+    throw new Error('标签ID不能为空');
+  }
+
+  const success = tagManager.deleteTag(data.tagId);
+
+  if (!success) {
+    throw new Error('删除标签失败（可能标签不存在）');
+  }
+
+  triggerBackgroundSync(syncService.markTagChange('delete', data.tagId));
+  
+  return { success: true };
+});
 
 // [新增]
 async function handleGetAllTagUsageCounts(

@@ -59,7 +59,8 @@ const createMockTagManager = () => ({
   getAllTagUsageCounts: jest.fn(),
   exportData: jest.fn(),
   importData: jest.fn(),
-  syncToStorage: jest.fn(() => Promise.resolve()),
+  commit: jest.fn(() => Promise.resolve()), // 新的事务提交方法
+  syncToStorage: jest.fn(() => Promise.resolve()), // 保留用于向后兼容
 });
 
 let mockTagManagerInstance = createMockTagManager();
@@ -147,7 +148,7 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(mockTagManagerInstance.createTagAndAddToPage).toHaveBeenCalledWith('New Tag', 'page-1');
-    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalled();
+    expect(mockTagManagerInstance.commit).toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ success: true, data: tag });
   });
 
@@ -186,8 +187,8 @@ describe('messageHandler', () => {
     expect(mockTagManagerInstance.updatePageTitle).toHaveBeenCalledWith('p1', 'New Title');
     expect(mockTagManagerInstance.createTagAndAddToPage).toHaveBeenCalledWith('T1', 'p1');
     expect(mockTagManagerInstance.findTagByName).toHaveBeenCalledWith('T2');
-    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalledTimes(1);
-    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+    expect(mockTagManagerInstance.commit).toHaveBeenCalledTimes(1);
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { success: true } });
   });
 
   it('should handle updateTag', async () => {
@@ -199,8 +200,8 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(mockTagManagerInstance.updateTagName).toHaveBeenCalledWith('t1', 'New');
-    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalledTimes(1);
-    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+    expect(mockTagManagerInstance.commit).toHaveBeenCalledTimes(1);
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { success: true } });
   });
 
   it('should not sync on updateTag failure', async () => {
@@ -212,7 +213,7 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(mockTagManagerInstance.updateTagName).toHaveBeenCalled();
-    expect(mockTagManagerInstance.syncToStorage).not.toHaveBeenCalled();
+    expect(mockTagManagerInstance.commit).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ success: false, error: 'Exists' });
   });
 
@@ -225,8 +226,8 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(mockTagManagerInstance.deleteTag).toHaveBeenCalledWith('t1');
-    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalledTimes(1);
-    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+    expect(mockTagManagerInstance.commit).toHaveBeenCalledTimes(1);
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { success: true } });
   });
 
   it('should handle getAllTagUsageCounts', async () => {
@@ -239,7 +240,7 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(mockTagManagerInstance.getAllTagUsageCounts).toHaveBeenCalled();
-    expect(mockTagManagerInstance.syncToStorage).not.toHaveBeenCalled();
+    expect(mockTagManagerInstance.commit).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ success: true, data: counts });
   });
 
@@ -259,11 +260,13 @@ describe('messageHandler', () => {
     const sendResponse = jest.fn();
     const importData = { jsonData: '{}', mergeMode: true };
     mockTagManagerInstance.importData.mockResolvedValue({ success: true, imported: { tagsCount: 1, pagesCount: 0 } });
+    mockTagManagerInstance.commit.mockResolvedValue(undefined);
 
     messageHandler({ action: 'importData', data: importData }, {}, sendResponse);
     await flushPromises();
 
     expect(mockTagManagerInstance.importData).toHaveBeenCalledWith('{}', true);
+    expect(mockTagManagerInstance.commit).toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ 
       success: true, 
       data: { tagsCount: 1, pagesCount: 0 } 
@@ -279,8 +282,8 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(mockTagManagerInstance.removeTagFromPage).toHaveBeenCalledWith('p1', 't1');
-    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalled();
-    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+    expect(mockTagManagerInstance.commit).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { success: true } });
   });
 
   it('handleGetUserStats: 应该返回统计数据', async () => {
@@ -303,8 +306,8 @@ describe('messageHandler', () => {
     await flushPromises();
 
     expect(mockTagManagerInstance.updatePageTitle).toHaveBeenCalledWith('p1', 'New');
-    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalled();
-    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+    expect(mockTagManagerInstance.commit).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: { success: true } });
   });
 });
 

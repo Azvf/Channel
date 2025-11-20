@@ -10,6 +10,7 @@ export class TagManager {
   private pages: PageCollection = {};
 
   private _isInitialized = false;
+  private _isDirty = false; // 脏标记
   private listeners: Set<ChangeListener> = new Set();
   
   public get isInitialized(): boolean {
@@ -112,9 +113,11 @@ export class TagManager {
     };
 
     this.tags[id] = tag;
+    
+    // 关键：只标记，不保存
+    this.markDirty();
+    
     this.notifyListeners(); // 通知 UI
-
-    // 不在这里调用saveToStorage，让调用者处理
     return tag;
   }
 
@@ -128,6 +131,7 @@ export class TagManager {
     if (!b.bindings.includes(tagIdA)) b.bindings.push(tagIdA);
     a.updatedAt = Date.now();
     b.updatedAt = Date.now();
+    this.markDirty();
     this.notifyListeners(); // 通知 UI
     return true;
   }
@@ -140,6 +144,7 @@ export class TagManager {
     b.bindings = b.bindings.filter(id => id !== tagIdA);
     a.updatedAt = Date.now();
     b.updatedAt = Date.now();
+    this.markDirty();
     this.notifyListeners(); // 通知 UI
     return true;
   }
@@ -196,6 +201,7 @@ export class TagManager {
     // 3. 更新名称
     tag.name = trimmedName;
     tag.updatedAt = Date.now();
+    this.markDirty();
     this.notifyListeners(); // 通知 UI
 
     return { success: true };
@@ -283,8 +289,8 @@ export class TagManager {
       this.pages[pageId].tags.push(tagId);
       this.pages[pageId].updatedAt = Date.now();
       log.debug('addTagToPage: added', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
+      this.markDirty();
       this.notifyListeners(); // 通知 UI
-      // 不在这里调用saveToStorage，让调用者处理
       return true;
     } else {
       log.info('addTagToPage: already exists', { pageId, tagId });
@@ -304,9 +310,8 @@ export class TagManager {
       this.pages[pageId].tags.splice(index, 1);
       this.pages[pageId].updatedAt = Date.now();
       log.debug('removeTagFromPage: removed', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
+      this.markDirty();
       this.notifyListeners(); // 通知 UI
-      // 不在这里调用saveToStorage，让调用者处理
-      
       return true;
     } else {
       log.info('removeTagFromPage: not present', { pageId, tagId });
@@ -341,8 +346,8 @@ export class TagManager {
       };
     }
 
+    this.markDirty();
     this.notifyListeners(); // 通知 UI
-    // 不在这里调用saveToStorage，让调用者处理
     return this.pages[pageId];
   }
 
@@ -420,6 +425,7 @@ export class TagManager {
       title: trimmedTitle,
       updatedAt: Date.now()
     };
+    this.markDirty();
     this.notifyListeners(); // 通知 UI
     
     return true;
@@ -429,6 +435,7 @@ export class TagManager {
     this.tags = {};
     this.pages = {};
     this._isInitialized = false; // 重置初始化状态，允许重新初始化
+    this._isDirty = false; // 重置脏标记
     
     // ✅ 修复：强制断开所有订阅，防止测试间污染和监听器泄漏
     this.listeners.clear();
@@ -574,6 +581,25 @@ export class TagManager {
 
   // loadFromStorage 已移除，数据加载现在在 background.ts 中完成
 
+  /**
+   * 辅助方法：标记数据为脏
+   */
+  private markDirty(): void {
+    this._isDirty = true;
+  }
+
+  /**
+   * 提供给外部（中间件）调用的提交方法
+   * 只有当数据脏了时，才写入 Storage
+   */
+  public async commit(): Promise<void> {
+    if (!this._isDirty) return;
+    
+    await this.saveToStorage();
+    this._isDirty = false;
+    console.log('[TagManager] Transaction committed to storage.');
+  }
+
   private async saveToStorage(): Promise<void> {
     try {
       const dataToSave = {
@@ -587,9 +613,10 @@ export class TagManager {
     }
   }
 
-  // 强制同步数据到存储
+  // 强制同步数据到存储（保留用于向后兼容，但推荐使用 commit）
   public async syncToStorage(): Promise<void> {
     await this.saveToStorage();
+    this._isDirty = false;
   }
 
   // 重新加载存储数据
@@ -664,19 +691,18 @@ export class TagManager {
           }
         }
 
-        this.tags = mergedTags;
-        this.pages = mergedPages;
-      } else {
-        // 覆盖模式：完全替换现有数据
-        this.tags = imported.tags;
-        this.pages = imported.pages;
-      }
+      this.tags = mergedTags;
+      this.pages = mergedPages;
+    } else {
+      // 覆盖模式：完全替换现有数据
+      this.tags = imported.tags;
+      this.pages = imported.pages;
+    }
 
-      this.notifyListeners(); // 通知 UI
-      // 保存到存储
-      await this.saveToStorage();
+    this.markDirty();
+    this.notifyListeners(); // 通知 UI
 
-      return {
+    return {
         success: true,
         imported: {
           tagsCount: Object.keys(imported.tags).length,
@@ -694,7 +720,7 @@ export class TagManager {
   // 测试存储功能
   public async testStorage(): Promise<void> {
     // 保存当前状态
-    await this.saveToStorage();
+    await this.commit();
     // 存储服务会自动处理保存，无需验证
   }
 
@@ -733,6 +759,7 @@ export class TagManager {
 
     // 3. 删除标签本身
     delete this.tags[tagId];
+    this.markDirty();
     this.notifyListeners(); // 通知 UI
     return true;
   }
