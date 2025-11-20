@@ -3,7 +3,6 @@ import type { Decorator } from 'storybook/react';
 
 import { AppProvider } from '../src/popup/context/AppContext';
 import { setupStorybookMocks } from '../src/popup/mocks/storybookMocks';
-import '../src/popup/globals.css';
 import '../src/popup/index.css';
 
 setupStorybookMocks();
