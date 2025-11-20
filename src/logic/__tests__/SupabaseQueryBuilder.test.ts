@@ -73,13 +73,14 @@ describe('SupabaseQueryBuilder', () => {
       }))
     } as any;
 
-    // 不传第四个参数
+    // Act: 不传第四个参数
     SupabaseQueryBuilder.buildFetchQuery(mockClient, 'tags', 'u1');
 
+    // Assert
     expect(mockClient.from).toHaveBeenCalledWith('tags');
     expect(mockSelect).toHaveBeenCalledWith('*');
     expect(mockEq).toHaveBeenCalledWith('user_id', 'u1');
-    // 确保没有调用 gt，意味着 sinceTimestamp 默认为 0
+    // 关键断言：确保没有调用 gt()，意味着 sinceTimestamp 默认为 0
     expect(mockGt).not.toHaveBeenCalled();
   });
 });
