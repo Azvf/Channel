@@ -57,6 +57,8 @@ const createMockTagManager = () => ({
   updateTagName: jest.fn(),
   deleteTag: jest.fn(),
   getAllTagUsageCounts: jest.fn(),
+  exportData: jest.fn(),
+  importData: jest.fn(),
   syncToStorage: jest.fn(() => Promise.resolve()),
 });
 
@@ -239,6 +241,70 @@ describe('messageHandler', () => {
     expect(mockTagManagerInstance.getAllTagUsageCounts).toHaveBeenCalled();
     expect(mockTagManagerInstance.syncToStorage).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ success: true, data: counts });
+  });
+
+  it('handleExportData: 应该调用 tagManager.exportData 并返回', async () => {
+    const sendResponse = jest.fn();
+    const mockJson = '{"data":"test"}';
+    mockTagManagerInstance.exportData.mockReturnValue(mockJson);
+
+    messageHandler({ action: 'exportData' }, {}, sendResponse);
+    await flushPromises();
+
+    expect(mockTagManagerInstance.exportData).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: mockJson });
+  });
+
+  it('handleImportData: 应该调用 tagManager.importData', async () => {
+    const sendResponse = jest.fn();
+    const importData = { jsonData: '{}', mergeMode: true };
+    mockTagManagerInstance.importData.mockResolvedValue({ success: true, imported: { tagsCount: 1, pagesCount: 0 } });
+
+    messageHandler({ action: 'importData', data: importData }, {}, sendResponse);
+    await flushPromises();
+
+    expect(mockTagManagerInstance.importData).toHaveBeenCalledWith('{}', true);
+    expect(sendResponse).toHaveBeenCalledWith({ 
+      success: true, 
+      data: { tagsCount: 1, pagesCount: 0 } 
+    });
+  });
+
+  it('handleRemoveTagFromPage: 成功时应触发同步', async () => {
+    const sendResponse = jest.fn();
+    mockTagManagerInstance.removeTagFromPage.mockReturnValue(true);
+    mockTagManagerInstance.getPageById.mockReturnValue({ id: 'p1', title: 'T', url: 'u', domain: 'd', tags: [], createdAt: 1, updatedAt: 1 }); // 确保能获取到页面以触发同步
+
+    messageHandler({ action: 'removeTagFromPage', data: { pageId: 'p1', tagId: 't1' } }, {}, sendResponse);
+    await flushPromises();
+
+    expect(mockTagManagerInstance.removeTagFromPage).toHaveBeenCalledWith('p1', 't1');
+    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true });
+  });
+
+  it('handleGetUserStats: 应该返回统计数据', async () => {
+    const sendResponse = jest.fn();
+    const stats = { todayCount: 5, streak: 2 };
+    mockTagManagerInstance.getUserStats.mockReturnValue(stats);
+
+    messageHandler({ action: 'getUserStats' }, {}, sendResponse);
+    await flushPromises();
+
+    expect(sendResponse).toHaveBeenCalledWith({ success: true, data: stats });
+  });
+
+  it('handleUpdatePageTitle: 成功时应触发同步', async () => {
+    const sendResponse = jest.fn();
+    mockTagManagerInstance.updatePageTitle.mockReturnValue(true);
+    mockTagManagerInstance.getPageById.mockReturnValue({ id: 'p1', title: 'T', url: 'u', domain: 'd', tags: [], createdAt: 1, updatedAt: 1 });
+
+    messageHandler({ action: 'updatePageTitle', data: { pageId: 'p1', title: 'New' } }, {}, sendResponse);
+    await flushPromises();
+
+    expect(mockTagManagerInstance.updatePageTitle).toHaveBeenCalledWith('p1', 'New');
+    expect(mockTagManagerInstance.syncToStorage).toHaveBeenCalled();
+    expect(sendResponse).toHaveBeenCalledWith({ success: true });
   });
 });
 
