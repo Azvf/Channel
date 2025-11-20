@@ -42,11 +42,19 @@ export default {
       lines: 100,
       statements: 100,
     },
+    // 提高核心业务逻辑的门槛
     'src/services/tagManager.ts': {
-      branches: 70,
-      functions: 80,
-      lines: 75,
-      statements: 75,
+      branches: 85, // 从 70 提升
+      functions: 90, // 从 80 提升
+      lines: 90,     // 从 75 提升
+      statements: 90, // 从 75 提升
+    },
+    // 新增对 pure logic 的覆盖要求
+    'src/logic/**/*.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],

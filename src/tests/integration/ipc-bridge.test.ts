@@ -112,6 +112,9 @@ beforeEach(() => {
     });
   });
 
+  // 使用 fake timers 控制时间流逝
+  jest.useFakeTimers();
+
   (global as any).__CHROME_SEND_MESSAGE_HANDLER__ = (
     message: any,
     callback?: (response: any) => void,
@@ -136,11 +139,17 @@ beforeEach(() => {
 
 afterEach(() => {
   delete (global as any).__CHROME_SEND_MESSAGE_HANDLER__;
+  jest.useRealTimers();
 });
 
 describe('IPC 桥集成测试', () => {
   it('应该完整测试：创建标签 -> 保存 -> 重新获取', async () => {
-    const page = await currentPageService.getCurrentPage();
+    const pagePromise = currentPageService.getCurrentPage();
+    
+    // 立即执行所有挂起的 timers (模拟 background 消息处理的延迟)
+    jest.runAllTimers();
+    
+    const page = await pagePromise;
 
     const createdTag = await currentPageService.createTagAndAddToPage('New Tag', page.id);
 

@@ -323,6 +323,15 @@ class StorageService implements IStorageService {
   }
 
   private createWrapper(storageType: StorageType): IStorageService {
+    // 检测是否在测试环境中
+    const isTestEnv = 
+      (typeof window !== 'undefined' && (window as any).__IS_TEST_ENV__) ||
+      (typeof globalThis !== 'undefined' && (globalThis as any).__IS_TEST_ENV__) ||
+      (typeof process !== 'undefined' && 
+        (process.env.NODE_ENV === 'test' || 
+         process.env.JEST_WORKER_ID !== undefined)) ||
+      typeof jest !== 'undefined';
+
     // 自动检测环境
     if (storageType === 'auto') {
       if (typeof chrome !== 'undefined' && chrome.storage?.local) {
@@ -334,7 +343,10 @@ class StorageService implements IStorageService {
     // 手动指定存储类型
     if (storageType === 'local' || storageType === 'sync') {
       if (typeof chrome === 'undefined' || !chrome.storage?.[storageType]) {
-        console.warn(`[StorageService] chrome.storage.${storageType} not available, falling back to localStorage`);
+        // 在测试环境中不显示警告，因为回退到 localStorage 是预期行为
+        if (!isTestEnv) {
+          console.warn(`[StorageService] chrome.storage.${storageType} not available, falling back to localStorage`);
+        }
         return new LocalStorageWrapper();
       }
       return new ChromeStorageWrapper(chrome.storage[storageType], storageType);
