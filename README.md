@@ -42,6 +42,56 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 **重要**：`.env.development` 文件已在 `.gitignore` 中，不会提交到版本控制。
 
+## 开发密钥配置
+
+为了在开发环境中使用固定的 Extension ID（便于配置 Supabase 认证），项目使用持久化的开发密钥对。
+
+### 1. 生成开发密钥
+
+首次运行或需要重新生成密钥时：
+
+```bash
+node scripts/generate-dev-key.js
+```
+
+这会：
+- 在项目根目录生成 `key.development.pem` 私钥文件（已加入 `.gitignore`）
+- 输出 Extension ID 和 Redirect URL
+
+示例输出：
+```
+Extension ID: kkjcgpimkjnemndlpihnpccpkjjdjkpg
+Redirect URL: https://kkjcgpimkjnemndlpihnpccpkjjdjkpg.chromiumapp.org/
+```
+
+**注意**：`key.development.pem` 文件包含私钥，请妥善保管。如果是团队协作，需要安全地共享此文件。
+
+### 2. 配置 Supabase 重定向 URL
+
+1. 前往 [Supabase Dashboard](https://app.supabase.com)
+2. 选择你的项目
+3. 进入 **Authentication** -> **URL Configuration**
+4. 在 **Redirect URLs** 中添加：
+   ```
+   https://<你的Extension ID>.chromiumapp.org/
+   ```
+   例如：`https://kkjcgpimkjnemndlpihnpccpkjjdjkpg.chromiumapp.org/`
+
+### 3. 验证密钥注入
+
+开发构建时，Vite 会自动将公钥注入到 `dist/manifest.json` 的 `key` 字段中，确保 Extension ID 固定。
+
+验证注入状态：
+```bash
+node scripts/generate-dev-key.js --verify
+```
+
+### 工作原理
+
+- **开发模式**（`npm run build:dev`）：自动注入 `key` 字段到 `dist/manifest.json`
+- **生产模式**（`npm run build`）：不注入 `key` 字段，使用 Chrome 自动生成的 ID
+- 源文件 `manifest.json` 不包含 `key` 字段，只在构建时动态注入
+
 ## 构建
 
 ```bash
