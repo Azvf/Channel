@@ -1,5 +1,16 @@
 import { storageService } from '../../services/storageService';
 
+// Mock timeService before any imports
+jest.mock('../../services/timeService', () => ({
+  timeService: {
+    calibrate: jest.fn(() => Promise.resolve()),
+    now: jest.fn(() => Date.now()),
+    get isCalibrated() { return true; },
+    getOffset: jest.fn(() => 0),
+    reset: jest.fn(),
+  },
+}));
+
 // Mock supabase before any imports
 jest.mock('../../lib/supabase', () => {
   const { createClient } = require('@supabase/supabase-js');

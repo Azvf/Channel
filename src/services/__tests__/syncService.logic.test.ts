@@ -9,6 +9,15 @@ import { supabase } from '../../lib/supabase';
 jest.mock('../authService');
 jest.mock('../storageService');
 jest.mock('../tagManager');
+jest.mock('../timeService', () => ({
+  timeService: {
+    calibrate: jest.fn(() => Promise.resolve()),
+    now: jest.fn(() => Date.now()),
+    get isCalibrated() { return true; },
+    getOffset: jest.fn(() => 0),
+    reset: jest.fn(),
+  },
+}));
 jest.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
@@ -23,6 +32,7 @@ jest.mock('../../lib/supabase', () => ({
       subscribe: jest.fn(),
     })),
     removeChannel: jest.fn(),
+    rpc: jest.fn().mockResolvedValue({ data: Date.now(), error: null }), // Mock get_server_time RPC
     from: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
@@ -46,29 +56,58 @@ describe('SyncService (Logic Flow)', () => {
       user: null 
     });
     
-    // 重置单例 (这是 Hack，实际项目中最好提供 reset 方法)
-    (SyncService as any).instance = null;
-    syncService = SyncService.getInstance();
-    
+    // [修复] 必须先创建 Mock 对象并注入，再实例化 SyncService
+    // 这样 SyncService 构造函数中获取到的才是我们能够断言的 mockTagManager
     mockTagManager = {
       getAllTags: jest.fn().mockReturnValue([]),
       getTaggedPages: jest.fn().mockReturnValue([]),
+      getAllData: jest.fn().mockReturnValue({ tags: {}, pages: {} }), // 添加 getAllData
       initialize: jest.fn(),
+      updateData: jest.fn(),
       syncToStorage: jest.fn(),
     };
     (TagManager.getInstance as jest.Mock).mockReturnValue(mockTagManager);
     
-    // Mock Storage
-    (storageService.get as jest.Mock).mockResolvedValue(null); // 默认无待同步项
+    // 重置单例 (这是 Hack，实际项目中最好提供 reset 方法)
+    (SyncService as any).instance = null;
+    syncService = SyncService.getInstance();
     
-    // Mock Supabase 查询链
-    const mockQuery = {
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      gt: jest.fn().mockReturnThis(),
+    // Mock Storage - 确保锁始终为空，避免递归等待
+    (storageService.get as jest.Mock).mockImplementation((key) => {
+      if (key === STORAGE_KEYS.SYNC_LOCK) return Promise.resolve(null); // 始终无锁
+      if (key === STORAGE_KEYS.SYNC_PENDING_CHANGES) return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+    (storageService.set as jest.Mock).mockResolvedValue(undefined);
+    (storageService.remove as jest.Mock).mockResolvedValue(undefined);
+    
+    // [修复] 稳健的 Mock Query 实现
+    // 正确实现 Thenable 接口，确保 await 可靠工作
+    // 包含所有必要字段，Mock 常见查询方法
+    const createMockQuery = () => {
+      const builder: any = {
+        // Thenable 接口：支持 await
+        then: (onfulfilled?: any, onrejected?: any) => {
+          return Promise.resolve({ data: [], error: null }).then(onfulfilled, onrejected);
+        },
+        catch: (onrejected?: any) => {
+          return Promise.resolve({ data: [], error: null }).catch(onrejected);
+        }
+      };
+      
+      // Chainable 方法：返回 this
+      const methods = ['select', 'eq', 'gt', 'lt', 'gte', 'lte', 'order', 'limit', 'range', 'single', 'maybeSingle'];
+      methods.forEach(method => {
+        builder[method] = jest.fn().mockReturnValue(builder);
+      });
+      
+      return builder;
     };
-    (supabase.from as jest.Mock).mockReturnValue(mockQuery);
-    (mockQuery.select as jest.Mock).mockResolvedValue({ data: [], error: null });
+    
+    // Mock Supabase 查询链 (默认返回空)
+    (supabase.from as jest.Mock).mockImplementation((table) => {
+      return createMockQuery();
+    });
   });
 
   it('initialize: 应该加载待同步队列', async () => {
@@ -126,38 +165,78 @@ describe('SyncService (Logic Flow)', () => {
       user: { id: 'user-1' } 
     });
     
-    // Mock 上次同步时间
+    // Mock 存储数据：确保触发增量同步而不是全量同步
+    const mockNow = Date.now();
+    const { timeService } = require('../timeService');
+    (timeService.now as jest.Mock).mockReturnValue(mockNow);
+    
+    // Mock 上次同步时间和 Shadow Map
     (storageService.get as jest.Mock).mockImplementation((key) => {
-      if (key === STORAGE_KEYS.SYNC_LAST_TIMESTAMP) return 1000;
-      return [];
+      if (key === STORAGE_KEYS.SYNC_LAST_TIMESTAMP) {
+        // 返回一个最近的同步时间戳（1小时前），确保走增量同步
+        return Promise.resolve(mockNow - 3600 * 1000);
+      }
+      if (key === STORAGE_KEYS.SYNC_LAST_FULL_SYNC) {
+        // 返回一个最近的全量同步时间戳（1天前），确保不会触发周期性全量同步
+        return Promise.resolve(mockNow - 24 * 3600 * 1000);
+      }
+      if (key === STORAGE_KEYS.SYNC_SHADOW_MAP) {
+        // 返回一个非空的 Shadow Map，确保不会触发 Shadow Map 丢失的全量同步
+        return Promise.resolve({ 'tag:t1': { h: '46-1000', u: 1000 } });
+      }
+      if (key === STORAGE_KEYS.SYNC_LOCK) {
+        return Promise.resolve(null); // 无锁
+      }
+      if (key === STORAGE_KEYS.SYNC_PENDING_CHANGES) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve(null);
     });
+    
+    // Mock set 操作
+    (storageService.set as jest.Mock).mockResolvedValue(undefined);
+    (storageService.remove as jest.Mock).mockResolvedValue(undefined);
 
-    // Mock Supabase 查询返回一些数据（链式调用）
-    // 需要为 tags 和 pages 分别创建 mock
-    let callCount = 0;
+    // [修复] 稳健的 Mock Query 实现
+    // 正确实现 Thenable 接口，确保 await 可靠工作
+    // 包含所有必要字段，Mock 常见查询方法
     const createMockQuery = () => {
-      const mockQueryChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        gt: jest.fn().mockReturnThis(),
+      // Mock 数据：包含 tags 和 pages 所需的所有字段
+      const mockData = [{ 
+        id: 't1', 
+        name: 'Test', 
+        user_id: 'user-1', 
+        updated_at: 2000, 
+        created_at: 1000, 
+        bindings: [],
+        // 额外添加 Page 所需字段，以防万一
+        url: 'http://example.com',
+        title: 'Page',
+        domain: 'example.com'
+      }];
+      
+      // 创建一个符合 Supabase v2 接口的 Builder 对象
+      // 它既是 Chainable 的，又是 Thenable 的
+      const builder: any = {
+        // Thenable 接口：支持 await
+        then: (onfulfilled?: any, onrejected?: any) => {
+          return Promise.resolve({ data: mockData, error: null }).then(onfulfilled, onrejected);
+        },
+        catch: (onrejected?: any) => {
+          return Promise.resolve({ data: mockData, error: null }).catch(onrejected);
+        }
       };
-      // 确保链式调用返回正确的对象
-      (mockQueryChain.select as jest.Mock).mockReturnValue(mockQueryChain);
-      (mockQueryChain.eq as jest.Mock).mockReturnValue(mockQueryChain);
-      (mockQueryChain.gt as jest.Mock).mockReturnValue(mockQueryChain);
-      // 最终返回 Promise，包含一些数据以触发合并
-      (mockQueryChain.eq as jest.Mock).mockResolvedValue({ 
-        data: callCount === 0 ? [{ id: 't1', name: 'Test', user_id: 'user-1', updated_at: 2000, created_at: 1000, bindings: [] }] : [], 
-        error: null 
+      
+      // Chainable 方法：返回 this
+      const methods = ['select', 'eq', 'gt', 'lt', 'gte', 'lte', 'order', 'limit', 'range', 'single', 'maybeSingle'];
+      methods.forEach(method => {
+        builder[method] = jest.fn().mockReturnValue(builder);
       });
-      (mockQueryChain.gt as jest.Mock).mockResolvedValue({ 
-        data: callCount === 0 ? [{ id: 't1', name: 'Test', user_id: 'user-1', updated_at: 2000, created_at: 1000, bindings: [] }] : [], 
-        error: null 
-      });
-      callCount++;
-      return mockQueryChain;
+      
+      return builder;
     };
     
+    // 应用 Mock
     (supabase.from as jest.Mock).mockImplementation((table) => {
       return createMockQuery();
     });
@@ -165,14 +244,19 @@ describe('SyncService (Logic Flow)', () => {
     await syncService.syncAll();
 
     // 验证流程
-    // 1. Push (uploadPendingChanges) - 即使为空也会检查
-    // 2. Pull (fetchFromCloud)
+    // 1. Push (uploadPendingChanges)
+    // 2. Pull (fetchFromCloud) -> supabase.from 被调用
     expect(supabase.from).toHaveBeenCalledWith('tags');
     expect(supabase.from).toHaveBeenCalledWith('pages');
-    // 3. Merge & Save（如果有数据，会执行合并；如果没有数据，可能跳过）
-    // 由于我们返回了数据，应该会执行合并
-    // 但实际行为取决于代码逻辑，我们只验证关键调用
+    
+    // 3. Merge & Save
+    // 增量同步应该更新 SYNC_LAST_TIMESTAMP
     expect(storageService.set).toHaveBeenCalledWith(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, expect.any(Number));
+    
+    // 验证调用了 TagManager 的方法 (如果不包含数据，SyncService 会跳过这些调用)
+    expect(mockTagManager.getAllData).toHaveBeenCalled();
+    expect(mockTagManager.updateData).toHaveBeenCalled();
+    expect(mockTagManager.syncToStorage).toHaveBeenCalled();
   });
 });
 

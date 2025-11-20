@@ -201,6 +201,20 @@ global.ResizeObserver = class ResizeObserver {
   }
 } as any;
 
+// ✅ 修复：全局 Mock TimeService，避免测试中调用真实的 Supabase RPC
+// 测试环境不需要真正的时间校准，直接使用本地时间
+jest.mock('../services/timeService', () => {
+  return {
+    timeService: {
+      calibrate: jest.fn(() => Promise.resolve()),
+      now: jest.fn(() => Date.now()),
+      get isCalibrated() { return true; },
+      getOffset: jest.fn(() => 0),
+      reset: jest.fn(),
+    },
+  };
+});
+
 // ✅ 修复：全局 beforeEach 自动清理 Storage Mock，防止测试间状态污染
 // 确保每个测试用例都拥有干净的 Storage 环境
 beforeEach(async () => {
@@ -213,5 +227,12 @@ beforeEach(async () => {
   
   // 清除所有 mocks 的调用记录
   jest.clearAllMocks();
+  
+  // 重置 timeService mock
+  const { timeService } = require('../services/timeService');
+  (timeService.calibrate as jest.Mock).mockResolvedValue(undefined);
+  (timeService.now as jest.Mock).mockReturnValue(Date.now());
+  (timeService.getOffset as jest.Mock).mockReturnValue(0);
+  (timeService.reset as jest.Mock).mockImplementation(() => {});
 });
 

@@ -1,6 +1,7 @@
 import { TagManager } from '../services/tagManager';
 import { syncStorageService, storageService, STORAGE_KEYS } from '../services/storageService';
 import { syncService } from '../services/syncService';
+import { timeService } from '../services/timeService';
 import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../types/pageSettings';
 import { TagsCollection, PageCollection } from '../types/gameplayTag';
 
@@ -44,7 +45,17 @@ const withTransaction = <T>(
       // 如果 SW 刚唤醒，这里会从 Storage 加载数据；如果活着，则是空操作
       await getInitializationPromise();
 
+      // 1.5. 时间校准 (如果还没校准，且是写入操作)
+      // 确保时间服务已校准 (如果还没)
+      if (data?.name || data?.title || data?.tagName || data?.pageId) {
+        // 仅写入操作需要校准时间
+        await timeService.calibrate().catch(() => {
+          // 校准失败不影响业务，降级使用本地时间
+        });
+      }
+
       // 2. 执行阶段：运行纯业务逻辑 (In-Memory, Fast)
+      // TagManager 内部已使用 timeService.now() 而不是 Date.now()
       const result = await handler(data);
 
       // 3. 提交阶段：原子化持久化 (Atomic Commit)

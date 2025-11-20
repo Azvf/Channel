@@ -4,8 +4,9 @@ import { authService } from './authService';
 import { storageService, STORAGE_KEYS } from './storageService';
 import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
 import { logger } from './logger';
-import { mergeDataStrategy } from '../logic/DataMergeStrategy';
+import { mergeDataStrategy, mergeTagFields, computeHash, ShadowMap } from '../logic/DataMergeStrategy';
 import { SupabaseQueryBuilder } from '../logic/SupabaseQueryBuilder';
+import { timeService } from './timeService';
 
 const log = logger('SyncService');
 
@@ -65,6 +66,9 @@ export class SyncService {
   private readonly MAX_RECENT_CHANGES = 100;
   // 跟踪当前用户ID，用于检测用户切换
   private currentUserId: string | null = null;
+  // 同步锁 (防止并发)
+  private lockId: string | null = null;
+  private readonly LOCK_TIMEOUT = 5 * 60 * 1000; // 5分钟超时
 
   private constructor() {
     this.tagManager = TagManager.getInstance();
@@ -143,107 +147,303 @@ export class SyncService {
   }
 
   /**
-   * 手动触发全量同步
+   * 手动触发全量同步 (Scheme F+ + Scheme D)
+   * 
+   * 架构：
+   * 1. 获取锁 (防止并发)
+   * 2. 时间校准 (确保时间准确)
+   * 3. 策略路由 (决定是增量还是全量)
+   * 4. 执行同步 (全量或增量)
+   * 5. 释放锁
    */
   public async syncAll(): Promise<void> {
-    if (this.syncState.isSyncing) {
-      log.warn('同步已在进行中，跳过');
-      return;
+    // 获取锁
+    await this.acquireLock();
+
+    try {
+      // 时间校准 (确保时间准确)
+      await timeService.calibrate();
+
+      const authState = authService.getState();
+      if (!authState.isAuthenticated || !authState.user) {
+        log.info('用户未登录，跳过同步');
+        return;
+      }
+
+      if (this.syncState.isSyncing) {
+        log.warn('同步已在进行中，跳过');
+        return;
+      }
+
+      this.syncState.isSyncing = true;
+      this.syncState.error = null;
+
+      try {
+        log.info('开始同步流程...');
+
+        // 策略路由：决定是增量还是全量
+        if (await this.shouldTriggerFullSync()) {
+          await this.performFullSync();
+        } else {
+          await this.performIncrementalSync();
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '同步失败';
+        this.syncState.error = errorMessage;
+        log.error('同步失败', { error: errorMessage });
+        throw error;
+      } finally {
+        this.syncState.isSyncing = false;
+      }
+    } finally {
+      // 释放锁
+      await this.releaseLock();
     }
+  }
+
+  /**
+   * 获取同步锁 (防止并发)
+   */
+  private async acquireLock(): Promise<void> {
+    const lockId = `${Date.now()}-${Math.random()}`;
+    const lockData = await storageService.get<{ id: string; timestamp: number }>(STORAGE_KEYS.SYNC_LOCK);
+
+    // 检查是否已有锁
+    if (lockData) {
+      const lockAge = timeService.now() - lockData.timestamp;
+      // 如果锁已超时，清除它
+      if (lockAge > this.LOCK_TIMEOUT) {
+        log.warn('检测到超时的锁，清除', { lockAge, lockId: lockData.id });
+        await storageService.remove(STORAGE_KEYS.SYNC_LOCK);
+      } else {
+        // 锁仍有效，等待一下再重试
+        log.warn('同步锁被占用，等待...', { lockId: lockData.id, lockAge });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        // 重试获取锁
+        return this.acquireLock();
+      }
+    }
+
+    // 获取锁
+    this.lockId = lockId;
+    await storageService.set(STORAGE_KEYS.SYNC_LOCK, {
+      id: lockId,
+      timestamp: timeService.now(),
+    });
+    log.debug('同步锁已获取', { lockId });
+  }
+
+  /**
+   * 释放同步锁
+   */
+  private async releaseLock(): Promise<void> {
+    if (this.lockId) {
+      const lockData = await storageService.get<{ id: string }>(STORAGE_KEYS.SYNC_LOCK);
+      // 只有锁是自己的才释放
+      if (lockData && lockData.id === this.lockId) {
+        await storageService.remove(STORAGE_KEYS.SYNC_LOCK);
+        log.debug('同步锁已释放', { lockId: this.lockId });
+      }
+      this.lockId = null;
+    }
+  }
+
+  /**
+   * 判断是否应该触发全量同步 (Scheme F+)
+   * 
+   * 条件：
+   * 1. 周期性 (7天)
+   * 2. Shadow Map 丢失 (首次运行或数据损坏)
+   */
+  private async shouldTriggerFullSync(): Promise<boolean> {
+    const lastFullSync = await storageService.get<number>(STORAGE_KEYS.SYNC_LAST_FULL_SYNC) || 0;
+    const now = timeService.now();
+
+    // 条件1: 周期性 (7天)
+    if (now - lastFullSync > 7 * 24 * 3600 * 1000) {
+      log.info('触发全量同步：周期性检查', { lastFullSync, now, daysSinceLastSync: (now - lastFullSync) / (24 * 3600 * 1000) });
+      return true;
+    }
+
+    // 条件2: Shadow Map 丢失 (首次运行或数据损坏)
+    const shadowMap = await storageService.get<ShadowMap>(STORAGE_KEYS.SYNC_SHADOW_MAP);
+    if (!shadowMap || Object.keys(shadowMap).length === 0) {
+      log.info('触发全量同步：Shadow Map 丢失');
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * [核心] 全量同步与三路合并 (Scheme F+)
+   */
+  private async performFullSync(): Promise<void> {
+    log.info('[Sync] Performing Full 3-Way Sync...');
 
     const authState = authService.getState();
     if (!authState.isAuthenticated || !authState.user) {
-      log.info('用户未登录，跳过同步');
+      throw new Error('用户未登录');
+    }
+
+    // 1. 拉取全量 Cloud 数据
+    const cloudData = await this.fetchAllFromCloud(authState.user.id);
+
+    // 2. 获取 Local 数据
+    const localData = this.tagManager.getAllData();
+
+    // 3. 获取 Shadow Map (基准)
+    const shadowMap: ShadowMap = await storageService.get<ShadowMap>(STORAGE_KEYS.SYNC_SHADOW_MAP) || {};
+    const newShadowMap: ShadowMap = {};
+
+    // 4. 执行合并 (针对 Tags)
+    const mergedTags: TagsCollection = {};
+    const allTagIds = new Set([...Object.keys(localData.tags), ...Object.keys(cloudData.tags)]);
+
+    for (const id of allTagIds) {
+      const local = localData.tags[id];
+      const remote = cloudData.tags[id];
+      const baseEntry = shadowMap[`tag:${id}`];
+
+      if (local && remote) {
+        // 双方存在：智能合并
+        const merged = mergeTagFields(local, remote, baseEntry?.h);
+        mergedTags[id] = merged;
+        // 更新 Shadow
+        newShadowMap[`tag:${id}`] = { h: computeHash(merged), u: merged.updatedAt };
+      } else if (local && !remote) {
+        // 仅本地有：保留本地 (视为未同步的新数据)
+        mergedTags[id] = local;
+        newShadowMap[`tag:${id}`] = { h: computeHash(local), u: local.updatedAt };
+      } else if (!local && remote) {
+        // 仅云端有：下载到本地
+        if (!remote.deleted) {
+          mergedTags[id] = remote;
+          newShadowMap[`tag:${id}`] = { h: computeHash(remote), u: remote.updatedAt };
+        }
+      }
+    }
+
+    // 5. 对 Pages 执行类似的合并逻辑 (简化版本，使用 LWW)
+    const mergedPages: PageCollection = {};
+    const allPageIds = new Set([...Object.keys(localData.pages), ...Object.keys(cloudData.pages)]);
+
+    for (const id of allPageIds) {
+      const local = localData.pages[id];
+      const remote = cloudData.pages[id];
+
+      if (local && remote) {
+        // 双方存在：LWW
+        mergedPages[id] = local.updatedAt >= remote.updatedAt ? local : remote;
+      } else if (local && !remote) {
+        mergedPages[id] = local;
+      } else if (!local && remote) {
+        if (!remote.deleted) {
+          mergedPages[id] = remote;
+        }
+      }
+    }
+
+    // 6. 应用结果 (原子化写入)
+    this.tagManager.updateData({ tags: mergedTags, pages: mergedPages });
+    await this.tagManager.syncToStorage();
+
+    // 7. 更新 Shadow Map 和 时间戳
+    await storageService.set(STORAGE_KEYS.SYNC_SHADOW_MAP, newShadowMap);
+    await storageService.set(STORAGE_KEYS.SYNC_LAST_FULL_SYNC, timeService.now());
+
+    // 8. 推送差异 (如果有需要上传的变更)
+    const userId = authState.user.id;
+    await this.uploadPendingChanges(userId);
+
+    this.syncState.lastSyncAt = timeService.now();
+    this.syncState.pendingChangesCount = this.pendingChanges.length;
+    log.info('全量同步完成', {
+      tagsCount: Object.keys(mergedTags).length,
+      pagesCount: Object.keys(mergedPages).length,
+      shadowMapSize: Object.keys(newShadowMap).length,
+    });
+  }
+
+  /**
+   * 增量同步 (保留现有逻辑)
+   */
+  private async performIncrementalSync(): Promise<void> {
+    log.info('[Sync] Performing Incremental Sync...');
+
+    const authState = authService.getState();
+    if (!authState.isAuthenticated || !authState.user) {
+      throw new Error('用户未登录');
+    }
+
+    // 1. 获取上次同步时间游标
+    const lastSyncTs = await storageService.get<number>(STORAGE_KEYS.SYNC_LAST_TIMESTAMP) || 0;
+
+    // 2. 计算本次拉取的起始时间 (引入 2 分钟缓冲，防止时钟漂移漏数据)
+    // 如果是 0 (首次)，则保持 0 以拉取全量
+    const fetchCursor = lastSyncTs > 0 ? lastSyncTs - 2 * 60 * 1000 : 0;
+
+    // 记录当前时间作为新的游标 (在请求发出前记录，确保不漏掉同步期间产生的数据)
+    const newSyncTs = timeService.now();
+
+    // 3. 保存待删除项信息（在 uploadPendingChanges 清空队列之前）
+    // 用于后续合并时识别已删除的项，避免"僵尸数据"复活
+    const pendingDeletesBeforeUpload = this.pendingChanges
+      .filter((change) => change.operation === 'delete')
+      .map((change) => `${change.type}:${change.id}`);
+
+    // 4. 先上传本地变更 (Push)
+    await this.uploadPendingChanges(authState.user.id);
+
+    // 5. 拉取云端数据 (Pull - Incremental)
+    const cloudData = await this.fetchFromCloud(authState.user.id, fetchCursor);
+    const cloudCount = Object.keys(cloudData.tags).length + Object.keys(cloudData.pages).length;
+
+    if (cloudCount === 0 && this.pendingChanges.length === 0) {
+      log.info('端云数据均无变更，跳过合并');
+      // 依然要更新时间戳，防止下次还要扫描很久以前的数据
+      await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
+      this.syncState.lastSyncAt = newSyncTs;
+      this.syncState.pendingChangesCount = this.pendingChanges.length;
       return;
     }
 
-    this.syncState.isSyncing = true;
-    this.syncState.error = null;
+    // 6. 从本地获取数据（全量）
+    const localData = this.tagManager.getAllData();
 
-    try {
-      log.info('开始同步流程...');
+    // 7. 合并数据
+    // 注意：这里 localData 是全量的，但 cloudData 是增量的（只有变动项）
+    // mergeDataStrategy 逻辑天然支持这种模式，因为：
+    // - 如果云端没返回某条数据（因为它没变），cloudTag 为空
+    // - 逻辑：else if (localTag && !cloudTag) { mergedTags[tagId] = localTag; }
+    // - 结果：保留了本地未变动的旧数据。完全正确！
+    const merged = mergeDataStrategy(localData, cloudData, pendingDeletesBeforeUpload);
 
-      // 1. 获取上次同步时间游标
-      const lastSyncTs = await storageService.get<number>(STORAGE_KEYS.SYNC_LAST_TIMESTAMP) || 0;
-      
-      // 2. 计算本次拉取的起始时间 (引入 2 分钟缓冲，防止时钟漂移漏数据)
-      // 如果是 0 (首次)，则保持 0 以拉取全量
-      const fetchCursor = lastSyncTs > 0 ? lastSyncTs - 2 * 60 * 1000 : 0;
-      
-      // 记录当前时间作为新的游标 (在请求发出前记录，确保不漏掉同步期间产生的数据)
-      const newSyncTs = Date.now();
+    // 8. 更新本地数据库
+    this.tagManager.updateData(merged);
+    await this.tagManager.syncToStorage();
 
-      // 3. 保存待删除项信息（在 uploadPendingChanges 清空队列之前）
-      // 用于后续合并时识别已删除的项，避免"僵尸数据"复活
-      const pendingDeletesBeforeUpload = this.pendingChanges
-        .filter((change) => change.operation === 'delete')
-        .map((change) => `${change.type}:${change.id}`);
+    // 9. [关键] 只有在所有步骤成功后，才更新游标
+    await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
 
-      // 4. 先上传本地变更 (Push)
-      await this.uploadPendingChanges(authState.user.id);
+    this.syncState.lastSyncAt = newSyncTs;
+    this.syncState.pendingChangesCount = this.pendingChanges.length;
+    log.info('增量同步完成', {
+      mode: fetchCursor > 0 ? 'Incremental' : 'Full',
+      fetchedItems: cloudCount,
+      tagsCount: Object.keys(merged.tags || {}).length,
+      pagesCount: Object.keys(merged.pages || {}).length,
+    });
+  }
 
-      // 5. 拉取云端数据 (Pull - Incremental)
-      const cloudData = await this.fetchFromCloud(authState.user.id, fetchCursor);
-      const cloudCount = Object.keys(cloudData.tags).length + Object.keys(cloudData.pages).length;
-      
-      if (cloudCount === 0 && this.pendingChanges.length === 0) {
-        log.info('端云数据均无变更，跳过合并');
-        // 依然要更新时间戳，防止下次还要扫描很久以前的数据
-        await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
-        this.syncState.lastSyncAt = newSyncTs;
-        this.syncState.pendingChangesCount = this.pendingChanges.length;
-        return; 
-      }
-
-      // 6. 从本地获取数据（全量）
-      const localData = {
-        tags: this.tagManager.getAllTags().reduce((acc, tag) => {
-          acc[tag.id] = tag;
-          return acc;
-        }, {} as TagsCollection),
-        pages: this.tagManager.getTaggedPages().reduce((acc, page) => {
-          acc[page.id] = page;
-          return acc;
-        }, {} as PageCollection),
-      };
-
-      // 7. 合并数据
-      // 注意：这里 localData 是全量的，但 cloudData 是增量的（只有变动项）
-      // mergeDataStrategy 逻辑天然支持这种模式，因为：
-      // - 如果云端没返回某条数据（因为它没变），cloudTag 为空
-      // - 逻辑：else if (localTag && !cloudTag) { mergedTags[tagId] = localTag; }
-      // - 结果：保留了本地未变动的旧数据。完全正确！
-      const merged = mergeDataStrategy(
-        localData,
-        cloudData,
-        pendingDeletesBeforeUpload,
-      );
-
-      // 8. 更新本地数据库
-      this.tagManager.initialize(merged);
-      // initialize 不会标记为 dirty，所以这里直接保存（或使用 commit，但此时 isDirty 为 false）
-      await this.tagManager.syncToStorage();
-
-      // 9. [关键] 只有在所有步骤成功后，才更新游标
-      await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
-
-      this.syncState.lastSyncAt = newSyncTs;
-      this.syncState.pendingChangesCount = this.pendingChanges.length;
-      log.info('同步完成', { 
-        mode: fetchCursor > 0 ? 'Incremental' : 'Full', 
-        fetchedItems: cloudCount,
-        tagsCount: Object.keys(merged.tags || {}).length,
-        pagesCount: Object.keys(merged.pages || {}).length,
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '同步失败';
-      this.syncState.error = errorMessage;
-      log.error('同步失败', { error: errorMessage });
-      // 失败时不更新游标，下次重试会重新拉取这段时间的数据
-      throw error;
-    } finally {
-      this.syncState.isSyncing = false;
-    }
+  /**
+   * 从云端拉取全量数据 (用于全量同步)
+   */
+  private async fetchAllFromCloud(userId: string): Promise<{
+    tags: TagsCollection;
+    pages: PageCollection;
+  }> {
+    return this.fetchFromCloud(userId, 0); // sinceTimestamp = 0 表示全量拉取
   }
 
   /**
@@ -333,8 +533,8 @@ export class SyncService {
             description: row.description || undefined,
             color: row.color || undefined,
             bindings: row.bindings || [],
-            createdAt: row.created_at || Date.now(),
-            updatedAt: row.updated_at || Date.now(),
+            createdAt: row.created_at || timeService.now(),
+            updatedAt: row.updated_at || timeService.now(),
             deleted: row.deleted || false,
           };
         }
@@ -349,8 +549,8 @@ export class SyncService {
             title: row.title || '',
             domain: row.domain || '',
             tags: row.tags || [],
-            createdAt: row.created_at || Date.now(),
-            updatedAt: row.updated_at || Date.now(),
+            createdAt: row.created_at || timeService.now(),
+            updatedAt: row.updated_at || timeService.now(),
             favicon: row.favicon || undefined,
             description: row.description || undefined,
             deleted: row.deleted || false,
@@ -379,7 +579,7 @@ export class SyncService {
       // 使用软删除：设置 deleted = true，而不是物理删除
       const { error } = await supabase
         .from('tags')
-        .update({ deleted: true, updated_at: Date.now() })
+        .update({ deleted: true, updated_at: timeService.now() })
         .eq('id', tagId)
         .eq('user_id', userId);
 
@@ -426,7 +626,7 @@ export class SyncService {
       // 使用软删除：设置 deleted = true，而不是物理删除
       const { error } = await supabase
         .from('pages')
-        .update({ deleted: true, updated_at: Date.now() })
+        .update({ deleted: true, updated_at: timeService.now() })
         .eq('id', pageId)
         .eq('user_id', userId);
 
@@ -525,7 +725,7 @@ export class SyncService {
       operation,
       id,
       data,
-      timestamp: Date.now(),
+      timestamp: timeService.now(),
     });
 
     this.syncState.pendingChangesCount = this.pendingChanges.length;
@@ -638,7 +838,7 @@ export class SyncService {
           const tagId = oldRecord?.id;
           if (tagId) {
             // 检查是否已处理过
-            const changeKey = `tag:${tagId}:delete:${oldRecord?.updated_at || Date.now()}`;
+            const changeKey = `tag:${tagId}:delete:${oldRecord?.updated_at || timeService.now()}`;
             if (this.recentProcessedChanges.has(changeKey)) {
               log.debug('已处理过该删除变更，跳过', { tagId });
               return;
@@ -660,7 +860,7 @@ export class SyncService {
           // 检查软删除：如果 deleted = true，则从本地删除
           if (newRecord.deleted === true) {
             const tagId = newRecord.id;
-            const changeKey = `tag:${tagId}:delete:${newRecord.updated_at || Date.now()}`;
+            const changeKey = `tag:${tagId}:delete:${newRecord.updated_at || timeService.now()}`;
             
             // 检查是否已处理过
             if (this.recentProcessedChanges.has(changeKey)) {
@@ -690,8 +890,8 @@ export class SyncService {
             description: newRecord.description || undefined,
             color: newRecord.color || undefined,
             bindings: newRecord.bindings || [],
-            createdAt: newRecord.created_at || Date.now(),
-            updatedAt: newRecord.updated_at || Date.now(),
+            createdAt: newRecord.created_at || timeService.now(),
+            updatedAt: newRecord.updated_at || timeService.now(),
           };
 
           // 生成变更键，用于去重
@@ -768,8 +968,8 @@ export class SyncService {
             title: newRecord.title || '',
             domain: newRecord.domain || '',
             tags: newRecord.tags || [],
-            createdAt: newRecord.created_at || Date.now(),
-            updatedAt: newRecord.updated_at || Date.now(),
+            createdAt: newRecord.created_at || timeService.now(),
+            updatedAt: newRecord.updated_at || timeService.now(),
             favicon: newRecord.favicon || undefined,
             description: newRecord.description || undefined,
           };

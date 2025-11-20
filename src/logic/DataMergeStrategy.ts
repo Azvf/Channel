@@ -1,7 +1,94 @@
-import { TagsCollection, PageCollection } from '../types/gameplayTag';
+import { TagsCollection, PageCollection, GameplayTag, TaggedPage } from '../types/gameplayTag';
 import { logger } from '../services/logger';
 
 const log = logger('DataMergeStrategy');
+
+/**
+ * 轻量级影子快照结构 (Scheme F+)
+ * 用于三路合并中的基准点（Base）记录
+ */
+export interface ShadowEntry {
+  h: string; // Content Hash
+  u: number; // UpdatedAt
+}
+
+export type ShadowMap = Record<string, ShadowEntry>;
+
+/**
+ * 简单的哈希计算 (用于变更检测)
+ * 
+ * 注意：生产环境建议使用更快的非加密 Hash 算法 (如 FNV-1a)
+ * 这里用 JSON stringify 长度 + 关键字段做简化演示
+ */
+export function computeHash(obj: any): string {
+  if (!obj) return '0-0';
+  
+  // 简化哈希：使用 JSON 字符串长度 + 关键字段 + updatedAt
+  // 这样可以快速检测对象是否发生变化
+  const key = JSON.stringify({
+    name: obj.name,
+    description: obj.description,
+    color: obj.color,
+    bindings: obj.bindings,
+    updatedAt: obj.updatedAt,
+  });
+  
+  return `${key.length}-${obj.updatedAt || 0}`;
+}
+
+/**
+ * 字段级智能合并逻辑 (Scheme F+)
+ * 
+ * 策略：
+ * 1. 如果没有 Base (Shadow)，说明是两端新增冲突 -> 降级为 LWW
+ * 2. 简单字段 (Name/Color): 谁变了采纳谁
+ * 3. 复杂字段 (Bindings 数组): 并集策略 (Union)
+ * 4. 其他冲突字段: LWW
+ * 
+ * @param local 本地标签
+ * @param remote 云端标签
+ * @param baseHash 基准哈希（来自 Shadow Map）
+ * @returns 合并后的标签
+ */
+export function mergeTagFields(
+  local: GameplayTag,
+  remote: GameplayTag,
+  baseHash: string | undefined,
+): GameplayTag {
+  // 1. 如果没有 Base (Shadow)，说明是两端新增冲突 -> 降级为 LWW
+  if (!baseHash) {
+    return local.updatedAt >= remote.updatedAt ? local : remote;
+  }
+
+  const merged = { ...local };
+  const localHash = computeHash(local);
+  const remoteHash = computeHash(remote);
+
+  // 2. 简单字段 (Name/Color): 谁变了采纳谁
+  // 如果 Remote 变了 (Remote != Base) 且 Local 没变 (Local == Base)，采纳 Remote
+  // 反之采纳 Local。如果都变了，走 LWW。
+  if (remoteHash !== baseHash && localHash === baseHash) {
+    // Remote 变了，Local 没变 -> 采纳 Remote
+    return remote;
+  }
+
+  if (localHash !== baseHash && remoteHash === baseHash) {
+    // Local 变了，Remote 没变 -> 采纳 Local
+    return local;
+  }
+
+  // 3. 复杂字段 (Bindings 数组): 并集策略 (Union)
+  // 即使发生冲突，也尽量保留所有关联
+  const allBindings = new Set([...local.bindings, ...remote.bindings]);
+  merged.bindings = Array.from(allBindings);
+
+  // 4. 其他冲突字段: LWW
+  merged.name = local.updatedAt >= remote.updatedAt ? local.name : remote.name;
+  merged.color = local.updatedAt >= remote.updatedAt ? local.color : remote.color;
+  merged.updatedAt = Math.max(local.updatedAt, remote.updatedAt);
+
+  return merged;
+}
 
 /**
  * 数据合并策略（纯函数）

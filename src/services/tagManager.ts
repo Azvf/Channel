@@ -1,6 +1,7 @@
 import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
 import { logger } from './logger';
 import { storageService, STORAGE_KEYS } from './storageService';
+import { timeService } from './timeService';
 
 type ChangeListener = () => void;
 
@@ -107,8 +108,8 @@ export class TagManager {
       name: trimmedName,
       description,
       color: color || this.generateColor(),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt: timeService.now(),
+      updatedAt: timeService.now(),
       bindings: []
     };
 
@@ -129,8 +130,8 @@ export class TagManager {
     if (!a || !b) return false;
     if (!a.bindings.includes(tagIdB)) a.bindings.push(tagIdB);
     if (!b.bindings.includes(tagIdA)) b.bindings.push(tagIdA);
-    a.updatedAt = Date.now();
-    b.updatedAt = Date.now();
+    a.updatedAt = timeService.now();
+    b.updatedAt = timeService.now();
     this.markDirty();
     this.notifyListeners(); // 通知 UI
     return true;
@@ -142,8 +143,8 @@ export class TagManager {
     if (!a || !b) return false;
     a.bindings = a.bindings.filter(id => id !== tagIdB);
     b.bindings = b.bindings.filter(id => id !== tagIdA);
-    a.updatedAt = Date.now();
-    b.updatedAt = Date.now();
+    a.updatedAt = timeService.now();
+    b.updatedAt = timeService.now();
     this.markDirty();
     this.notifyListeners(); // 通知 UI
     return true;
@@ -200,7 +201,7 @@ export class TagManager {
 
     // 3. 更新名称
     tag.name = trimmedName;
-    tag.updatedAt = Date.now();
+    tag.updatedAt = timeService.now();
     this.markDirty();
     this.notifyListeners(); // 通知 UI
 
@@ -287,7 +288,7 @@ export class TagManager {
 
     if (!this.pages[pageId].tags.includes(tagId)) {
       this.pages[pageId].tags.push(tagId);
-      this.pages[pageId].updatedAt = Date.now();
+      this.pages[pageId].updatedAt = timeService.now();
       log.debug('addTagToPage: added', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
       this.markDirty();
       this.notifyListeners(); // 通知 UI
@@ -308,7 +309,7 @@ export class TagManager {
     const index = this.pages[pageId].tags.indexOf(tagId);
     if (index > -1) {
       this.pages[pageId].tags.splice(index, 1);
-      this.pages[pageId].updatedAt = Date.now();
+      this.pages[pageId].updatedAt = timeService.now();
       log.debug('removeTagFromPage: removed', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
       this.markDirty();
       this.notifyListeners(); // 通知 UI
@@ -328,7 +329,7 @@ export class TagManager {
       this.pages[pageId] = {
         ...this.pages[pageId], // 保持所有现有属性
         title,
-        updatedAt: Date.now(),
+        updatedAt: timeService.now(),
         tags: existingTags, // 确保标签不被覆盖
         ...(favicon && { favicon })
       };
@@ -340,8 +341,8 @@ export class TagManager {
         title,
         domain,
         tags: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        createdAt: timeService.now(),
+        updatedAt: timeService.now(),
         favicon
       };
     }
@@ -349,6 +350,17 @@ export class TagManager {
     this.markDirty();
     this.notifyListeners(); // 通知 UI
     return this.pages[pageId];
+  }
+
+  /**
+   * 获取所有数据 (用于同步服务)
+   * @returns 包含所有 tags 和 pages 的对象
+   */
+  public getAllData(): { tags: TagsCollection; pages: PageCollection } {
+    return {
+      tags: { ...this.tags },
+      pages: { ...this.pages },
+    };
   }
 
   public getTaggedPages(tagId?: string): TaggedPage[] {
@@ -423,7 +435,7 @@ export class TagManager {
     this.pages[pageId] = {
       ...page,
       title: trimmedTitle,
-      updatedAt: Date.now()
+      updatedAt: timeService.now()
     };
     this.markDirty();
     this.notifyListeners(); // 通知 UI
@@ -742,7 +754,7 @@ export class TagManager {
       const index = page.tags.indexOf(tagId);
       if (index > -1) {
         page.tags.splice(index, 1);
-        page.updatedAt = Date.now();
+        page.updatedAt = timeService.now();
       }
     });
 
@@ -752,7 +764,7 @@ export class TagManager {
         const otherTag = this.tags[otherId];
         if (otherTag) {
           otherTag.bindings = otherTag.bindings.filter(id => id !== tagId);
-          otherTag.updatedAt = Date.now();
+          otherTag.updatedAt = timeService.now();
         }
       });
     }

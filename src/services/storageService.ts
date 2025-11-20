@@ -33,6 +33,9 @@ export const STORAGE_KEYS = {
   // 同步相关
   SYNC_PENDING_CHANGES: 'sync_pending_changes',
   SYNC_LAST_TIMESTAMP: 'sync_last_timestamp', // [新增] 同步游标
+  SYNC_SHADOW_MAP: 'sync_shadow_map', // [新增] Shadow Map (三路合并基准)
+  SYNC_LAST_FULL_SYNC: 'sync_last_full_sync', // [新增] 上次全量同步时间戳
+  SYNC_LOCK: 'sync_lock', // [新增] 同步锁 (防止并发)
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS] | string;

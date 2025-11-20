@@ -41,6 +41,17 @@ jest.mock('../../lib/supabase', () => {
   };
 });
 
+// Mock timeService to avoid import.meta.env issues
+jest.mock('../../services/timeService', () => ({
+  timeService: {
+    calibrate: jest.fn(() => Promise.resolve()),
+    now: jest.fn(() => Date.now()),
+    get isCalibrated() { return true; },
+    getOffset: jest.fn(() => 0),
+    reset: jest.fn(),
+  },
+}));
+
 // Mock syncService to avoid import.meta.env issues
 jest.mock('../../services/syncService', () => {
   return {
