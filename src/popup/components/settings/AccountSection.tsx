@@ -242,34 +242,32 @@ export function AccountSection() {
                         
                         <div style={{ padding: '0.25rem' }}>
                           {activeDevices.map(device => (
-                              <motion.div
-                                key={device.id}
-                                layout
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
-                              >
-                                <SettingsRow
-                                    icon={<DeviceIcon name={device.name} />}
-                                    label={getDeviceLabel(device)}
-                                    value={device.is_current ? "Active" : new Date(device.last_sync_at).toLocaleDateString()}
-                                    control={
-                                        <button
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                handleRemoveDevice(device.id); 
-                                            }}
-                                            disabled={device.is_current || isAuthLoading}
-                                            className="p-1.5 rounded-md transition-all hover-destructive disabled:opacity-50"
-                                            title={device.is_current ? "Cannot remove current device" : "Remove device"}
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                    }
-                                    onClick={() => {}}
-                                    className="p-1.5"
-                                />
-                              </motion.div>
+                              /* * [架构优化] 移除了 <motion.div> 包装器
+                               * 1. 移除了 `layout` 属性：防止与父级高度动画发生布局投影冲突。
+                               * 2. 移除了 `initial/animate/exit`：消除了列表项的位移/透明度动画，
+                               * 这在折叠面板中通常是多余的视觉噪音，且会消耗合成器层资源。
+                               */
+                              <SettingsRow
+                                  key={device.id}
+                                  icon={<DeviceIcon name={device.name} />}
+                                  label={getDeviceLabel(device)}
+                                  value={device.is_current ? "Active" : new Date(device.last_sync_at).toLocaleDateString()}
+                                  control={
+                                      <button
+                                          onClick={(e) => { 
+                                              e.stopPropagation(); 
+                                              handleRemoveDevice(device.id); 
+                                          }}
+                                          disabled={device.is_current || isAuthLoading}
+                                          className="p-1.5 rounded-md transition-all hover-destructive disabled:opacity-50"
+                                          title={device.is_current ? "Cannot remove current device" : "Remove device"}
+                                      >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                  }
+                                  onClick={() => {}}
+                                  className="p-1.5"
+                              />
                           ))}
                         </div>
 
