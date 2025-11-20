@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import { fileURLToPath, URL } from 'url'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { writeFileSync, readFileSync, existsSync } from 'fs'
+import { getDevKey } from './scripts/generate-dev-key.js'
 
 // 自定义插件：在构建后处理 HTML 文件
 function postBuildPlugin() {
@@ -29,6 +30,10 @@ function postBuildPlugin() {
 export default defineConfig(({ mode }) => {
   // 加载环境变量（Vite 会自动处理 VITE_ 前缀的环境变量）
   // 在代码中可以直接使用 import.meta.env.VITE_SUPABASE_URL
+  
+  // 获取开发密钥
+  const devKeyData = mode === 'development' ? getDevKey() : null;
+
   return {
   // 开发服务器配置（用于预览）
   server: {
@@ -65,7 +70,18 @@ export default defineConfig(({ mode }) => {
       targets: [
         {
           src: 'manifest.json',
-          dest: '.'
+          dest: '.',
+          // 关键点：使用 transform 修改 manifest 内容
+          transform: (content) => {
+            const manifest = JSON.parse(content.toString());
+            
+            // 仅在开发模式下注入 key
+            if (mode === 'development' && devKeyData) {
+              manifest.key = devKeyData.publicKey;
+            }
+            
+            return JSON.stringify(manifest, null, 2);
+          }
         },
         // Copy extension icon used by notifications and UI
         {
