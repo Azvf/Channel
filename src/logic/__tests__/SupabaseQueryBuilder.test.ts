@@ -59,5 +59,28 @@ describe('SupabaseQueryBuilder', () => {
 
     expect(mockClient.from).toHaveBeenCalledWith('pages');
   });
+
+  it('默认参数: 当不传 sinceTimestamp 时，应默认为 0 (全量拉取)', () => {
+    const mockSelect = jest.fn().mockReturnThis();
+    const mockEq = jest.fn().mockReturnThis();
+    const mockGt = jest.fn().mockReturnThis();
+    
+    const mockClient = {
+      from: jest.fn(() => ({ 
+        select: mockSelect, 
+        eq: mockEq, 
+        gt: mockGt 
+      }))
+    } as any;
+
+    // 不传第四个参数
+    SupabaseQueryBuilder.buildFetchQuery(mockClient, 'tags', 'u1');
+
+    expect(mockClient.from).toHaveBeenCalledWith('tags');
+    expect(mockSelect).toHaveBeenCalledWith('*');
+    expect(mockEq).toHaveBeenCalledWith('user_id', 'u1');
+    // 确保没有调用 gt，意味着 sinceTimestamp 默认为 0
+    expect(mockGt).not.toHaveBeenCalled();
+  });
 });
 
