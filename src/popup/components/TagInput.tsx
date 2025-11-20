@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect, useLayoutEffect, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, KeyboardEvent, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tag } from "./Tag";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 
 interface TagInputProps {
   tags: string[];
@@ -37,7 +37,6 @@ export function TagInput({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [shouldShowDropdown, setShouldShowDropdown] = useState(false);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1); // 当前选中的下拉菜单选项索引
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const [isPositionReady, setIsPositionReady] = useState(false);
@@ -72,6 +71,32 @@ export function TagInput({
     prevTagsLengthRef.current = tags.length;
   }, [tags.length]);
 
+  // [重构] 使用 useMemo 计算显示列表，而不是 useEffect 设置 state
+  // 这样逻辑更清晰，且能即时响应
+  const displayOptions = useMemo(() => {
+    const trimmedInput = inputValue.trim();
+    const lowerInput = trimmedInput.toLowerCase();
+    
+    // 1. 过滤现有的建议
+    const matched = suggestions.filter(s => 
+      s.toLowerCase().includes(lowerInput) && 
+      !tags.includes(s) &&
+      !excludeTags.includes(s)
+    );
+
+    // 2. 判断是否完全匹配（忽略大小写）
+    const exactMatch = suggestions.some(s => s.toLowerCase() === lowerInput);
+    const alreadySelected = tags.some(t => t.toLowerCase() === lowerInput);
+
+    // 3. 如果允许创建，且输入不为空，且没有完全匹配，且未被选中 -> 插入"创建"选项
+    if (allowCreation && trimmedInput && !exactMatch && !alreadySelected) {
+      // 将用户输入作为第一个选项，并标记为特殊类型（我们在渲染时判断）
+      return [trimmedInput, ...matched];
+    }
+
+    return matched;
+  }, [inputValue, suggestions, tags, excludeTags, allowCreation]);
+
   // 动态计算下拉菜单位置
   useLayoutEffect(() => {
     if (showSuggestions && containerRef.current) {
@@ -99,15 +124,6 @@ export function TagInput({
     
     if (isAddingTagRef.current && inputValueCleared) {
       // 确认是添加tag导致的状态变化，保持menu关闭
-      // 更新filteredSuggestions但不打开menu
-      if (suggestions.length > 0) {
-        const filtered = suggestions.filter(s => 
-          !tags.includes(s) && !excludeTags.includes(s)
-        );
-        setFilteredSuggestions(filtered);
-      } else {
-        setFilteredSuggestions([]);
-      }
       // 重置标记（已完成添加tag的检测）
       isAddingTagRef.current = false;
       inputValueBeforeTagAddRef.current = "";
@@ -124,50 +140,26 @@ export function TagInput({
       inputValueBeforeTagAddRef.current = "";
     }
 
-    if (inputValue && suggestions.length > 0) {
-      // 输入框有内容：显示匹配的suggestions
-      const filtered = suggestions.filter(s => 
-        s.toLowerCase().includes(inputValue.toLowerCase()) && 
-        !tags.includes(s) &&
-        !excludeTags.includes(s)
-      );
-      setFilteredSuggestions(filtered);
-      // 重置选中索引，因为列表变化了
-      setSelectedIndex(-1);
-      if (filtered.length > 0) {
-        setShowSuggestions(true);
-        manuallyOpenedRef.current = false; // 自动展开，不是手动
-      } else {
-        // 没有匹配的suggestions，如果之前是手动展开的，保持展开但显示空的filteredSuggestions
-        // 如果不是手动展开的，则关闭
-        if (!manuallyOpenedRef.current) {
-          setShowSuggestions(false);
+    // [修改] 监听 displayOptions 而不是 inputValue 来控制显示
+    if (displayOptions.length > 0 && (inputValue || manuallyOpenedRef.current)) {
+      // 只要有选项（无论是建议还是创建），且有输入或手动打开，就显示
+      setShowSuggestions((prev) => {
+        if (!prev && (inputValue || manuallyOpenedRef.current)) {
+          return true;
         }
-      }
-    } else if (!inputValue && suggestions.length > 0) {
-      // 输入框为空：只有手动展开时才显示所有可用的suggestions
-      const filtered = suggestions.filter(s => 
-        !tags.includes(s) && !excludeTags.includes(s)
-      );
-      setFilteredSuggestions(filtered);
-      // 重置选中索引，因为列表变化了
+        return prev;
+      });
+      // 重置选中项
       setSelectedIndex(-1);
-      // 如果之前是手动展开的，保持展开；否则关闭
-      if (!manuallyOpenedRef.current) {
-        setShowSuggestions(false);
-      }
-    } else {
-      setFilteredSuggestions([]);
-      setSelectedIndex(-1);
-      if (!manuallyOpenedRef.current) {
-        setShowSuggestions(false);
-      }
+    } else if (displayOptions.length === 0) {
+      // 如果没有选项（既无匹配也无创建），关闭
+      setShowSuggestions(false);
     }
 
     // 更新refs
     prevInputValueRef.current = inputValue;
     prevTagsLengthRef.current = tags.length;
-  }, [inputValue, suggestions, tags, excludeTags]);
+  }, [displayOptions, inputValue]); // 依赖项调整
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -285,7 +277,7 @@ export function TagInput({
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (filteredSuggestions.length > 0) {
+      if (displayOptions.length > 0) {
         // 如果下拉菜单没有显示，先显示它
         if (!showSuggestions) {
           setShowSuggestions(true);
@@ -294,7 +286,7 @@ export function TagInput({
         // 移动到下一个选项（循环）
         // 如果当前没有选中（-1），则选择第一个（0）
         setSelectedIndex((prev) => {
-          const nextIndex = prev < 0 ? 0 : (prev < filteredSuggestions.length - 1 ? prev + 1 : 0);
+          const nextIndex = prev < 0 ? 0 : (prev < displayOptions.length - 1 ? prev + 1 : 0);
           // 滚动到可见区域
           setTimeout(() => {
             suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
@@ -307,7 +299,7 @@ export function TagInput({
       }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (filteredSuggestions.length > 0) {
+      if (displayOptions.length > 0) {
         // 如果下拉菜单没有显示，先显示它
         if (!showSuggestions) {
           setShowSuggestions(true);
@@ -315,7 +307,7 @@ export function TagInput({
         }
         // 移动到上一个选项（循环）
         setSelectedIndex((prev) => {
-          const nextIndex = prev > 0 ? prev - 1 : filteredSuggestions.length - 1;
+          const nextIndex = prev > 0 ? prev - 1 : displayOptions.length - 1;
           // 滚动到可见区域
           setTimeout(() => {
             suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
@@ -327,10 +319,10 @@ export function TagInput({
         });
       }
     } else if (e.key === "Enter") {
-      if (selectedIndex >= 0 && selectedIndex < filteredSuggestions.length && showSuggestions) {
+      if (selectedIndex >= 0 && selectedIndex < displayOptions.length && showSuggestions) {
         // 如果有选中的选项，使用选中的选项
         e.preventDefault();
-        handleSelect(filteredSuggestions[selectedIndex]);
+        handleSelect(displayOptions[selectedIndex]);
       } else if (inputValue.trim()) {
         // 否则，使用输入框的值
         const trimmedValue = inputValue.trim();
@@ -342,10 +334,10 @@ export function TagInput({
           addTag(inputValue, matchesSuggestion ? "suggestion" : "input");
         }
       }
-    } else if (e.key === 'Tab' && filteredSuggestions.length > 0 && showSuggestions) {
+    } else if (e.key === 'Tab' && displayOptions.length > 0 && showSuggestions) {
       // Handle Tab key to autocomplete first suggestion
       e.preventDefault();
-      const autocompleteValue = filteredSuggestions[0];
+      const autocompleteValue = displayOptions[0];
       setInputValue(autocompleteValue);
       setShowSuggestions(false);
       setShouldShowDropdown(false);
@@ -473,7 +465,7 @@ export function TagInput({
       </div>
 
       {/* Dropdown suggestions - Portal 化 */}
-      {isPositionReady && (showSuggestions || isAnimating) && filteredSuggestions.length > 0 && createPortal(
+      {isPositionReady && (showSuggestions || isAnimating) && displayOptions.length > 0 && createPortal(
         <div 
           ref={dropdownRef}
           className={`fixed transition-all duration-300 ease-out ${
@@ -504,43 +496,64 @@ export function TagInput({
               }}
             >
               <div className="max-h-[160px] overflow-y-auto py-2">
-                {filteredSuggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    ref={(el) => {
-                      suggestionButtonsRef.current[index] = el;
-                    }}
-                    onClick={() => handleSelect(suggestion)}
-                    className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2"
-                    style={{ 
-                      color: selectedIndex === index ? 'var(--c-action)' : 'var(--c-content)',
-                      fontSize: '0.85rem',
-                      fontWeight: 400,
-                      letterSpacing: '0.01em',
-                      width: 'calc(100% - 1rem)',
-                      background: selectedIndex === index 
-                        ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
-                        : 'transparent'
-                    }}
-                    onMouseEnter={(e) => {
-                      setSelectedIndex(index);
-                      e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
-                      e.currentTarget.style.color = 'var(--c-action)';
-                    }}
-                    onMouseLeave={(e) => {
-                      // 注意：这里不重置selectedIndex，保持键盘导航的状态
-                      // 只有当鼠标悬停时才更新索引，但离开时不重置
-                      e.currentTarget.style.background = selectedIndex === index 
-                        ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
-                        : 'transparent';
-                      e.currentTarget.style.color = selectedIndex === index 
-                        ? 'var(--c-action)' 
-                        : 'var(--c-content)';
-                    }}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+                {displayOptions.map((option, index) => {
+                  // [新增] 判断是否是"创建"选项
+                  // 逻辑：如果这个选项等于输入值，且不在原始建议列表中
+                  const isCreateOption = allowCreation && 
+                                       option === inputValue.trim() && 
+                                       !suggestions.some(s => s.toLowerCase() === option.toLowerCase());
+
+                  return (
+                    <button
+                      key={`${option}-${index}`} // 确保 key 唯一
+                      ref={(el) => {
+                        suggestionButtonsRef.current[index] = el;
+                      }}
+                      onClick={() => handleSelect(option)}
+                      className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2 flex items-center gap-2" // [修改] flex 布局
+                      style={{ 
+                        // [视觉优化] 选中状态样式
+                        color: selectedIndex === index 
+                          ? 'var(--c-action)' 
+                          : (isCreateOption ? 'var(--c-action)' : 'var(--c-content)'), // Create 选项默认高亮文字颜色
+                        fontSize: '0.85rem',
+                        fontWeight: isCreateOption ? 500 : 400, // Create 选项稍微加粗
+                        letterSpacing: '0.01em',
+                        width: 'calc(100% - 1rem)',
+                        background: selectedIndex === index 
+                          ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
+                          : 'transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        setSelectedIndex(index);
+                        e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
+                        e.currentTarget.style.color = 'var(--c-action)';
+                      }}
+                      onMouseLeave={(e) => {
+                        // 注意：这里不重置selectedIndex，保持键盘导航的状态
+                        // 只有当鼠标悬停时才更新索引，但离开时不重置
+                        e.currentTarget.style.background = selectedIndex === index 
+                          ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
+                          : 'transparent';
+                        e.currentTarget.style.color = selectedIndex === index 
+                          ? 'var(--c-action)' 
+                          : (isCreateOption ? 'var(--c-action)' : 'var(--c-content)');
+                      }}
+                    >
+                      {/* [新增] 如果是 Create 选项，渲染 Plus 图标 */}
+                      {isCreateOption && (
+                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[color-mix(in_srgb,var(--c-action)15%,transparent)]">
+                          <Plus className="w-3 h-3" strokeWidth={2.5} />
+                        </div>
+                      )}
+                      
+                      {/* [新增] 文本显示逻辑 */}
+                      <span className="truncate">
+                        {isCreateOption ? `Create "${option}"` : option}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
