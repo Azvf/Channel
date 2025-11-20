@@ -10,6 +10,14 @@
   isolation: isolate;
   border-radius: 1.4em;
   
+  /* [性能优化] 强制提升为合成层 (Compositor Layer) */
+  /* 这会让浏览器将此元素及其模糊效果缓存为纹理，避免每帧重绘 */
+  transform: translate3d(0, 0, 0);
+  
+  /* [性能优化] 告诉浏览器此元素的绘制不会影响外部 */
+  /* 这能显著减少浏览器计算布局和绘制的范围 */
+  contain: paint layout;
+  
   /* [优化] 玻璃基色不透明度从 12% 提高到 15%，增加"实体感" */
   background-color: color-mix(in srgb, var(--c-glass) 15%, transparent); 
   

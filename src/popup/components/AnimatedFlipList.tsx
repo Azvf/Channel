@@ -106,6 +106,12 @@ export function AnimatedFlipList<T>({
                 ...SMOOTH_TRANSITION, // 用于 opacity, y, x, scale
                 layout: LAYOUT_TRANSITION // 用于位置 (layout)
               }}
+              // [性能优化] 强制这一层拥有独立的渲染上下文
+              // 告诉浏览器此元素即将发生几何变化
+              style={{ 
+                transform: 'translate3d(0,0,0)', // 静态时也保持层级
+                willChange: 'transform'          // 动态时提示浏览器
+              }}
             >
               {renderItem(item)}
             </motion.div>
