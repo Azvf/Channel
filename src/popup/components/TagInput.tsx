@@ -1,8 +1,94 @@
-import { useState, useRef, useEffect, KeyboardEvent, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, KeyboardEvent, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tag } from "./Tag";
 import { ChevronDown, Plus } from "lucide-react";
+import { useProgressiveEscape } from "../../hooks/useProgressiveEscape";
+
+// ----------------------------------------------------------------
+// 独立组件: 负责无延迟跟随的下拉菜单容器
+// ----------------------------------------------------------------
+interface StickyDropdownProps {
+  isOpen: boolean;
+  anchorRef: React.RefObject<HTMLElement>;
+  children: React.ReactNode;
+  zIndex?: string;
+}
+
+function StickyDropdown({ isOpen, anchorRef, children, zIndex = "var(--z-dropdown)" }: StickyDropdownProps) {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isMounted, setIsMounted] = useState(isOpen);
+
+  // 处理延迟卸载以播放退出动画 (简单的状态同步)
+  useEffect(() => {
+    if (isOpen) setIsMounted(true);
+    else {
+      const timer = setTimeout(() => setIsMounted(false), 200); // 匹配 CSS duration
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // 核心：高性能定位逻辑
+  const updatePosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    const dropdown = dropdownRef.current;
+    if (!anchor || !dropdown) return;
+
+    const rect = anchor.getBoundingClientRect();
+    // 直接操作 style，避开 React Render Cycle
+    dropdown.style.top = `${rect.bottom + 8}px`; // 8px 间距
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.width = `${rect.width}px`;
+  }, [anchorRef]);
+
+  useLayoutEffect(() => {
+    if (!isMounted) return;
+    
+    // 初始定位
+    updatePosition();
+    
+    // 绑定高频事件 (使用 capture 捕获所有层级的滚动)
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    
+    // 每一帧都校准位置，确保在复杂动画中也能跟住
+    let frameId: number;
+    const loop = () => {
+      updatePosition();
+      frameId = requestAnimationFrame(loop);
+    };
+    frameId = requestAnimationFrame(loop);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+      cancelAnimationFrame(frameId);
+    };
+  }, [isMounted, updatePosition]);
+
+  if (!isMounted) return null;
+
+  return createPortal(
+    <div 
+      ref={dropdownRef}
+      className={`fixed transition-[opacity,transform] duration-200 ease-out ${
+        isOpen 
+          ? 'opacity-100 translate-y-1 scale-100' 
+          : 'opacity-0 translate-y-0 scale-98 pointer-events-none'
+      }`}
+      style={{
+        zIndex: zIndex,
+        transformOrigin: 'top center',
+        // 初始位置设为 -9999 防止第一帧闪烁
+        top: -9999, 
+        left: 0 
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+}
 
 interface TagInputProps {
   tags: string[];
@@ -35,17 +121,11 @@ export function TagInput({
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [shouldShowDropdown, setShouldShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1); // 当前选中的下拉菜单选项索引
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
-  const [isPositionReady, setIsPositionReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]);
   
-  const wasShowingRef = useRef(false);
   const manuallyOpenedRef = useRef(false);
   const isAddingTagRef = useRef(false);
   const inputValueBeforeTagAddRef = useRef<string>("");
@@ -84,36 +164,7 @@ export function TagInput({
   }, [inputValue, suggestions, tags, excludeTags, allowCreation]);
 
   // ----------------------------------------------------------------
-  // 3. 核心优化: 稳健的下拉菜单定位系统
-  // ----------------------------------------------------------------
-  const updateDropdownPosition = useCallback(() => {
-    if (showSuggestions && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const spaceInPx = 8;
-      setDropdownPosition({
-        top: rect.bottom + spaceInPx, // 移除 window.scrollY，因为 fixed 定位是相对于视口的
-        left: rect.left,              // 移除 window.scrollX
-        width: rect.width
-      });
-      setIsPositionReady(true);
-    }
-  }, [showSuggestions]);
-
-  // 监听滚动和调整大小，实时更新位置
-  useEffect(() => {
-    if (showSuggestions) {
-      updateDropdownPosition();
-      window.addEventListener('scroll', updateDropdownPosition, true); // capture=true 以捕获所有滚动
-      window.addEventListener('resize', updateDropdownPosition);
-      return () => {
-        window.removeEventListener('scroll', updateDropdownPosition, true);
-        window.removeEventListener('resize', updateDropdownPosition);
-      };
-    }
-  }, [showSuggestions, updateDropdownPosition]);
-
-  // ----------------------------------------------------------------
-  // 4. 状态管理: 显示/隐藏逻辑
+  // 3. 状态管理: 显示/隐藏逻辑
   // ----------------------------------------------------------------
   useEffect(() => {
     // 处理添加标签后的状态清理
@@ -147,13 +198,14 @@ export function TagInput({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
-      // 检查是否点击了 input、容器、dropdown 或 dropdown 中的按钮
+      // 检查是否点击了容器内部
       const isClickInsideContainer = containerRef.current?.contains(target);
-      const isClickInsideDropdown = dropdownRef.current?.contains(target);
       
-      if (!isClickInsideContainer && !isClickInsideDropdown) {
+      // 检查是否点击了下拉菜单（通过查找包含特定类的元素）
+      const dropdownElement = (target as Element)?.closest('[data-sticky-dropdown]');
+      
+      if (!isClickInsideContainer && !dropdownElement) {
         setShowSuggestions(false);
-        setShouldShowDropdown(false);
         manuallyOpenedRef.current = false;
         setSelectedIndex(-1);
       }
@@ -161,43 +213,6 @@ export function TagInput({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // 动画状态管理
-  useEffect(() => {
-    const element = dropdownRef.current;
-    if (showSuggestions) {
-      setIsAnimating(true);
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setShouldShowDropdown(true);
-          wasShowingRef.current = true;
-        });
-      });
-    } else if (wasShowingRef.current) {
-      setShouldShowDropdown(false);
-      wasShowingRef.current = false;
-      setIsAnimating(true);
-      
-      const handleTransitionEnd = (e: TransitionEvent) => {
-        if (e.target === element && (e.propertyName === 'opacity' || e.propertyName === 'transform')) {
-          setIsAnimating(false);
-        }
-      };
-      // 设置一个安全超时，防止 transitionend 不触发
-      const safetyTimer = setTimeout(() => setIsAnimating(false), 300);
-      
-      if (element) {
-        element.addEventListener('transitionend', handleTransitionEnd);
-        return () => {
-          element.removeEventListener('transitionend', handleTransitionEnd);
-          clearTimeout(safetyTimer);
-        };
-      }
-    } else {
-      setShouldShowDropdown(false);
-      setIsAnimating(false);
-    }
-  }, [showSuggestions]);
 
   // ----------------------------------------------------------------
   // 5. 交互处理: 添加/移除/键盘
@@ -216,7 +231,6 @@ export function TagInput({
       
       setInputValue("");
       setShowSuggestions(false);
-      setShouldShowDropdown(false);
       manuallyOpenedRef.current = false;
       setSelectedIndex(-1);
       inputRef.current?.focus();
@@ -225,7 +239,6 @@ export function TagInput({
         inputValueBeforeTagAddRef.current = inputValue;
         isAddingTagRef.current = true;
         setShowSuggestions(false);
-        setShouldShowDropdown(false);
         manuallyOpenedRef.current = false;
         onTagsChange([...tags, trimmedTag]);
       }
@@ -237,7 +250,33 @@ export function TagInput({
     onTagsChange(tags.filter((_, i) => i !== index));
   };
 
+  // 定义：层级撤销策略
+  const handleEscape = useProgressiveEscape([
+    {
+      id: 'close-dropdown',
+      predicate: () => showSuggestions, // Level 1: 如果菜单开着
+      action: () => {
+        setShowSuggestions(false);
+        manuallyOpenedRef.current = false;
+        setSelectedIndex(-1);
+      }
+    },
+    {
+      id: 'clear-input',
+      predicate: () => inputValue.length > 0, // Level 2: 如果有文字
+      action: () => setInputValue("")
+    }
+    // Level 3: 自动 Fallback 到默认行为
+  ]);
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // 1. 先让 ESC 钩子处理
+    if (e.key === 'Escape') {
+      handleEscape(e);
+      return;
+    }
+
+    // 2. 处理其他按键 (ArrowDown, Enter...)
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!showSuggestions && displayOptions.length > 0) {
@@ -274,15 +313,11 @@ export function TagInput({
       }
     } else if (e.key === "Backspace" && !inputValue && tags.length > 0 && mode === "list") {
       removeTag(tags.length - 1);
-    } else if (e.key === "Escape") {
-      setShowSuggestions(false);
-      setShouldShowDropdown(false);
     }
   };
 
   const handleSelect = (suggestion: string) => {
     setShowSuggestions(false);
-    setShouldShowDropdown(false);
     manuallyOpenedRef.current = false;
     setSelectedIndex(-1);
     addTag(suggestion, "suggestion");
@@ -350,7 +385,6 @@ export function TagInput({
                     const newShowState = !showSuggestions;
                     setShowSuggestions(newShowState);
                     manuallyOpenedRef.current = newShowState;
-                    if (!newShowState) setShouldShowDropdown(false);
                     if (newShowState) inputRef.current?.focus();
                   }}
                   className="p-1.5 rounded-full flex-shrink-0 transition-all ml-auto"
@@ -386,41 +420,38 @@ export function TagInput({
         </div>
       </div>
 
-      {/* Dropdown (Portal) */}
-      {isPositionReady && (showSuggestions || isAnimating) && displayOptions.length > 0 && createPortal(
+      {/* Dropdown (使用 StickyDropdown 组件) */}
+      <StickyDropdown 
+        isOpen={showSuggestions && displayOptions.length > 0} 
+        anchorRef={containerRef}
+        zIndex={dropdownZIndex}
+      >
         <div 
-          ref={dropdownRef}
-          className={`fixed transition-all duration-200 ease-out ${
-            shouldShowDropdown 
-              ? 'opacity-100 translate-y-1' 
-              : 'opacity-0 translate-y-0 pointer-events-none'
-          }`}
+          data-sticky-dropdown
+          className="overflow-hidden border border-[color-mix(in_srgb,var(--c-light)_20%,transparent)] shadow-2xl"
           style={{
-            top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left}px`,
-            width: `${dropdownPosition.width}px`,
-            zIndex: dropdownZIndex
+            backgroundColor: 'color-mix(in srgb, var(--c-bg) 95%, var(--c-glass) 15%)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            borderRadius: '0.85rem',
+            boxShadow: '0 16px 40px -12px rgba(0, 0, 0, 0.2), 0 4px 12px -4px rgba(0, 0, 0, 0.1)'
           }}
         >
-          <div 
-            className="liquidGlass-wrapper shadow-lg"
-            style={{
-              backgroundColor: 'color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 15%)',
-              backdropFilter: 'blur(16px) saturate(var(--saturation))',
-              WebkitBackdropFilter: 'blur(16px) saturate(var(--saturation))',
-              borderRadius: '0.75rem' // 略微优化圆角
-            }}
-          >
-            <div className="liquidGlass-content">
-              <div className="max-h-[200px] overflow-y-auto py-1.5">
-                {displayOptions.map((option, index) => {
-                  const isCreateOption = allowCreation && 
-                                       option === inputValue.trim() && 
-                                       !suggestions.some(s => s.toLowerCase() === option.toLowerCase());
+          <div className="flex flex-col p-1.5">
+            <div 
+              className="max-h-[240px] overflow-y-auto overflow-x-hidden"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
 
-                  return (
+              {displayOptions.map((option, index) => {
+                const isCreateOption = allowCreation && 
+                                     option === inputValue.trim() && 
+                                     !suggestions.some(s => s.toLowerCase() === option.toLowerCase());
+
+                return (
+                  <div key={`${option}-${index}`} className="scrollbar-hide">
                     <button
-                      key={`${option}-${index}`}
                       ref={(el) => { suggestionButtonsRef.current[index] = el; }}
                       onClick={() => handleSelect(option)}
                       className="w-full px-4 py-2 text-left transition-colors flex items-center gap-2"
@@ -446,14 +477,13 @@ export function TagInput({
                         {isCreateOption ? `Create "${option}"` : option}
                       </span>
                     </button>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+        </div>
+      </StickyDropdown>
     </div>
   );
 }
