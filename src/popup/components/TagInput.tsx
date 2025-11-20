@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect, KeyboardEvent, useMemo } from "react";
+import { useState, useRef, useEffect, KeyboardEvent, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tag } from "./Tag";
@@ -43,131 +43,114 @@ export function TagInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]); // 下拉菜单按钮的引用数组
+  const suggestionButtonsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  
   const wasShowingRef = useRef(false);
-  const manuallyOpenedRef = useRef(false); // 跟踪是否是手动展开的
-  const prevInputValueRef = useRef<string>(inputValue); // 跟踪上一次的inputValue
-  const prevTagsLengthRef = useRef<number>(tags.length); // 跟踪上一次的tags长度
-  const isAddingTagRef = useRef(false); // 跟踪是否正在添加tag（用于防止useEffect重新打开menu）
-  const inputValueBeforeTagAddRef = useRef<string>(""); // 在tags增加时保存当时的inputValue
+  const manuallyOpenedRef = useRef(false);
+  const isAddingTagRef = useRef(false);
+  const inputValueBeforeTagAddRef = useRef<string>("");
 
-  // Auto focus on mount if autoFocus is true
+  // ----------------------------------------------------------------
+  // 1. 核心逻辑优化: 自动聚焦
+  // ----------------------------------------------------------------
   useEffect(() => {
-    if (!autoFocus || !inputRef.current) {
-      return;
-    }
-
-    const focusTimer = window.setTimeout(() => {
-      inputRef.current?.focus();
-    }, 100);
-
-    return () => {
-      window.clearTimeout(focusTimer);
-    };
+    if (!autoFocus || !inputRef.current) return;
+    const focusTimer = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(focusTimer);
   }, [autoFocus]);
 
-  // 同步prevTagsLengthRef（当tags从外部更新时，不通过addTag）
-  useEffect(() => {
-    prevTagsLengthRef.current = tags.length;
-  }, [tags.length]);
-
-  // [重构] 使用 useMemo 计算显示列表，而不是 useEffect 设置 state
-  // 这样逻辑更清晰，且能即时响应
+  // ----------------------------------------------------------------
+  // 2. 核心逻辑优化: 建议列表计算 (Memoized)
+  // ----------------------------------------------------------------
   const displayOptions = useMemo(() => {
     const trimmedInput = inputValue.trim();
     const lowerInput = trimmedInput.toLowerCase();
     
-    // 1. 过滤现有的建议
     const matched = suggestions.filter(s => 
       s.toLowerCase().includes(lowerInput) && 
       !tags.includes(s) &&
       !excludeTags.includes(s)
     );
 
-    // 2. 判断是否完全匹配（忽略大小写）
     const exactMatch = suggestions.some(s => s.toLowerCase() === lowerInput);
     const alreadySelected = tags.some(t => t.toLowerCase() === lowerInput);
 
-    // 3. 如果允许创建，且输入不为空，且没有完全匹配，且未被选中 -> 插入"创建"选项
+    // 允许创建新标签的逻辑
     if (allowCreation && trimmedInput && !exactMatch && !alreadySelected) {
-      // 将用户输入作为第一个选项，并标记为特殊类型（我们在渲染时判断）
       return [trimmedInput, ...matched];
     }
 
     return matched;
   }, [inputValue, suggestions, tags, excludeTags, allowCreation]);
 
-  // 动态计算下拉菜单位置
-  useLayoutEffect(() => {
+  // ----------------------------------------------------------------
+  // 3. 核心优化: 稳健的下拉菜单定位系统
+  // ----------------------------------------------------------------
+  const updateDropdownPosition = useCallback(() => {
     if (showSuggestions && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
-      const spaceInPx = 8; // 8px 间距
-
+      const spaceInPx = 8;
       setDropdownPosition({
-        top: rect.bottom + (window.scrollY || 0) + spaceInPx,
-        left: rect.left + (window.scrollX || 0),
+        top: rect.bottom + spaceInPx, // 移除 window.scrollY，因为 fixed 定位是相对于视口的
+        left: rect.left,              // 移除 window.scrollX
         width: rect.width
       });
       setIsPositionReady(true);
-    } else {
-      setIsPositionReady(false);
     }
   }, [showSuggestions]);
 
-  // 注意：高度动画现在由 framer-motion 的 layout 属性自动处理
-
+  // 监听滚动和调整大小，实时更新位置
   useEffect(() => {
-    // 检测是否是添加tag导致的状态变化：
-    // 1. tags长度增加了（已经在单独的useEffect中检测到）
-    // 2. inputValue从有值变为空
+    if (showSuggestions) {
+      updateDropdownPosition();
+      window.addEventListener('scroll', updateDropdownPosition, true); // capture=true 以捕获所有滚动
+      window.addEventListener('resize', updateDropdownPosition);
+      return () => {
+        window.removeEventListener('scroll', updateDropdownPosition, true);
+        window.removeEventListener('resize', updateDropdownPosition);
+      };
+    }
+  }, [showSuggestions, updateDropdownPosition]);
+
+  // ----------------------------------------------------------------
+  // 4. 状态管理: 显示/隐藏逻辑
+  // ----------------------------------------------------------------
+  useEffect(() => {
+    // 处理添加标签后的状态清理
     const inputValueCleared = inputValueBeforeTagAddRef.current.trim() !== "" && inputValue.trim() === "";
-    
     if (isAddingTagRef.current && inputValueCleared) {
-      // 确认是添加tag导致的状态变化，保持menu关闭
-      // 重置标记（已完成添加tag的检测）
       isAddingTagRef.current = false;
       inputValueBeforeTagAddRef.current = "";
-      // 重置选中索引
       setSelectedIndex(-1);
-      // 更新refs后返回
-      prevInputValueRef.current = inputValue;
       return;
     }
 
-    // 如果inputValue有内容，重置所有添加tag相关的标记
     if (inputValue.trim() !== "") {
       isAddingTagRef.current = false;
       inputValueBeforeTagAddRef.current = "";
     }
 
-    // [修改] 监听 displayOptions 而不是 inputValue 来控制显示
+    // 控制显示逻辑
     if (displayOptions.length > 0 && (inputValue || manuallyOpenedRef.current)) {
-      // 只要有选项（无论是建议还是创建），且有输入或手动打开，就显示
-      setShowSuggestions((prev) => {
-        if (!prev && (inputValue || manuallyOpenedRef.current)) {
-          return true;
-        }
+      setShowSuggestions(prev => {
+        if (!prev) return true;
         return prev;
       });
-      // 重置选中项
-      setSelectedIndex(-1);
+      // 仅在之前没有选中项时重置（保留键盘导航状态）
+      if (selectedIndex === -1) setSelectedIndex(-1);
     } else if (displayOptions.length === 0) {
-      // 如果没有选项（既无匹配也无创建），关闭
       setShowSuggestions(false);
     }
+  }, [displayOptions, inputValue, selectedIndex]);
 
-    // 更新refs
-    prevInputValueRef.current = inputValue;
-    prevTagsLengthRef.current = tags.length;
-  }, [displayOptions, inputValue]); // 依赖项调整
-
+  // 点击外部关闭
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
+      // 检查是否点击了 input、容器、dropdown 或 dropdown 中的按钮
       const isClickInsideContainer = containerRef.current?.contains(target);
       const isClickInsideDropdown = dropdownRef.current?.contains(target);
       
-      // 只有当点击既不在容器内也不在下拉菜单内时，才关闭下拉菜单
       if (!isClickInsideContainer && !isClickInsideDropdown) {
         setShowSuggestions(false);
         setShouldShowDropdown(false);
@@ -179,93 +162,73 @@ export function TagInput({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 处理显示和关闭动画
+  // 动画状态管理
   useEffect(() => {
     const element = dropdownRef.current;
-    
     if (showSuggestions) {
-      // 显示时：先设置 isAnimating 为 true 让 dropdown 渲染（此时 shouldShowDropdown 为 false，所以是隐藏状态）
       setIsAnimating(true);
-      // 使用 requestAnimationFrame 确保 DOM 先渲染隐藏状态
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // DOM 已渲染，现在设置为显示状态，触发渐入动画
           setShouldShowDropdown(true);
           wasShowingRef.current = true;
         });
       });
     } else if (wasShowingRef.current) {
-      // 从显示状态变为隐藏：先设置 shouldShowDropdown 为 false 触发渐出动画
       setShouldShowDropdown(false);
       wasShowingRef.current = false;
-      // 保持 isAnimating 为 true 以播放退出动画
       setIsAnimating(true);
-      // 监听动画结束事件
+      
+      const handleTransitionEnd = (e: TransitionEvent) => {
+        if (e.target === element && (e.propertyName === 'opacity' || e.propertyName === 'transform')) {
+          setIsAnimating(false);
+        }
+      };
+      // 设置一个安全超时，防止 transitionend 不触发
+      const safetyTimer = setTimeout(() => setIsAnimating(false), 300);
+      
       if (element) {
-        const handleTransitionEnd = (e: TransitionEvent) => {
-          // 确保是 opacity 或 transform 的过渡结束，避免子元素触发
-          if (e.target === element && (e.propertyName === 'opacity' || e.propertyName === 'transform')) {
-            setIsAnimating(false);
-          }
-        };
         element.addEventListener('transitionend', handleTransitionEnd);
-        return () => element.removeEventListener('transitionend', handleTransitionEnd);
-      } else {
-        // 如果没有元素，说明还没渲染，直接设置为false
-        setIsAnimating(false);
+        return () => {
+          element.removeEventListener('transitionend', handleTransitionEnd);
+          clearTimeout(safetyTimer);
+        };
       }
     } else {
-      // 如果之前没有显示过，直接设置为false
       setShouldShowDropdown(false);
       setIsAnimating(false);
     }
   }, [showSuggestions]);
 
+  // ----------------------------------------------------------------
+  // 5. 交互处理: 添加/移除/键盘
+  // ----------------------------------------------------------------
   const addTag = (tag: string, source: "input" | "suggestion" = "input") => {
     const trimmedTag = tag.trim();
     if (!trimmedTag) return;
 
-    const matchesSuggestion = suggestions.some(
-      (s) => s.toLowerCase() === trimmedTag.toLowerCase()
-    );
+    const matchesSuggestion = suggestions.some(s => s.toLowerCase() === trimmedTag.toLowerCase());
 
-    if (!allowCreation && source === "input" && !matchesSuggestion) {
-      return;
-    }
+    if (!allowCreation && source === "input" && !matchesSuggestion) return;
 
     if (mode === "create") {
-      if (!allowCreation && source === "input" && !matchesSuggestion) {
-        return;
-      }
-      // create模式: 调用onCreateTag回调并清空输入框
-      if (onCreateTag) {
-        onCreateTag(trimmedTag);
-      }
+      if (!allowCreation && source === "input" && !matchesSuggestion) return;
+      if (onCreateTag) onCreateTag(trimmedTag);
+      
       setInputValue("");
-      // 关闭menu状态
       setShowSuggestions(false);
       setShouldShowDropdown(false);
       manuallyOpenedRef.current = false;
       setSelectedIndex(-1);
-      // 保持输入框焦点
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 0);
+      inputRef.current?.focus();
     } else {
-      // list模式: 原有逻辑，在内部创建气泡
       if (!tags.includes(trimmedTag)) {
-        // 先保存当前的inputValue（在清空之前）
         inputValueBeforeTagAddRef.current = inputValue;
-        // 标记正在添加tag
         isAddingTagRef.current = true;
-        // 关闭menu状态
         setShowSuggestions(false);
         setShouldShowDropdown(false);
         manuallyOpenedRef.current = false;
-        // 然后更新tags（这会触发useEffect，但isAddingTagRef已经设置）
         onTagsChange([...tags, trimmedTag]);
       }
-      // 最后清空inputValue（这也会触发useEffect，useEffect会检测到isAddingTagRef并保持menu关闭）
       setInputValue("");
     }
   };
@@ -277,118 +240,72 @@ export function TagInput({
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (displayOptions.length > 0) {
-        // 如果下拉菜单没有显示，先显示它
-        if (!showSuggestions) {
-          setShowSuggestions(true);
-          manuallyOpenedRef.current = false;
-        }
-        // 移动到下一个选项（循环）
-        // 如果当前没有选中（-1），则选择第一个（0）
-        setSelectedIndex((prev) => {
-          const nextIndex = prev < 0 ? 0 : (prev < displayOptions.length - 1 ? prev + 1 : 0);
-          // 滚动到可见区域
-          setTimeout(() => {
-            suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
-              block: 'nearest',
-              behavior: 'smooth'
-            });
-          }, 0);
-          return nextIndex;
-        });
+      if (!showSuggestions && displayOptions.length > 0) {
+        setShowSuggestions(true);
+        manuallyOpenedRef.current = false;
       }
+      setSelectedIndex(prev => {
+        const next = prev < 0 ? 0 : (prev < displayOptions.length - 1 ? prev + 1 : 0);
+        // 确保滚动可见
+        suggestionButtonsRef.current[next]?.scrollIntoView({ block: 'nearest' });
+        return next;
+      });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (displayOptions.length > 0) {
-        // 如果下拉菜单没有显示，先显示它
-        if (!showSuggestions) {
-          setShowSuggestions(true);
-          manuallyOpenedRef.current = false;
-        }
-        // 移动到上一个选项（循环）
-        setSelectedIndex((prev) => {
-          const nextIndex = prev > 0 ? prev - 1 : displayOptions.length - 1;
-          // 滚动到可见区域
-          setTimeout(() => {
-            suggestionButtonsRef.current[nextIndex]?.scrollIntoView({
-              block: 'nearest',
-              behavior: 'smooth'
-            });
-          }, 0);
-          return nextIndex;
-        });
+      if (!showSuggestions && displayOptions.length > 0) {
+        setShowSuggestions(true);
+        manuallyOpenedRef.current = false;
       }
+      setSelectedIndex(prev => {
+        const next = prev > 0 ? prev - 1 : displayOptions.length - 1;
+        suggestionButtonsRef.current[next]?.scrollIntoView({ block: 'nearest' });
+        return next;
+      });
     } else if (e.key === "Enter") {
+      e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < displayOptions.length && showSuggestions) {
-        // 如果有选中的选项，使用选中的选项
-        e.preventDefault();
         handleSelect(displayOptions[selectedIndex]);
       } else if (inputValue.trim()) {
-        // 否则，使用输入框的值
         const trimmedValue = inputValue.trim();
-        const matchesSuggestion = suggestions.some(
-          (s) => s.toLowerCase() === trimmedValue.toLowerCase()
-        );
+        const matchesSuggestion = suggestions.some(s => s.toLowerCase() === trimmedValue.toLowerCase());
         if (allowCreation || matchesSuggestion) {
-          e.preventDefault();
           addTag(inputValue, matchesSuggestion ? "suggestion" : "input");
         }
       }
-    } else if (e.key === 'Tab' && displayOptions.length > 0 && showSuggestions) {
-      // Handle Tab key to autocomplete first suggestion
-      e.preventDefault();
-      const autocompleteValue = displayOptions[0];
-      setInputValue(autocompleteValue);
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0 && mode === "list") {
+      removeTag(tags.length - 1);
+    } else if (e.key === "Escape") {
       setShowSuggestions(false);
       setShouldShowDropdown(false);
-      manuallyOpenedRef.current = false;
-      setSelectedIndex(-1);
-      // 设置光标位置到文本末尾并保持焦点
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          inputRef.current.setSelectionRange(autocompleteValue.length, autocompleteValue.length);
-        }
-      }, 0);
-    } else if (e.key === "Backspace" && !inputValue && tags.length > 0 && mode === "list") {
-      // 只在list模式下支持Backspace删除标签
-      e.preventDefault();
-      removeTag(tags.length - 1);
-    } else {
-      // 其他按键输入时，重置选中索引
-      setSelectedIndex(-1);
     }
   };
 
   const handleSelect = (suggestion: string) => {
-    // 先关闭menu状态
     setShowSuggestions(false);
     setShouldShowDropdown(false);
     manuallyOpenedRef.current = false;
-    // 重置选中索引
     setSelectedIndex(-1);
-    // 然后添加tag（addTag会按正确顺序更新状态，useEffect会检测到是添加tag并保持menu关闭）
     addTag(suggestion, "suggestion");
     inputRef.current?.focus();
   };
 
+  // ----------------------------------------------------------------
+  // 6. 渲染
+  // ----------------------------------------------------------------
   return (
     <div ref={containerRef} className={`relative ${className}`}>
-      {/* Input container with glass effect */}
+      {/* 保持原有的 Glass Wrapper 结构 */}
       <div className="liquidGlass-wrapper relative">
-        {/* Content layer */}
         <div className="liquidGlass-content">
           <motion.div 
             className="min-h-[2.6rem]"
-            style={{
-              backfaceVisibility: 'hidden',
-              overflow: 'hidden' // 保持裁切
-            }}
+            style={{ backfaceVisibility: 'hidden', overflow: 'hidden' }}
           >
-            {/* 创建新的内部 flex 容器 */}
             <div
-              className="flex flex-wrap gap-2 items-center px-4 py-2" // 将所有 flex 和 padding 样式移到这里
-              style={{ height: 'auto' }} // 确保内部容器高度始终自动
+              className="flex flex-wrap gap-2 items-center px-4 py-2 cursor-text"
+              style={{ height: 'auto' }}
+              // 优化：点击容器任意位置聚焦输入框
+              onClick={() => inputRef.current?.focus()}
             >
               {/* 只在list模式下显示标签气泡 */}
               <AnimatePresence mode="popLayout">
@@ -408,7 +325,6 @@ export function TagInput({
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => {
-                  // 只有当输入框有内容时才自动显示下拉菜单
                   if (suggestions.length > 0 && inputValue.trim() && !isAddingTagRef.current && !disabled) {
                     setShowSuggestions(true);
                     manuallyOpenedRef.current = false;
@@ -416,7 +332,8 @@ export function TagInput({
                 }}
                 placeholder={tags.length === 0 ? placeholder : ""}
                 disabled={disabled}
-                className="flex-1 min-w-[140px] bg-transparent outline-none"
+                // 优化：减小 min-width，使输入体验更流畅
+                className="flex-1 min-w-[60px] bg-transparent outline-none"
                 style={{ 
                   color: 'var(--color-text-primary)',
                   font: 'var(--font-body)',
@@ -426,37 +343,42 @@ export function TagInput({
                 }}
               />
               
-              {/* Dropdown indicator */}
               {suggestions.length > 0 && (
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation(); // 防止触发容器的 focus
                     const newShowState = !showSuggestions;
                     setShowSuggestions(newShowState);
-                    manuallyOpenedRef.current = newShowState; // 手动点击按钮展开/关闭
-                    if (!newShowState) {
-                      // 关闭时重置状态
-                      setShouldShowDropdown(false);
-                    }
+                    manuallyOpenedRef.current = newShowState;
+                    if (!newShowState) setShouldShowDropdown(false);
+                    if (newShowState) inputRef.current?.focus();
                   }}
                   className="p-1.5 rounded-full flex-shrink-0 transition-all ml-auto"
                   style={{ 
-                    color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+                    color: showSuggestions ? 'var(--c-action)' : 'color-mix(in srgb, var(--c-content) 60%, transparent)',
                     background: showSuggestions ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' : 'transparent'
                   }}
+                  // 保留原有的 hover 样式逻辑
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--c-action)';
                     if (!showSuggestions) {
+                      e.currentTarget.style.color = 'var(--c-action)';
                       e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 60%, transparent)';
                     if (!showSuggestions) {
+                      e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 60%, transparent)';
                       e.currentTarget.style.background = 'transparent';
                     }
                   }}
+                  tabIndex={-1}
                 >
-                  <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
+                  <motion.div
+                    animate={{ rotate: showSuggestions ? 180 : 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
+                  </motion.div>
                 </button>
               )}
             </div>
@@ -464,14 +386,14 @@ export function TagInput({
         </div>
       </div>
 
-      {/* Dropdown suggestions - Portal 化 */}
+      {/* Dropdown (Portal) */}
       {isPositionReady && (showSuggestions || isAnimating) && displayOptions.length > 0 && createPortal(
         <div 
           ref={dropdownRef}
-          className={`fixed transition-all duration-300 ease-out ${
+          className={`fixed transition-all duration-200 ease-out ${
             shouldShowDropdown 
-              ? 'opacity-100 translate-y-0' 
-              : 'opacity-0 -translate-y-2 pointer-events-none'
+              ? 'opacity-100 translate-y-1' 
+              : 'opacity-0 translate-y-0 pointer-events-none'
           }`}
           style={{
             top: `${dropdownPosition.top}px`,
@@ -481,73 +403,45 @@ export function TagInput({
           }}
         >
           <div 
-            className="liquidGlass-wrapper"
+            className="liquidGlass-wrapper shadow-lg"
             style={{
               backgroundColor: 'color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 15%)',
               backdropFilter: 'blur(16px) saturate(var(--saturation))',
-              WebkitBackdropFilter: 'blur(16px) saturate(var(--saturation))'
+              WebkitBackdropFilter: 'blur(16px) saturate(var(--saturation))',
+              borderRadius: '0.75rem' // 略微优化圆角
             }}
           >
-            {/* Content layer */}
-            <div 
-              className="liquidGlass-content"
-              style={{
-                backgroundColor: 'color-mix(in srgb, var(--c-bg) 60%, transparent)'
-              }}
-            >
-              <div className="max-h-[160px] overflow-y-auto py-2">
+            <div className="liquidGlass-content">
+              <div className="max-h-[200px] overflow-y-auto py-1.5">
                 {displayOptions.map((option, index) => {
-                  // [新增] 判断是否是"创建"选项
-                  // 逻辑：如果这个选项等于输入值，且不在原始建议列表中
                   const isCreateOption = allowCreation && 
                                        option === inputValue.trim() && 
                                        !suggestions.some(s => s.toLowerCase() === option.toLowerCase());
 
                   return (
                     <button
-                      key={`${option}-${index}`} // 确保 key 唯一
-                      ref={(el) => {
-                        suggestionButtonsRef.current[index] = el;
-                      }}
+                      key={`${option}-${index}`}
+                      ref={(el) => { suggestionButtonsRef.current[index] = el; }}
                       onClick={() => handleSelect(option)}
-                      className="w-full px-5 py-2.5 text-left transition-all rounded-lg mx-2 flex items-center gap-2" // [修改] flex 布局
+                      className="w-full px-4 py-2 text-left transition-colors flex items-center gap-2"
                       style={{ 
-                        // [视觉优化] 选中状态样式
                         color: selectedIndex === index 
                           ? 'var(--c-action)' 
-                          : (isCreateOption ? 'var(--c-action)' : 'var(--c-content)'), // Create 选项默认高亮文字颜色
+                          : (isCreateOption ? 'var(--c-action)' : 'var(--c-content)'),
                         fontSize: '0.85rem',
-                        fontWeight: isCreateOption ? 500 : 400, // Create 选项稍微加粗
+                        fontWeight: isCreateOption ? 500 : 400,
                         letterSpacing: '0.01em',
-                        width: 'calc(100% - 1rem)',
                         background: selectedIndex === index 
-                          ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
+                          ? 'color-mix(in srgb, var(--c-glass) 15%, transparent)' 
                           : 'transparent'
                       }}
-                      onMouseEnter={(e) => {
-                        setSelectedIndex(index);
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 20%, transparent)';
-                        e.currentTarget.style.color = 'var(--c-action)';
-                      }}
-                      onMouseLeave={(e) => {
-                        // 注意：这里不重置selectedIndex，保持键盘导航的状态
-                        // 只有当鼠标悬停时才更新索引，但离开时不重置
-                        e.currentTarget.style.background = selectedIndex === index 
-                          ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' 
-                          : 'transparent';
-                        e.currentTarget.style.color = selectedIndex === index 
-                          ? 'var(--c-action)' 
-                          : (isCreateOption ? 'var(--c-action)' : 'var(--c-content)');
-                      }}
+                      onMouseEnter={() => setSelectedIndex(index)}
                     >
-                      {/* [新增] 如果是 Create 选项，渲染 Plus 图标 */}
                       {isCreateOption && (
                         <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[color-mix(in_srgb,var(--c-action)15%,transparent)]">
                           <Plus className="w-3 h-3" strokeWidth={2.5} />
                         </div>
                       )}
-                      
-                      {/* [新增] 文本显示逻辑 */}
                       <span className="truncate">
                         {isCreateOption ? `Create "${option}"` : option}
                       </span>
