@@ -1,0 +1,25 @@
+/* ========================================
+   LAYER 4: TOOLTIPS COMPONENT
+   Frost Tooltip System
+   ======================================== */
+
+/* 通用样式类 (供非 React 场景使用) */
+.frost-tooltip-content {
+  background-color: var(--tooltip-bg);
+  border: var(--tooltip-border);
+  border-radius: var(--tooltip-radius);
+  box-shadow: var(--tooltip-shadow);
+  color: var(--tooltip-text-color);
+  font-size: var(--tooltip-font-size);
+  font-weight: var(--tooltip-font-weight);
+  line-height: var(--tooltip-line-height);
+  letter-spacing: var(--tooltip-letter-spacing);
+  padding: var(--tooltip-padding);
+  backdrop-filter: blur(8px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  z-index: var(--z-tooltip-layer);
+}
+

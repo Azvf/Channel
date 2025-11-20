@@ -1,0 +1,424 @@
+/* ========================================
+   LAYER 4: SWITCHERS COMPONENT
+   Theme Switcher & Tab Switcher
+   ======================================== */
+
+/* ========================================
+   THEME SWITCHER
+   ======================================== */
+
+.theme-switcher-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: var(--z-system-layer);
+  transform-origin: bottom right;
+}
+
+body[data-edit-dialog-open] .theme-switcher-container {
+  display: none;
+}
+
+.theme-switcher-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: var(--z-system-layer);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-base) var(--ease-smooth);
+  will-change: opacity;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-backdrop {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.theme-switcher-expanded {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  overflow: hidden;
+  z-index: calc(var(--z-system-layer) + 1);
+  transform-origin: bottom right;
+  will-change: width, height, padding, transform;
+  transition: width var(--transition-base) var(--ease-smooth),
+              height var(--transition-base) var(--ease-smooth),
+              padding var(--transition-base) var(--ease-smooth),
+              transform var(--transition-fast) var(--ease-smooth);
+  margin: 0;
+}
+
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded {
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border-radius: 99em;
+  cursor: pointer;
+  transform: scale(1);
+  justify-content: center;
+  gap: 0;
+  transition: width var(--transition-base) var(--ease-smooth),
+              height var(--transition-base) var(--ease-smooth),
+              padding var(--transition-base) var(--ease-smooth),
+              transform var(--transition-fast) var(--ease-smooth),
+              gap var(--transition-base) var(--ease-smooth),
+              justify-content var(--transition-base);
+}
+
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded:hover {
+  transform: scale(1.1);
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded {
+  --switcher-icon-width: 3.4rem;
+  --switcher-gap: 0.4rem;
+  --switcher-padding-h: 0.6rem;
+  --switcher-padding-v: 0.4rem;
+  width: calc(
+    (var(--switcher-icon-width) * 3) +
+    (var(--switcher-gap) * 2) +
+    (var(--switcher-padding-h) * 2)
+  );
+  height: 3.5rem;
+  padding: var(--switcher-padding-v) var(--switcher-padding-h) 0.5rem;
+  border-radius: 99em;
+  cursor: default;
+  transform: scale(1);
+}
+
+/* Base switcher styles */
+.switcher {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--switcher-gap, 0.4rem);
+  width: calc(
+    (var(--switcher-icon-width, 3.4rem) * 3) +
+    (var(--switcher-gap, 0.4rem) * 2) +
+    (var(--switcher-padding-h, 0.6rem) * 2)
+  );
+  max-width: calc(
+    (var(--switcher-icon-width, 3.4rem) * 3) +
+    (var(--switcher-gap, 0.4rem) * 2) +
+    (var(--switcher-padding-h, 0.6rem) * 2)
+  );
+  height: 3.5rem;
+  box-sizing: border-box;
+  padding: var(--switcher-padding-v, 0.4rem)
+           var(--switcher-padding-h, 0.6rem)
+           0.5rem;
+  margin: 0 auto;
+  border: none;
+  border-radius: 99em;
+  background-color: color-mix(in srgb, var(--c-glass) 12%, transparent);
+  backdrop-filter: blur(8px) url(#switcher) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+  box-shadow: 
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
+    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
+    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
+    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+  transition: background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+}
+
+.switcher__legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  clip-path: inset(100%);
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+}
+
+.switcher__input {
+  clip: rect(0 0 0 0);
+  clip-path: inset(100%);
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
+.switcher__icon {
+  display: block;
+  width: 100%;
+  transition: color var(--transition-fast) var(--ease-smooth),
+              scale var(--transition-fast) var(--ease-smooth);
+}
+
+.switcher__filter {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: -1;
+}
+
+.switcher__option {
+  --c: var(--c-content);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 99em;
+  z-index: var(--z-content);
+  position: relative;
+  transition: width var(--transition-base) var(--ease-smooth), 
+              opacity var(--transition-fast) var(--ease-smooth),
+              transform var(--transition-base) var(--ease-smooth);
+  will-change: width, opacity, transform;
+}
+
+.theme-switcher-container .theme-switcher-expanded .switcher__option:hover {
+  --c: var(--c-action);
+  cursor: pointer;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option:hover .switcher__icon {
+  scale: 1.2;
+}
+
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:hover .switcher__icon {
+  scale: 1.15;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded .switcher__option {
+  width: var(--switcher-icon-width);
+  height: 100%;
+  padding: 0 0.8rem;
+  opacity: 1;
+  transform: translateX(0);
+  transition-delay: 100ms;
+}
+
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option {
+  width: 0;
+  height: 3rem;
+  padding: 0;
+  opacity: 0;
+  transform: translateX(100%);
+  transition-duration: 200ms;
+  transition-delay: 0ms;
+}
+
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:has(input:checked) {
+  width: 3rem;
+  height: 3rem;
+  opacity: 1;
+  transform: translateX(0);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  transition-delay: 0ms;
+  transition: width var(--transition-base) var(--ease-smooth),
+              transform var(--transition-base) var(--ease-smooth),
+              opacity 0ms;
+}
+
+.switcher__option:has(input:checked) {
+  --c: var(--c-content);
+  cursor: auto;
+}
+
+.switcher__option:has(input:checked) .switcher__icon {
+  scale: 1;
+}
+
+.switcher::after {
+  content: '';
+  position: absolute;
+  display: block;
+  border-radius: 99em;
+  background-color: color-mix(in srgb, var(--c-glass) 36%, transparent);
+  z-index: var(--z-base);
+  backdrop-filter: blur(8px) url(#switcher) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+  box-shadow: 
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
+    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
+    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+    0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+  transition: width var(--transition-base) var(--ease-smooth),
+              height var(--transition-base) var(--ease-smooth),
+              translate var(--transition-slow) var(--ease-smooth),
+              opacity var(--transition-fast) var(--ease-smooth),
+              backdrop-filter var(--transition-slow) var(--ease-glass);
+  will-change: width, height, translate, opacity;
+}
+
+.theme-switcher-container[data-expanded="false"] .theme-switcher-expanded::after {
+  width: 3rem;
+  height: 3rem;
+  left: 0;
+  top: 0;
+  translate: 0 0;
+  border-radius: 99em;
+  opacity: 0;
+  visibility: hidden;
+  transition-delay: 0ms;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded::after {
+  width: calc(var(--switcher-icon-width) + 0.8rem);
+  height: calc(100% - 0.5rem);
+  left: 0.2rem;
+  top: 0.2rem;
+  border-radius: 99em;
+  opacity: 1;
+  visibility: visible;
+  translate: 11rem 0;
+  transition-delay: 100ms;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="1"]:checked)::after {
+  translate: 0 0;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="2"]:checked)::after {
+  translate: calc(var(--switcher-icon-width) + var(--switcher-gap)) 0;
+}
+
+.theme-switcher-container[data-expanded="true"] .theme-switcher-expanded:has(input[data-option="3"]:checked)::after {
+  translate: calc((var(--switcher-icon-width) + var(--switcher-gap)) * 2) 0;
+}
+
+/* ========================================
+   TAB SWITCHER
+   ======================================== */
+
+.tab-switcher {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  height: 3.25rem;
+  padding: 0.4rem 0.4rem 0.4rem;
+  backdrop-filter: blur(8px) url(#tab-switcher) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+}
+
+.tab-switcher .switcher__option {
+  flex: 1;
+  padding: 0 1.5rem;
+}
+
+.tab-switcher .switcher__option,
+.tab-switcher .switcher__icon-wrapper,
+.tab-switcher .switcher__label {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.tab-switcher .switcher__icon-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.tab-switcher .switcher__icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  transition: color var(--transition-fast) var(--ease-smooth),
+              scale var(--transition-fast) var(--ease-smooth);
+}
+
+.tab-switcher .switcher__option:hover:not(:has(input:checked)) {
+  --c: var(--c-action);
+  cursor: pointer;
+}
+
+.tab-switcher .switcher__option:hover:not(:has(input:checked)) .switcher__icon {
+  scale: 1.15;
+}
+
+.tab-switcher .switcher__option:hover:not(:has(input:checked)) .switcher__label {
+  color: var(--c-action);
+}
+
+.tab-switcher .switcher__label {
+  transition: color var(--transition-fast);
+  pointer-events: none;
+}
+
+.tab-switcher::after {
+  content: '';
+  position: absolute;
+  display: block;
+  width: calc((100% - 0.8rem) / 2);
+  left: 0.4rem;
+  top: 0.4rem;
+  height: calc(100% - 0.8rem);
+  border-radius: 99em;
+  background-color: color-mix(in srgb, var(--c-glass) 18%, transparent);
+  z-index: -1;
+  box-sizing: border-box;
+  box-shadow: 
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 15%), transparent),
+    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent), 
+    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
+    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 70%), transparent),
+    inset 1px -2px 2px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 40%), transparent),
+    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
+    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 4%), transparent), 
+    0px 2px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 3%), transparent),
+    0px 1px 2px 0px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
+  transition: left var(--transition-slow) var(--ease-smooth),
+              translate var(--transition-slow) var(--ease-smooth),
+              background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+  will-change: left, translate;
+}
+
+.tab-switcher:has(input[data-option="1"]:checked)::after,
+.tab-switcher:has(input[data-option="2"]:checked)::after {
+  width: calc((100% - 0.8rem) / 2);
+  translate: 0 0;
+  transition: left var(--transition-slow) var(--ease-smooth),
+              width var(--transition-slow) var(--ease-smooth),
+              translate var(--transition-slow) var(--ease-smooth),
+              background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+}
+
+.tab-switcher:has(input[data-option="1"]:checked)::after {
+  left: 0.4rem;
+  transform-origin: right;
+}
+
+.tab-switcher:has(input[data-option="2"]:checked)::after {
+  left: calc((100% - 0.8rem) / 2 + 0.4rem);
+  transform-origin: left;
+}
+
+.tab-switcher[data-previous="1"]:has(input[data-option="2"]:checked)::after {
+  transform-origin: left;
+}
+
+.tab-switcher[data-previous="2"]:has(input[data-option="1"]:checked)::after {
+  transform-origin: right;
+}
+

@@ -1,0 +1,134 @@
+/* ========================================
+   LAYER 3: UTILITY CLASSES
+   Reusable utilities, animations, hover systems
+   ======================================== */
+
+/* 防止选中文本 - 可复用类 */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* 可复用的过渡动画 */
+.transition-smooth {
+  transition: color var(--transition-fast) var(--ease-smooth),
+              scale var(--transition-fast) var(--ease-smooth);
+}
+
+.transition-glass {
+  transition: background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+}
+
+/* 隐藏滚动条但保持滚动功能 */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* UX 微调建议 */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* 悬停显现滚动条 */
+.hover-scroll {
+  overflow-y: overlay;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.scroll-container:hover::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb-idle);
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+/* Fade in animation for tags */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Tag animation classes */
+.tag-enter {
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* ========================================
+   HOVER UTILITY SYSTEM
+   ======================================== */
+
+/* 规则 A: "选中" (Glass)
+   用于 SettingsRow, TagRow 等容器
+*/
+.hover-glass {
+  background-color: transparent;
+  border-color: transparent;
+  transition: background-color var(--transition-fast) var(--ease-smooth),
+              border-color var(--transition-fast) var(--ease-smooth);
+}
+
+.hover-glass:hover {
+  background-color: var(--hover-bg-glass) !important;
+}
+
+/* 规则 B: "行动" (Action)
+   用于按钮、图标、菜单项
+*/
+.hover-action {
+  background-color: transparent;
+  color: var(--c-content);
+  transition: background-color var(--transition-fast) var(--ease-smooth),
+              color var(--transition-fast) var(--ease-smooth);
+}
+
+.hover-action:hover {
+  background-color: var(--hover-bg-action) !important;
+  color: var(--hover-color-action) !important;
+}
+
+.hover-action:hover svg {
+  color: var(--hover-color-action) !important;
+}
+
+/* 规则 C: "毁灭性行动" (Destructive)
+   用于所有非 GlassButton 的删除按钮
+*/
+.hover-destructive {
+  background-color: transparent;
+  color: color-mix(in srgb, var(--c-content) 60%, transparent);
+  transition: background-color var(--transition-fast) var(--ease-smooth),
+              color var(--transition-fast) var(--ease-smooth);
+}
+
+.hover-destructive:hover {
+  background-color: var(--hover-bg-action) !important;
+  color: var(--hover-color-destructive) !important;
+}
+
+.hover-destructive:hover svg {
+  color: var(--hover-color-destructive) !important;
+}
+

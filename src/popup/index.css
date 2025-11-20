@@ -1,4 +1,23 @@
-@import './globals.css';
+/* ========================================
+   ITCSS ARCHITECTURE - Entry Point
+   ======================================== */
+
+/* Layer 1: Design Tokens & Variables */
+@import './styles/tokens.css';
+
+/* Layer 2: Base Styles */
+@import './styles/base.css';
+
+/* Layer 3: Utility Classes */
+@import './styles/utilities.css';
+
+/* Layer 4: Components */
+@import './styles/components/glass.css';
+@import './styles/components/buttons.css';
+@import './styles/components/switchers.css';
+@import './styles/components/calendar.css';
+@import './styles/components/tooltips.css';
+@import './styles/components/modals.css';
 
 @tailwind base;
 @tailwind components;
@@ -22,11 +41,10 @@ html, body {
   max-height: 560px;
   /* 确保 body 不滚动，由内部的 div 滚动 */
   overflow-y: hidden;
-  /* 覆盖 globals.css 中的 overflow-y: scroll */
   overflow-x: hidden;
 }
 
-/* 覆盖 globals.css 中 html 的 overflow-y: scroll */
+/* 覆盖 base.css 中 html 的 overflow-y: scroll */
 html {
   overflow-y: hidden !important;
 }

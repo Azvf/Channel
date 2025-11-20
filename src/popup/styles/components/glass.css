@@ -1,0 +1,61 @@
+/* ========================================
+   LAYER 4: GLASS COMPONENT
+   Premium Glass Effect Styles
+   ======================================== */
+
+.liquidGlass-wrapper {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.4em;
+  
+  /* [优化] 玻璃基色不透明度从 12% 提高到 15%，增加"实体感" */
+  background-color: color-mix(in srgb, var(--c-glass) 15%, transparent); 
+  
+  /* [优化] 模糊半径从 8px 增加到 12px，更有深度；饱和度使用新变量 */
+  backdrop-filter: blur(12px) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(12px) saturate(var(--saturation));
+  
+  /* [优化] 调整阴影以匹配新的反射变量 */
+  box-shadow: 
+    inset 0 0 0 1.5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 15%), transparent),
+    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 70%), transparent), 
+    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
+    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 40%), transparent), 
+    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent),
+    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
+    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
+    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 5%), transparent);
+  
+  transition: background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
+}
+
+.liquidGlass-content {
+  position: relative;
+  z-index: var(--z-content);
+  width: 100%;
+}
+
+/* 当 wrapper 是 flex 容器时，content 也应该支持 flex 布局 */
+.liquidGlass-wrapper.flex .liquidGlass-content,
+.liquidGlass-wrapper.flex-col .liquidGlass-content {
+  display: flex;
+  height: 100%;
+}
+
+.liquidGlass-wrapper.flex-col .liquidGlass-content {
+  flex-direction: column;
+}
+
+/* SVG Filter for Glass Distortion */
+.glass-filter {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: -1;
+}
+
