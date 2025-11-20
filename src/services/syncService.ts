@@ -5,6 +5,7 @@ import { storageService, STORAGE_KEYS } from './storageService';
 import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
 import { logger } from './logger';
 import { mergeDataStrategy } from '../logic/DataMergeStrategy';
+import { SupabaseQueryBuilder } from '../logic/SupabaseQueryBuilder';
 
 const log = logger('SyncService');
 
@@ -304,16 +305,11 @@ export class SyncService {
     pages: PageCollection;
   }> {
     try {
-      // A. 构建基础查询
-      let tagsQuery = supabase.from('tags').select('*').eq('user_id', userId);
-      let pagesQuery = supabase.from('pages').select('*').eq('user_id', userId);
+      // 使用 Query Builder 构建查询
+      const tagsQuery = SupabaseQueryBuilder.buildFetchQuery(supabase, 'tags', userId, sinceTimestamp);
+      const pagesQuery = SupabaseQueryBuilder.buildFetchQuery(supabase, 'pages', userId, sinceTimestamp);
 
-      // B. 应用增量过滤 (如果不是首次同步)
       if (sinceTimestamp > 0) {
-        // 转化为 bigint (毫秒)，直接比较
-        tagsQuery = tagsQuery.gt('updated_at', sinceTimestamp);
-        pagesQuery = pagesQuery.gt('updated_at', sinceTimestamp);
-        
         log.info('执行增量拉取', { since: new Date(sinceTimestamp).toISOString() });
       } else {
         log.info('执行全量拉取 (首次同步或重置)');

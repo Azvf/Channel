@@ -67,6 +67,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ✅ 修复：创建防抖的刷新函数，防止惊群效应
+  const debouncedRefresh = useMemo(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    return {
+      call: () => {
+        // 清除之前的定时器
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        // 设置新的定时器
+        timeoutId = setTimeout(() => {
+          console.log('[AppContext] 执行防抖后的静默刷新');
+          loadAllData(true).catch((err) => {
+            console.error("Failed to refresh app context data:", err);
+          });
+          timeoutId = null;
+        }, 300); // 300ms 延迟，合并短时间内的多次变更
+      },
+      cancel: () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      }
+    };
+  }, [loadAllData]);
+
   useEffect(() => {
     // 1. 初始加载 (非静默)
     loadAllData(false).catch((err) => {
@@ -90,14 +119,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const pagesChanged = changes[STORAGE_KEYS.PAGES] !== undefined;
 
       if (tagsChanged || pagesChanged) {
-        console.log('[AppContext] 检测到数据变化，静默刷新 UI', {
-          tagsChanged,
-          pagesChanged,
-        });
-        // 关键：这里使用静默刷新，避免 UI 闪烁
-        loadAllData(true).catch((err) => {
-          console.error("Failed to refresh app context data:", err);
-        });
+        // ✅ 修复：使用防抖函数触发刷新，防止惊群效应
+        debouncedRefresh.call();
       }
     };
 
@@ -105,12 +128,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
       chrome.storage.onChanged.addListener(handleStorageChange as any);
 
-      // 清理函数：组件卸载时移除监听器
+      // 清理函数：组件卸载时移除监听器并取消挂起的防抖任务
       return () => {
         chrome.storage.onChanged.removeListener(handleStorageChange as any);
+        // ✅ 关键：组件卸载时取消挂起的防抖任务
+        debouncedRefresh.cancel();
       };
     }
-  }, [loadAllData]);
+  }, [loadAllData, debouncedRefresh]);
 
   const contextValue = useMemo<AppState>(
     () => ({

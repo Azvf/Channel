@@ -91,6 +91,17 @@ export class StatsWallManager {
   public generateEmptyCalendar(): CalendarLayoutInfo {
     return this.gridBuilder.build(new Map(), new Map());
   }
+
+  /**
+   * [Test Only] 重置单例状态
+   * 用于测试环境，确保测试间状态隔离
+   */
+  public resetForTests(): void {
+    this.cache = null;
+    this.lastFetchTime = 0;
+    // 如果 strategy 也是有状态的，也需要重置
+    this.strategy = new LinearHeatmapStrategy();
+  }
 }
 
 export const statsWallManager = StatsWallManager.getInstance();

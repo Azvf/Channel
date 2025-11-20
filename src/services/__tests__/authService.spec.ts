@@ -40,6 +40,7 @@ describe('AuthService 状态流转测试', () => {
 
   afterEach(async () => {
     await testHelpers.clearAllData();
+    authService.resetForTests(); // 必须显式重置内存状态，避免测试间状态污染
     jest.clearAllMocks();
   });
 

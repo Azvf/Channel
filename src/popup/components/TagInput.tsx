@@ -44,25 +44,34 @@ function StickyDropdown({ isOpen, anchorRef, children, zIndex = "var(--z-dropdow
   useLayoutEffect(() => {
     if (!isMounted) return;
     
-    // 初始定位
+    // 1. 立即定位 (防止首帧错位)
     updatePosition();
     
-    // 绑定高频事件 (使用 capture 捕获所有层级的滚动)
+    // 2. 绑定事件 (增强版)
+    // 某些测试环境或复杂布局下，scroll 事件可能只冒泡到 document 而非 window
     window.addEventListener('scroll', updatePosition, true);
     window.addEventListener('resize', updatePosition);
+    // ✅ 修复：增加对 document 的滚动监听，作为双重保障
+    document.addEventListener('scroll', updatePosition, true);
     
-    // 每一帧都校准位置，确保在复杂动画中也能跟住
-    let frameId: number;
+    // 3. 启动 rAF 循环
+    // ✅ 修复：使用 Ref 追踪最新的 frameId，确保 cleanup 能拿到正确的值
+    const frameRef = { id: 0 };
     const loop = () => {
       updatePosition();
-      frameId = requestAnimationFrame(loop);
+      frameRef.id = requestAnimationFrame(loop);
     };
-    frameId = requestAnimationFrame(loop);
+    
+    // 启动循环
+    frameRef.id = requestAnimationFrame(loop);
 
     return () => {
       window.removeEventListener('scroll', updatePosition, true);
       window.removeEventListener('resize', updatePosition);
-      cancelAnimationFrame(frameId);
+      // ✅ 修复：清理 document 滚动监听
+      document.removeEventListener('scroll', updatePosition, true);
+      // ✅ 总是取消最新的帧，防止资源泄漏
+      cancelAnimationFrame(frameRef.id);
     };
   }, [isMounted, updatePosition]);
 
@@ -129,6 +138,7 @@ export function TagInput({
   const manuallyOpenedRef = useRef(false);
   const isAddingTagRef = useRef(false);
   const inputValueBeforeTagAddRef = useRef<string>("");
+  const manuallyClosedRef = useRef(false); // ✅ 修复：标记菜单是否被手动关闭（如 ESC）
 
   // ----------------------------------------------------------------
   // 1. 核心逻辑优化: 自动聚焦
@@ -182,6 +192,13 @@ export function TagInput({
     }
 
     // 控制显示逻辑
+    // ✅ 修复：如果菜单被手动关闭（如 ESC），不要自动重新打开
+    // 只有当用户继续输入时（onChange 会清除 manuallyClosedRef），才允许重新打开
+    if (manuallyClosedRef.current) {
+      // 输入值未改变，保持关闭状态（防止 useEffect 自动重新打开）
+      return;
+    }
+    
     if (displayOptions.length > 0 && (inputValue || manuallyOpenedRef.current)) {
       setShowSuggestions(prev => {
         if (!prev) return true;
@@ -192,7 +209,9 @@ export function TagInput({
     } else if (displayOptions.length === 0) {
       setShowSuggestions(false);
     }
-  }, [displayOptions, inputValue, selectedIndex]);
+    // ✅ 修复：从依赖数组中移除 selectedIndex，防止 ESC 逻辑死循环
+    // 当按下 ESC 时，setSelectedIndex(-1) 不应该触发此 effect 重新执行
+  }, [displayOptions, inputValue]);
 
   // 点击外部关闭
   useEffect(() => {
@@ -258,6 +277,7 @@ export function TagInput({
       action: () => {
         setShowSuggestions(false);
         manuallyOpenedRef.current = false;
+        manuallyClosedRef.current = true; // ✅ 修复：标记菜单被手动关闭
         setSelectedIndex(-1);
       }
     },
@@ -357,10 +377,34 @@ export function TagInput({
                 ref={inputRef}
                 type="text"
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e) => {
+                  // ✅ 修复：输入时清除手动关闭标记，允许菜单重新打开
+                  if (manuallyClosedRef.current && e.target.value !== inputValue) {
+                    manuallyClosedRef.current = false;
+                  }
+                  setInputValue(e.target.value);
+                }}
                 onKeyDown={handleKeyDown}
+                onClick={() => {
+                  // ✅ 修复：点击时，意味着用户有明确意图，可以重置手动关闭标记
+                  manuallyClosedRef.current = false;
+                  if (suggestions.length > 0 && inputValue.trim()) {
+                    setShowSuggestions(true);
+                    manuallyOpenedRef.current = false;
+                  }
+                }}
                 onFocus={() => {
-                  if (suggestions.length > 0 && inputValue.trim() && !isAddingTagRef.current && !disabled) {
+                  // 🚨 修复：增加 !manuallyClosedRef.current 检查
+                  // 防止 ESC 关闭后，因焦点事件导致的意外重开
+                  if (
+                    suggestions.length > 0 && 
+                    inputValue.trim() && 
+                    !isAddingTagRef.current && 
+                    !disabled && 
+                    !manuallyClosedRef.current // <--- 新增此条件
+                  ) {
+                    // 注意：这里不再重置 manuallyClosedRef，
+                    // 只有用户输入(onChange)或点击(onClick)时才重置它
                     setShowSuggestions(true);
                     manuallyOpenedRef.current = false;
                   }

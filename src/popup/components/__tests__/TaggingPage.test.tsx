@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { AppProvider } from '../../context/AppContext';
 import { TaggingPage } from '../TaggingPage';
 import { currentPageService } from '../../../services/popup/currentPageService';
+import { cacheService } from '../../../services/cacheService';
 
 jest.mock('../../../services/popup/currentPageService');
 
@@ -41,8 +42,12 @@ const renderPage = async () => {
 };
 
 describe('TaggingPage (with Context)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    
+    // 清除单例缓存，确保每个测试都是冷启动
+    // 防止 useCachedResource 从内存缓存中读取旧数据，导致测试间状态污染
+    await cacheService.clear();
 
     mockedPageService.getAllTags.mockResolvedValue(MOCK_TAGS);
     mockedPageService.getAllTaggedPages.mockResolvedValue([]);

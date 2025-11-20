@@ -429,7 +429,12 @@ export class TagManager {
     this.tags = {};
     this.pages = {};
     this._isInitialized = false; // 重置初始化状态，允许重新初始化
-    this.notifyListeners(); // 通知 UI
+    
+    // ✅ 修复：强制断开所有订阅，防止测试间污染和监听器泄漏
+    this.listeners.clear();
+    
+    // 注意：清空后再 notify 也没有意义了，因为没有 listener 了
+    // 如果业务需要通知"数据被清空"，应该在 clear 之前 notify，或者设计专门的 reset 事件
   }
 
   public getDataStats(): { tagsCount: number; pagesCount: number } {

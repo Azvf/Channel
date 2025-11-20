@@ -41,9 +41,13 @@ describe('StorageService', () => {
 
   it('should warn and fallback when chrome.storage.sync is missing', async () => {
     const originalSync = (global as any).chrome.storage.sync;
+    const originalWarn = console.warn;
+    
+    console.warn = jest.fn();
     (global as any).chrome.storage.sync = undefined;
 
-    const service = StorageService.create('sync');
+    // 使用 forceWarn 选项强制显示警告
+    const service = StorageService.create('sync', true);
 
     await service.set('sync_key', 'value');
 
@@ -52,7 +56,9 @@ describe('StorageService', () => {
       '[StorageService] chrome.storage.sync not available, falling back to localStorage',
     );
 
+    // 恢复
     (global as any).chrome.storage.sync = originalSync;
+    console.warn = originalWarn;
   });
 
   it('should handle getMultiple returning nulls when keys missing', async () => {

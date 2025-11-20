@@ -1,9 +1,8 @@
 // Injected Script
 // 在页面上下文中直接执行的脚本，可以访问页面的全局变量
 
-
-// 创建一个全局对象来与content script通信
-(window as any).edgeExtension = {
+// ✅ 修复：使用局部常量，不暴露给全局 window，防止全局污染
+const InjectedUtils = {
     version: '1.0.0',
     
     // 获取页面信息
@@ -99,10 +98,11 @@ window.addEventListener('message', (event) => {
         
         switch (action) {
             case 'getPageInfo':
+                // ✅ 直接调用局部对象，不通过 window
                 event.source.postMessage({
                     type: 'EDGE_EXTENSION_RESPONSE',
                     action: 'getPageInfo',
-                    data: (window as any).edgeExtension.getPageInfo()
+                    data: InjectedUtils.getPageInfo()
                 }, '*');
                 break;
                 
@@ -110,7 +110,7 @@ window.addEventListener('message', (event) => {
                 event.source.postMessage({
                     type: 'EDGE_EXTENSION_RESPONSE',
                     action: 'highlightLinks',
-                    data: (window as any).edgeExtension.highlightLinks()
+                    data: InjectedUtils.highlightLinks()
                 }, '*');
                 break;
                 
@@ -118,7 +118,7 @@ window.addEventListener('message', (event) => {
                 event.source.postMessage({
                     type: 'EDGE_EXTENSION_RESPONSE',
                     action: 'addWatermark',
-                    data: (window as any).edgeExtension.addWatermark(data)
+                    data: InjectedUtils.addWatermark(data)
                 }, '*');
                 break;
         }

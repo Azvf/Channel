@@ -66,14 +66,21 @@ export const testHelpers = {
     const tagManager = TagManager.getInstance();
     tagManager.clearAllData();
     await tagManager.syncToStorage();
+    
+    // ✅ 修复：清理 StatsWallManager 的单例缓存，防止测试间状态污染
+    const { statsWallManager } = await import('../services/StatsWallManager');
+    statsWallManager.resetForTests();
   },
 
   /**
    * 初始化 TagManager
+   * 确保完全重置状态，包括清空所有数据和重置初始化标志
    */
   async initTagManager(): Promise<TagManager> {
     const tagManager = TagManager.getInstance();
-    // (重构) 使用空数据同步调用 initialize
+    // 先清空所有数据（重置初始化状态）
+    tagManager.clearAllData();
+    // 然后使用空数据重新初始化
     tagManager.initialize({ tags: {}, pages: {} });
     return tagManager;
   },

@@ -24,24 +24,25 @@ class CurrentPageService {
       throw new Error('Chrome runtime API 不可用');
     }
 
-    // 创建超时 Promise
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`消息超时（${timeoutMs}ms），Service Worker 可能未运行。请尝试重新加载扩展。`));
-      }, timeoutMs);
-    });
-
-    // 发送消息 Promise
-    const messagePromise = new Promise<MessageResponse<T>>((resolve, reject) => {
+    return new Promise<MessageResponse<T>>((resolve, reject) => {
       let responded = false;
       
-      // 设置一个安全网：如果回调在超时前没有被调用，我们也会 reject
+      // 1. 创建超时定时器（必须保存 timer ID 以便清除）
+      const timeoutTimer = setTimeout(() => {
+        if (!responded) {
+          responded = true;
+          reject(new Error(`消息超时（${timeoutMs}ms），Service Worker 可能未运行。请尝试重新加载扩展。`));
+        }
+      }, timeoutMs);
+
+      // 2. 设置一个安全网：如果回调在超时前没有被调用，我们也会 reject
       const safetyTimeout = setTimeout(() => {
         if (!responded) {
           responded = true;
+          clearTimeout(timeoutTimer); // 清除超时定时器
           reject(new Error('消息回调未执行，Service Worker 可能未响应'));
         }
-      }, timeoutMs + 100); // 比 timeoutPromise 稍晚一点
+      }, timeoutMs + 100); // 比 timeoutTimer 稍晚一点
 
       try {
         chrome.runtime.sendMessage(message, (response) => {
@@ -50,6 +51,9 @@ class CurrentPageService {
             return;
           }
           responded = true;
+          
+          // 3. 收到响应立即清除所有定时器（防止资源泄漏）
+          clearTimeout(timeoutTimer);
           clearTimeout(safetyTimeout);
 
           // 检查 chrome.runtime.lastError（可能表示 Service Worker 未运行）
@@ -83,14 +87,13 @@ class CurrentPageService {
       } catch (error) {
         if (!responded) {
           responded = true;
+          // 清除所有定时器
+          clearTimeout(timeoutTimer);
           clearTimeout(safetyTimeout);
           reject(error instanceof Error ? error : new Error(String(error)));
         }
       }
     });
-
-    // 使用 Promise.race 实现超时
-    return Promise.race([messagePromise, timeoutPromise]);
   }
 
   /**

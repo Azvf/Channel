@@ -47,7 +47,15 @@ describe('useCachedResource', () => {
     expect(result.current.isLoading).toBe(true);
     expect(result.current.data).toBeNull();
 
-    await waitFor(() => expect(result.current.data).toBe('New Data'));
+    await waitFor(() => {
+      expect(result.current.data).toBe('New Data');
+    });
+    
+    // 使用 act 确保状态更新完成
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -87,11 +95,18 @@ describe('useCachedResource', () => {
       onError
     }));
 
-    await waitFor(() => expect(result.current.error).not.toBeNull());
+    await waitFor(() => {
+      expect(result.current.error).not.toBeNull();
+    });
     
+    // 使用 act 确保状态更新完成
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.error?.message).toBe('Network error');
-    expect(result.current.isLoading).toBe(false);
     expect(onError).toHaveBeenCalledWith(error);
   });
 
@@ -184,7 +199,10 @@ describe('useCachedResource', () => {
       timestamp: Date.now()
     });
 
-    const fetcher = jest.fn<() => Promise<string>>().mockResolvedValue('Fresh Data');
+    // 让 fetcher 延迟执行，确保存储缓存恢复先完成
+    const fetcher = jest.fn<() => Promise<string>>().mockImplementation(() => 
+      new Promise(resolve => setTimeout(() => resolve('Fresh Data'), 50))
+    );
     const { result } = renderHook(() => useCachedResource({
       key: 'test-key',
       fetcher

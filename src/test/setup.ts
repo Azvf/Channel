@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { beforeEach } from '@jest/globals';
 import dotenv from 'dotenv';
 import { resolve } from 'path';
 
@@ -186,4 +187,31 @@ global.console = {
 // Note: This is a workaround for Jest not supporting import.meta
 // The actual mocking is done via __mocks__ directory for supabase.ts
 // Files that import supabase.ts should mock it using jest.mock() before importing
+
+// ✅ 修复：Mock ResizeObserver（JSDOM 不支持 ResizeObserver）
+global.ResizeObserver = class ResizeObserver {
+  observe() {
+    // no-op
+  }
+  unobserve() {
+    // no-op
+  }
+  disconnect() {
+    // no-op
+  }
+} as any;
+
+// ✅ 修复：全局 beforeEach 自动清理 Storage Mock，防止测试间状态污染
+// 确保每个测试用例都拥有干净的 Storage 环境
+beforeEach(async () => {
+  // 清理模拟的 local 和 sync storage
+  await mockLocalStorage.clear();
+  await mockSyncStorage.clear();
+  
+  // 清理 jsdom 的 localStorage
+  localStorage.clear();
+  
+  // 清除所有 mocks 的调用记录
+  jest.clearAllMocks();
+});
 

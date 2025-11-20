@@ -207,10 +207,22 @@ class AuthService {
       // 使用超时包装，防止网络请求挂起（特别是在测试环境中）
       try {
         const signOutPromise = supabase.auth.signOut();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Sign out timeout')), 10000)
-        );
-        await Promise.race([signOutPromise, timeoutPromise]);
+        let timeoutTimer: NodeJS.Timeout | null = null;
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutTimer = setTimeout(() => {
+            reject(new Error('Sign out timeout'));
+          }, 10000);
+        });
+        
+        try {
+          await Promise.race([signOutPromise, timeoutPromise]);
+        } finally {
+          // 清除超时定时器，防止资源泄漏
+          if (timeoutTimer) {
+            clearTimeout(timeoutTimer);
+          }
+        }
       } catch (error) {
         // 如果超时或失败，仍然继续清理本地数据
         log.warn('Supabase sign out failed or timeout, but continuing with local cleanup', { error });
@@ -242,6 +254,15 @@ class AuthService {
     return () => {
       this.listeners.delete(listener);
     };
+  }
+
+  /**
+   * [Test Only] 重置服务状态
+   * 用于测试环境，确保测试间状态隔离
+   */
+  public resetForTests(): void {
+    this.state = ANONYMOUS_STATE;
+    this.listeners.clear();
   }
 
   // --- Helpers ---

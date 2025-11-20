@@ -134,5 +134,70 @@ describe('CalendarGridBuilder', () => {
     const nov1 = new Date(2023, 10, 1); // 月份从0开始
     expect(firstDate.getTime()).toBeLessThanOrEqual(nov1.getTime() + 7 * 24 * 60 * 60 * 1000);
   });
+
+  describe('CalendarGridBuilder (Boundary Cases)', () => {
+    it('闰年处理: 应该正确处理 2月29日', () => {
+      // 2024年是闰年
+      const data = new Map([['2024-02-29', 5]]);
+      const layout = builder.build(data, new Map());
+      
+      const cell = layout.cells.find(c => {
+        const year = c.date.getFullYear();
+        const month = String(c.date.getMonth() + 1).padStart(2, '0');
+        const day = String(c.date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}` === '2024-02-29';
+      });
+      
+      expect(cell).toBeDefined();
+      expect(cell?.count).toBe(5);
+    });
+
+    it('跨年处理: 网格应连续跨越年份边界', () => {
+      const data = new Map([
+        ['2023-12-31', 1],
+        ['2024-01-01', 1]
+      ]);
+      const layout = builder.build(data, new Map());
+
+      // 验证两个日期都在 cells 中
+      const cellDec31 = layout.cells.find(c => {
+        const year = c.date.getFullYear();
+        const month = String(c.date.getMonth() + 1).padStart(2, '0');
+        const day = String(c.date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}` === '2023-12-31';
+      });
+      
+      const cellJan01 = layout.cells.find(c => {
+        const year = c.date.getFullYear();
+        const month = String(c.date.getMonth() + 1).padStart(2, '0');
+        const day = String(c.date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}` === '2024-01-01';
+      });
+      
+      expect(cellDec31).toBeDefined();
+      expect(cellJan01).toBeDefined();
+      
+      // 验证它们在数组中的索引是相邻的 (因为它们是连续的两天)
+      const index1 = layout.cells.indexOf(cellDec31!);
+      const index2 = layout.cells.indexOf(cellJan01!);
+      expect(index2).toBe(index1 + 1);
+    });
+
+    it('对齐策略: 起始日期必须回溯到所在周的周日', () => {
+      // 2023-11-01 是周三
+      const data = new Map([['2023-11-01', 1]]);
+      const layout = builder.build(data, new Map());
+      
+      const firstCell = layout.cells[0];
+      // 11-01 (Wed) -> 所在周周日是 10-29
+      expect(firstCell.date.getDay()).toBe(0); // 0 = Sunday
+      
+      // 验证 ID 是否正确回溯
+      // 注意：这里假设 dateStringFormatter 是 'MMM D' 格式，或者我们检查 date 对象
+      const firstDateStr = `${firstCell.date.getFullYear()}-${String(firstCell.date.getMonth() + 1).padStart(2, '0')}-${String(firstCell.date.getDate()).padStart(2, '0')}`;
+      // 应该是 2023-10-29 (10月29日，周日)
+      expect(firstDateStr).toMatch(/2023-10-29/);
+    });
+  });
 });
 

@@ -215,11 +215,21 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
               .select('id')
               .limit(0);
             
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('查询超时')), 5000)
-            );
+            let timeoutTimer: NodeJS.Timeout | null = null;
+            const timeoutPromise = new Promise((_, reject) => {
+              timeoutTimer = setTimeout(() => {
+                reject(new Error('查询超时'));
+              }, 5000);
+            });
             
-            await Promise.race([queryPromise, timeoutPromise]);
+            try {
+              await Promise.race([queryPromise, timeoutPromise]);
+            } finally {
+              // 清除超时定时器，防止资源泄漏
+              if (timeoutTimer) {
+                clearTimeout(timeoutTimer);
+              }
+            }
           } catch {
             // 查询失败或超时，不影响测试通过（配置已验证正确）
           }

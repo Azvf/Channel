@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 // Mock supabase before importing messageHandler (which may import supabase)
 jest.mock('../../lib/supabase', () => require('../../lib/__mocks__/supabase'));
 
-import { messageHandler } from '../../background/messageHandler';
+import { handleMessageAsync } from '../../background/messageHandler';
 
 // Mock chrome APIs
 global.chrome = {
@@ -59,24 +59,13 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
 
     const sendResponse = jest.fn();
 
-    // 需要确保初始化完成
-    // 由于 messageHandler 内部有异步初始化逻辑，我们需要等待
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // ✅ 确定性测试：直接 await 异步处理函数
+    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
 
-    // 调用 messageHandler
-    messageHandler(message, { tab: { id: 1 } } as any, sendResponse);
-
-    // 等待异步操作完成
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // 验证 executeScript 被调用，且 allFrames: true
+    // 不需要 setTimeout，执行到这里意味着逻辑已完成
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
     const callArgs = (chrome.scripting.executeScript as any).mock.calls[0][0];
     expect(callArgs.target.allFrames).toBe(true);
-
-    // 注意：由于 messageHandler 的复杂性和依赖，
-    // 这里主要验证 executeScript 的调用方式
-    // 实际的 URL 处理逻辑需要更多的 mock 设置
   });
 
   it('应该处理无视频的情况', async () => {
@@ -94,11 +83,8 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
 
     const sendResponse = jest.fn();
 
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    messageHandler(message, { tab: { id: 1 } } as any, sendResponse);
-
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // ✅ 确定性测试：直接 await 异步处理函数
+    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
 
     // 验证 executeScript 被调用
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
@@ -119,11 +105,8 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
 
     const sendResponse = jest.fn();
 
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    messageHandler(message, { tab: { id: 1 } } as any, sendResponse);
-
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // ✅ 确定性测试：直接 await 异步处理函数
+    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
 
     // 验证 executeScript 被调用，且 allFrames: true
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
@@ -141,15 +124,13 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
 
     const sendResponse = jest.fn();
 
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    messageHandler(message, { tab: { id: 1 } } as any, sendResponse);
-
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // ✅ 确定性测试：直接 await 异步处理函数
+    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
 
     // 验证 executeScript 被调用
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
     // 验证错误被处理（不应该抛出未捕获的错误）
+    expect(sendResponse).toHaveBeenCalled();
   });
 });
 

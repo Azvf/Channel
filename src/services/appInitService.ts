@@ -70,16 +70,8 @@ export async function loadAppInitialState(): Promise<AppInitialState> {
  */
 export function loadAppInitialStateSync(): AppInitialState {
   try {
-    const cacheFailFlag = localStorage.getItem('SYNC_CACHE_LAST_FAIL');
-
-    if (cacheFailFlag) {
-      console.warn(
-        `[AppInitService] 同步缓存 (localStorage) 被标记为失败（最后一次写入失败）。`,
-        `正在回退到默认状态，等待异步加载。`
-      );
-
-      return DEFAULT_APP_STATE;
-    }
+    // ✅ 修复：移除对已废弃的 SYNC_CACHE_LAST_FAIL 标志的检查
+    // 因为 syncToLocalStorage 已被移除，这个标志不再被使用
 
     // 尝试从 localStorage 同步读取（用于 popup 环境）
     const activeTab = localStorage.getItem(STORAGE_KEYS.ACTIVE_TAB);

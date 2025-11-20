@@ -98,85 +98,99 @@ async function getPageSettings(): Promise<PageSettings> {
   return currentPageSettings;
 }
 
+/**
+ * 核心异步消息处理逻辑（可等待）
+ * 提取为独立函数，便于测试
+ */
+export const handleMessageAsync = async (
+  message: RuntimeMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: MessageResponse) => void,
+): Promise<void> => {
+  try {
+    await getInitializationPromise();
+
+    switch (message.action) {
+      case 'getTabInfo':
+        await handleGetTabInfo(sender.tab?.id, sendResponse);
+        break;
+      case 'changePageColor':
+        await handleChangePageColor(sender.tab?.id, sendResponse);
+        break;
+      case 'showNotification':
+        await handleShowNotification(sendResponse);
+        break;
+
+      case 'getCurrentPage':
+        await handleGetCurrentPage(sendResponse);
+        break;
+      case 'getAllTags':
+        await handleGetAllTags(sendResponse);
+        break;
+      case 'getAllTaggedPages':
+        await handleGetAllTaggedPages(sendResponse);
+        break;
+      case 'createTag':
+        await handleCreateTag(message.data, sendResponse);
+        break;
+      case 'addTagToPage':
+        await handleAddTagToPage(message.data, sendResponse);
+        break;
+      case 'createTagAndAddToPage':
+        await handleCreateTagAndAddToPage(message.data, sendResponse);
+        break;
+      case 'removeTagFromPage':
+        await handleRemoveTagFromPage(message.data, sendResponse);
+        break;
+      case 'updatePageTags':
+        await handleUpdatePageTags(message.data, sendResponse);
+        break;
+      case 'updatePageTitle':
+        await handleUpdatePageTitle(message.data, sendResponse);
+        break;
+      case 'updatePageDetails':
+        await handleUpdatePageDetails(message.data, sendResponse);
+        break;
+      case 'getUserStats':
+        await handleGetUserStats(sendResponse);
+        break;
+      case 'exportData':
+        await handleExportData(sendResponse);
+        break;
+      case 'importData':
+        await handleImportData(message.data, sendResponse);
+        break;
+      case 'updateTag':
+        await handleUpdateTag(message.data, sendResponse);
+        break;
+      case 'deleteTag':
+        await handleDeleteTag(message.data, sendResponse);
+        break;
+      case 'getAllTagUsageCounts':
+        await handleGetAllTagUsageCounts(sendResponse);
+        break;
+      default:
+        sendResponse({ success: false, error: '未知操作' });
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Background: 处理器执行失败 (可能由于初始化失败):', errorMessage);
+    sendResponse({ success: false, error: `Background 处理器失败: ${errorMessage}` });
+  }
+};
+
+/**
+ * Chrome Extension 消息处理器（包装器）
+ * 触发异步处理，不等待，保持 channel 开放
+ */
 export const messageHandler = (
   message: RuntimeMessage,
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: MessageResponse) => void,
 ): boolean => {
-  (async () => {
-    try {
-      await getInitializationPromise();
-
-      switch (message.action) {
-        case 'getTabInfo':
-          await handleGetTabInfo(sender.tab?.id, sendResponse);
-          break;
-        case 'changePageColor':
-          await handleChangePageColor(sender.tab?.id, sendResponse);
-          break;
-        case 'showNotification':
-          await handleShowNotification(sendResponse);
-          break;
-
-        case 'getCurrentPage':
-          await handleGetCurrentPage(sendResponse);
-          break;
-        case 'getAllTags':
-          await handleGetAllTags(sendResponse);
-          break;
-        case 'getAllTaggedPages':
-          await handleGetAllTaggedPages(sendResponse);
-          break;
-        case 'createTag':
-          await handleCreateTag(message.data, sendResponse);
-          break;
-        case 'addTagToPage':
-          await handleAddTagToPage(message.data, sendResponse);
-          break;
-        case 'createTagAndAddToPage':
-          await handleCreateTagAndAddToPage(message.data, sendResponse);
-          break;
-        case 'removeTagFromPage':
-          await handleRemoveTagFromPage(message.data, sendResponse);
-          break;
-        case 'updatePageTags':
-          await handleUpdatePageTags(message.data, sendResponse);
-          break;
-        case 'updatePageTitle':
-          await handleUpdatePageTitle(message.data, sendResponse);
-          break;
-        case 'updatePageDetails':
-          await handleUpdatePageDetails(message.data, sendResponse);
-          break;
-        case 'getUserStats':
-          await handleGetUserStats(sendResponse);
-          break;
-        case 'exportData':
-          await handleExportData(sendResponse);
-          break;
-        case 'importData':
-          await handleImportData(message.data, sendResponse);
-          break;
-        case 'updateTag':
-          await handleUpdateTag(message.data, sendResponse);
-          break;
-        case 'deleteTag':
-          await handleDeleteTag(message.data, sendResponse);
-          break;
-        case 'getAllTagUsageCounts':
-          await handleGetAllTagUsageCounts(sendResponse);
-          break;
-        default:
-          sendResponse({ success: false, error: '未知操作' });
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Background: 处理器执行失败 (可能由于初始化失败):', errorMessage);
-      sendResponse({ success: false, error: `Background 处理器失败: ${errorMessage}` });
-    }
-  })();
-
-  return true;
+  // 触发异步处理，不等待
+  handleMessageAsync(message, sender, sendResponse);
+  return true; // 保持 channel 开放
 };
 
 async function handleGetTabInfo(

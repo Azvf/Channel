@@ -119,6 +119,9 @@ beforeEach(() => {
     message: any,
     callback?: (response: any) => void,
   ) => {
+    // 使用 process.nextTick 或直接执行，配合 fake timers 控制异步
+    // 这里我们可以模拟一个 promise 的微任务延迟，或者直接由 runAllTimers 控制
+    // 简单的做法是直接放入 Jest 的 timer 队列
     setTimeout(() => {
       messageHandler(
         message,
@@ -129,7 +132,7 @@ beforeEach(() => {
           }
         },
       );
-    }, 0);
+    }, 0); 
   };
 
   resetInitializationForTests();
@@ -142,16 +145,46 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-describe('IPC 桥集成测试', () => {
+describe('IPC 桥集成测试 (Deterministic)', () => {
+  // 辅助函数：只执行短时间的 timers（IPC 消息处理），不触发超时 timer
+  // 策略：先执行所有 0ms 的 timers（IPC 消息处理），然后清除所有长时间的超时 timer
+  const runIPCTimers = () => {
+    // 获取所有挂起的 timers
+    const timerCount = jest.getTimerCount();
+    
+    if (timerCount > 0) {
+      // 只推进 1ms，这样只会执行 0ms 的 setTimeout（IPC 消息处理）
+      // 不会执行 10000ms 的超时 timer
+      try {
+        jest.advanceTimersByTime(1);
+      } catch (error) {
+        // 如果超时 timer 被触发，说明消息处理未完成
+        // 这种情况下，我们需要等待消息处理完成
+        // 但由于我们使用的是 fake timers，消息处理应该已经完成
+        // 所以这个错误不应该发生
+        console.warn('Timer advance failed:', error);
+      }
+    }
+  };
+
   it('应该完整测试：创建标签 -> 保存 -> 重新获取', async () => {
+    // 触发异步操作
     const pagePromise = currentPageService.getCurrentPage();
     
-    // 立即执行所有挂起的 timers (模拟 background 消息处理的延迟)
-    jest.runAllTimers();
+    // "快进"时间，强制执行所有挂起的 timers (包括 messageHandler 里的 setTimeout)
+    runIPCTimers();
     
+    // 等待 Promise 解决（微任务队列）
     const page = await pagePromise;
+    expect(page).toBeDefined();
 
-    const createdTag = await currentPageService.createTagAndAddToPage('New Tag', page.id);
+    // 继续测试流程...
+    const tagPromise = currentPageService.createTagAndAddToPage('New Tag', page.id);
+    
+    // 再次快进时间处理 IPC 消息
+    runIPCTimers();
+    
+    const createdTag = await tagPromise;
 
     expect(memoryStorage[STORAGE_KEYS.TAGS]).toBeDefined();
     const storedTags = Object.values(memoryStorage[STORAGE_KEYS.TAGS]) as any[];
@@ -163,19 +196,25 @@ describe('IPC 桥集成测试', () => {
     expect(storedPage).toBeDefined();
     expect(storedPage.tags).toContain(createdTag.id);
 
-    const allTags = await currentPageService.getAllTags();
+    const allTagsPromise = currentPageService.getAllTags();
+    runIPCTimers();
+    const allTags = await allTagsPromise;
     expect(allTags).toHaveLength(1);
     expect(allTags[0].name).toBe('New Tag');
   });
 
   it('应该完整测试：事务性更新 (EditPageDialog)', async () => {
-    const page = await currentPageService.getCurrentPage();
+    const pagePromise = currentPageService.getCurrentPage();
+    runIPCTimers();
+    const page = await pagePromise;
 
-    await currentPageService.updatePageDetails(page.id, {
+    const updatePromise = currentPageService.updatePageDetails(page.id, {
       title: 'New Title',
       tagsToAdd: ['Tag A'],
       tagsToRemove: [],
     });
+    runIPCTimers();
+    await updatePromise;
 
     expect(memoryStorage[STORAGE_KEYS.PAGES]).toBeDefined();
     const storedPage = memoryStorage[STORAGE_KEYS.PAGES][page.id];
@@ -193,32 +232,44 @@ describe('IPC 桥集成测试', () => {
   });
 
   it('应该完整测试：删除标签并同步页面引用', async () => {
-    const page = await currentPageService.getCurrentPage();
+    const pagePromise = currentPageService.getCurrentPage();
+    runIPCTimers();
+    const page = await pagePromise;
 
-    const tag = await currentPageService.createTagAndAddToPage('ToDelete', page.id);
+    const tagPromise = currentPageService.createTagAndAddToPage('ToDelete', page.id);
+    runIPCTimers();
+    const tag = await tagPromise;
 
     expect(memoryStorage[STORAGE_KEYS.TAGS]).toBeDefined();
     expect(memoryStorage[STORAGE_KEYS.PAGES]).toBeDefined();
     expect(memoryStorage[STORAGE_KEYS.TAGS][tag.id]).toBeDefined();
     expect(memoryStorage[STORAGE_KEYS.PAGES][page.id].tags).toContain(tag.id);
 
-    await currentPageService.deleteTag(tag.id);
+    const deletePromise = currentPageService.deleteTag(tag.id);
+    runIPCTimers();
+    await deletePromise;
 
     expect(memoryStorage[STORAGE_KEYS.TAGS]).toBeDefined();
     expect(memoryStorage[STORAGE_KEYS.TAGS][tag.id]).toBeUndefined();
     expect(memoryStorage[STORAGE_KEYS.PAGES][page.id].tags).not.toContain(tag.id);
 
-    const allTags = await currentPageService.getAllTags();
+    const allTagsPromise = currentPageService.getAllTags();
+    runIPCTimers();
+    const allTags = await allTagsPromise;
     expect(allTags).toHaveLength(0);
   });
 
   it('应该完整测试：批量更新页面标签', async () => {
-    const page = await currentPageService.getCurrentPage();
+    const pagePromise = currentPageService.getCurrentPage();
+    runIPCTimers();
+    const page = await pagePromise;
 
-    const updateResult = await currentPageService.updatePageTags(page.id, {
+    const updatePromise = currentPageService.updatePageTags(page.id, {
       tagsToAdd: ['Bulk Tag 1', 'Bulk Tag 2'],
       tagsToRemove: [],
     });
+    runIPCTimers();
+    const updateResult = await updatePromise;
 
     expect(updateResult.newPage.tags).toHaveLength(2);
 
@@ -232,22 +283,32 @@ describe('IPC 桥集成测试', () => {
     ) as { id: string; name: string };
     expect(tagToRemove).toBeDefined();
 
-    const removeResult = await currentPageService.updatePageTags(page.id, {
+    const removePromise = currentPageService.updatePageTags(page.id, {
       tagsToAdd: [],
       tagsToRemove: ['Bulk Tag 1'],
     });
+    runIPCTimers();
+    const removeResult = await removePromise;
 
     expect(removeResult.newPage.tags).toHaveLength(1);
     expect(memoryStorage[STORAGE_KEYS.PAGES][page.id].tags).not.toContain(tagToRemove.id);
   });
 
   it('应该更新标签名称并同步存储', async () => {
-    const page = await currentPageService.getCurrentPage();
-    const originalTag = await currentPageService.createTagAndAddToPage('Old Name', page.id);
+    const pagePromise = currentPageService.getCurrentPage();
+    runIPCTimers();
+    const page = await pagePromise;
+    
+    const tagPromise = currentPageService.createTagAndAddToPage('Old Name', page.id);
+    runIPCTimers();
+    const originalTag = await tagPromise;
+    
     const tagManagerInstance = TagManager.getInstance();
     const updateSpy = jest.spyOn(tagManagerInstance, 'updateTagName');
 
-    await currentPageService.updateTag(originalTag.id, 'New Name');
+    const updatePromise = currentPageService.updateTag(originalTag.id, 'New Name');
+    runIPCTimers();
+    await updatePromise;
 
     expect(updateSpy).toHaveBeenCalledWith(originalTag.id, 'New Name');
     const storedTag = memoryStorage[STORAGE_KEYS.TAGS][originalTag.id];
@@ -257,14 +318,20 @@ describe('IPC 桥集成测试', () => {
   });
 
   it('应该获取所有标签的使用计数', async () => {
-    const page = await currentPageService.getCurrentPage();
+    const pagePromise = currentPageService.getCurrentPage();
+    runIPCTimers();
+    const page = await pagePromise;
 
-    await currentPageService.updatePageTags(page.id, {
+    const updatePromise = currentPageService.updatePageTags(page.id, {
       tagsToAdd: ['Usage A', 'Usage B'],
       tagsToRemove: [],
     });
+    runIPCTimers();
+    await updatePromise;
 
-    const counts = await currentPageService.getAllTagUsageCounts();
+    const countsPromise = currentPageService.getAllTagUsageCounts();
+    runIPCTimers();
+    const counts = await countsPromise;
 
     const storedTags = memoryStorage[STORAGE_KEYS.TAGS];
     const usageATag = Object.values(storedTags).find((tag: any) => tag.name === 'Usage A') as { id: string };
@@ -284,7 +351,9 @@ describe('IPC 桥集成测试', () => {
     });
     const syncSpy = jest.spyOn(tagManagerInstance, 'syncToStorage');
 
-    await expect(currentPageService.updateTag('t1', 'Existing Name')).rejects.toThrow('Name exists');
+    const updatePromise = currentPageService.updateTag('t1', 'Existing Name');
+    runIPCTimers();
+    await expect(updatePromise).rejects.toThrow('Name exists');
 
     expect(updateSpy).toHaveBeenCalledWith('t1', 'Existing Name');
     expect(syncSpy).not.toHaveBeenCalled();

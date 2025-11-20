@@ -48,17 +48,16 @@ describe('Content Script 消息处理', () => {
     await new Promise(resolve => setTimeout(resolve, 10));
   });
 
-  it('处理 getPageInfo 消息并返回页面信息', async () => {
+  it('处理 getPageInfo 消息并返回页面信息', () => {
     document.title = 'My Test Page';
     document.body.innerHTML = '<div>Some content here</div><img alt="test" /><a href="/">link</a>';
 
     const sendResponse = jest.fn();
 
+    // 触发消息（handleGetPageInfo 是同步执行的）
     fireMessage({ action: 'getPageInfo' }, sendResponse);
 
-    // 等待异步处理完成
-    await new Promise(resolve => setTimeout(resolve, 50));
-
+    // 立即断言（因为 handleGetPageInfo 是同步的）
     expect(sendResponse).toHaveBeenCalledWith(
       expect.objectContaining({
         success: true,
@@ -71,16 +70,15 @@ describe('Content Script 消息处理', () => {
     );
   });
 
-  it('处理 highlightText 消息并在 DOM 中高亮文本', async () => {
+  it('处理 highlightText 消息并在 DOM 中高亮文本', () => {
     document.body.innerHTML = '<div>Hello World</div>';
 
     const sendResponse = jest.fn();
 
+    // 触发消息（handleHighlightText 是同步执行的）
     fireMessage({ action: 'highlightText', text: 'World' }, sendResponse);
 
-    // 等待异步处理完成
-    await new Promise(resolve => setTimeout(resolve, 50));
-
+    // 立即断言（因为 handleHighlightText 是同步的）
     expect(document.body.innerHTML).toContain('<mark');
     expect(sendResponse).toHaveBeenCalledWith(
       expect.objectContaining({

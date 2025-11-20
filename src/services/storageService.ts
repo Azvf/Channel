@@ -96,39 +96,6 @@ class ChromeStorageWrapper implements IStorageService {
     private storageType: 'local' | 'sync'
   ) {}
 
-  /**
-   * 同步写入 localStorage 作为缓存（用于快速读取）
-   */
-  private syncToLocalStorage(key: StorageKey, value: unknown): void {
-    try {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(key, JSON.stringify(value));
-
-        if (localStorage.getItem('SYNC_CACHE_LAST_FAIL')) {
-          localStorage.removeItem('SYNC_CACHE_LAST_FAIL');
-          console.log('[StorageService] 同步缓存 (localStorage) 写入成功，已清除失败标志。');
-        }
-      }
-    } catch (error) {
-      console.error(
-        `[StorageService] CRITICAL: 同步缓存 (localStorage) 写入失败 (Key: "${key}")。`,
-        `启动性能可能会降级（出现闪烁）。`,
-        error
-      );
-
-      try {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('SYNC_CACHE_LAST_FAIL', Date.now().toString());
-        }
-      } catch (flagError) {
-        console.error(
-          `[StorageService] 连设置 SYNC_CACHE_LAST_FAIL 标志都失败了。`,
-          flagError
-        );
-      }
-    }
-  }
-
   // --- 重构为原生 Promise ---
   async get<T = unknown>(key: StorageKey): Promise<T | null> {
     try {
@@ -160,11 +127,8 @@ class ChromeStorageWrapper implements IStorageService {
 
   // --- 重构为原生 Promise ---
   async set<T = unknown>(key: StorageKey, value: T): Promise<void> {
-    // 先同步写入 localStorage 作为缓存
-    this.syncToLocalStorage(key, value);
-    
+    // ✅ 修复：移除同步阻塞操作，直接使用异步的 Chrome Storage
     try {
-      // 直接 await
       await this.storage.set({ [key]: value });
     } catch (error) {
       console.warn(`[StorageService] Failed to write "${key}" to ${this.storageType}:`, (error as Error).message);
@@ -174,19 +138,8 @@ class ChromeStorageWrapper implements IStorageService {
 
   // --- 重构为原生 Promise ---
   async setMultiple(data: Record<string, unknown>): Promise<void> {
-    // 先同步写入 localStorage 作为缓存
+    // ✅ 修复：移除同步阻塞循环，直接使用异步的 Chrome Storage
     try {
-      if (typeof localStorage !== 'undefined') {
-        for (const [key, value] of Object.entries(data)) {
-          localStorage.setItem(key, JSON.stringify(value));
-        }
-      }
-    } catch (error) {
-      // 忽略 localStorage 写入错误，不影响主流程
-    }
-    
-    try {
-      // 直接 await
       await this.storage.set(data);
     } catch (error) {
       console.warn(`[StorageService] Failed to write multiple keys to ${this.storageType}:`, (error as Error).message);
@@ -318,19 +271,20 @@ class LocalStorageWrapper implements IStorageService {
 class StorageService implements IStorageService {
   private wrapper: IStorageService;
 
-  constructor(storageType: StorageType = 'auto') {
+  constructor(storageType: StorageType = 'auto', private forceWarn: boolean = false) {
     this.wrapper = this.createWrapper(storageType);
   }
 
   private createWrapper(storageType: StorageType): IStorageService {
     // 检测是否在测试环境中
-    const isTestEnv = 
+    const isTestEnv = this.forceWarn ? false : (
       (typeof window !== 'undefined' && (window as any).__IS_TEST_ENV__) ||
       (typeof globalThis !== 'undefined' && (globalThis as any).__IS_TEST_ENV__) ||
       (typeof process !== 'undefined' && 
         (process.env.NODE_ENV === 'test' || 
          process.env.JEST_WORKER_ID !== undefined)) ||
-      typeof jest !== 'undefined';
+      typeof jest !== 'undefined'
+    );
 
     // 自动检测环境
     if (storageType === 'auto') {
@@ -390,8 +344,8 @@ class StorageService implements IStorageService {
   /**
    * 创建指定存储类型的服务实例
    */
-  static create(storageType: StorageType = 'auto'): StorageService {
-    return new StorageService(storageType);
+  static create(storageType: StorageType = 'auto', forceWarn: boolean = false): StorageService {
+    return new StorageService(storageType, forceWarn);
   }
 }
 
