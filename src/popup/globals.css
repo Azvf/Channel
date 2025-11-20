@@ -1,4 +1,5 @@
 /* @custom-variant dark (&:is(.dark *)); */
+/* stylelint-disable-next-line at-rule-no-unknown */
 @tailwind base;
 @layer base {
   /* * {
@@ -174,6 +175,16 @@
     --tooltip-transition-duration: 150ms;
     --tooltip-transition-ease: var(--ease-smooth);
     --tooltip-delay: 400ms; /* 防抖延迟，避免鼠标划过时闪烁 */
+
+    /* --- SCROLLBAR SYSTEM: "Ghost Pill" --- */
+    /* 定义滚动条令牌 */
+    --sb-width: 10px; /* 物理宽度，保证鼠标易于捕捉 */
+    --sb-thumb-width-visual: 4px; /* 视觉感知的宽度 */
+
+    /* 颜色系统：基于内容色 (--c-content) 而非玻璃色，以保证在毛玻璃卡片上的对比度 */
+    --sb-thumb-idle: color-mix(in srgb, var(--c-content) 12%, transparent);
+    --sb-thumb-hover: color-mix(in srgb, var(--c-content) 25%, transparent);
+    --sb-thumb-active: color-mix(in srgb, var(--c-content) 40%, transparent);
   }
   
   /* 只有当 body 有 data-theme-ready 属性时才启用过渡效果 */
@@ -442,31 +453,55 @@ html {
   backface-visibility: hidden;
 }
 
-/* Custom scrollbar */
+/* ========================================
+   SCROLLBAR SYSTEM: "Ghost Pill"
+   无感设计原则：只在需要时显现，不占用视觉层级
+   ======================================== */
+
+/* --- Webkit (Chrome, Edge, Safari) --- */
+
 ::-webkit-scrollbar {
-  width: 12px;
+  width: var(--sb-width);
+  height: var(--sb-width); /* 用于横向滚动条 */
 }
 
+/* 轨道：完全透明，去除非必要的视觉噪音 */
 ::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--c-glass) 8%, transparent);
+  background: transparent;
 }
 
+/* 滑块：利用 border 和 background-clip 实现"悬浮细条"效果 */
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--c-glass) 24%, transparent);
+  background-color: var(--sb-thumb-idle);
   border-radius: 99em;
-  border: 2px solid transparent;
+
+  /* 核心技巧：设置透明边框，让滑块看起来比实际占位更细，周围留白 */
+  border: 3px solid transparent;
   background-clip: content-box;
+
+  transition: background-color var(--transition-base);
 }
 
+/* 交互状态：加深颜色，而非改变色相 */
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--c-action) 40%, transparent);
-  background-clip: content-box;
+  background-color: var(--sb-thumb-hover);
 }
 
-/* Firefox scrollbar */
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--sb-thumb-active);
+}
+
+/* 拐角：透明 */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* --- Firefox (Standard CSS) --- */
+
 * {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--c-glass) 24%, transparent) color-mix(in srgb, var(--c-glass) 8%, transparent);
+  scrollbar-width: thin; /* 强制使用细滚动条 */
+  /* Firefox 仅支持定义滑块色和轨道色 */
+  scrollbar-color: var(--sb-thumb-idle) transparent;
 }
 
 /* Selection color */
@@ -508,6 +543,34 @@ html {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* --- UX 微调建议 (UX Refinements) --- */
+
+/* A. 隐藏主窗口滚动条 (Clean Canvas) */
+/* utility class */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE 10+ */
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Webkit */
+}
+
+/* B. 悬停显现 (Hover Reveal) */
+/* 这是一个高级技巧，如果觉得实现复杂可以跳过 */
+.hover-scroll {
+  overflow-y: overlay; /* 仅部分浏览器支持，作为增强体验 */
+}
+
+/* 或者简单地 */
+.scroll-container::-webkit-scrollbar-thumb {
+  background-color: transparent; /* 默认透明 */
+}
+
+.scroll-container:hover::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb-idle); /* 悬停容器时显示 */
 }
 
 /* ========================================
