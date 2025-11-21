@@ -138,7 +138,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
             >
               <GlassCard 
                 className="p-5 flex flex-col" 
-                depthLevel={10}
+                depthLevel={3}
                 style={{ 
                   width: '100%', 
                   maxHeight: '90vh'

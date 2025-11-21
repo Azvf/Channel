@@ -26,9 +26,12 @@ export function SettingsRow({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        minHeight: '44px',
-        padding: '0.625rem 0.75rem',
-        borderRadius: '0.5rem',
+        // [Design System] Layout Tokens
+        minHeight: 'var(--row-min-height)',
+        padding: 'var(--space-2_5) var(--space-3)', // 10px 12px
+        borderRadius: 'var(--radius-md)',
+        gap: 'var(--space-3)', // 确保左右布局有最小间距
+        
         cursor: onClick && !disabled ? 'pointer' : 'default',
         opacity: disabled ? 0.6 : 1,
         pointerEvents: disabled ? 'none' : 'auto',
@@ -41,7 +44,7 @@ export function SettingsRow({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '0.75rem',
+          gap: 'var(--space-3)', // 12px
           flex: 1,
           minWidth: 0,
         }}
@@ -53,6 +56,7 @@ export function SettingsRow({
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              // [Design System] Color Token
               color: 'var(--color-text-secondary)',
             }}
           >
@@ -63,7 +67,7 @@ export function SettingsRow({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '0.125rem',
+            gap: 'var(--space-0_5)', // 2px - 标题和副标题的紧凑间距
             minWidth: 0,
             flex: 1,
           }}
@@ -99,17 +103,10 @@ export function SettingsRow({
           alignItems: 'center',
           justifyContent: 'flex-end',
           flexShrink: 0,
-          marginLeft: '0.75rem',
+          marginLeft: 'var(--space-3)', // 12px
         }}
-        onClick={(e) => {
-          // 阻止点击事件冒泡到行，让控件自己处理点击
-          // 对于 Checkbox 等控件，它们会在内部处理自己的点击
-          e.stopPropagation();
-        }}
-        onMouseDown={(e) => {
-          // 阻止 mousedown 事件冒泡，确保控件能正常响应
-          e.stopPropagation();
-        }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {control}
       </div>

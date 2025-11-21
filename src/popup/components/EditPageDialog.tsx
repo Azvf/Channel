@@ -19,6 +19,16 @@ interface EditPageDialogProps {
   allSuggestions?: string[];
 }
 
+// Helper for label style to ensure consistency without extra CSS classes
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: 'var(--space-1)',
+  font: 'var(--font-label)',
+  letterSpacing: 'var(--letter-spacing-label)',
+  color: 'var(--color-text-secondary)',
+  textTransform: 'uppercase'
+};
+
 export function EditPageDialog({
   isOpen,
   onClose,
@@ -214,7 +224,7 @@ export function EditPageDialog({
       className="fixed inset-0 flex items-center justify-center p-4"
       style={{
         zIndex: 'var(--z-modal-layer)',
-        background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
+        background: 'var(--bg-surface-glass-hover)', // Tokenized
         backdropFilter: 'blur(4px)',
         margin: 0
       }}
@@ -229,9 +239,10 @@ export function EditPageDialog({
         ref={dialogRef} // ref 移到这里
         // 这是 Dialog
         style={{
-          width: 'calc(100% - 32px)',
-          maxWidth: '360px',
-          height: 'calc(100vh - 32px)',
+          width: 'calc(100% - var(--space-8))', // Tokenized padding deduction
+          maxWidth: 'var(--modal-max-width)',    // Tokenized
+          height: 'auto',
+          maxHeight: '90vh',
           display: 'flex'
         }}
         variants={modalVariants}
@@ -240,7 +251,7 @@ export function EditPageDialog({
       >
         <GlassCard 
           className="overflow-hidden flex flex-col"
-          depthLevel={10}
+          depthLevel={3}
           style={{ 
             width: '100%', 
             height: '100%'
@@ -252,93 +263,65 @@ export function EditPageDialog({
           {/* Content - Scrollable */}
           <div 
             ref={scrollableContentRef}
-            className="px-3 py-2.5 space-y-2.5 flex-1 overflow-y-auto"
-            data-testid="edit-dialog-scrollable"
-            style={{ minHeight: 0 }}
+            className="flex-1 overflow-y-auto"
+            style={{ 
+              minHeight: 0, 
+              padding: 'var(--space-3)' 
+            }}
           >
-            {/* URL Display (Read-only) */}
-            <div>
-              <label
-                className="block mb-1"
-                style={{
-                fontSize: '0.7rem',
-                fontWeight: 600,
-                color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase'
-              }}
-            >
-              URL
-            </label>
-            <div
-              className="px-2.5 py-1 rounded-lg"
-              style={{
-                background: 'color-mix(in srgb, var(--c-glass) 8%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                fontSize: '0.7rem',
-                color: 'color-mix(in srgb, var(--c-content) 60%, var(--c-bg))',
-                fontWeight: 500,
-                wordBreak: 'break-all'
-              }}
-            >
-                {page.url}
+            <div className="space-y-4">
+              {/* URL Display */}
+              <div>
+                <label style={labelStyle}>URL</label>
+                <div
+                  className="px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    background: 'var(--bg-surface-glass-subtle)',
+                    border: '1px solid var(--border-glass-subtle)',
+                    fontSize: '0.75rem',
+                    color: 'var(--color-text-tertiary)',
+                    fontWeight: 500,
+                    wordBreak: 'break-all',
+                    lineHeight: 1.4
+                  }}
+                >
+                  {page.url}
+                </div>
               </div>
-          </div>
 
-          {/* Title Input */}
-          <div>
-            <label
-              className="block mb-1"
-              style={{
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase'
-            }}
-          >
-            Title
-          </label>
-            <GlassInput
-              value={editedTitle}
-              onChange={(value) => setEditedTitle(value)}
-              placeholder="Enter page title"
-              as="textarea"
-              rows={2}
-            />
-          </div>
+              {/* Title Input */}
+              <div>
+                <label style={labelStyle}>Title</label>
+                <GlassInput
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  placeholder="Enter page title"
+                  as="textarea"
+                  rows={2}
+                />
+              </div>
 
-          {/* Tags Input */}
-          <div>
-            <label
-              className="block mb-1"
-              style={{
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              color: 'color-mix(in srgb, var(--c-content) 80%, var(--c-bg))',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase'
-            }}
-          >
-            Tags
-          </label>
-            <TagInput
-              tags={editedTags}
-              onTagsChange={setEditedTags}
-              placeholder="Add or remove tags"
-              suggestions={allSuggestions}
-              excludeTags={editedTags}
-              allowCreation={true}
-              dropdownZIndex="var(--z-tooltip-layer)"
-            />
+              {/* Tags Input */}
+              <div>
+                <label style={labelStyle}>Tags</label>
+                <TagInput
+                  tags={editedTags}
+                  onTagsChange={setEditedTags}
+                  placeholder="Add or remove tags"
+                  suggestions={allSuggestions}
+                  excludeTags={editedTags}
+                  allowCreation={true}
+                  dropdownZIndex="var(--z-tooltip-layer)"
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
         {/* Footer - 使用标准化的 ModalFooter */}
         <ModalFooter>
           <GlassButton
             onClick={handleCancel}
-            variant="default"
+            variant="secondary"
           >
             Cancel
           </GlassButton>
@@ -347,24 +330,22 @@ export function EditPageDialog({
             onClick={handleSave}
             className="px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
             style={{
-              background: 'color-mix(in srgb, var(--c-action) 100%, transparent)',
-              border: '1.5px solid color-mix(in srgb, var(--c-action) 100%, transparent)',
-              color: 'var(--c-bg)',
+              background: 'var(--bg-action-subtle)',
+              border: '1.5px solid var(--bg-action-subtle)',
+              color: 'var(--color-text-action)',
               fontSize: '0.8rem',
               fontWeight: 600,
               letterSpacing: '0.01em',
               cursor: 'pointer',
-              boxShadow: '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)'
+              boxShadow: '0 2px 8px -2px rgba(0, 0, 0, 0.1)'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 85%, var(--c-bg))';
+              e.currentTarget.style.background = 'var(--bg-action-moderate)';
               e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px -2px color-mix(in srgb, var(--c-action) 50%, transparent)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'color-mix(in srgb, var(--c-action) 100%, transparent)';
+              e.currentTarget.style.background = 'var(--bg-action-subtle)';
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 2px 8px -2px color-mix(in srgb, var(--c-action) 40%, transparent)';
             }}
           >
             <Save className="w-4 h-4" />

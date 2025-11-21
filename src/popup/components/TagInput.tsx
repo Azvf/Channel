@@ -97,9 +97,11 @@ export function TagInput({
             style={{ backfaceVisibility: 'hidden', overflow: 'hidden' }}
           >
             <div
-              className="flex flex-wrap gap-2 items-center px-4 py-2 cursor-text"
-              style={{ height: 'auto' }}
-              // 优化：点击容器任意位置聚焦输入框
+              className="flex flex-wrap gap-2 items-center cursor-text"
+              style={{ 
+                height: 'auto',
+                padding: 'var(--space-2) var(--space-4)' // 8px 16px
+              }}
               onClick={() => inputRef.current?.focus()}
             >
               {/* 只在list模式下显示标签气泡 */}
@@ -131,18 +133,18 @@ export function TagInput({
                   }}
                   className="p-1.5 rounded-full flex-shrink-0 transition-all ml-auto"
                   style={{ 
-                    color: isMenuOpen ? 'var(--c-action)' : 'color-mix(in srgb, var(--c-content) 60%, transparent)',
-                    background: isMenuOpen ? 'color-mix(in srgb, var(--c-glass) 20%, transparent)' : 'transparent'
+                    color: isMenuOpen ? 'var(--color-text-action)' : 'var(--color-text-tertiary)',
+                    background: isMenuOpen ? 'var(--bg-surface-glass-active)' : 'transparent'
                   }}
                   onMouseEnter={(e) => {
                     if (!isMenuOpen) {
-                      e.currentTarget.style.color = 'var(--c-action)';
-                      e.currentTarget.style.background = 'color-mix(in srgb, var(--c-glass) 15%, transparent)';
+                      e.currentTarget.style.color = 'var(--color-text-action)';
+                      e.currentTarget.style.background = 'var(--bg-surface-glass-hover)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isMenuOpen) {
-                      e.currentTarget.style.color = 'color-mix(in srgb, var(--c-content) 60%, transparent)';
+                      e.currentTarget.style.color = 'var(--color-text-tertiary)';
                       e.currentTarget.style.background = 'transparent';
                     }
                   }}
@@ -169,19 +171,25 @@ export function TagInput({
       >
         <div 
           data-sticky-dropdown
-          className="overflow-hidden border border-[color-mix(in_srgb,var(--c-light)_20%,transparent)] shadow-2xl"
+          className="overflow-hidden border"
           style={{
-            backgroundColor: 'color-mix(in srgb, var(--c-bg) 95%, var(--c-glass) 15%)',
-            backdropFilter: 'blur(24px) saturate(180%)',
+            // [Refactor] Use Design Tokens
+            backgroundColor: 'var(--bg-surface-glass)', // Fallback / Base
+            backdropFilter: 'blur(24px) saturate(180%)', // Keep specific heavy blur for dropdown
             WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-            borderRadius: '0.85rem',
-            boxShadow: '0 16px 40px -12px rgba(0, 0, 0, 0.2), 0 4px 12px -4px rgba(0, 0, 0, 0.1)'
+            borderColor: 'var(--border-glass-subtle)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-elevation-high)'
           }}
         >
           <div className="flex flex-col p-1.5">
             <div 
-              className="max-h-[240px] overflow-y-auto overflow-x-hidden"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              className="overflow-y-auto overflow-x-hidden"
+              style={{ 
+                maxHeight: 'var(--dropdown-max-height)',
+                scrollbarWidth: 'none', 
+                msOverflowStyle: 'none' 
+              }}
             >
               <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
 
@@ -201,22 +209,26 @@ export function TagInput({
                         }
                       }}
                       {...optionProps}
-                      className="w-full px-4 py-2 text-left transition-colors flex items-center gap-2"
+                      className="w-full text-left transition-colors flex items-center gap-2"
                       style={{ 
+                        padding: 'var(--space-2) var(--space-4)',
                         color: activeIndex === index 
-                          ? 'var(--c-action)' 
-                          : (isCreateOption ? 'var(--c-action)' : 'var(--c-content)'),
+                          ? 'var(--color-text-action)' 
+                          : (isCreateOption ? 'var(--color-text-action)' : 'var(--color-text-primary)'),
                         fontSize: '0.85rem',
                         fontWeight: isCreateOption ? 500 : 400,
                         letterSpacing: '0.01em',
                         background: activeIndex === index 
-                          ? 'color-mix(in srgb, var(--c-glass) 15%, transparent)' 
-                          : 'transparent'
+                          ? 'var(--bg-surface-glass-hover)' 
+                          : 'transparent',
+                        borderRadius: 'var(--radius-sm)' // Add slight radius to hover state
                       }}
                     >
-                      {/* 视觉逻辑：如果是创建新标签，加个图标 */}
                       {isCreateOption && (
-                        <div className="flex items-center justify-center w-4 h-4 rounded-full bg-[color-mix(in_srgb,var(--c-action)15%,transparent)]">
+                        <div 
+                          className="flex items-center justify-center w-4 h-4 rounded-full"
+                          style={{ background: 'var(--bg-action-subtle)' }}
+                        >
                           <Plus className="w-3 h-3" strokeWidth={2.5} />
                         </div>
                       )}

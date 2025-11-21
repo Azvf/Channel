@@ -1,8 +1,22 @@
 /* ========================================
+
    LAYER 1: DESIGN TOKENS & VARIABLES
+
+   System Version: 2.0 (Refactored)
+
    ======================================== */
 
-/* Core Color Variables */
+/* ----------------------------------------
+
+   1. CORE PRIMITIVES (Fallback & Reference)
+
+   ----------------------------------------
+
+   注意：实际运行时，这些值会被 src/popup/theme-loader.ts 
+
+   中注入的内联样式覆盖。这里作为开发参考和 Fallback。
+
+*/
 body {
   --c-glass: #bbbbbc;
   --c-light: #fff;
@@ -16,17 +30,14 @@ body {
   --saturation: 150%;
   
   /* --- Glass Physics System (Depth-Aware Rendering) --- */
-  /* 基础模糊度 (Level 0) */
   --glass-blur-base: 12px;
-  /* 每增加一层深度，模糊度减少的量 (防止多重模糊导致性能雪崩) */
   --glass-blur-decay: 2px;
   
-  /* 基础不透明度 */
-  --glass-opacity-base: 0.15; /* 15% */
-  /* 每增加一层，不透明度增加 (为了遮挡下层的杂乱内容) */
+  /* Base Opacity & Increment */
+  --glass-opacity-base: 0.15; 
   --glass-opacity-increment: 0.05;
   
-  /* 基础反射强度 */
+  /* Reflex Strength */
   --glass-reflex-strength: 1;
   
   /* Animation Tokens */
@@ -51,32 +62,71 @@ body {
   --z-context-menu-layer: 60;
   --z-system-layer: 100;
 
-  /* --- Typography & Fonts --- */
+  /* --- Spacing Scale (4px Grid) --- */
+  --space-0_5: 0.125rem; /* 2px */
+  --space-1: 0.25rem;    /* 4px */
+  --space-1_5: 0.375rem; /* 6px */
+  --space-2: 0.5rem;     /* 8px */
+  --space-2_5: 0.625rem; /* 10px */
+  --space-3: 0.75rem;    /* 12px */
+  --space-3_5: 0.875rem; /* 14px */
+  --space-4: 1rem;       /* 16px */
+  --space-5: 1.25rem;    /* 20px */
+  --space-6: 1.5rem;     /* 24px */
+  --space-8: 2rem;       /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+  --space-16: 4rem;      /* 64px */
+
+  /* --- Radius Scale --- */
+  --radius-xs: 0.125rem; /* 2px */
+  --radius-sm: 0.25rem;  /* 4px */
+  --radius-md: 0.5rem;   /* 8px */
+  --radius-lg: 0.75rem;  /* 12px */
+  --radius-xl: 1rem;     /* 16px */
+  --radius-2xl: 1.5rem;  /* 24px */
+  --radius-3xl: 2rem;    /* 32px */
+  --radius-full: 99em;   /* Pill */
+
+  /* --- Layout Constants --- */
+  --header-height: 60px;
+  --row-min-height: 44px; /* Touch-friendly target */
+  --container-padding: var(--space-4);
+  --modal-max-width: 360px;
+  --stats-wall-max-width: 560px;
+  --dropdown-max-height: 240px;
+
+  /* --- Typography System --- */
   --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
 
-  /* --- Typography Tokens --- */
+  /* Headings */
   --font-page-title: 600 1.1rem/1.35 var(--font-family);
   --letter-spacing-page-title: -0.015em;
 
   --font-header-title: 700 1rem/1.35 var(--font-family);
   --letter-spacing-header-title: -0.02em;
 
-  --font-list-item: 500 0.9rem/1.4 var(--font-family);
-  --letter-spacing-list-item: normal;
-
-  --font-body: 400 0.85rem/1.4 var(--font-family);
-  --letter-spacing-body: 0.01em;
-
-  --font-caption: 400 0.8rem/1.4 var(--font-family);
-  --letter-spacing-caption: 0.005em;
-
   --font-section-title: 600 0.75rem/1.4 var(--font-family);
   --letter-spacing-section-title: 0.05em;
 
+  /* Body & Content */
+  --font-body: 400 0.85rem/1.4 var(--font-family);
+  --letter-spacing-body: 0.01em;
+
+  --font-list-item: 500 0.9rem/1.4 var(--font-family);
+  --letter-spacing-list-item: normal;
+
+  /* UI Elements */
+  --font-caption: 400 0.8rem/1.4 var(--font-family);
+  --letter-spacing-caption: 0.005em;
+
   --font-footnote: 400 0.75rem/1.4 var(--font-family);
   --letter-spacing-footnote: 0.01em;
+
+  --font-label: 600 0.7rem/1.4 var(--font-family);
+  --letter-spacing-label: 0.02em;
 
   --font-tag: 500 0.75rem/1.4 var(--font-family);
   --letter-spacing-tag: 0.01em;
@@ -84,28 +134,55 @@ body {
   --font-module-title: 500 0.7rem/1.4 var(--font-family);
   --letter-spacing-module-title: 0.05em;
 
-  /* --- Color Tokens --- */
+  /* ----------------------------------------
+
+     2. SEMANTIC COLOR SYSTEM
+
+     (Derived from Primitives via color-mix)
+
+     ---------------------------------------- */
+  
+  /* Text Colors */
   --color-text-primary: var(--c-content);
   --color-text-secondary: color-mix(in srgb, var(--c-content) 50%, transparent);
   --color-text-tertiary: color-mix(in srgb, var(--c-content) 40%, transparent);
+  --color-text-quaternary: color-mix(in srgb, var(--c-content) 30%, transparent);
   --color-text-action: var(--c-action);
   --color-text-module-title: color-mix(in srgb, var(--c-content) 70%, var(--c-bg));
 
-  /* --- Hover Tokens --- */
-  --hover-bg-glass: color-mix(in srgb, var(--c-glass) 15%, transparent);
-  --hover-border-glass: color-mix(in srgb, var(--c-glass) 25%, transparent);
-  --hover-bg-action: color-mix(in srgb, var(--c-action) 15%, transparent);
+  /* Surface Colors (Glass) */
+  --bg-surface-glass: color-mix(in srgb, var(--c-glass) 10%, transparent);
+  --bg-surface-glass-hover: color-mix(in srgb, var(--c-glass) 15%, transparent);
+  --bg-surface-glass-active: color-mix(in srgb, var(--c-glass) 20%, transparent);
+  --bg-surface-glass-subtle: color-mix(in srgb, var(--c-glass) 8%, transparent);
+
+  /* Surface Colors (Action) */
+  --bg-action-subtle: color-mix(in srgb, var(--c-action) 10%, transparent);
+  --bg-action-moderate: color-mix(in srgb, var(--c-action) 20%, transparent);
+  --bg-action-strong: color-mix(in srgb, var(--c-action) 80%, transparent);
+  --bg-action-solid: var(--c-action);
+
+  /* Borders */
+  --border-glass-subtle: color-mix(in srgb, var(--c-glass) 15%, transparent);
+  --border-glass-moderate: color-mix(in srgb, var(--c-glass) 20%, transparent);
+  --border-glass-strong: color-mix(in srgb, var(--c-glass) 30%, transparent);
+  --border-action-subtle: color-mix(in srgb, var(--c-action) 20%, transparent);
+
+  /* Legacy Hover Mappings (Backward Compatibility) */
+  --hover-bg-glass: var(--bg-surface-glass-hover);
+  --hover-border-glass: var(--border-glass-moderate);
+  --hover-bg-action: var(--bg-action-moderate);
   --hover-color-action: var(--c-action);
 
-  /* --- Destructive Tokens --- */
+  /* Destructive Actions */
   --color-destructive: #D0021B;
   --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
   --hover-color-destructive: var(--color-destructive);
 
-  /* --- Frost Tooltip System Tokens --- */
+  /* Tooltip Specifics */
   --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
-  --tooltip-border: 1px solid color-mix(in srgb, var(--c-glass) 20%, transparent);
-  --tooltip-radius: 0.5rem;
+  --tooltip-border: 1px solid var(--border-glass-moderate);
+  --tooltip-radius: var(--radius-md);
   --tooltip-shadow: 
     0 4px 12px -2px rgba(0, 0, 0, 0.12),
     inset 0 1px 0 0 color-mix(in srgb, var(--c-light) 40%, transparent);
@@ -120,42 +197,32 @@ body {
   --tooltip-transition-ease: var(--ease-smooth);
   --tooltip-delay: 400ms;
 
-  /* --- Scrollbar System Tokens --- */
+  /* Scrollbar System */
   --sb-width: 10px;
   --sb-thumb-width-visual: 4px;
   --sb-thumb-idle: color-mix(in srgb, var(--c-content) 12%, transparent);
   --sb-thumb-hover: color-mix(in srgb, var(--c-content) 25%, transparent);
   --sb-thumb-active: color-mix(in srgb, var(--c-content) 40%, transparent);
+
+  /* --- Shadow System --- */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Elevation (for Dropdowns & Modals) */
+  --shadow-elevation-low: var(--shadow-sm);
+  --shadow-elevation-medium: var(--shadow-md);
+  --shadow-elevation-high: 0 16px 40px -12px rgba(0, 0, 0, 0.2), 0 4px 12px -4px rgba(0, 0, 0, 0.1);
 }
 
-/* Theme Variables Injection (Dark/Dim Modes) */
-body:has(input[value="dark"]:checked),
-body:has(input[name="theme-persist"][value="dark"]:checked) {
-  --c-glass: #bbbbbc;
-  --c-light: #fff;
-  --c-dark: #000;
-  --c-content: #e1e1e1;
-  --c-action: #03d5ff;
-  --c-bg: #1b1b1d;
-  --glass-reflex-dark: 2;
-  --glass-reflex-light: 0.3;
-  --saturation: 150%;
-}
+/* ----------------------------------------
 
-body:has(input[value="dim"]:checked),
-body:has(input[name="theme-persist"][value="dim"]:checked) {
-  --c-light: #99deff;
-  --c-dark: #20001b;
-  --c-glass: hsl(335 250% 74% / 1);
-  --c-content: #d5dbe2;
-  --c-action: #ff48a9;
-  --c-bg: #152433;
-  --glass-reflex-dark: 2;
-  --glass-reflex-light: 0.7;
-  --saturation: 200%;
-}
+   3. TAILWIND MAPPING
 
-/* Tailwind Colors (用于 @layer base 的变量映射) */
+   (Bridging Design Tokens to Tailwind Classes)
+
+   ---------------------------------------- */
 :root {
   --font-size: 20px;
   --background: #ffffff;
@@ -181,12 +248,15 @@ body:has(input[name="theme-persist"][value="dim"]:checked) {
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
+  
+  /* Radius Mapping */
+  --radius: var(--radius-md);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  
+  /* Sidebar Colors */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: #030213;
@@ -217,13 +287,8 @@ body:has(input[name="theme-persist"][value="dim"]:checked) {
   --border: oklch(0.269 0 0);
   --input: oklch(0.269 0 0);
   --ring: oklch(0.439 0 0);
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  
+  /* Sidebar Colors (Dark) */
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -232,27 +297,9 @@ body:has(input[name="theme-persist"][value="dim"]:checked) {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
-
-  /* Frost Tooltip System (Dark Mode) */
-  --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
-  --tooltip-border: 1px solid color-mix(in srgb, var(--c-glass) 20%, transparent);
-  --tooltip-radius: 0.5rem;
-  --tooltip-shadow: 
-    0 4px 12px -2px rgba(0, 0, 0, 0.12),
-    inset 0 1px 0 0 color-mix(in srgb, var(--c-light) 40%, transparent);
-  --tooltip-font-size: 0.75rem;
-  --tooltip-line-height: 1.2;
-  --tooltip-font-weight: 500;
-  --tooltip-letter-spacing: 0.01em;
-  --tooltip-text-color: var(--c-content);
-  --tooltip-padding: 0.3rem 0.6rem;
-  --tooltip-offset: 6px;
-  --tooltip-transition-duration: 150ms;
-  --tooltip-transition-ease: var(--ease-smooth);
-  --tooltip-delay: 400ms;
 }
 
-/* Theme variables mapping */
+/* Theme variables mapping (Tailwind v4 compat) */
 :root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -275,11 +322,6 @@ body:has(input[name="theme-persist"][value="dim"]:checked) {
   --color-input-background: var(--input-background);
   --color-switch-background: var(--switch-background);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -293,4 +335,3 @@ body:has(input[name="theme-persist"][value="dim"]:checked) {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
-

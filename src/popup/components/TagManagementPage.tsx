@@ -218,8 +218,9 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
             className="fixed inset-0 flex items-center justify-center p-4"
             style={{
               zIndex: "var(--z-modal-layer)",
-              background: "color-mix(in srgb, var(--c-glass) 15%, transparent)",
-              backdropFilter: "blur(4px)",
+              // [Refactor] 使用语义化 Surface Token
+              background: "var(--bg-surface-glass-hover)", 
+              backdropFilter: "blur(4px)", // 可选: 移到 CSS 类中统一管理
             }}
             initial="hidden"
             animate="visible"
@@ -238,14 +239,15 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
               onClick={(e) => e.stopPropagation()}
               style={{ maxHeight: "90vh", display: "flex" }}
             >
-              <GlassCard className="p-5 flex flex-col" depthLevel={10} style={{ width: "100%", maxHeight: "90vh" }}>
+              <GlassCard className="p-5 flex flex-col" depthLevel={3} style={{ width: "100%", maxHeight: "90vh" }}>
                 <ModalHeader title="Tag Library" onClose={onClose} />
 
-                <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, paddingRight: "0.5rem", marginTop: "1rem" }}>
+                {/* [Refactor] 使用标准 Spacing Tokens */}
+                <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, paddingRight: "var(--space-2)", marginTop: "var(--space-4)" }}>
                   <div className="flex items-center gap-3 mb-4">
                     <GlassInput
                       value={searchQuery}
-                      onChange={setSearchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={handleSearchKeyDown}
                       placeholder="搜索或创建标签..."
                       autoFocus={isOpen}
@@ -269,18 +271,21 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
                             style={{
                               opacity: isCreating ? 0.7 : 1,
                               cursor: isCreating ? "wait" : "pointer",
-                              border: "1px solid color-mix(in srgb, var(--c-action) 30%, transparent)",
+                              // [Refactor] 使用语义化 Border Token
+                              border: "1px solid var(--border-action-subtle)",
                             }}
                             onMouseEnter={(e) => {
                               if (isCreating) return;
-                              e.currentTarget.style.background = "color-mix(in srgb, var(--c-glass) 15%, transparent)";
+                              // [Refactor] 使用语义化 Bg Token
+                              e.currentTarget.style.background = "var(--bg-surface-glass-hover)";
                             }}
                             onMouseLeave={(e) => {
                               if (isCreating) return;
                               e.currentTarget.style.background = "transparent";
                             }}
                           >
-                            <span style={{ color: "var(--c-action)", fontWeight: 500, fontSize: "0.9rem" }}>
+                            {/* [Refactor] 使用 Tokenized Colors */}
+                            <span style={{ color: "var(--color-text-action)", fontWeight: 500, fontSize: "0.9rem" }}>
                               {isCreating ? "正在创建..." : `+ 创建标签 "${trimmedQuery}"`}
                             </span>
                           </GlassCard>
@@ -289,11 +294,11 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
                     </AnimatePresence>
 
                     {loading && tags.length === 0 ? (
-                      <div style={{ color: "color-mix(in srgb, var(--c-content) 50%, transparent)", textAlign: "center", padding: "2rem" }}>
+                      <div style={{ color: "var(--color-text-secondary)", textAlign: "center", padding: "var(--space-8)" }}>
                         Loading...
                       </div>
                     ) : filteredTags.length === 0 && !canCreate ? (
-                      <div style={{ color: "color-mix(in srgb, var(--c-content) 40%, transparent)", textAlign: "center", padding: "2rem" }}>
+                      <div style={{ color: "var(--color-text-tertiary)", textAlign: "center", padding: "var(--space-8)" }}>
                         {searchQuery ? "未找到标签" : "标签库为空"}
                       </div>
                     ) : (

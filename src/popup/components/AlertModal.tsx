@@ -105,7 +105,7 @@ export function AlertModal({
           // - [&>.liquidGlass-content]:h-full : 让内部内容撑满卡片高度
           // - [&>.liquidGlass-content]:overflow-hidden : 防止圆角溢出
           className="flex flex-col min-h-0 overflow-hidden [&>.liquidGlass-content]:flex [&>.liquidGlass-content]:flex-col [&>.liquidGlass-content]:h-full [&>.liquidGlass-content]:max-h-full [&>.liquidGlass-content]:overflow-hidden"
-          depthLevel={10}
+          depthLevel={3}
           style={{
             width: '100%',
             height: 'auto', // 允许高度自适应（内容少时变矮）
@@ -149,11 +149,13 @@ export function AlertModal({
             <ModalFooter>
               {actions.map((action) => {
                 const { id, label, variant, onClick: handleClick, autoFocus } = action;
+                // Map 'default' to 'secondary' for GlassButton
+                const buttonVariant = variant === 'default' ? 'secondary' : variant;
                 return (
                   <GlassButton
                     key={id}
                     onClick={handleClick}
-                    variant={variant}
+                    variant={buttonVariant}
                     autoFocus={autoFocus ?? id === resolvedAutoFocusId}
                   >
                     {label}

@@ -25,6 +25,8 @@ import { currentPageService } from "../../services/popup/currentPageService";
 import { TaggedPage as TaggedPageType } from "../../types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
 
+// [Refactor] 使用 Token 替换硬编码的 color-mix
+// 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
 const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
   <div
     className="flex items-center gap-1"
@@ -41,8 +43,8 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
       className: "w-3 h-3 stat-item-icon",
       strokeWidth: 2,
       style: {
-        color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))",
-        transition: "color 0.2s var(--ease-smooth)",
+        color: "var(--color-text-secondary)", // Tokenized
+        transition: "color var(--transition-fast) var(--ease-smooth)",
       },
     })}
     <span
@@ -50,8 +52,8 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
       style={{
         font: "var(--font-tag)",
         letterSpacing: "var(--letter-spacing-tag)",
-        color: "color-mix(in srgb, var(--c-content) 70%, var(--c-bg))",
-        transition: "color 0.2s var(--ease-smooth)",
+        color: "var(--color-text-tertiary)", // Tokenized (approx 70% mix)
+        transition: "color var(--transition-fast) var(--ease-smooth)",
       }}
     >
       {value}
@@ -196,7 +198,7 @@ export function TaggedPage({
         await refreshAllData();
       }
     },
-    [editingPage, refreshAllData, tagIdToName, closeEditDialog],
+    [editingPage, refreshAllData, tagIdToName],
   );
 
   const registerMenuButton = (pageId: string, button: HTMLButtonElement | null) => {
@@ -264,36 +266,37 @@ export function TaggedPage({
 
   return (
     <div className={`space-y-4 ${className}`}>
+      {/* 保留原有 style 块，但使用 token 优化颜色和动画时间 */}
       <style>
         {`
           .hud-button {
             background: transparent;
             border: none;
             cursor: pointer;
-            padding: 0.25rem;
-            margin: -0.25rem;
-            border-radius: 0.5rem;
-            transition: background-color 0.2s var(--ease-smooth);
+            padding: var(--space-1); /* 0.25rem -> 4px */
+            margin: -var(--space-1);
+            border-radius: var(--radius-md);
+            transition: background-color var(--transition-fast) var(--ease-smooth);
           }
 
           .hud-button:hover {
-            background-color: var(--hover-bg-action);
+            background-color: var(--bg-action-subtle); /* Tokenized Hover */
           }
 
           .hud-button:hover .stat-item-icon,
           .hud-button:hover .stat-item-value,
           .hud-button-settings:hover {
-            color: var(--hover-color-action) !important;
+            color: var(--color-text-action) !important; /* Tokenized Color */
           }
 
           .hud-button-settings {
             padding: 0.375rem;
-            border-radius: 0.5rem;
-            color: color-mix(in srgb, var(--c-content) 65%, var(--c-bg));
+            border-radius: var(--radius-md);
+            color: var(--color-text-tertiary);
             transition:
-              color 0.2s var(--ease-smooth),
-              transform 0.2s var(--ease-smooth),
-              background-color 0.2s var(--ease-smooth);
+              color var(--transition-fast) var(--ease-smooth),
+              transform var(--transition-fast) var(--ease-smooth),
+              background-color var(--transition-fast) var(--ease-smooth);
           }
 
           .hud-button-settings:hover {
@@ -305,6 +308,7 @@ export function TaggedPage({
       <div>
         <GlassCard className="p-4">
           <div className="space-y-4">
+            {/* Header - 保持原样布局 */}
             <div className="flex items-center justify-between gap-3">
               <button
                 onClick={onOpenStats}
@@ -334,14 +338,16 @@ export function TaggedPage({
               </div>
             </div>
 
+            {/* Divider - Tokenized */}
             <div
               style={{
                 height: "1px",
-                background: "color-mix(in srgb, var(--c-glass) 20%, transparent)",
-                margin: "0.75rem 0",
+                background: "var(--border-glass-subtle)", // Tokenized
+                margin: "var(--space-3) 0",
               }}
             />
 
+            {/* Search Section - 保持原样布局 */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -352,7 +358,7 @@ export function TaggedPage({
                   />
                   <span
                     style={{
-                      color: "var(--color-text-module-title)",
+                      color: "var(--color-text-module-title)", // Tokenized
                       font: "var(--font-module-title)",
                       letterSpacing: "var(--letter-spacing-module-title)",
                       textTransform: "uppercase",
@@ -371,7 +377,7 @@ export function TaggedPage({
                     opacity: searchTags.length > 0 ? 1 : 0,
                     visibility: searchTags.length > 0 ? "visible" : "hidden",
                     pointerEvents: searchTags.length > 0 ? "auto" : "none",
-                    transition: "opacity 200ms ease, visibility 200ms ease",
+                    transition: "all 200ms ease",
                   }}
                   disabled={loading}
                 >
@@ -391,7 +397,7 @@ export function TaggedPage({
               <div className="flex items-center justify-between pt-1">
                 <span
                   style={{
-                    color: "var(--color-text-secondary)",
+                    color: "var(--color-text-secondary)", // Tokenized
                     font: "var(--font-footnote)",
                     letterSpacing: "var(--letter-spacing-footnote)",
                   }}
@@ -401,12 +407,12 @@ export function TaggedPage({
                 <div
                   className="px-2.5 py-1 rounded-lg"
                   style={{
-                    color: "var(--c-content)",
-                    background: "color-mix(in srgb, var(--c-glass) 16%, transparent)",
+                    color: "var(--color-text-primary)",
+                    background: "var(--bg-surface-glass-hover)", // Tokenized: 16% mix
                     fontSize: "0.7rem",
                     fontWeight: 600,
                     letterSpacing: "0.01em",
-                    border: "1px solid color-mix(in srgb, var(--c-glass) 24%, transparent)",
+                    border: "1px solid var(--border-glass-moderate)", // Tokenized
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
@@ -415,19 +421,21 @@ export function TaggedPage({
               </div>
             </div>
 
+            {/* Divider - Tokenized */}
             <div
               style={{
                 height: "1px",
-                background: "color-mix(in srgb, var(--c-glass) 20%, transparent)",
-                margin: "0.75rem 0",
+                background: "var(--border-glass-subtle)",
+                margin: "var(--space-3) 0",
               }}
             />
 
+            {/* List Section */}
             <div>
               {loading ? (
                 <div
                   className="text-center py-12 rounded-3xl"
-                  style={{ color: "color-mix(in srgb, var(--c-content) 55%, var(--c-bg))" }}
+                  style={{ color: "var(--color-text-tertiary)" }}
                 >
                   Loading...
                 </div>
@@ -435,8 +443,8 @@ export function TaggedPage({
                 <div
                   className="text-center py-12 rounded-3xl border border-dashed"
                   style={{
-                    color: "color-mix(in srgb, var(--c-content) 60%, var(--c-bg))",
-                    borderColor: "color-mix(in srgb, var(--c-glass) 30%, transparent)",
+                    color: "var(--color-text-tertiary)",
+                    borderColor: "var(--border-glass-strong)",
                   }}
                 >
                   <p style={{ margin: 0 }}>加载失败：{error}</p>
@@ -462,8 +470,8 @@ export function TaggedPage({
                 <div
                   className="text-center py-12 rounded-3xl border-2 border-dashed"
                   style={{
-                    color: "color-mix(in srgb, var(--c-content) 40%, var(--c-bg))",
-                    borderColor: "color-mix(in srgb, var(--c-glass) 30%, transparent)",
+                    color: "var(--color-text-tertiary)",
+                    borderColor: "var(--border-glass-strong)",
                   }}
                 >
                   <div className="space-y-4">
@@ -472,7 +480,7 @@ export function TaggedPage({
                         className="w-8 h-8"
                         strokeWidth={1.5}
                         style={{
-                          color: "color-mix(in srgb, var(--c-content) 35%, var(--c-bg))",
+                          color: "var(--color-text-quaternary)",
                         }}
                       />
                     </div>
@@ -507,6 +515,7 @@ export function TaggedPage({
         </GlassCard>
       </div>
 
+      {/* Modals and Context Menus */}
       {editingPage && (
         <EditPageDialog
           isOpen={isEditDialogOpen}
@@ -542,7 +551,7 @@ export function TaggedPage({
                     top: menuPosition.y,
                     left: menuPosition.x,
                     minWidth: "150px",
-                    borderRadius: "0.8em",
+                    borderRadius: "var(--radius-lg)", // Tokenized
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -556,7 +565,7 @@ export function TaggedPage({
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
                           style={{
-                            color: "var(--c-content)",
+                            color: "var(--color-text-primary)", // Tokenized
                             fontSize: "0.8rem",
                             fontWeight: 500,
                             background: "transparent",
@@ -574,7 +583,7 @@ export function TaggedPage({
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
                           style={{
-                            color: "var(--c-content)",
+                            color: "var(--color-text-primary)", // Tokenized
                             fontSize: "0.8rem",
                             fontWeight: 500,
                             background: "transparent",
@@ -592,7 +601,7 @@ export function TaggedPage({
                           }}
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-destructive"
                           style={{
-                            color: "color-mix(in srgb, var(--c-content) 60%, transparent)",
+                            color: "var(--color-text-secondary)", // Tokenized
                             fontSize: "0.8rem",
                             fontWeight: 500,
                             background: "transparent",
@@ -639,8 +648,10 @@ function PageCard({
       data-testid={`page-card-${page.id}`}
       className="rounded-2xl transition-all relative hover-glass"
       style={{
-        background: "color-mix(in srgb, var(--c-glass) 8%, transparent)",
-        border: "1px solid color-mix(in srgb, var(--c-glass) 15%, transparent)",
+        // [Refactor] 这里的 color-mix (8%) 对应 --bg-surface-glass-subtle
+        background: "var(--bg-surface-glass-subtle)",
+        // [Refactor] 这里的 color-mix (15%) 对应 --border-glass-subtle
+        border: "1px solid var(--border-glass-subtle)",
         padding: "0.8rem 1.1rem",
         cursor: "default",
       }}
@@ -667,10 +678,11 @@ function PageCard({
                      group-hover/more:opacity-100 transition-all
                      hover-action"
           style={{
-            background: "color-mix(in srgb, var(--c-glass) 18%, transparent)",
-            backdropFilter: "blur(8px)",
-            border: "1.5px solid color-mix(in srgb, var(--c-glass) 28%, transparent)",
-            color: "color-mix(in srgb, var(--c-content) 65%, var(--c-bg))",
+            // [Refactor] 菜单按钮背景: color-mix 18% -> 接近 --bg-surface-glass-active (20%)
+            background: "var(--bg-surface-glass-active)",
+            backdropFilter: "blur(var(--glass-blur-base))",
+            border: "1.5px solid var(--border-glass-moderate)",
+            color: "var(--color-text-tertiary)",
             cursor: "pointer",
             pointerEvents: "auto",
           }}
@@ -706,7 +718,6 @@ function PageCard({
             <PageIcon url={page.url} />
           </div>
 
-          {/* 仅在文本被截断时显示完整 URL，延迟稍长以免干扰 */}
           <Tooltip content={page.url} delay={600} side="bottom">
             <p
               className="truncate flex-1"
@@ -737,8 +748,10 @@ function PageCard({
                   color: "var(--color-text-secondary)",
                   font: "var(--font-tag)",
                   letterSpacing: "var(--letter-spacing-tag)",
-                  background: "color-mix(in srgb, var(--c-glass) 10%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--c-glass) 18%, transparent)",
+                  // [Refactor] 标签背景: 10% -> --bg-surface-glass
+                  background: "var(--bg-surface-glass)",
+                  // [Refactor] 标签边框: 18% -> --border-glass-moderate
+                  border: "1px solid var(--border-glass-moderate)",
                   transition: "all 200ms ease",
                 }}
               >

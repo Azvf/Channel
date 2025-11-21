@@ -6,9 +6,28 @@ interface TagProps {
   label: string;
   onRemove?: () => void;
   className?: string;
+  variant?: 'default' | 'subtle';
 }
 
-export function Tag({ label, onRemove, className = "" }: TagProps) {
+export function Tag({ label, onRemove, className = "", variant = 'default' }: TagProps) {
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'subtle':
+        return {
+          background: 'var(--bg-surface-glass-subtle)',
+          color: 'var(--color-text-tertiary)',
+        };
+      case 'default':
+      default:
+        return {
+          background: 'var(--bg-surface-glass)',
+          color: 'var(--color-text-primary)',
+        };
+    }
+  };
+
+  const variantStyles = getVariantStyles();
+
   return (
     <motion.div
       className={`inline-flex ${className}`}
@@ -20,7 +39,8 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
       <div 
         className="liquidGlass-wrapper relative"
         style={{
-          borderRadius: '99em' // 覆盖默认的 1.4em，保持 tag 的圆形外观
+          borderRadius: '99em', // 覆盖默认的 1.4em，保持 tag 的圆形外观
+          ...variantStyles
         }}
       >
         {/* [修复] 移除 "liquidGlass-content"，它带来了 `width: 100%` 的副作用 */}
@@ -28,7 +48,7 @@ export function Tag({ label, onRemove, className = "" }: TagProps) {
           <span 
             className="whitespace-nowrap px-2.5 py-1"
             style={{
-              color: 'var(--color-text-primary)',
+              color: variantStyles.color,
               font: 'var(--font-tag)',
               letterSpacing: 'var(--letter-spacing-tag)',
               userSelect: 'none'

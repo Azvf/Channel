@@ -33,7 +33,7 @@ export function GlassCard({
   depthLevel,
   isAnimating: externalIsAnimating,
   onClick,
-  ...rest // 接收所有剩余属性（包括 onMouseEnter 等）
+  ...rest 
 }: GlassCardProps) {
   const parentDepth = useGlassDepth();
   
@@ -100,8 +100,8 @@ export function GlassCard({
               fontSize: '10px',
               opacity: 0.5,
               padding: '2px 4px',
-              background: 'rgba(0, 0, 0, 0.3)',
-              color: 'white',
+              background: 'var(--bg-surface-glass-active)', // Tokenized
+              color: 'var(--color-text-primary)', // Tokenized
               borderRadius: '0 1.4em 0 0',
               pointerEvents: 'none',
               zIndex: 9999,
