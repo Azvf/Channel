@@ -43,13 +43,25 @@ class FeatureOrchestrator {
             f.detect(),
             new Promise<null>((resolve) =>
               setTimeout(() => {
-                console.warn(`[FeatureOrchestrator] ${f.id} 超时`);
+                // video-detector 和 metadata-detector 的超时是预期行为，降级为 console.log
+                const isExpectedTimeout = f.id === 'video-detector' || f.id === 'metadata-detector';
+                if (isExpectedTimeout) {
+                  console.log(`[FeatureOrchestrator] ${f.id} 超时`);
+                } else {
+                  console.warn(`[FeatureOrchestrator] ${f.id} 超时`);
+                }
                 resolve(null);
               }, 2000) // 2秒超时
             ),
           ]);
         } catch (e) {
-          console.warn(`[FeatureOrchestrator] ${f.id} 失败:`, e);
+          // video-detector 和 metadata-detector 的失败是预期行为，降级为 console.log
+          const isExpectedFailure = f.id === 'video-detector' || f.id === 'metadata-detector';
+          if (isExpectedFailure) {
+            console.log(`[FeatureOrchestrator] ${f.id} 失败:`, e);
+          } else {
+            console.warn(`[FeatureOrchestrator] ${f.id} 失败:`, e);
+          }
           return null;
         }
       });
