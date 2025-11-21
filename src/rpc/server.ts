@@ -2,9 +2,8 @@
 // 服务端设计：事务控制与异常屏障
 
 import { TagManager } from '../services/tagManager';
-import { syncService } from '../services/syncService';
 import { timeService } from '../services/timeService';
-import { getInitializationPromise } from '../background/messageHandler';
+import { getInitializationPromise } from '../background/init';
 import { 
   JsonRpcRequest, 
   JsonRpcResponse, 
@@ -22,6 +21,8 @@ const SLOW_QUERY_THRESHOLD = 200;
 /**
  * 触发后台同步但不阻塞响应
  * 实现 "Fire and Forget" 模式
+ * 
+ * 注意：此函数仅用于业务层（BackgroundServiceImpl）调用，不在 Server 层自动触发同步
  */
 function triggerBackgroundSync(syncPromise: Promise<void>): void {
   syncPromise.catch((err) => {
@@ -30,7 +31,7 @@ function triggerBackgroundSync(syncPromise: Promise<void>): void {
 }
 
 /**
- * 判断方法是否为写入操作
+ * 判断方法是否为写入操作（用于时间校准，不影响同步逻辑）
  */
 function isWriteOperation(method: string): boolean {
   const writeMethods = ['create', 'update', 'delete', 'add', 'remove', 'import'];
@@ -92,11 +93,10 @@ export function registerRpcHandler<T extends object>(service: T): void {
           // 如果 tagManager.commit() 失败，这里会抛出异常，sendResponse 会返回错误给前端
           await tagManager.commit();
 
-          // 7. 副作用：触发后台同步 (Fire and Forget)
-          // 此时数据已落库，我们可以放心地触发同步，不需要等待它完成
-          if (isWriteOperation(method)) {
-            triggerBackgroundSync(syncService.syncAll());
-          }
+          // 注意：同步逻辑由业务层（BackgroundServiceImpl）精细控制
+          // 业务层会调用 syncService.markTagChange() 或 syncService.markPageChange()
+          // 这些方法比全量 syncAll() 更精准，能准确标记需要同步的变更
+          // 因此 Server 层不在此处自动触发同步，避免双重触发和资源浪费
 
           // === 事务结束 ===
 

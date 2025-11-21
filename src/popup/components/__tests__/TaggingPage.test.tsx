@@ -77,7 +77,8 @@ describe('TaggingPage (with Context)', () => {
 
     expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(1);
 
-    const input = screen.getByRole('textbox');
+    // 使用 'combobox' 角色，因为 TagInput 现在符合 WAI-ARIA 标准
+    const input = screen.getByRole('combobox');
     await act(async () => {
       await user.type(input, 'New Tag{enter}');
     });

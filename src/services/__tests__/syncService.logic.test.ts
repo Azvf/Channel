@@ -21,28 +21,28 @@ jest.mock('../timeService', () => ({
 jest.mock('../../lib/supabase', () => {
   const mockFn = jest.fn as any;
   return {
-    supabase: {
-      auth: {
+  supabase: {
+    auth: {
         getSession: mockFn().mockResolvedValue({ data: { session: null }, error: null }),
         onAuthStateChange: mockFn(() => ({
-          data: { subscription: null },
-          unsubscribe: jest.fn(),
-        })),
-      },
-      channel: mockFn(() => ({
-        on: jest.fn().mockReturnThis(),
-        subscribe: jest.fn(),
+        data: { subscription: null },
+        unsubscribe: jest.fn(),
       })),
+    },
+      channel: mockFn(() => ({
+      on: jest.fn().mockReturnThis(),
+      subscribe: jest.fn(),
+    })),
       removeChannel: mockFn(),
       rpc: mockFn().mockResolvedValue({ data: Date.now(), error: null }), // Mock get_server_time RPC
       from: mockFn(() => ({
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        gt: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gt: jest.fn().mockReturnThis(),
         upsert: mockFn().mockResolvedValue({ error: null }),
-        update: jest.fn().mockReturnThis(), // for soft delete
-      })),
-    }
+      update: jest.fn().mockReturnThis(), // for soft delete
+    })),
+  }
   };
 });
 

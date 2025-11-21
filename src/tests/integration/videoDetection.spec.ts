@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
-// Mock supabase before importing messageHandler (which may import supabase)
+// Mock supabase before importing
 jest.mock('../../lib/supabase', () => require('../../lib/__mocks__/supabase'));
 
-import { handleMessageAsync } from '../../background/messageHandler';
+import { BackgroundServiceImpl } from '../../services/background/BackgroundServiceImpl';
+import { TagManager } from '../../services/tagManager';
+import { storageService, STORAGE_KEYS } from '../../services/storageService';
+import { resetInitializationForTests } from '../../background/init';
 
 // Mock chrome APIs
 global.chrome = {
@@ -32,9 +35,56 @@ global.chrome = {
   },
 } as any;
 
-describe('集成测试 - Background + Content Script 视频检测鲁棒性', () => {
+// Mock services
+jest.mock('../../services/timeService', () => ({
+  timeService: {
+    calibrate: jest.fn(() => Promise.resolve()),
+    now: jest.fn(() => Date.now()),
+    get isCalibrated() { return true; },
+    getOffset: jest.fn(() => 0),
+    reset: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/syncService', () => ({
+  syncService: {
+    initialize: jest.fn(() => Promise.resolve()),
+    markTagChange: jest.fn(() => Promise.resolve()),
+    markPageChange: jest.fn(() => Promise.resolve()),
+  },
+}));
+
+jest.mock('../../services/storageService', () => {
+  const actual = jest.requireActual('../../services/storageService') as any;
+  return {
+    ...actual,
+    storageService: {
+      getMultiple: jest.fn(() => Promise.resolve({
+        [actual.STORAGE_KEYS.TAGS]: {},
+        [actual.STORAGE_KEYS.PAGES]: {},
+        [actual.STORAGE_KEYS.PAGE_SETTINGS]: { syncVideoTimestamp: true },
+      })),
+      setMultiple: jest.fn(() => Promise.resolve()),
+    },
+  };
+});
+
+describe('集成测试 - Background + Content Script 视频检测鲁棒性 (RPC 架构)', () => {
+  let backgroundService: BackgroundServiceImpl;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    resetInitializationForTests();
+    TagManager.getInstance().clearAllData();
+    
+    // 确保 getPageSettings 返回 syncVideoTimestamp: true
+    (storageService.getMultiple as jest.Mock<any>).mockResolvedValue({
+      [STORAGE_KEYS.TAGS]: {},
+      [STORAGE_KEYS.PAGES]: {},
+      [STORAGE_KEYS.PAGE_SETTINGS]: { syncVideoTimestamp: true },
+    });
+
+    backgroundService = new BackgroundServiceImpl();
   });
 
   afterEach(() => {
@@ -52,20 +102,15 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
 
     (chrome.scripting.executeScript as any).mockResolvedValue(mockResults);
 
-    // 模拟 getCurrentPage 消息
-    const message = {
-      action: 'getCurrentPage',
-    };
+    // 直接调用 RPC 服务方法
+    const page = await backgroundService.getCurrentPage();
 
-    const sendResponse = jest.fn();
-
-    // ✅ 确定性测试：直接 await 异步处理函数
-    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
-
-    // 不需要 setTimeout，执行到这里意味着逻辑已完成
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
     const callArgs = (chrome.scripting.executeScript as any).mock.calls[0][0];
     expect(callArgs.target.allFrames).toBe(true);
+    
+    // 验证 URL 包含了最大时间戳
+    expect(page.url).toContain('t=250');
   });
 
   it('应该处理无视频的情况', async () => {
@@ -77,17 +122,12 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
 
     (chrome.scripting.executeScript as any).mockResolvedValue(mockResults);
 
-    const message = {
-      action: 'getCurrentPage',
-    };
-
-    const sendResponse = jest.fn();
-
-    // ✅ 确定性测试：直接 await 异步处理函数
-    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
+    const page = await backgroundService.getCurrentPage();
 
     // 验证 executeScript 被调用
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
+    // URL 不应该包含时间戳参数
+    expect(page.url).toBe('https://example.com');
   });
 
   it('应该处理 Iframe 视频检测', async () => {
@@ -99,38 +139,28 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性', () 
 
     (chrome.scripting.executeScript as any).mockResolvedValue(mockResults);
 
-    const message = {
-      action: 'getCurrentPage',
-    };
-
-    const sendResponse = jest.fn();
-
-    // ✅ 确定性测试：直接 await 异步处理函数
-    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
+    const page = await backgroundService.getCurrentPage();
 
     // 验证 executeScript 被调用，且 allFrames: true
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
     const callArgs = (chrome.scripting.executeScript as any).mock.calls[0][0];
     expect(callArgs.target.allFrames).toBe(true);
+    
+    // 验证 URL 包含了 iframe 中的时间戳
+    expect(page.url).toContain('t=500');
   });
 
   it('应该处理错误情况', async () => {
     // Mock executeScript 抛出错误
     (chrome.scripting.executeScript as any).mockRejectedValue(new Error('Script execution failed'));
 
-    const message = {
-      action: 'getCurrentPage',
-    };
-
-    const sendResponse = jest.fn();
-
-    // ✅ 确定性测试：直接 await 异步处理函数
-    await handleMessageAsync(message, { tab: { id: 1 } } as any, sendResponse);
+    // 错误不应该导致整个方法失败，应该降级处理
+    const page = await backgroundService.getCurrentPage();
 
     // 验证 executeScript 被调用
     expect(chrome.scripting.executeScript).toHaveBeenCalled();
-    // 验证错误被处理（不应该抛出未捕获的错误）
-    expect(sendResponse).toHaveBeenCalled();
+    // 即使脚本执行失败，也应该返回页面（使用原始 URL，不包含时间戳）
+    expect(page).toBeDefined();
+    expect(page.url).toBe('https://example.com');
   });
 });
-

@@ -458,6 +458,12 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error(result.error || '导入数据失败');
     }
 
+    // ✅ 修复：触发后台全量同步，确保导入的数据上传到云端
+    // 使用 triggerBackgroundSync 确保不阻塞 UI 响应
+    // 注意：importData 可能包含大量数据，无法逐条标记 markChange
+    // 因此调用 syncAll() 来发现本地的新数据并上传
+    triggerBackgroundSync(syncService.syncAll());
+
     return result.imported!;
   }
 

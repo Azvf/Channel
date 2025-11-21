@@ -1,39 +1,13 @@
-import React, { useState, useEffect, memo, useRef } from 'react';
+import React, { memo } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { Tooltip } from './Tooltip';
-import { statsWallManager } from '../../services/StatsWallManager';
-import { CalendarLayoutInfo } from '../../types/statsWall';
+import { useStatsWall, DayData } from '../hooks/headless/useStatsWall';
 
 interface StatsWallModalProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-// 适配器：将 CalendarCell 转换为组件内部使用的格式
-interface DayData {
-  id: string;
-  date: Date;
-  level: 0 | 1 | 2 | 3;
-  items: number;
-  dateString: string;
-}
-
-/**
- * 将 CalendarLayoutInfo 转换为组件内部使用的格式
- */
-function convertLayoutToDayData(layout: CalendarLayoutInfo): { days: DayData[]; monthLabels: { label: string; colStart: number }[] } {
-  return {
-    days: layout.cells.map(cell => ({
-      id: cell.id,
-      date: cell.date,
-      level: cell.level,
-      items: cell.count,
-      dateString: cell.label
-    })),
-    monthLabels: layout.months
-  };
 }
 
 /**
@@ -57,111 +31,15 @@ const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
 });
 
 /**
- * 主模态框组件
+ * 主模态框组件 - 视觉层（Skin）
+ * 只负责渲染 Glass 效果、布局、动画
+ * 所有逻辑都在 useStatsWall hook 中（Brain）
  */
 export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
-  
-  // 立即使用空结构进行初始化，避免闪烁
-  const [layoutData, setLayoutData] = useState<CalendarLayoutInfo | null>(() => 
-    statsWallManager.generateEmptyCalendar()
-  );
+  // 一行代码接管所有复杂性
+  const { layout, days, monthLabels, totalWeeks, scrollContainerRef } = useStatsWall(isOpen);
 
-  // 为滚动容器创建一个 ref
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // 静默获取数据 (Manager 处理了缓存)
-  useEffect(() => {
-    if (isOpen) {
-      // Manager 处理了缓存和逻辑，React 组件只负责"索要"数据
-      statsWallManager.getStatsWallData()
-        .then(data => setLayoutData(data))
-        .catch(err => {
-          // 静默失败
-          console.error("后台加载活动数据失败:", err);
-        });
-    }
-  }, [isOpen]);
-
-  // 3. [新] 添加 useEffect 来处理滚轮事件
-  useEffect(() => {
-    if (isOpen && scrollRef.current) {
-      const element = scrollRef.current;
-
-      const handleWheel = (e: WheelEvent) => {
-        // 检查是否有垂直滚动（deltaY）
-        if (e.deltaY !== 0) {
-          // 阻止页面默认的垂直滚动
-          e.preventDefault();
-          // 将垂直滚动量应用到水平滚动上
-          element.scrollLeft += e.deltaY;
-        }
-      };
-
-      element.addEventListener('wheel', handleWheel);
-      
-      return () => {
-        element.removeEventListener('wheel', handleWheel);
-      };
-    }
-  }, [isOpen]); // 仅在 isOpen 状态改变时重新附加/移除
-
-  // 自动滚动逻辑
-  useEffect(() => {
-    // 仅在模态框打开、滚动容器可用且数据已加载时执行
-    if (isOpen && scrollRef.current && layoutData && layoutData.cells.length > 0) {
-      const element = scrollRef.current;
-
-      // 1. 查找第一个有活动的 day 的索引
-      const firstActivityIndex = layoutData.cells.findIndex(cell => cell.count > 0);
-
-      // [修复] 从 CSS 读取动态值，而不是硬编码
-      const computedStyle = window.getComputedStyle(element);
-      const squareSize = parseFloat(computedStyle.getPropertyValue('--square-size')) || 24;
-      const gapSize = parseFloat(computedStyle.getPropertyValue('--gap-size')) || 4;
-      const colWidth = squareSize + gapSize; // 现在是 28px，但会随 CSS 自动更新 
-
-      let targetScrollLeft = 0;
-
-      if (firstActivityIndex !== -1) {
-        // 2. 如果找到了活动
-        // 找到它在第几周 (column)
-        const firstActivityWeek = Math.floor(firstActivityIndex / 7);
-        
-        // 3. 计算滚动的目标位置
-        // 目标是滚动到第一列，并减去几周的宽度作为左边距
-        targetScrollLeft = firstActivityWeek * colWidth;
-        // 减去2周的宽度作为边距，但确保不小于0
-        targetScrollLeft = Math.max(0, targetScrollLeft - (colWidth * 2)); 
-
-      } else {
-        // 4. 如果*没有*任何活动 (firstActivityIndex === -1)
-        // 按照要求，滚动到最右侧 (当前月份)
-        targetScrollLeft = element.scrollWidth - element.clientWidth;
-      }
-
-      // 5. 滚动到目标位置
-      // 使用 rAF 和 setTimeout 确保 DOM 布局已完成
-      const animationFrameId = requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (element) {
-            // 使用平滑滚动
-            element.scrollTo({
-              left: targetScrollLeft,
-              behavior: 'smooth'
-            });
-          }
-        }, 100); // 100ms 延迟确保布局稳定
-      });
-
-      return () => cancelAnimationFrame(animationFrameId);
-    }
-  }, [isOpen, layoutData]); // 依赖 isOpen 和 layoutData
-
-  if (!isOpen || !layoutData) return null;
-  
-  // 转换为组件内部使用的格式
-  const { days, monthLabels } = convertLayoutToDayData(layoutData);
-  const totalWeeks = layoutData.totalWeeks;
+  if (!isOpen || !layout) return null;
 
   return createPortal(
     <div className="stats-wall-backdrop" onClick={onClose}>
@@ -190,7 +68,7 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
           
           {/* 1b. [新] 可滚动的内容区域 */}
           <div 
-            ref={scrollRef}
+            ref={scrollContainerRef}
             className="stats-wall-scroll-content"
           >
             {/* 月份标签 (现在在滚动区内部) */}

@@ -121,7 +121,7 @@ class CurrentPageService {
    */
   async updatePageTitle(pageId: string, title: string): Promise<void> {
     return backgroundApi.updatePageTitle(pageId, title);
-  }
+      }
 
   /**
    * 获取用户统计数据（今日标记数量与 streak）
