@@ -43,7 +43,8 @@ export const GlassInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Gla
             // 玻璃质感
             background: 'var(--bg-surface-glass-subtle)', 
             border: '1px solid transparent',
-            borderRadius: 'var(--radius-lg)', // 12px
+            // [Design] Liquid Conformality: 友好的容器，24px 圆角让输入框看起来像一个包含内容的"槽"
+            borderRadius: 'var(--radius-lg)', // 24px
             
             // 字体
             color: 'var(--color-text-primary)',

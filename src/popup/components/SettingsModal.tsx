@@ -152,7 +152,9 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
                   width: '100%', 
                   // [Refactor] 使用标准模态框高度 Token
                   maxHeight: 'var(--modal-max-height)',
-                  padding: 'var(--space-5)' // 20px
+                  padding: 'var(--space-5)', // 20px
+                  // [Design] Liquid Conformality: 模态框使用 40px 圆角，像从屏幕底部浮出的气泡
+                  borderRadius: 'var(--radius-2xl)' // 40px - 覆盖默认的 --radius-xl
                 }}
                 // GlassCard 现在内部已经没有默认 flex-col，需要手动加上或通过 className
                 className="flex flex-col" 

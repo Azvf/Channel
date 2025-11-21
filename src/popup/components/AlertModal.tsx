@@ -117,6 +117,8 @@ export function AlertModal({
             width: '100%',
             height: 'auto', // 允许高度自适应（内容少时变矮）
             maxHeight: '100%', // 继承父级的 var(--modal-max-height) 限制（内容多时受限）
+            // [Design] Liquid Conformality: 模态框使用 40px 圆角，像从屏幕底部浮出的气泡
+            borderRadius: 'var(--radius-2xl)' // 40px - 覆盖默认的 --radius-xl
           }}
         >
           {/* Header: 固定高度 (flex-shrink-0 防止被压缩) */}

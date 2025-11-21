@@ -89,7 +89,8 @@
 .activity-day-square {
   width: var(--square-size);
   height: var(--square-size);
-  border-radius: var(--radius-sm);
+  /* [Design] Liquid Conformality: 使用 8px 圆角，看起来像小鹅卵石，而不是像素点 */
+  border-radius: var(--radius-xs); /* 8px */
   cursor: default;
   transition: transform var(--transition-fast) ease-out, 
               box-shadow var(--transition-fast) ease-out, 

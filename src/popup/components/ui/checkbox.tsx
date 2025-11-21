@@ -15,7 +15,7 @@ export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
         className="absolute opacity-0 cursor-pointer w-full h-full"
       />
       <div
-        className="icon-sm rounded border-2 flex items-center justify-center transition-all"
+        className="icon-sm border-2 flex items-center justify-center transition-all"
         style={{
           // [Refactor] Tokenized Colors
           borderColor: checked 
@@ -23,7 +23,9 @@ export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
             : 'var(--border-glass-strong)',
           backgroundColor: checked 
             ? 'var(--bg-action-solid)' 
-            : 'transparent'
+            : 'transparent',
+          // [Design] Liquid Conformality: 即使是小元素也不刺手
+          borderRadius: 'var(--radius-xs)' // 8px - 圆润的骰子，而不是尖锐的方块
         }}
       >
         {checked && (

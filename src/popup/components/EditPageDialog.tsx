@@ -261,7 +261,9 @@ export function EditPageDialog({
           style={{ 
             width: '100%', 
             height: 'auto', 
-            maxHeight: '100%'
+            maxHeight: '100%',
+            // [Design] Liquid Conformality: 模态框使用 40px 圆角，像从屏幕底部浮出的气泡
+            borderRadius: 'var(--radius-2xl)' // 40px - 覆盖默认的 --radius-xl
           }}
         >
           {/* Header - 使用标准化的 ModalHeader */}
