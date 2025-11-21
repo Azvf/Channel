@@ -1,5 +1,4 @@
-import React from 'react';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TagManagementPage } from '../TagManagementPage';
 import { currentPageService } from '../../../services/popup/currentPageService';

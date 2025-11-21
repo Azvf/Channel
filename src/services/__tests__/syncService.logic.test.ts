@@ -18,30 +18,33 @@ jest.mock('../timeService', () => ({
     reset: jest.fn(),
   },
 }));
-jest.mock('../../lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
-      onAuthStateChange: jest.fn(() => ({
-        data: { subscription: null },
-        unsubscribe: jest.fn(),
+jest.mock('../../lib/supabase', () => {
+  const mockFn = jest.fn as any;
+  return {
+    supabase: {
+      auth: {
+        getSession: mockFn().mockResolvedValue({ data: { session: null }, error: null }),
+        onAuthStateChange: mockFn(() => ({
+          data: { subscription: null },
+          unsubscribe: jest.fn(),
+        })),
+      },
+      channel: mockFn(() => ({
+        on: jest.fn().mockReturnThis(),
+        subscribe: jest.fn(),
       })),
-    },
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
-    })),
-    removeChannel: jest.fn(),
-    rpc: jest.fn().mockResolvedValue({ data: Date.now(), error: null }), // Mock get_server_time RPC
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      gt: jest.fn().mockReturnThis(),
-      upsert: jest.fn().mockResolvedValue({ error: null }),
-      update: jest.fn().mockReturnThis(), // for soft delete
-    })),
-  }
-}));
+      removeChannel: mockFn(),
+      rpc: mockFn().mockResolvedValue({ data: Date.now(), error: null }), // Mock get_server_time RPC
+      from: mockFn(() => ({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gt: jest.fn().mockReturnThis(),
+        upsert: mockFn().mockResolvedValue({ error: null }),
+        update: jest.fn().mockReturnThis(), // for soft delete
+      })),
+    }
+  };
+});
 
 describe('SyncService (Logic Flow)', () => {
   let syncService: SyncService;
@@ -78,8 +81,8 @@ describe('SyncService (Logic Flow)', () => {
       if (key === STORAGE_KEYS.SYNC_PENDING_CHANGES) return Promise.resolve([]);
       return Promise.resolve(null);
     });
-    (storageService.set as jest.Mock).mockResolvedValue(undefined);
-    (storageService.remove as jest.Mock).mockResolvedValue(undefined);
+    (storageService.set as jest.Mock<any>).mockResolvedValue(undefined);
+    (storageService.remove as jest.Mock<any>).mockResolvedValue(undefined);
     
     // [修复] 稳健的 Mock Query 实现
     // 正确实现 Thenable 接口，确保 await 可靠工作
@@ -105,14 +108,14 @@ describe('SyncService (Logic Flow)', () => {
     };
     
     // Mock Supabase 查询链 (默认返回空)
-    (supabase.from as jest.Mock).mockImplementation((table) => {
+    (supabase.from as jest.Mock).mockImplementation(() => {
       return createMockQuery();
     });
   });
 
   it('initialize: 应该加载待同步队列', async () => {
     const pendingChanges = [{ type: 'tag', operation: 'create', id: 't1', timestamp: 123 }];
-    (storageService.get as jest.Mock).mockResolvedValueOnce(pendingChanges);
+    (storageService.get as jest.Mock<any>).mockResolvedValueOnce(pendingChanges);
 
     await syncService.initialize();
 
@@ -143,7 +146,7 @@ describe('SyncService (Logic Flow)', () => {
     });
 
     // Mock Supabase upsert 成功
-    const mockUpsert = jest.fn().mockResolvedValue({ error: null });
+    const mockUpsert = jest.fn<any>().mockResolvedValue({ error: null });
     const mockFrom = jest.fn(() => ({
       upsert: mockUpsert,
     }));
@@ -194,8 +197,8 @@ describe('SyncService (Logic Flow)', () => {
     });
     
     // Mock set 操作
-    (storageService.set as jest.Mock).mockResolvedValue(undefined);
-    (storageService.remove as jest.Mock).mockResolvedValue(undefined);
+    (storageService.set as jest.Mock<any>).mockResolvedValue(undefined);
+    (storageService.remove as jest.Mock<any>).mockResolvedValue(undefined);
 
     // [修复] 稳健的 Mock Query 实现
     // 正确实现 Thenable 接口，确保 await 可靠工作
@@ -237,7 +240,7 @@ describe('SyncService (Logic Flow)', () => {
     };
     
     // 应用 Mock
-    (supabase.from as jest.Mock).mockImplementation((table) => {
+    (supabase.from as jest.Mock).mockImplementation(() => {
       return createMockQuery();
     });
 

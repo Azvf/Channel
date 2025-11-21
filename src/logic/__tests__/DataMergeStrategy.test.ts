@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { mergeDataStrategy } from '../DataMergeStrategy';
-import type { TagsCollection, PageCollection, GameplayTag } from '../../types/gameplayTag';
+import type { GameplayTag } from '../../types/gameplayTag';
 
 // 辅助函数：快速生成测试数据
 const createTag = (id: string, name: string, updatedAt: number, deleted: boolean = false): GameplayTag => ({

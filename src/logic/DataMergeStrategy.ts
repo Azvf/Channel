@@ -1,4 +1,4 @@
-import { TagsCollection, PageCollection, GameplayTag, TaggedPage } from '../types/gameplayTag';
+import { TagsCollection, PageCollection, GameplayTag } from '../types/gameplayTag';
 import { logger } from '../services/logger';
 
 const log = logger('DataMergeStrategy');

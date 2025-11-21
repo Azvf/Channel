@@ -5,8 +5,17 @@
 
 import { messageHandler, onInstalledHandler, getInitializationPromise } from './messageHandler';
 import { syncService } from '../services/syncService';
+import { registerRpcHandler } from '../rpc/server';
+import { BackgroundServiceImpl } from '../services/background/BackgroundServiceImpl';
 
 chrome.runtime.onInstalled.addListener(onInstalledHandler);
+
+// 注册 RPC 处理器（新的架构）
+const backgroundService = new BackgroundServiceImpl();
+registerRpcHandler(backgroundService);
+
+// 保留旧的消息处理器以支持向后兼容
+// TODO: 前端迁移完成后，可以移除这行
 chrome.runtime.onMessage.addListener(messageHandler);
 
 // 监听标签页更新
