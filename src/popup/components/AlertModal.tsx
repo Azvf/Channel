@@ -34,7 +34,8 @@ const intentMap = {
   },
   warning: {
     icon: AlertTriangle,
-    color: '#F5A623', // Keep as is until Warning Token is added
+    /* [Refactor] #F5A623 -> var(--color-warning)，使用语义化 Token */
+    color: 'var(--color-warning)',
   },
   destructive: {
     icon: XCircle,
@@ -96,7 +97,8 @@ export function AlertModal({
         className="w-full max-w-sm flex flex-col"
         style={{
           // 1. 硬性限制模态框最大高度，留出上下边距
-          maxHeight: '85vh',
+          /* [Refactor] 统一使用全局 Token，保持与其他模态框的一致性 */
+          maxHeight: 'var(--modal-max-height)',
           // [Refactor] 使用明确的 Content 层级，确保在 Backdrop 之上
           zIndex: 'var(--z-modal-content)',
         }}
@@ -114,7 +116,7 @@ export function AlertModal({
           style={{
             width: '100%',
             height: 'auto', // 允许高度自适应（内容少时变矮）
-            maxHeight: '100%', // 继承父级的 85vh 限制（内容多时受限）
+            maxHeight: '100%', // 继承父级的 var(--modal-max-height) 限制（内容多时受限）
           }}
         >
           {/* Header: 固定高度 (flex-shrink-0 防止被压缩) */}

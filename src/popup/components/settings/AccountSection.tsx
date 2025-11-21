@@ -101,7 +101,8 @@ export function AccountSection() {
                 </p>
                 
                 <div style={{ 
-                    maxHeight: '200px', 
+                    /* [Refactor] 使用空间单位 Token 的倍数，约 4.5 行的高度，适配不同字体缩放 */
+                    maxHeight: 'calc(var(--row-min-height) * 4.5)', 
                     overflowY: 'auto',
                     // [Refactor] Tokenized Border & Spacing
                     border: '1px solid var(--border-glass-subtle)',

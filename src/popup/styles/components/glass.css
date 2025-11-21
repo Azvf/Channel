@@ -54,9 +54,10 @@
     0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * (5% + var(--local-depth) * 1%)), transparent);
   
   /* 平滑过渡，避免视觉跳跃 */
-  transition: background-color 200ms var(--ease-glass),
-              backdrop-filter 200ms var(--ease-glass),
-              box-shadow 200ms var(--ease-glass);
+  /* [Refactor] 使用标准过渡时间 Token */
+  transition: background-color var(--transition-fast) var(--ease-glass),
+              backdrop-filter var(--transition-fast) var(--ease-glass),
+              box-shadow var(--transition-fast) var(--ease-glass);
 }
 
 /* --- 性能模式 (Animation Mode) --- */

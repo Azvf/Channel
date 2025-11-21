@@ -8,7 +8,7 @@ import { TagManagementPage } from "./components/TagManagementPage";
 import { storageService, STORAGE_KEYS } from "../services/storageService";
 import { usePageSettings } from "./utils/usePageSettings";
 import type { AppInitialState } from "../services/appInitService";
-import { DURATION, EASE, getDurationMs, getEaseString } from "./tokens/animation"; // [Refactor] 引入物理引擎
+import { DURATION, EASE, DELAY, getDurationMs, getEaseString } from "./tokens/animation"; // [Refactor] 引入物理引擎
 
 interface AppProps {
   initialState: AppInitialState;
@@ -31,9 +31,14 @@ export default function App({ initialState }: AppProps) {
     root.style.setProperty('--transition-fast', getDurationMs(DURATION.FAST));
     root.style.setProperty('--transition-base', getDurationMs(DURATION.BASE));
     root.style.setProperty('--transition-slow', getDurationMs(DURATION.SLOW));
+    root.style.setProperty('--transition-hero', `${700}ms`); // Hero 动画专用
     
     root.style.setProperty('--ease-smooth', getEaseString(EASE.SMOOTH));
     root.style.setProperty('--ease-glass', getEaseString(EASE.OUT_CUBIC)); // 使用 OUT_CUBIC 作为 glass 缓动
+    
+    // [Refactor] 同步延迟常量到 CSS（如果需要）
+    root.style.setProperty('--delay-instant', getDurationMs(DELAY.INSTANT));
+    root.style.setProperty('--delay-short', getDurationMs(DELAY.SHORT));
   }, []);
 
   // [Refactor] 不再依赖 JS 状态计算高度，改为 CSS 变量控制布局

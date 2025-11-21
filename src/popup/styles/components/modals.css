@@ -36,7 +36,8 @@
 }
 
 .settings-row:hover {
-  background-color: color-mix(in srgb, var(--c-glass) 8%, transparent);
+  /* [Refactor] 8% mix -> var(--bg-surface-glass-subtle) (10%)，统一使用语义化 Token */
+  background-color: var(--bg-surface-glass-subtle);
 }
 
 .settings-row-label {
@@ -67,7 +68,8 @@
 }
 
 .settings-row-button:hover {
-  background-color: color-mix(in srgb, var(--c-glass) 8%, transparent);
+  /* [Refactor] 8% mix -> var(--bg-surface-glass-subtle) (10%)，统一使用语义化 Token */
+  background-color: var(--bg-surface-glass-subtle);
   color: var(--c-action);
 }
 
@@ -94,9 +96,9 @@
   max-width: var(--stats-wall-max-width);
   padding: var(--space-5) var(--space-6);
   margin: auto;
-  /* Override glass card defaults for this specific heavy modal if needed */
-  background-color: color-mix(in srgb, var(--c-bg) 98%, transparent) !important;
-  backdrop-filter: blur(16px) saturate(180%) !important;
+  /* [Refactor] 使用语义化 Token，替代硬编码的模糊度和背景混合 */
+  background-color: var(--bg-surface-solid-ish) !important;
+  backdrop-filter: blur(var(--glass-blur-heavy)) saturate(180%) !important;
   border: 1px solid var(--border-glass-strong);
   box-shadow: var(--shadow-xl); /* Tokenized shadow */
   display: flex;
@@ -185,7 +187,8 @@
   );
   opacity: 0.8;
   transform: translateX(-120%);
-  transition: transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+  /* [Refactor] 使用 Hero 动画 Token，专用于 Logo/Hero 动画 */
+  transition: transform var(--transition-hero) cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .channel-title-wrapper:hover .channel-title::before {

@@ -2,6 +2,7 @@ import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { POSITIONING } from '../utils/layoutConstants';
+import { SMOOTH_TRANSITION } from '../utils/motion'; // [Refactor] 使用统一的动画系统
 
 interface TooltipProps {
   children: React.ReactElement;
@@ -109,7 +110,8 @@ export function Tooltip({
               initial={{ opacity: 0, scale: 0.96, y: side === 'top' ? 2 : -2 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
+              // [Refactor] 使用统一的动画系统
+              transition={SMOOTH_TRANSITION}
               className="fixed"
               style={{ 
                 zIndex: 'var(--z-tooltip)',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { statsWallManager } from '../../../services/StatsWallManager';
 import { CalendarLayoutInfo } from '../../../types/statsWall';
+import { RENDER_TICK } from '../../tokens/animation'; // [Refactor] 使用统一的渲染周期常量
 
 export interface DayData {
   id: string;
@@ -121,6 +122,7 @@ export function useStatsWall(isOpen: boolean): UseStatsWallReturn {
       
       // 5. 滚动到目标位置
       // 使用 rAF 和 setTimeout 确保 DOM 布局已完成
+      // [Refactor] 使用统一的渲染周期常量，避免硬编码
       const animationFrameId = requestAnimationFrame(() => {
         setTimeout(() => {
           if (element) {
@@ -130,7 +132,7 @@ export function useStatsWall(isOpen: boolean): UseStatsWallReturn {
               behavior: 'smooth'
             });
           }
-        }, 100); // 100ms 延迟确保布局稳定
+        }, RENDER_TICK); // [Refactor] 使用统一的渲染周期常量，确保布局稳定
       });
       
       return () => cancelAnimationFrame(animationFrameId);

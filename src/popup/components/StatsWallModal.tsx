@@ -4,6 +4,7 @@ import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { Tooltip } from './Tooltip';
 import { useStatsWall, DayData } from '../hooks/headless/useStatsWall';
+import { DELAY } from '../tokens/animation'; // [Refactor] 使用统一的延迟常量
 
 interface StatsWallModalProps {
   isOpen: boolean;
@@ -19,8 +20,8 @@ const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
     : `${day.items} items on ${day.dateString}`;
 
   return (
-    // 使用 delay={100} 实现即时反馈，符合查看数据的心理预期
-    <Tooltip content={tooltipContent} delay={100}>
+    // [Refactor] 使用语义化延迟常量，实现即时反馈，符合查看数据的心理预期
+    <Tooltip content={tooltipContent} delay={DELAY.INSTANT * 1000}>
       <div 
         className="activity-day-square" 
         data-level={day.level}

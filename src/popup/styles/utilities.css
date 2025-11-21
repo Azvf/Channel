@@ -32,15 +32,7 @@
   display: none;
 }
 
-/* UX 微调建议 */
-.scrollbar-none {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.scrollbar-none::-webkit-scrollbar {
-  display: none;
-}
+/* [Refactor] 删除重复的 .scrollbar-none，统一使用 .scrollbar-hide 作为标准 */
 
 /* 悬停显现滚动条 */
 .hover-scroll {

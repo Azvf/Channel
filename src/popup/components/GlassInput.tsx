@@ -58,7 +58,8 @@ export const GlassInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Gla
           onFocus={(e: any) => {
             e.target.style.background = 'var(--bg-surface-glass-active)';
             e.target.style.border = '1px solid var(--border-action-subtle)';
-            e.target.style.boxShadow = '0 0 0 3px var(--bg-action-subtle)'; // 柔和的光晕
+            // [Refactor] 使用 CSS Token，避免硬编码 3px
+            e.target.style.boxShadow = `0 0 0 var(--focus-ring-width) var(--bg-action-subtle)`;
             props.onFocus?.(e);
           }}
           onBlur={(e: any) => {

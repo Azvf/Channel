@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Pencil, Trash2 } from "lucide-react";
 import type { GameplayTag } from "../../../types/gameplayTag";
+import { SMOOTH_TRANSITION } from "../../utils/motion"; // [Refactor] 使用统一的动画系统
 
 interface TagContextMenuProps {
   isOpen: boolean;
@@ -38,7 +39,8 @@ export function TagContextMenu({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
+            // [Refactor] 使用统一的动画系统，替代硬编码的 0.15s
+            transition={SMOOTH_TRANSITION}
             className="fixed liquidGlass-wrapper"
             data-menu-tag-id={tag.id}
             style={{

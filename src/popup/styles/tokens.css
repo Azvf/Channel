@@ -44,9 +44,13 @@ body {
   --transition-fast: 200ms;
   --transition-base: 300ms;
   --transition-slow: 400ms;
-  
+  --transition-hero: 700ms; /* [Refactor] 专用于 Logo/Hero 动画 */
+
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-glass: cubic-bezier(1, 0.0, 0.4, 1);
+
+  /* Focus States */
+  --focus-ring-width: 3px; /* [Refactor] 焦点光晕宽度，统一管理 */
 }
 
 :root {
@@ -218,6 +222,7 @@ body {
   --bg-surface-glass-hover: color-mix(in srgb, var(--c-glass) 15%, transparent);
   --bg-surface-glass-active: color-mix(in srgb, var(--c-glass) 20%, transparent);
   --bg-surface-glass-subtle: color-mix(in srgb, var(--c-glass) 8%, transparent);
+  --bg-surface-solid-ish: color-mix(in srgb, var(--c-bg) 98%, transparent); /* [Refactor] 接近不透明的背景，用于大型模态框 */
 
   /* Surface Colors (Action) */
   --bg-action-subtle: color-mix(in srgb, var(--c-action) 10%, transparent);
@@ -237,8 +242,9 @@ body {
   --hover-bg-action: var(--bg-action-moderate);
   --hover-color-action: var(--c-action);
 
-  /* Destructive Actions */
+  /* Intent Colors (for Alerts, Badges, etc.) */
   --color-destructive: #D0021B;
+  --color-warning: #F5A623; /* [Refactor] 新增 Warning Token，替代硬编码 HEX */
   --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
   --hover-color-destructive: var(--color-destructive);
 

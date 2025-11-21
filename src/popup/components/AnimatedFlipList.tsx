@@ -2,15 +2,17 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { SMOOTH_TRANSITION, LAYOUT_TRANSITION } from '../utils/motion';
+import { SPACE } from '../utils/layoutConstants'; // [Refactor] 使用统一的间距常量
 
 // 1. 重新导入 useRef 和 useEffect
 import React, { useRef, useEffect } from 'react';
 
 // 2. 重新添加 'initial' 变体
+// [Refactor] 使用设计系统的间距常量，替代硬编码的像素值
 const itemVariants = {
-  initial: { opacity: 0, y: 5, scale: 0.9 }, // <--- 添加回来
+  initial: { opacity: 0, y: SPACE.SPACE_1_5, scale: 0.96 }, // 6px，与设计系统对齐
   animate: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, x: -10, scale: 0.8 },
+  exit: { opacity: 0, x: -SPACE.SPACE_2, scale: 0.96 }, // -8px，与设计系统对齐
 };
 
 interface AnimatedFlipListProps<T> {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GlassDepthProvider, useGlassDepth } from '../context/GlassDepthContext';
+import { DURATION } from '../tokens/animation'; // [Refactor] 使用统一的动画时间常量
 
 // 让 Props 继承 HTMLAttributes，支持所有标准的 div 属性
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -50,10 +51,12 @@ export function GlassCard({
       setInternalIsAnimating(shouldBeAnimating);
       
       // 动画结束后延迟恢复，避免闪烁
+      // [Refactor] 使用 DURATION.FAST (200ms) + 50ms 缓冲，确保 CSS transition 完全结束
+      // 避免动画还没结束，模糊效果就突然"跳"回来，造成视觉卡顿
       if (!shouldBeAnimating) {
         const timer = setTimeout(() => {
           setInternalIsAnimating(false);
-        }, 100);
+        }, (DURATION.FAST * 1000) + 50);
         return () => clearTimeout(timer);
       }
     }

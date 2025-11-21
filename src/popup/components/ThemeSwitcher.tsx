@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Sun, Moon, Sparkles } from "lucide-react";
 import { applyThemeToBody } from "../utils/theme";
 import { storageService, STORAGE_KEYS } from "../../services/storageService";
+import { DELAY } from "../tokens/animation"; // [Refactor] 使用统一的延迟常量
 
 interface ThemeSwitcherProps {
   initialTheme: string;
@@ -46,11 +47,11 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
   }, []);
 
   const handleMouseLeave = () => {
-    // 设置 80ms 延迟关闭
+    // [Refactor] 使用统一的延迟常量，避免魔法数字
     closeTimerRef.current = setTimeout(() => {
       setIsExpanded(false);
       closeTimerRef.current = null;
-    }, 80);
+    }, DELAY.INSTANT * 1000);
   };
 
   const handleMouseEnter = () => {

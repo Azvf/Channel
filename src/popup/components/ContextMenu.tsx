@@ -1,6 +1,7 @@
 import React, { useState, MouseEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SMOOTH_TRANSITION } from '../utils/motion'; // [Refactor] 使用统一的动画系统
 
 export interface ContextMenuItem {
   label: string;
@@ -53,7 +54,8 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+            // [Refactor] 使用统一的动画系统
+            transition={SMOOTH_TRANSITION}
             className="fixed liquidGlass-wrapper"
             style={{
               // [Refactor] 使用明确的 Body 层级，替代 calc(+1)

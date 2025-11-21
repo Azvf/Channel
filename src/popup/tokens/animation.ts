@@ -24,6 +24,25 @@ export const DURATION = {
 } as const;
 
 /**
+ * 交互延迟常量 (秒)
+ * 用于 setTimeout、Tooltip 延迟等微交互场景
+ */
+export const DELAY = {
+  /** 0s - 无延迟 */
+  NONE: 0,
+  /** 0.1s - 即时反馈 (100ms) */
+  INSTANT: 0.1,
+  /** 0.2s - 短延迟 (200ms) */
+  SHORT: 0.2,
+} as const;
+
+/**
+ * 渲染周期常量 (毫秒)
+ * 用于 DOM 布局稳定、rAF 后的延迟等渲染相关场景
+ */
+export const RENDER_TICK = 100; // 100ms - 一个渲染周期
+
+/**
  * 核心缓动曲线 (Cubic Bezier)
  * Apple/Notion 风格的平滑曲线
  */
