@@ -367,7 +367,7 @@ describe('GameplayStore', () => {
   describe('数据持久化', () => {
     it('应该同步数据到存储', async () => {
       store.createTag('前端');
-      await store.syncToStorage();
+      await store.commit();
       
       // 验证 chrome.storage.local.set 被调用
       expect(chrome.storage.local.set).toHaveBeenCalled();
@@ -375,7 +375,7 @@ describe('GameplayStore', () => {
 
     it('应该从存储加载数据', async () => {
       store.createTag('前端');
-      await store.syncToStorage();
+      await store.commit();
       
       // 重新初始化以加载数据
       await testHelpers.clearAllData();
@@ -388,7 +388,7 @@ describe('GameplayStore', () => {
 
     it('应该重新加载存储数据', async () => {
       store.createTag('前端');
-      await store.syncToStorage();
+      await store.commit();
       
       await store.reloadFromStorage();
       
@@ -683,7 +683,7 @@ describe('GameplayStore', () => {
       
       await store.importData(exportData, false);
       
-      // 验证 syncToStorage 应该被调用
+      // 验证 commit 应该被调用（在 importData 后手动调用）
       // 注意：这是在内存中测试，实际持久化需要chrome.storage mock
       expect(store.getDataStats().tagsCount).toBeGreaterThan(0);
     });

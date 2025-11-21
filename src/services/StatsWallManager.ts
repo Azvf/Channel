@@ -19,7 +19,7 @@ export class StatsWallManager {
   private constructor() {
     // 依赖注入（这里简化为直接实例化）
     this.strategy = new LinearHeatmapStrategy();
-    this.gridBuilder = new CalendarGridBuilder(365);
+    this.gridBuilder = new CalendarGridBuilder();
   }
 
   public static getInstance(): StatsWallManager {

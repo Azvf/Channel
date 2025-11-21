@@ -2,13 +2,10 @@
 import { CalendarLayoutInfo, CalendarCell, ActivityLevel } from '../types/statsWall';
 
 export class CalendarGridBuilder {
-  // lookbackDays 现在作为"如果没有数据时的默认回溯天数"或者"最大回溯限制"（如果需要）
-  // 在当前需求下，主要依靠数据驱动
-  // @ts-expect-error - 保留以备将来使用
-  private _defaultLookbackDays: number = 30; 
-
-  constructor(lookbackDays: number = 30) {
-    this._defaultLookbackDays = lookbackDays;
+  // [CLEANUP] 移除了未使用的 _defaultLookbackDays
+  
+  constructor() {
+    // 无需初始化 unused properties
   }
 
   /**

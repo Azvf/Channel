@@ -203,8 +203,8 @@ async function example() {
   );
   tagManager.addTagToPage(page.id, tag1.id);
   
-  // 保存数据
-  await tagManager.syncToStorage();
+  // 保存数据（提交事务）
+  await tagManager.commit();
   
   // 导出数据
   const exportData = tagManager.exportData();

@@ -67,7 +67,7 @@ describe('SyncService (Logic Flow)', () => {
       getAllData: jest.fn().mockReturnValue({ tags: {}, pages: {} }), // 添加 getAllData
       initialize: jest.fn(),
       updateData: jest.fn(),
-      syncToStorage: jest.fn(),
+      commit: jest.fn(() => Promise.resolve()), // 只保留 commit
     };
     (GameplayStore.getInstance as jest.Mock).mockReturnValue(mockTagManager);
     
@@ -259,7 +259,7 @@ describe('SyncService (Logic Flow)', () => {
     // 验证调用了 TagManager 的方法 (如果不包含数据，SyncService 会跳过这些调用)
     expect(mockTagManager.getAllData).toHaveBeenCalled();
     expect(mockTagManager.updateData).toHaveBeenCalled();
-    expect(mockTagManager.syncToStorage).toHaveBeenCalled();
+    expect(mockTagManager.commit).toHaveBeenCalled();
   });
 });
 

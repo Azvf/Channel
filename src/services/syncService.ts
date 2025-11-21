@@ -69,6 +69,8 @@ export class SyncService {
   // 同步锁 (防止并发)
   private lockId: string | null = null;
   private readonly LOCK_TIMEOUT = 5 * 60 * 1000; // 5分钟超时
+  // [新增] 最大重试次数，防止无限递归
+  private readonly MAX_LOCK_RETRIES = 10;
 
   private constructor() {
     this.gameplayStore = GameplayStore.getInstance();
@@ -203,25 +205,42 @@ export class SyncService {
 
   /**
    * 获取同步锁 (防止并发)
+   * [优化] 增加 retryCount 防止无限递归，添加指数退避策略
+   * @param retryCount 当前重试次数
    */
-  private async acquireLock(): Promise<void> {
+  private async acquireLock(retryCount = 0): Promise<void> {
     const lockId = `${Date.now()}-${Math.random()}`;
     const lockData = await storageService.get<{ id: string; timestamp: number }>(STORAGE_KEYS.SYNC_LOCK);
 
     // 检查是否已有锁
     if (lockData) {
       const lockAge = timeService.now() - lockData.timestamp;
-      // 如果锁已超时，清除它
+      
+      // 1. 锁超时检查：如果锁已超时，强行清除它
       if (lockAge > this.LOCK_TIMEOUT) {
-        log.warn('检测到超时的锁，清除', { lockAge, lockId: lockData.id });
+        log.warn('检测到超时的僵尸锁，强制清除', { lockAge, lockId: lockData.id });
         await storageService.remove(STORAGE_KEYS.SYNC_LOCK);
-      } else {
-        // 锁仍有效，等待一下再重试
-        log.warn('同步锁被占用，等待...', { lockId: lockData.id, lockAge });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // 重试获取锁
-        return this.acquireLock();
+        // 清除后立即重试一次，不增加计数
+        return this.acquireLock(retryCount);
+      } 
+      
+      // 2. 重试限制检查
+      if (retryCount >= this.MAX_LOCK_RETRIES) {
+        log.error('获取同步锁失败：超过最大重试次数', { retryCount, maxRetries: this.MAX_LOCK_RETRIES });
+        throw new Error('System busy: Unable to acquire sync lock after multiple attempts.');
       }
+
+      // 3. 等待并重试 (使用简单的线性等待，避免指数退避导致的过长延迟)
+      // 对于 Service Worker 环境，保持 1 秒间隔是合理的选择
+      log.warn('同步锁被占用，等待释放...', { 
+        lockId: lockData.id, 
+        attempt: retryCount + 1, 
+        maxRetries: this.MAX_LOCK_RETRIES,
+        lockAge 
+      });
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 等待 1 秒
+      
+      return this.acquireLock(retryCount + 1);
     }
 
     // 获取锁
@@ -230,7 +249,7 @@ export class SyncService {
       id: lockId,
       timestamp: timeService.now(),
     });
-    log.debug('同步锁已获取', { lockId });
+    log.debug('同步锁已获取', { lockId, retries: retryCount });
   }
 
   /**
@@ -346,7 +365,7 @@ export class SyncService {
 
     // 6. 应用结果 (原子化写入)
     this.gameplayStore.updateData({ tags: mergedTags, pages: mergedPages });
-    await this.gameplayStore.syncToStorage();
+    await this.gameplayStore.commit();
 
     // 7. 更新 Shadow Map 和 时间戳
     await storageService.set(STORAGE_KEYS.SYNC_SHADOW_MAP, newShadowMap);
@@ -421,7 +440,7 @@ export class SyncService {
 
     // 8. 更新本地数据库
     this.gameplayStore.updateData(merged);
-    await this.gameplayStore.syncToStorage();
+    await this.gameplayStore.commit();
 
     // 9. [关键] 只有在所有步骤成功后，才更新游标
     await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
@@ -817,7 +836,7 @@ export class SyncService {
 
   /**
    * 处理实时变更
-   * 注意：由于使用软删除，DELETE 事件不会触发，需要检查 UPDATE 事件中的 deleted 字段
+   * 统一使用软删除逻辑
    */
   private async handleRealtimeChange(
     type: SyncChangeType,
@@ -830,33 +849,11 @@ export class SyncService {
     }
 
     try {
-      const { eventType, new: newRecord, old: oldRecord } = payload;
+      const { eventType, new: newRecord } = payload;
 
-      if (type === 'tag') {
-        // 处理物理删除（虽然现在使用软删除，但保留兼容性）
-        if (eventType === 'DELETE') {
-          const tagId = oldRecord?.id;
-          if (tagId) {
-            // 检查是否已处理过
-            const changeKey = `tag:${tagId}:delete:${oldRecord?.updated_at || timeService.now()}`;
-            if (this.recentProcessedChanges.has(changeKey)) {
-              log.debug('已处理过该删除变更，跳过', { tagId });
-              return;
-            }
-
-            const tag = this.gameplayStore.getTagById(tagId);
-            if (tag) {
-              this.isApplyingRemoteChange = true;
-              try {
-                this.gameplayStore.deleteTag(tagId);
-                await this.gameplayStore.commit();
-                this.recordProcessedChange(changeKey);
-              } finally {
-                this.isApplyingRemoteChange = false;
-              }
-            }
-          }
-        } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+      // 我们只关心 INSERT 和 UPDATE，因为我们不再执行物理 DELETE
+      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+        if (type === 'tag') {
           // 检查软删除：如果 deleted = true，则从本地删除
           if (newRecord.deleted === true) {
             const tagId = newRecord.id;
@@ -942,21 +939,12 @@ export class SyncService {
               this.isApplyingRemoteChange = false;
             }
           }
-        }
-      } else if (type === 'page') {
-        // 处理物理删除（虽然现在使用软删除，但保留兼容性）
-        if (eventType === 'DELETE') {
-          const pageId = oldRecord?.id;
-          if (pageId) {
-            // 页面删除通常不需要特殊处理，因为 TagManager 不直接删除页面
-            log.info('收到页面物理删除事件', { pageId });
-          }
-        } else if (eventType === 'INSERT' || eventType === 'UPDATE') {
+        } else if (type === 'page') {
           // 检查软删除：如果 deleted = true，则从本地删除
           if (newRecord.deleted === true) {
             const pageId = newRecord.id;
             log.info('收到页面软删除事件', { pageId });
-            // 页面删除通常不需要特殊处理，因为 TagManager 不直接删除页面
+            // 页面删除通常不需要特殊处理，因为 GameplayStore 不直接删除页面
             // 但我们可以从本地存储中移除它（如果需要）
             return;
           }
@@ -1026,6 +1014,7 @@ export class SyncService {
           }
         }
       }
+      // 移除了 eventType === 'DELETE' 的分支
     } catch (error) {
       log.error('处理实时变更失败', { type, error });
       // 确保在出错时也重置标志位

@@ -71,7 +71,7 @@ export const testHelpers = {
   async clearAllData(): Promise<void> {
     const store = GameplayStore.getInstance();
     store.clearAllData();
-    await store.syncToStorage();
+    await store.commit();
     
     // ✅ 修复：清理 StatsWallManager 的单例缓存，防止测试间状态污染
     const { statsWallManager } = await import('../services/StatsWallManager');

@@ -172,7 +172,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
   it('用户 A 登出后，用户 B 登录时不应看到 A 的数据', async () => {
     // 1. 用户 A 创建数据
     store.createTag('UserA-Private-Tag');
-    await store.syncToStorage();
+    await store.commit();
 
     // 验证数据存在
     let storageData = await storageService.get(STORAGE_KEYS.TAGS);
@@ -209,7 +209,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
 
     // 1. 用户 A 数据
     store.createTag('UserA-Tag');
-    await store.syncToStorage();
+    await store.commit();
 
     // 2. 登出
     try {
@@ -300,7 +300,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
     store.addTagToPage(page.id, tag.id);
 
     // 2. 同步到存储
-    await store.syncToStorage();
+    await store.commit();
 
     // 3. 验证存储中有数据
     const storedTags = await storageService.get(STORAGE_KEYS.TAGS);

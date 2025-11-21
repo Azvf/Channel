@@ -667,11 +667,6 @@ export class GameplayStore {
     }
   }
 
-  // 强制同步数据到存储（保留用于向后兼容，但推荐使用 commit）
-  public async syncToStorage(): Promise<void> {
-    await this.saveToStorage();
-    this._isDirty = false;
-  }
 
   // 重新加载存储数据
   public async reloadFromStorage(): Promise<void> {

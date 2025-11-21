@@ -24,13 +24,15 @@ describe('TagManager Edge Cases & Error Handling', () => {
     expect(result).toBe(false);
   });
 
-  it('syncToStorage: 当存储写入失败时，应捕获异常并记录日志', async () => {
+  it('commit: 当存储写入失败时，应捕获异常并记录日志', async () => {
     const error = new Error('Storage Quota Exceeded');
     // Mock storageService.setMultiple 抛出错误
     jest.spyOn(storageService, 'setMultiple').mockRejectedValueOnce(error);
 
-    // 触发同步
-    await store.syncToStorage();
+    // 先标记为脏数据
+    store.createTag('测试标签');
+    // 触发提交
+    await store.commit();
 
     expect(consoleErrorSpy).toHaveBeenCalledWith('保存存储数据失败:', error);
   });
