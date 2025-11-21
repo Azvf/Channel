@@ -1,6 +1,7 @@
 // Content Script
 // 在网页中注入的脚本，可以访问和修改页面内容
 
+import { featureOrchestrator } from './features/FeatureOrchestrator';
 
 // 监听来自background script的消息
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -17,9 +18,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             handleAddCustomStyle(message.css, sendResponse);
             return true; // 标记为异步
             
-        case 'GET_VIDEO_TIMESTAMP':
-            const status = detectBestVideo();
-            sendResponse(status);
+        case 'ANALYZE_PAGE':
+            // 新架构：使用特性编排器分析页面
+            (async () => {
+                try {
+                    // 当前 frame 的检测结果
+                    const data = await featureOrchestrator.analyzePage();
+                    sendResponse({ success: true, data });
+                } catch (error) {
+                    console.error('[Content] 页面分析失败:', error);
+                    sendResponse({ 
+                        success: false, 
+                        error: error instanceof Error ? error.message : '未知错误' 
+                    });
+                }
+            })();
             return true; // 标记为异步
             
         default:
@@ -128,59 +141,6 @@ if (document.readyState === 'loading') {
     initializeContentScript();
 }
 
-interface VideoStatus {
-    hasVideo: boolean;
-    currentTime: number;
-    isPlaying: boolean;
-    duration: number;
-    area: number; // 视频面积，用于判断是否为主视频
-}
-
-/**
- * 启发式算法：找到"用户正在看的主视频"
- * 通过面积、播放状态、时间进度等指标进行评分
- */
-function detectBestVideo(): VideoStatus | null {
-    const videos = document.querySelectorAll('video');
-    if (videos.length === 0) return null;
-
-    let bestVideo: HTMLVideoElement | null = null;
-    let maxScore = -1;
-
-    videos.forEach((video) => {
-        // 启发式评分算法：
-        // 1. 面积越大，权重越高 (排除角落的小广告视频)
-        // 2. 正在播放，权重极高
-        // 3. 有时间进度，权重高
-        
-        const rect = video.getBoundingClientRect();
-        const area = rect.width * rect.height;
-        
-        // 排除不可见视频 (width/height ~ 0)
-        if (area < 100) return; 
-
-        let score = area;
-        if (!video.paused) score *= 2; // 正在播放的优先级最高
-        if (video.currentTime > 0) score *= 1.5; // 有进度的优先级高
-
-        if (score > maxScore) {
-            maxScore = score;
-            bestVideo = video;
-        }
-    });
-
-    if (bestVideo === null) return null;
-
-    const video = bestVideo as HTMLVideoElement;
-    return {
-        hasVideo: true,
-        currentTime: video.currentTime,
-        isPlaying: !video.paused,
-        duration: video.duration,
-        area: maxScore // 简化处理，用分数代表权重
-    };
-}
-
 function initializeContentScript() {
     
     // 添加页面标识
@@ -199,6 +159,8 @@ function initializeContentScript() {
         childList: true,
         subtree: true
     });
+    
+    console.log('[Channel] Content Script & Detectors loaded.');
 }
 
 // 导出默认值以使此文件成为有效的 ES 模块（用于测试）

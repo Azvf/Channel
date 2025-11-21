@@ -133,62 +133,85 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     const syncVideoTimestamp = pageSettings.syncVideoTimestamp;
 
     if (syncVideoTimestamp) {
+      let videoTimestamp = 0;
+
+      // ========== 方式1: 优先使用消息机制（新架构） ==========
       try {
-        // 向所有 Frame 广播检测请求，使用 allFrames: true 遍历所有 frame
-        const results = await chrome.scripting.executeScript({
-          target: { tabId: tab.id, allFrames: true },
-          func: () => {
-            // 检测视频时间戳
-            const videos = document.querySelectorAll('video');
-            let bestVideo: HTMLVideoElement | null = null;
-            let maxScore = -1;
+        const response = await Promise.race([
+          chrome.tabs.sendMessage(tab.id!, { action: 'ANALYZE_PAGE' }),
+          new Promise<null>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), 1000)
+          ),
+        ]) as any;
 
-            videos.forEach((video) => {
-              const rect = video.getBoundingClientRect();
-              const area = rect.width * rect.height;
-              
-              // 排除不可见视频
-              if (area < 100) return;
-
-              let score = area;
-              if (!video.paused) score *= 2; // 正在播放的优先级最高
-              if (video.currentTime > 0) score *= 1.5; // 有进度的优先级高
-
-              if (score > maxScore) {
-                maxScore = score;
-                bestVideo = video;
-              }
-            });
-
-            // 如果找到最佳视频，返回其时间戳
-            if (bestVideo !== null) {
-              const video = bestVideo as HTMLVideoElement;
-              if (video.currentTime > 0 && !video.paused) {
-                return Math.floor(video.currentTime);
-              }
-              // 如果暂停但有进度
-              if (video.currentTime > 0) {
-                return Math.floor(video.currentTime);
-              }
-            }
-            return 0;
-          },
-        });
-
-        // results 是一个数组，包含所有 Frame 的执行结果
-        const validResults = results
-          .map(r => r.result as number)
-          .filter(timestamp => timestamp > 0);
-        
-        if (validResults.length > 0) {
-          // 取最大的时间戳（通常表示最活跃的视频）
-          const videoTimestamp = Math.max(...validResults);
-          if (videoTimestamp > 0) {
-            resolvedUrl = addTimestampToUrl(tab.url, videoTimestamp);
+        if (response?.success && response.data) {
+          const { video } = response.data;
+          if (video && video.timestamp > 0) {
+            videoTimestamp = video.timestamp;
+            console.log('[getCurrentPage] 通过消息机制获取视频时间戳:', videoTimestamp);
           }
         }
       } catch (error) {
-        console.warn('检测视频时间戳失败 (可能为内部页面):', error);
+        console.warn('[getCurrentPage] 消息机制失败，回退到 executeScript:', error);
+        
+        // ========== 方式2: 兜底使用 executeScript（兼容未加载的情况） ==========
+        try {
+          // 向所有 Frame 广播检测请求，使用 allFrames: true 遍历所有 frame
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            func: () => {
+              // 执行简单检测（与旧逻辑保持一致，作为兜底方案）
+              const videos = document.querySelectorAll('video');
+              let bestVideo: HTMLVideoElement | null = null;
+              let maxScore = -1;
+
+              videos.forEach((video) => {
+                const rect = video.getBoundingClientRect();
+                const area = rect.width * rect.height;
+                
+                // 排除不可见视频
+                if (area < 100) return;
+
+                let score = area;
+                if (!video.paused) score *= 2; // 正在播放的优先级最高
+                if (video.currentTime > 0) score *= 1.5; // 有进度的优先级高
+
+                if (score > maxScore) {
+                  maxScore = score;
+                  bestVideo = video;
+                }
+              });
+
+              // 如果找到最佳视频，返回其时间戳
+              if (bestVideo !== null) {
+                const video = bestVideo as HTMLVideoElement;
+                if (video.currentTime > 0) {
+                  return Math.floor(video.currentTime);
+                }
+              }
+              return 0;
+            },
+          });
+
+          // results 是一个数组，包含所有 Frame 的执行结果
+          // executeScript 中的函数返回数字时间戳
+          const validTimestamps = results
+            .map(r => r.result as number)
+            .filter(timestamp => typeof timestamp === 'number' && timestamp > 0);
+          
+          if (validTimestamps.length > 0) {
+            // 取最大的时间戳（通常表示最活跃的视频）
+            videoTimestamp = Math.max(...validTimestamps);
+            console.log('[getCurrentPage] 通过 executeScript 获取视频时间戳:', videoTimestamp);
+          }
+        } catch (fallbackError) {
+          console.warn('[getCurrentPage] executeScript 也失败，跳过检测:', fallbackError);
+        }
+      }
+
+      // 如果检测到视频时间戳，添加到 URL
+      if (videoTimestamp > 0) {
+        resolvedUrl = addTimestampToUrl(tab.url, videoTimestamp);
       }
     }
 
