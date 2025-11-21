@@ -1,5 +1,5 @@
 import type { GameplayTag } from '../types/gameplayTag';
-import { TagManager } from '../services/tagManager';
+import { GameplayStore } from '../services/gameplayStore';
 
 // 条件性 Mock Supabase：只有在 USE_REAL_SUPABASE 不为 'true' 时才 mock
 // 这样可以支持使用真实的 dev 数据库进行集成测试
@@ -69,9 +69,9 @@ export const testHelpers = {
    * 清空所有数据
    */
   async clearAllData(): Promise<void> {
-    const tagManager = TagManager.getInstance();
-    tagManager.clearAllData();
-    await tagManager.syncToStorage();
+    const store = GameplayStore.getInstance();
+    store.clearAllData();
+    await store.syncToStorage();
     
     // ✅ 修复：清理 StatsWallManager 的单例缓存，防止测试间状态污染
     const { statsWallManager } = await import('../services/StatsWallManager');
@@ -79,16 +79,16 @@ export const testHelpers = {
   },
 
   /**
-   * 初始化 TagManager
+   * 初始化 GameplayStore
    * 确保完全重置状态，包括清空所有数据和重置初始化标志
    */
-  async initTagManager(): Promise<TagManager> {
-    const tagManager = TagManager.getInstance();
+  async initTagManager(): Promise<GameplayStore> {
+    const store = GameplayStore.getInstance();
     // 先清空所有数据（重置初始化状态）
-    tagManager.clearAllData();
+    store.clearAllData();
     // 然后使用空数据重新初始化
-    tagManager.initialize({ tags: {}, pages: {} });
-    return tagManager;
+    store.initialize({ tags: {}, pages: {} });
+    return store;
   },
 
   /**

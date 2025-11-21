@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 jest.mock('../../lib/supabase', () => require('../../lib/__mocks__/supabase'));
 
 import { BackgroundServiceImpl } from '../../services/background/BackgroundServiceImpl';
-import { TagManager } from '../../services/tagManager';
+import { GameplayStore } from '../../services/gameplayStore';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
 import { resetInitializationForTests } from '../../background/init';
 
@@ -75,7 +75,7 @@ describe('集成测试 - Background + Content Script 视频检测鲁棒性 (RPC 
   beforeEach(() => {
     jest.clearAllMocks();
     resetInitializationForTests();
-    TagManager.getInstance().clearAllData();
+    GameplayStore.getInstance().clearAllData();
     
     // 确保 getPageSettings 返回 syncVideoTimestamp: true
     (storageService.getMultiple as jest.Mock<any>).mockResolvedValue({

@@ -1,7 +1,7 @@
-import { TagManager } from '../tagManager';
+import { GameplayStore } from '../gameplayStore';
 
-describe('TagManager.validateTagName (unit)', () => {
-  const manager = TagManager.getInstance();
+describe('GameplayStore.validateTagName (unit)', () => {
+  const manager = GameplayStore.getInstance();
 
   beforeEach(() => {
     manager.clearAllData();

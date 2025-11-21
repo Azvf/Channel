@@ -1,7 +1,7 @@
 // src/services/background/BackgroundServiceImpl.ts
 // 后端服务实现 - 具体的业务逻辑
 
-import { TagManager } from '../tagManager';
+import { GameplayStore } from '../gameplayStore';
 import { syncService } from '../syncService';
 import { triggerBackgroundSync } from '../../rpc/server';
 import { IBackgroundApi } from '../../rpc/protocol';
@@ -9,7 +9,7 @@ import { GameplayTag, TaggedPage } from '../../types/gameplayTag';
 import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
 import { storageService, STORAGE_KEYS } from '../storageService';
 
-const tagManager = TagManager.getInstance();
+const gameplayStore = GameplayStore.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
 
 /**
@@ -57,7 +57,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
   // ==================== Tag 相关 ====================
   
   async getAllTags(): Promise<GameplayTag[]> {
-    return tagManager.getAllTags();
+    return gameplayStore.getAllTags();
   }
 
   async createTag(name: string, description?: string, color?: string): Promise<GameplayTag> {
@@ -65,7 +65,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('标签名称不能为空');
     }
 
-    const tag = tagManager.createTag(name, description, color);
+    const tag = gameplayStore.createTag(name, description, color);
     
     // 触发后台同步（fire-and-forget）
     triggerBackgroundSync(syncService.markTagChange('create', tag.id, tag));
@@ -78,7 +78,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('标签ID不能为空');
     }
 
-    const success = tagManager.deleteTag(tagId);
+    const success = gameplayStore.deleteTag(tagId);
 
     if (!success) {
       throw new Error('删除标签失败（可能标签不存在）');
@@ -92,20 +92,20 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('标签ID和新名称不能为空');
     }
 
-    const result = tagManager.updateTagName(tagId, newName);
+    const result = gameplayStore.updateTagName(tagId, newName);
 
     if (!result.success) {
       throw new Error(result.error || '更新标签失败');
     }
 
-    const tag = tagManager.getTagById(tagId);
+    const tag = gameplayStore.getTagById(tagId);
     if (tag) {
       triggerBackgroundSync(syncService.markTagChange('update', tag.id, tag));
     }
   }
 
   async getAllTagUsageCounts(): Promise<Record<string, number>> {
-    return tagManager.getAllTagUsageCounts();
+    return gameplayStore.getAllTagUsageCounts();
   }
 
   // ==================== Page 相关 ====================
@@ -204,7 +204,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
     // [架构修复核心点]
     // 1. 先尝试通过 URL 获取已存在的页面数据
-    const existingPage = tagManager.getPageByUrl(resolvedUrl);
+    const existingPage = gameplayStore.getPageByUrl(resolvedUrl);
     
     // 2. 决策标题策略：
     // - 如果页面已存在：使用数据库中的标题
@@ -212,7 +212,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     const titleToUse = existingPage ? existingPage.title : (tab.title || '无标题');
 
     // 3. 调用 createOrUpdatePage
-    const page = tagManager.createOrUpdatePage(
+    const page = gameplayStore.createOrUpdatePage(
       resolvedUrl,
       titleToUse, 
       domain,
@@ -233,7 +233,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
   }
 
   async getAllTaggedPages(): Promise<TaggedPage[]> {
-    return tagManager.getTaggedPages();
+    return gameplayStore.getTaggedPages();
   }
 
   async updatePageTitle(pageId: string, title: string): Promise<void> {
@@ -241,12 +241,12 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('页面ID和标题不能为空');
     }
 
-    const success = tagManager.updatePageTitle(pageId, title);
+    const success = gameplayStore.updatePageTitle(pageId, title);
     if (!success) {
       throw new Error('更新页面标题失败');
     }
 
-    const page = tagManager.getPageById(pageId);
+    const page = gameplayStore.getPageById(pageId);
     if (page) {
       triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
     }
@@ -279,36 +279,36 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       ),
     );
 
-    const page = tagManager.getPageById(pageId);
+    const page = gameplayStore.getPageById(pageId);
     if (!page) {
       throw new Error('页面不存在');
     }
 
     normalizedTagsToAdd.forEach(tagName => {
-      tagManager.createTagAndAddToPage(tagName, pageId);
+      gameplayStore.createTagAndAddToPage(tagName, pageId);
     });
 
     normalizedTagsToRemove.forEach(tagIdentifier => {
-      const existingById = tagManager.getTagById(tagIdentifier);
+      const existingById = gameplayStore.getTagById(tagIdentifier);
       if (existingById) {
-        tagManager.removeTagFromPage(pageId, existingById.id);
+        gameplayStore.removeTagFromPage(pageId, existingById.id);
         return;
       }
 
-      const existingByName = tagManager.findTagByName(tagIdentifier);
+      const existingByName = gameplayStore.findTagByName(tagIdentifier);
       if (existingByName) {
-        tagManager.removeTagFromPage(pageId, existingByName.id);
+        gameplayStore.removeTagFromPage(pageId, existingByName.id);
       }
     });
 
-    const updatedPage = tagManager.getPageById(pageId);
+    const updatedPage = gameplayStore.getPageById(pageId);
     if (!updatedPage) {
       throw new Error('更新页面失败');
     }
 
     triggerBackgroundSync(syncService.markPageChange('update', updatedPage.id, updatedPage));
 
-    const stats = tagManager.getUserStats();
+    const stats = gameplayStore.getUserStats();
 
     return {
       newPage: updatedPage,
@@ -326,7 +326,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('页面ID不能为空');
     }
 
-    const page = tagManager.getPageById(pageId);
+    const page = gameplayStore.getPageById(pageId);
     if (!page) {
       throw new Error('页面不存在');
     }
@@ -336,7 +336,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
     const normalizedTitle = typeof title === 'string' ? title.trim() : '';
     if (normalizedTitle && normalizedTitle !== page.title) {
-      const success = tagManager.updatePageTitle(pageId, normalizedTitle);
+      const success = gameplayStore.updatePageTitle(pageId, normalizedTitle);
       if (success) {
         titleUpdated = true;
       }
@@ -360,19 +360,19 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
     if (normalizedTagsToAdd.length > 0 || normalizedTagsToRemove.length > 0) {
       normalizedTagsToAdd.forEach(tagName => {
-        tagManager.createTagAndAddToPage(tagName, pageId);
+        gameplayStore.createTagAndAddToPage(tagName, pageId);
       });
 
       normalizedTagsToRemove.forEach(tagIdentifier => {
-        const existingById = tagManager.getTagById(tagIdentifier);
+        const existingById = gameplayStore.getTagById(tagIdentifier);
         if (existingById) {
-          tagManager.removeTagFromPage(pageId, existingById.id);
+          gameplayStore.removeTagFromPage(pageId, existingById.id);
           return;
         }
 
-        const existingByName = tagManager.findTagByName(tagIdentifier);
+        const existingByName = gameplayStore.findTagByName(tagIdentifier);
         if (existingByName) {
-          tagManager.removeTagFromPage(pageId, existingByName.id);
+          gameplayStore.removeTagFromPage(pageId, existingByName.id);
         }
       });
 
@@ -380,7 +380,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     }
 
     if (titleUpdated || tagsUpdated) {
-      const updatedPage = tagManager.getPageById(pageId);
+      const updatedPage = gameplayStore.getPageById(pageId);
       if (updatedPage) {
         triggerBackgroundSync(syncService.markPageChange('update', updatedPage.id, updatedPage));
       }
@@ -392,12 +392,12 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('页面ID和标签ID不能为空');
     }
 
-    const success = tagManager.addTagToPage(pageId, tagId);
+    const success = gameplayStore.addTagToPage(pageId, tagId);
     if (!success) {
       throw new Error('添加标签到页面失败');
     }
 
-    const page = tagManager.getPageById(pageId);
+    const page = gameplayStore.getPageById(pageId);
     if (page) {
       triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
     }
@@ -408,12 +408,12 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('页面ID和标签ID不能为空');
     }
 
-    const success = tagManager.removeTagFromPage(pageId, tagId);
+    const success = gameplayStore.removeTagFromPage(pageId, tagId);
     if (!success) {
       throw new Error('从页面移除标签失败');
     }
 
-    const page = tagManager.getPageById(pageId);
+    const page = gameplayStore.getPageById(pageId);
     if (page) {
       triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
     }
@@ -424,10 +424,10 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('标签名称和页面ID不能为空');
     }
 
-    const tag = tagManager.createTagAndAddToPage(tagName, pageId);
+    const tag = gameplayStore.createTagAndAddToPage(tagName, pageId);
     
     triggerBackgroundSync(syncService.markTagChange('create', tag.id, tag));
-    const page = tagManager.getPageById(pageId);
+    const page = gameplayStore.getPageById(pageId);
     if (page) {
       triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
     }
@@ -438,13 +438,13 @@ export class BackgroundServiceImpl implements IBackgroundApi {
   // ==================== Stats 相关 ====================
 
   async getUserStats(): Promise<{ todayCount: number; streak: number }> {
-    return tagManager.getUserStats();
+    return gameplayStore.getUserStats();
   }
 
   // ==================== Data 相关 ====================
 
   async exportData(): Promise<string> {
-    return tagManager.exportData();
+    return gameplayStore.exportData();
   }
 
   async importData(jsonData: string, mergeMode: boolean): Promise<{ tagsCount: number; pagesCount: number }> {
@@ -452,7 +452,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       throw new Error('无效的导入数据');
     }
 
-    const result = await tagManager.importData(jsonData, mergeMode);
+    const result = await gameplayStore.importData(jsonData, mergeMode);
 
     if (!result.success) {
       throw new Error(result.error || '导入数据失败');

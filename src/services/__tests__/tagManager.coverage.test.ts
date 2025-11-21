@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
-import { TagManager } from '../tagManager';
+import { GameplayStore } from '../gameplayStore';
 import { storageService } from '../storageService';
 import { testHelpers } from '../../test/helpers';
 
 describe('TagManager Edge Cases & Error Handling', () => {
-  let tagManager: TagManager;
+  let store: GameplayStore;
   let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
 
   beforeEach(async () => {
     await testHelpers.clearAllData();
-    tagManager = await testHelpers.initTagManager();
+    store = await testHelpers.initTagManager();
     // 拦截 console.error 以防止测试输出被污染
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -20,7 +20,7 @@ describe('TagManager Edge Cases & Error Handling', () => {
   });
 
   it('deleteTag: 删除不存在的 ID 应该返回 false', () => {
-    const result = tagManager.deleteTag('non-existent-id');
+    const result = store.deleteTag('non-existent-id');
     expect(result).toBe(false);
   });
 
@@ -30,7 +30,7 @@ describe('TagManager Edge Cases & Error Handling', () => {
     jest.spyOn(storageService, 'setMultiple').mockRejectedValueOnce(error);
 
     // 触发同步
-    await tagManager.syncToStorage();
+    await store.syncToStorage();
 
     expect(consoleErrorSpy).toHaveBeenCalledWith('保存存储数据失败:', error);
   });
@@ -40,13 +40,13 @@ describe('TagManager Edge Cases & Error Handling', () => {
     // Mock getMultiple 抛出错误
     jest.spyOn(storageService, 'getMultiple').mockRejectedValueOnce(error);
 
-    await tagManager.reloadFromStorage();
+    await store.reloadFromStorage();
 
     expect(consoleErrorSpy).toHaveBeenCalledWith('重新加载存储数据失败:', error);
   });
 
   it('importData: 当 JSON 格式无效时，应返回失败', async () => {
-    const result = await tagManager.importData('{ invalid json string');
+    const result = await store.importData('{ invalid json string');
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/Unexpected token|JSON/);
@@ -55,8 +55,8 @@ describe('TagManager Edge Cases & Error Handling', () => {
   it('updateData: 传入 undefined 应该被安全处理', () => {
      // 模拟类型不安全的调用
      // @ts-ignore
-     tagManager.updateData({});
-     expect(tagManager.getAllTags()).toHaveLength(0);
+     store.updateData({});
+     expect(store.getAllTags()).toHaveLength(0);
   });
 
   it('generateTagId: 当环境不支持 Base64 时应优雅降级 (模拟环境缺失)', () => {
@@ -73,7 +73,7 @@ describe('TagManager Edge Cases & Error Handling', () => {
 
       // 尝试创建一个包含特殊字符的标签，触发 ID 生成逻辑
       // 这应该会进入 try-catch 块并打印错误
-      tagManager.createTag('测试标签_NoEnv');
+      store.createTag('测试标签_NoEnv');
     } catch (e) {
       // 我们只关心是否记录了错误
     }

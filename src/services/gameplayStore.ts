@@ -2,11 +2,21 @@ import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../type
 import { logger } from './logger';
 import { storageService, STORAGE_KEYS } from './storageService';
 import { timeService } from './timeService';
+import { ITagRepository, IPageRepository } from '../repositories/types';
+import { ChromeTagRepository, ChromePageRepository } from '../repositories/ChromeStorageRepository';
+import { cacheMonitor } from './cacheMonitor';
 
 type ChangeListener = () => void;
 
-export class TagManager {
-  private static instance: TagManager;
+/**
+ * GameplayStore - 游戏化标签存储库
+ * 负责管理标签和页面的内存状态，包含业务规则和领域逻辑
+ * 
+ * 原名称: TagManager
+ * 新名称: GameplayStore (更准确地反映其作为有状态内存存储库的职责)
+ */
+export class GameplayStore {
+  private static instance: GameplayStore;
   private tags: TagsCollection = {};
   private pages: PageCollection = {};
 
@@ -14,19 +24,42 @@ export class TagManager {
   private _isDirty = false; // 脏标记
   private listeners: Set<ChangeListener> = new Set();
   
+  // Repository 层（可选，用于未来扩展）
+  private tagRepo: ITagRepository | null = null;
+  private pageRepo: IPageRepository | null = null;
+  
   public get isInitialized(): boolean {
     return this._isInitialized;
   }
 
   private constructor() {
     // 构造函数中不进行异步操作
+    // Repository 延迟初始化，保持向后兼容
   }
-
-  public static getInstance(): TagManager {
-    if (!TagManager.instance) {
-      TagManager.instance = new TagManager();
+  
+  /**
+   * 设置 Repository（用于测试和未来扩展）
+   * 如果不设置，将使用传统的存储方式
+   */
+  public setRepositories(
+    tagRepo: ITagRepository | null,
+    pageRepo: IPageRepository | null
+  ): void {
+    this.tagRepo = tagRepo;
+    this.pageRepo = pageRepo;
+    
+    // 如果设置了 Chrome Repository，注册到缓存监控
+    if (tagRepo instanceof ChromeTagRepository && pageRepo instanceof ChromePageRepository) {
+      cacheMonitor.setRepositories(tagRepo, pageRepo);
     }
-    return TagManager.instance;
+  }
+  
+
+  public static getInstance(): GameplayStore {
+    if (!GameplayStore.instance) {
+      GameplayStore.instance = new GameplayStore();
+    }
+    return GameplayStore.instance;
   }
 
   /**
@@ -47,13 +80,13 @@ export class TagManager {
       try {
         cb();
       } catch (error) {
-        console.error('TagManager: 监听器执行失败', error);
+        console.error('GameplayStore: 监听器执行失败', error);
       }
     });
   }
 
   /**
-   * (重构) 使用传入的数据同步初始化 TagManager
+   * (重构) 使用传入的数据同步初始化 GameplayStore
    * 保持幂等性（防止重复初始化）
    */
   public initialize(data: { tags?: TagsCollection | null; pages?: PageCollection | null }): void {
@@ -67,7 +100,7 @@ export class TagManager {
       this._isInitialized = true; // 标记为已初始化
       this.notifyListeners(); // 通知 UI
     } catch (error) {
-      console.error('TagManager 初始化失败:', error);
+      console.error('GameplayStore 初始化失败:', error);
       this._isInitialized = false; // 失败时重置
       throw error;
     }
@@ -87,7 +120,7 @@ export class TagManager {
       }
       this.notifyListeners(); // 通知 UI
     } catch (error) {
-      console.error('TagManager 更新数据失败:', error);
+      console.error('GameplayStore 更新数据失败:', error);
       throw error;
     }
   }
@@ -275,7 +308,7 @@ export class TagManager {
 
   // 页面管理
   public addTagToPage(pageId: string, tagId: string): boolean {
-    const log = logger('TagManager');
+    const log = logger('GameplayStore');
     if (!this.tags[tagId]) {
       log.warn('addTagToPage: tag not found', { pageId, tagId });
       return false;
@@ -300,7 +333,7 @@ export class TagManager {
   }
 
   public removeTagFromPage(pageId: string, tagId: string): boolean {
-    const log = logger('TagManager');
+    const log = logger('GameplayStore');
     if (!this.pages[pageId]) {
       log.warn('removeTagFromPage: page not found', { pageId, tagId });
       return false;
@@ -609,19 +642,28 @@ export class TagManager {
     
     await this.saveToStorage();
     this._isDirty = false;
-    console.log('[TagManager] Transaction committed to storage.');
+    console.log('[GameplayStore] Transaction committed to storage.');
   }
 
   private async saveToStorage(): Promise<void> {
     try {
-      const dataToSave = {
-        [STORAGE_KEYS.TAGS]: this.tags,
-        [STORAGE_KEYS.PAGES]: this.pages
-      };
-      
-      await storageService.setMultiple(dataToSave);
+      // 如果 Repository 已设置，使用 Repository
+      if (this.tagRepo && this.pageRepo) {
+        await this.tagRepo.saveBatch(Object.values(this.tags));
+        await this.pageRepo.saveBatch(Object.values(this.pages));
+      } else {
+        // 否则使用传统的存储方式（向后兼容）
+        const dataToSave = {
+          [STORAGE_KEYS.TAGS]: this.tags,
+          [STORAGE_KEYS.PAGES]: this.pages
+        };
+        
+        await storageService.setMultiple(dataToSave);
+      }
     } catch (error) {
       console.error('保存存储数据失败:', error);
+      // 注意：这里不抛出错误，以保持向后兼容性
+      // 调用方可以通过检查 _isDirty 状态来判断是否保存成功
     }
   }
 
@@ -635,18 +677,45 @@ export class TagManager {
   public async reloadFromStorage(): Promise<void> {
     // 此方法现在必须获取数据并重新初始化
     try {
-      const storageData = await storageService.getMultiple([
-        STORAGE_KEYS.TAGS,
-        STORAGE_KEYS.PAGES
-      ]);
-      this._isInitialized = false; // 强制重新初始化
-      // initialize 内部会调用 notifyListeners，这里不需要重复调用
-      this.initialize({
-        tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,
-        pages: storageData[STORAGE_KEYS.PAGES] as PageCollection | null
-      });
+      // 如果 Repository 已设置，使用 Repository
+      if (this.tagRepo && this.pageRepo) {
+        const tags = await this.tagRepo.getAll();
+        const pages = await this.pageRepo.getAll();
+        
+        // 转换为 Collection 格式
+        const tagsCollection: TagsCollection = {};
+        const pagesCollection: PageCollection = {};
+        
+        tags.forEach(tag => {
+          tagsCollection[tag.id] = tag;
+        });
+        
+        pages.forEach(page => {
+          pagesCollection[page.id] = page;
+        });
+        
+        this._isInitialized = false; // 强制重新初始化
+        this.initialize({
+          tags: tagsCollection,
+          pages: pagesCollection
+        });
+      } else {
+        // 否则使用传统的存储方式（向后兼容）
+        const storageData = await storageService.getMultiple([
+          STORAGE_KEYS.TAGS,
+          STORAGE_KEYS.PAGES
+        ]);
+        this._isInitialized = false; // 强制重新初始化
+        // initialize 内部会调用 notifyListeners，这里不需要重复调用
+        this.initialize({
+          tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,
+          pages: storageData[STORAGE_KEYS.PAGES] as PageCollection | null
+        });
+      }
     } catch (error) {
       console.error('重新加载存储数据失败:', error);
+      // 注意：这里不抛出错误，以保持向后兼容性
+      // 调用方可以通过检查 isInitialized 状态来判断是否加载成功
     }
   }
 
@@ -802,3 +871,12 @@ export class TagManager {
   }
   // 移除层级相关辅助方法
 }
+
+// 导出单例实例
+export const gameplayStore = GameplayStore.getInstance();
+
+// 向后兼容：导出别名（保持旧代码可以继续工作）
+/** @deprecated 使用 gameplayStore 替代 */
+export const tagManager = gameplayStore;
+/** @deprecated 使用 GameplayStore 替代 */
+export { GameplayStore as TagManager };

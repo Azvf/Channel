@@ -1,7 +1,7 @@
 // src/rpc/server.ts
 // 服务端设计：事务控制与异常屏障
 
-import { TagManager } from '../services/tagManager';
+import { GameplayStore } from '../services/gameplayStore';
 import { timeService } from '../services/timeService';
 import { getInitializationPromise } from '../background/init';
 import { 
@@ -13,7 +13,7 @@ import {
 } from './protocol';
 
 // 依赖注入或单例获取
-const tagManager = TagManager.getInstance();
+const gameplayStore = GameplayStore.getInstance();
 
 // 慢查询阈值（毫秒）
 const SLOW_QUERY_THRESHOLD = 200;
@@ -90,8 +90,8 @@ export function registerRpcHandler<T extends object>(service: T): void {
 
           // 6. 事务提交 (Atomic Commit)
           // 只有业务逻辑成功才提交。
-          // 如果 tagManager.commit() 失败，这里会抛出异常，sendResponse 会返回错误给前端
-          await tagManager.commit();
+          // 如果 gameplayStore.commit() 失败，这里会抛出异常，sendResponse 会返回错误给前端
+          await gameplayStore.commit();
 
           // 注意：同步逻辑由业务层（BackgroundServiceImpl）精细控制
           // 业务层会调用 syncService.markTagChange() 或 syncService.markPageChange()

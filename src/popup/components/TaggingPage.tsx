@@ -7,7 +7,8 @@ import { TagInput } from "./TagInput";
 import { currentPageService } from "../../services/popup/currentPageService";
 import type { TaggedPage } from "../../types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
-import { useCachedResource } from "../../hooks/useCachedResource"; // [新增引用]
+import { useCachedResource } from "../../hooks/useCachedResource";
+import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";
 
 interface TaggingPageProps {
   className?: string;
@@ -47,7 +48,19 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     }
   }, [currentPage]);
 
-  const handleTitleChange = async (newTitle: string) => {
+  // 1. 初始化 Mutation Hooks
+  const { mutate: updateTitle } = useUpdatePageTitle(currentPage, mutatePage);
+  const { mutate: updateTags, isLoading: isUpdatingTags } = useUpdatePageTags(
+    currentPage,
+    mutatePage,
+    () => {
+      // 刷新全局数据
+      refreshAllData();
+    }
+  );
+
+  // 2. 事件处理变得极其简单
+  const handleTitleChange = (newTitle: string) => {
     if (!currentPage) return;
 
     const trimmedTitle = newTitle.trim();
@@ -57,23 +70,10 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       return;
     }
 
-    // 1. 乐观更新 (UI 立即响应)
-    // 保存原始值用于回滚
-    const originalPage = currentPage;
-    const optimisticPage = { ...currentPage, title: trimmedTitle };
-    mutatePage(optimisticPage); // 更新缓存和 UI
+    // 之前这里需要 try-catch, loading state, revert logic...
+    // 现在只需要一行：
+    updateTitle(trimmedTitle);
     setEditingTitle(false);
-
-    try {
-      // 2. 后台提交
-      await currentPageService.updatePageTitle(originalPage.id, trimmedTitle);
-      // 不需要再 fetch，因为我们已经乐观更新了
-    } catch (error) {
-      console.error("更新标题失败:", error);
-      // 3. 失败回滚
-      mutatePage(originalPage); // 恢复原值
-      setTitleValue(originalPage.title);
-    }
   };
 
   const handleTagsChange = async (newTagNames: string[]) => {
@@ -91,29 +91,8 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
 
     if (tagsToAdd.length === 0 && tagsToRemove.length === 0) return;
 
-    // [重要] 这里我们不做复杂的乐观更新逻辑模拟（因为涉及到 Tag ID 的生成）
-    // 但我们可以保持 UI 不进入 Loading 状态
-    // 依赖 background 返回的新 page 对象来更新
-
-    try {
-      const { newPage } = await currentPageService.updatePageTags(currentPage.id, {
-        tagsToAdd,
-        tagsToRemove,
-      });
-
-      // 直接更新缓存，UI 会自动重绘
-      mutatePage(newPage);
-      
-      // 刷新全局数据（标签列表、统计信息等）
-      // 虽然 background 会触发 storage 变更，但在测试环境中可能需要手动刷新
-      // 在生产环境中，AppContext 的 storage 监听器也会触发刷新，但调用 refreshAllData 是安全的（幂等操作）
-      await refreshAllData();
-      
-    } catch (error) {
-      console.error("更新标签失败:", error);
-      // 出错时刷新一次以确保数据一致
-      refreshPage();
-    }
+    // 标签瞬间更新，无视网络延迟
+    await updateTags({ tagsToAdd, tagsToRemove });
   };
 
   const suggestions = useMemo(() => allTags.map((tag) => tag.name), [allTags]);
@@ -309,7 +288,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                 suggestions={suggestions}
                 excludeTags={currentPageTagNames}
                 autoFocus={true}
-                disabled={!!loading || !!error}
+                disabled={!!loading || !!error || isUpdatingTags}
               />
             </motion.div>
 

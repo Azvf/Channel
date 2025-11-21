@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { TagManager } from './tagManager';
+import { GameplayStore } from './gameplayStore';
 import { authService } from './authService';
 import { storageService, STORAGE_KEYS } from './storageService';
 import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
@@ -47,7 +47,7 @@ interface SyncState {
  */
 export class SyncService {
   private static instance: SyncService;
-  private tagManager: TagManager;
+  private gameplayStore: GameplayStore;
   private isInitialized = false;
   private isSubscribed = false;
   private syncState: SyncState = {
@@ -71,7 +71,7 @@ export class SyncService {
   private readonly LOCK_TIMEOUT = 5 * 60 * 1000; // 5分钟超时
 
   private constructor() {
-    this.tagManager = TagManager.getInstance();
+    this.gameplayStore = GameplayStore.getInstance();
   }
 
   public static getInstance(): SyncService {
@@ -290,7 +290,7 @@ export class SyncService {
     const cloudData = await this.fetchAllFromCloud(authState.user.id);
 
     // 2. 获取 Local 数据
-    const localData = this.tagManager.getAllData();
+    const localData = this.gameplayStore.getAllData();
 
     // 3. 获取 Shadow Map (基准)
     const shadowMap: ShadowMap = await storageService.get<ShadowMap>(STORAGE_KEYS.SYNC_SHADOW_MAP) || {};
@@ -345,8 +345,8 @@ export class SyncService {
     }
 
     // 6. 应用结果 (原子化写入)
-    this.tagManager.updateData({ tags: mergedTags, pages: mergedPages });
-    await this.tagManager.syncToStorage();
+    this.gameplayStore.updateData({ tags: mergedTags, pages: mergedPages });
+    await this.gameplayStore.syncToStorage();
 
     // 7. 更新 Shadow Map 和 时间戳
     await storageService.set(STORAGE_KEYS.SYNC_SHADOW_MAP, newShadowMap);
@@ -409,7 +409,7 @@ export class SyncService {
     }
 
     // 6. 从本地获取数据（全量）
-    const localData = this.tagManager.getAllData();
+    const localData = this.gameplayStore.getAllData();
 
     // 7. 合并数据
     // 注意：这里 localData 是全量的，但 cloudData 是增量的（只有变动项）
@@ -420,8 +420,8 @@ export class SyncService {
     const merged = mergeDataStrategy(localData, cloudData, pendingDeletesBeforeUpload);
 
     // 8. 更新本地数据库
-    this.tagManager.updateData(merged);
-    await this.tagManager.syncToStorage();
+    this.gameplayStore.updateData(merged);
+    await this.gameplayStore.syncToStorage();
 
     // 9. [关键] 只有在所有步骤成功后，才更新游标
     await storageService.set(STORAGE_KEYS.SYNC_LAST_TIMESTAMP, newSyncTs);
@@ -844,12 +844,12 @@ export class SyncService {
               return;
             }
 
-            const tag = this.tagManager.getTagById(tagId);
+            const tag = this.gameplayStore.getTagById(tagId);
             if (tag) {
               this.isApplyingRemoteChange = true;
               try {
-                this.tagManager.deleteTag(tagId);
-                await this.tagManager.commit();
+                this.gameplayStore.deleteTag(tagId);
+                await this.gameplayStore.commit();
                 this.recordProcessedChange(changeKey);
               } finally {
                 this.isApplyingRemoteChange = false;
@@ -868,13 +868,13 @@ export class SyncService {
               return;
             }
 
-            const tag = this.tagManager.getTagById(tagId);
+            const tag = this.gameplayStore.getTagById(tagId);
             if (tag) {
               this.isApplyingRemoteChange = true;
               try {
                 log.info('收到标签软删除事件', { tagId });
-                this.tagManager.deleteTag(tagId);
-                await this.tagManager.commit();
+                this.gameplayStore.deleteTag(tagId);
+                await this.gameplayStore.commit();
                 this.recordProcessedChange(changeKey);
               } finally {
                 this.isApplyingRemoteChange = false;
@@ -904,7 +904,7 @@ export class SyncService {
           }
 
           // 检查本地是否有更新（避免循环同步）
-          const localTag = this.tagManager.getTagById(tag.id);
+          const localTag = this.gameplayStore.getTagById(tag.id);
           // 使用 <= 而不是 <，避免时间戳完全一致时的重复处理
           if (!localTag || localTag.updatedAt <= tag.updatedAt) {
             // 如果时间戳完全一致，检查内容是否相同（避免不必要的更新）
@@ -925,18 +925,18 @@ export class SyncService {
             this.isApplyingRemoteChange = true;
             try {
               // 更新本地数据：获取所有现有数据，然后更新特定标签
-              const existingTags = this.tagManager.getAllTags().reduce((acc, t) => {
+              const existingTags = this.gameplayStore.getAllTags().reduce((acc, t) => {
                 acc[t.id] = t;
                 return acc;
               }, {} as TagsCollection);
-              const existingPages = this.tagManager.getTaggedPages().reduce((acc, p) => {
+              const existingPages = this.gameplayStore.getTaggedPages().reduce((acc, p) => {
                 acc[p.id] = p;
                 return acc;
               }, {} as PageCollection);
 
               existingTags[tag.id] = tag;
-              this.tagManager.updateData({ tags: existingTags, pages: existingPages });
-              await this.tagManager.commit();
+              this.gameplayStore.updateData({ tags: existingTags, pages: existingPages });
+              await this.gameplayStore.commit();
               this.recordProcessedChange(changeKey);
             } finally {
               this.isApplyingRemoteChange = false;
@@ -984,7 +984,7 @@ export class SyncService {
           }
 
           // 检查本地是否有更新（避免循环同步）
-          const localPage = this.tagManager.getPageById(page.id);
+          const localPage = this.gameplayStore.getPageById(page.id);
           // 使用 <= 而不是 <，避免时间戳完全一致时的重复处理
           if (!localPage || localPage.updatedAt <= page.updatedAt) {
             // 如果时间戳完全一致，检查内容是否相同（避免不必要的更新）
@@ -1007,18 +1007,18 @@ export class SyncService {
             this.isApplyingRemoteChange = true;
             try {
               // 更新本地数据：获取所有现有数据，然后更新特定页面
-              const existingTags = this.tagManager.getAllTags().reduce((acc, t) => {
+              const existingTags = this.gameplayStore.getAllTags().reduce((acc, t) => {
                 acc[t.id] = t;
                 return acc;
               }, {} as TagsCollection);
-              const existingPages = this.tagManager.getTaggedPages().reduce((acc, p) => {
+              const existingPages = this.gameplayStore.getTaggedPages().reduce((acc, p) => {
                 acc[p.id] = p;
                 return acc;
               }, {} as PageCollection);
 
               existingPages[page.id] = page;
-              this.tagManager.updateData({ tags: existingTags, pages: existingPages });
-              await this.tagManager.commit();
+              this.gameplayStore.updateData({ tags: existingTags, pages: existingPages });
+              await this.gameplayStore.commit();
               this.recordProcessedChange(changeKey);
             } finally {
               this.isApplyingRemoteChange = false;
@@ -1090,7 +1090,7 @@ export class SyncService {
       this.stopRealtimeSubscription();
 
       // 2. 清空 TagManager 数据
-      this.tagManager.clearAllData();
+      this.gameplayStore.clearAllData();
       log.info('TagManager 数据已清空（用户切换）');
 
       // 3. 清空待同步队列（这些变更属于上一个用户）

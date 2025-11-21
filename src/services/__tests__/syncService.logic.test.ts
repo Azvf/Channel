@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { SyncService } from '../syncService';
 import { authService } from '../authService';
 import { storageService, STORAGE_KEYS } from '../storageService';
-import { TagManager } from '../tagManager';
+import { GameplayStore } from '../gameplayStore';
 import { supabase } from '../../lib/supabase';
 
 // 1. Mock 外部依赖
 jest.mock('../authService');
 jest.mock('../storageService');
-jest.mock('../tagManager');
+jest.mock('../gameplayStore');
 jest.mock('../timeService', () => ({
   timeService: {
     calibrate: jest.fn(() => Promise.resolve()),
@@ -69,7 +69,7 @@ describe('SyncService (Logic Flow)', () => {
       updateData: jest.fn(),
       syncToStorage: jest.fn(),
     };
-    (TagManager.getInstance as jest.Mock).mockReturnValue(mockTagManager);
+    (GameplayStore.getInstance as jest.Mock).mockReturnValue(mockTagManager);
     
     // 重置单例 (这是 Hack，实际项目中最好提供 reset 方法)
     (SyncService as any).instance = null;

@@ -92,7 +92,7 @@ if (!USE_REAL_SUPABASE) {
 }
 
 import { authService } from '../../services/authService';
-import { TagManager } from '../../services/tagManager';
+import { GameplayStore } from '../../services/gameplayStore';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
 import { testHelpers, TEST_ACCOUNT } from '../../test/helpers';
 
@@ -127,11 +127,11 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
     }
   }, 10000); // 10秒超时
 
-  let tagManager: TagManager;
+  let store: GameplayStore;
 
   beforeEach(async () => {
     await testHelpers.clearAllData();
-    tagManager = await testHelpers.initTagManager();
+    store = await testHelpers.initTagManager();
   });
 
   afterEach(async () => {
@@ -148,12 +148,12 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
 
   it('用户切换时应彻底清除本地数据', async () => {
     // 1. 模拟用户 A 数据
-    tagManager.createTag('UserA-Tag');
-    tagManager.createTag('UserA-Tag2');
-    const page = tagManager.createOrUpdatePage('https://usera.example.com', 'UserA Page', 'usera.example.com');
-    tagManager.addTagToPage(page.id, tagManager.getAllTags()[0].id);
+    store.createTag('UserA-Tag');
+    store.createTag('UserA-Tag2');
+    const page = store.createOrUpdatePage('https://usera.example.com', 'UserA Page', 'usera.example.com');
+    store.addTagToPage(page.id, store.getAllTags()[0].id);
 
-    expect(tagManager.getAllTags()).toHaveLength(2);
+    expect(store.getAllTags()).toHaveLength(2);
 
     // 2. 执行登出
     try {
@@ -163,7 +163,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
     }
 
     // 3. 验证清理
-    expect(tagManager.getAllTags()).toHaveLength(0);
+    expect(store.getAllTags()).toHaveLength(0);
     const storageDump = await storageService.getMultiple([STORAGE_KEYS.TAGS, STORAGE_KEYS.PAGES]);
     expect(storageDump[STORAGE_KEYS.TAGS]).toBeNull();
     expect(storageDump[STORAGE_KEYS.PAGES]).toBeNull();
@@ -171,8 +171,8 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
 
   it('用户 A 登出后，用户 B 登录时不应看到 A 的数据', async () => {
     // 1. 用户 A 创建数据
-    tagManager.createTag('UserA-Private-Tag');
-    await tagManager.syncToStorage();
+    store.createTag('UserA-Private-Tag');
+    await store.syncToStorage();
 
     // 验证数据存在
     let storageData = await storageService.get(STORAGE_KEYS.TAGS);
@@ -188,28 +188,28 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
     // 3. 验证数据已被清除
     storageData = await storageService.get(STORAGE_KEYS.TAGS);
     expect(storageData).toBeNull();
-    expect(tagManager.getAllTags()).toHaveLength(0);
+    expect(store.getAllTags()).toHaveLength(0);
 
     // 4. 用户 B "登录"（模拟，因为我们需要 mock Supabase）
     // 这里我们验证 TagManager 是干净的，用户 B 不应该看到 A 的数据
-    tagManager.clearAllData();
-    expect(tagManager.getAllTags()).toHaveLength(0);
+    store.clearAllData();
+    expect(store.getAllTags()).toHaveLength(0);
 
     // 5. 用户 B 创建自己的数据
-    tagManager.createTag('UserB-Tag');
-    expect(tagManager.getAllTags()).toHaveLength(1);
-    expect(tagManager.getAllTags()[0].name).toBe('UserB-Tag');
-    expect(tagManager.getAllTags()[0].name).not.toBe('UserA-Private-Tag');
+    store.createTag('UserB-Tag');
+    expect(store.getAllTags()).toHaveLength(1);
+    expect(store.getAllTags()[0].name).toBe('UserB-Tag');
+    expect(store.getAllTags()[0].name).not.toBe('UserA-Private-Tag');
   });
 
   it('同步服务应该处理用户切换', async () => {
     // 这个测试验证 SyncService 在用户切换时的行为
     // 注意：由于 SyncService 的私有方法和复杂的初始化逻辑，
-    // 这里主要验证 TagManager 和 StorageService 的清理逻辑
+    // 这里主要验证 GameplayStore 和 StorageService 的清理逻辑
 
     // 1. 用户 A 数据
-    tagManager.createTag('UserA-Tag');
-    await tagManager.syncToStorage();
+    store.createTag('UserA-Tag');
+    await store.syncToStorage();
 
     // 2. 登出
     try {
@@ -219,7 +219,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
     }
 
     // 3. 验证数据清理
-    expect(tagManager.getAllTags()).toHaveLength(0);
+    expect(store.getAllTags()).toHaveLength(0);
     const storageData = await storageService.getMultiple([
       STORAGE_KEYS.TAGS,
       STORAGE_KEYS.PAGES,
@@ -293,14 +293,14 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
     }
   }, 10000); // 10秒超时
 
-  it('Storage 和 TagManager 应该保持同步', async () => {
+  it('Storage 和 GameplayStore 应该保持同步', async () => {
     // 1. 创建数据
-    const tag = tagManager.createTag('TestTag');
-    const page = tagManager.createOrUpdatePage('https://example.com', 'Test Page', 'example.com');
-    tagManager.addTagToPage(page.id, tag.id);
+    const tag = store.createTag('TestTag');
+    const page = store.createOrUpdatePage('https://example.com', 'Test Page', 'example.com');
+    store.addTagToPage(page.id, tag.id);
 
     // 2. 同步到存储
-    await tagManager.syncToStorage();
+    await store.syncToStorage();
 
     // 3. 验证存储中有数据
     const storedTags = await storageService.get(STORAGE_KEYS.TAGS);
@@ -309,17 +309,17 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
     expect(storedTags).not.toBeNull();
     expect(storedPages).not.toBeNull();
 
-    // 4. 清空 TagManager
-    tagManager.clearAllData();
+    // 4. 清空 GameplayStore
+    store.clearAllData();
 
     // 5. 重新从存储加载
-    await tagManager.reloadFromStorage();
+    await store.reloadFromStorage();
 
     // 6. 验证数据已恢复（现在 chrome.storage mock 会真正保存数据）
-    const restoredTags = tagManager.getAllTags();
-    const restoredPages = tagManager.getTaggedPages();
+    const restoredTags = store.getAllTags();
+    const restoredPages = store.getTaggedPages();
 
-    expect(tagManager.isInitialized).toBe(true);
+    expect(store.isInitialized).toBe(true);
     expect(restoredTags.length).toBe(1);
     expect(restoredTags[0].name).toBe('TestTag');
     expect(restoredPages.length).toBe(1);

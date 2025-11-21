@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { TagManager } from '../tagManager';
+import { GameplayStore } from '../gameplayStore';
 import { testHelpers } from '../../test/helpers';
 
-describe('TagManager Edge Cases', () => {
-  let tagManager: TagManager;
+describe('GameplayStore Edge Cases', () => {
+  let store: GameplayStore;
 
   beforeEach(async () => {
     await testHelpers.clearAllData();
-    tagManager = await testHelpers.initTagManager();
+    store = await testHelpers.initTagManager();
   });
 
   it('createTag: 应处理名称中的特殊字符和空白', () => {
-    const tag = tagManager.createTag('  Tag  With  Spaces  ');
+    const tag = store.createTag('  Tag  With  Spaces  ');
 
     expect(tag.name).toBe('Tag  With  Spaces'); // 仅 trim 两端
     expect(tag.id).toBeDefined();
@@ -23,19 +23,19 @@ describe('TagManager Edge Cases', () => {
     // 但 createTagAndAddToPage 内部怎么处理？
     
     // 假设我们要测 addTagToPage 的失败分支
-    const result = tagManager.addTagToPage('non-existent-page', 'non-existent-tag');
+    const result = store.addTagToPage('non-existent-page', 'non-existent-tag');
     expect(result).toBe(false);
   });
 
   it('initialize: 多次初始化应保持幂等性', () => {
-    tagManager.initialize({ tags: { a: {} as any } });
-    const firstState = tagManager.getAllTags();
+    store.initialize({ tags: { a: {} as any } });
+    const firstState = store.getAllTags();
     
     // 再次初始化
-    tagManager.initialize({ tags: { b: {} as any } });
+    store.initialize({ tags: { b: {} as any } });
     
     // 应该保持第一次的状态（根据当前实现）
-    expect(tagManager.getAllTags().length).toBe(firstState.length);
+    expect(store.getAllTags().length).toBe(firstState.length);
   });
 });
 

@@ -1,12 +1,12 @@
 // src/background/init.ts
 // Background Service Worker 初始化逻辑
 
-import { TagManager } from '../services/tagManager';
+import { GameplayStore } from '../services/gameplayStore';
 import { syncStorageService, storageService, STORAGE_KEYS } from '../services/storageService';
 import { syncService } from '../services/syncService';
 import { TagsCollection, PageCollection } from '../types/gameplayTag';
 
-const tagManager = TagManager.getInstance();
+const gameplayStore = GameplayStore.getInstance();
 let initPromise: Promise<void> | null = null;
 
 /**
@@ -28,7 +28,7 @@ export async function getInitializationPromise(): Promise<void> {
         STORAGE_KEYS.PAGE_SETTINGS,
       ]);
 
-      tagManager.initialize({
+      gameplayStore.initialize({
         tags: data[STORAGE_KEYS.TAGS] as TagsCollection | null,
         pages: data[STORAGE_KEYS.PAGES] as PageCollection | null,
       });

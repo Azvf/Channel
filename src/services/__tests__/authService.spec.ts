@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { authService } from '../authService';
-import { TagManager } from '../tagManager';
+import { GameplayStore } from '../gameplayStore';
 import { storageService, STORAGE_KEYS } from '../storageService';
 import { testHelpers } from '../../test/helpers';
 
@@ -27,11 +27,11 @@ global.chrome = {
 } as any;
 
 describe('AuthService 状态流转测试', () => {
-  let tagManager: TagManager;
+  let store: GameplayStore;
 
   beforeEach(async () => {
     await testHelpers.clearAllData();
-    tagManager = await testHelpers.initTagManager();
+    store = await testHelpers.initTagManager();
     
     // Mock chrome.storage 的调用
     (storageService.removeMultiple as any) = jest.fn(() => Promise.resolve());
@@ -47,11 +47,11 @@ describe('AuthService 状态流转测试', () => {
   describe('登出清理逻辑', () => {
     it('logout_should_call_cleanup: Mock TagManager 和 StorageService，断言调用 logout 时，clearAllData 和 removeMultiple 被调用', async () => {
       // 创建一些测试数据
-      tagManager.createTag('UserA-Tag');
-      expect(tagManager.getAllTags()).toHaveLength(1);
+      store.createTag('UserA-Tag');
+      expect(store.getAllTags()).toHaveLength(1);
 
       // Mock TagManager 的 clearAllData
-      const clearAllDataSpy = jest.spyOn(tagManager, 'clearAllData');
+      const clearAllDataSpy = jest.spyOn(store, 'clearAllData');
 
       // Mock StorageService 的 removeMultiple
       const removeMultipleSpy = jest.spyOn(storageService, 'removeMultiple');
@@ -80,12 +80,12 @@ describe('AuthService 状态流转测试', () => {
 
     it('logout_should_clear_tag_manager_data: 验证登出后 TagManager 数据被清空', async () => {
       // 创建一些数据
-      tagManager.createTag('测试标签');
-      const page = tagManager.createOrUpdatePage('https://example.com', '测试页面', 'example.com');
-      tagManager.addTagToPage(page.id, tagManager.getAllTags()[0].id);
+      store.createTag('测试标签');
+      const page = store.createOrUpdatePage('https://example.com', '测试页面', 'example.com');
+      store.addTagToPage(page.id, store.getAllTags()[0].id);
 
-      expect(tagManager.getAllTags().length).toBeGreaterThan(0);
-      expect(tagManager.getTaggedPages().length).toBeGreaterThan(0);
+      expect(store.getAllTags().length).toBeGreaterThan(0);
+      expect(store.getTaggedPages().length).toBeGreaterThan(0);
 
       // 执行登出
       try {
@@ -97,7 +97,7 @@ describe('AuthService 状态流转测试', () => {
       // 验证数据已清空（通过 TagManager 的 clearAllData 方法）
       // 注意：由于 logout 内部会调用 clearAllData，所以数据应该被清空
       // 但由于我们使用的是单例，需要手动验证
-      expect(tagManager.getAllTags().length).toBe(0);
+      expect(store.getAllTags().length).toBe(0);
     });
 
     it('logout_should_reset_storage: 验证登出后存储被清空', async () => {
@@ -153,16 +153,16 @@ describe('AuthService 状态流转测试', () => {
   describe('隐私保护', () => {
     it('logout_should_clear_all_user_data: 登出时应该清除所有用户数据', async () => {
       // 创建用户数据
-      tagManager.createTag('UserA-Tag1');
-      tagManager.createTag('UserA-Tag2');
-      const page = tagManager.createOrUpdatePage('https://example.com', 'UserA-Page', 'example.com');
-      tagManager.addTagToPage(page.id, tagManager.getAllTags()[0].id);
+      store.createTag('UserA-Tag1');
+      store.createTag('UserA-Tag2');
+      const page = store.createOrUpdatePage('https://example.com', 'UserA-Page', 'example.com');
+      store.addTagToPage(page.id, store.getAllTags()[0].id);
 
-      const tagsBefore = tagManager.getAllTags();
+      const tagsBefore = store.getAllTags();
       expect(tagsBefore.length).toBeGreaterThan(0);
 
       // Mock 清理方法
-      const clearAllDataSpy = jest.spyOn(tagManager, 'clearAllData');
+      const clearAllDataSpy = jest.spyOn(store, 'clearAllData');
       const removeMultipleSpy = jest.spyOn(storageService, 'removeMultiple');
 
       // 执行登出

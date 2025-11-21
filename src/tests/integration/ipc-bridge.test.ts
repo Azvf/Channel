@@ -1,6 +1,6 @@
 import { resetInitializationForTests } from '../../background/init';
 import { currentPageService } from '../../services/popup/currentPageService';
-import { TagManager } from '../../services/tagManager';
+import { GameplayStore } from '../../services/gameplayStore';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
 import { BackgroundServiceImpl } from '../../services/background/BackgroundServiceImpl';
 import { registerRpcHandler } from '../../rpc/server';
@@ -174,8 +174,8 @@ beforeEach(() => {
         const result = await method.apply(backgroundService, message.args);
 
         // 4. 事务提交（模拟 RPC 服务器）- 这是关键！会触发存储保存
-        const tagManager = TagManager.getInstance();
-        await tagManager.commit();
+        const store = GameplayStore.getInstance();
+        await store.commit();
 
         // 5. 返回结果
         if (callback) {
@@ -202,7 +202,7 @@ beforeEach(() => {
   });
 
   resetInitializationForTests();
-  TagManager.getInstance().clearAllData();
+  GameplayStore.getInstance().clearAllData();
   (global as any).chrome.runtime.lastError = undefined;
 });
 
@@ -371,8 +371,8 @@ describe('IPC 桥集成测试 (RPC 架构)', () => {
     const page = await currentPageService.getCurrentPage();
     const originalTag = await currentPageService.createTagAndAddToPage('Old Name', page.id);
     
-    const tagManagerInstance = TagManager.getInstance();
-    const updateSpy = jest.spyOn(tagManagerInstance, 'updateTagName');
+    const storeInstance = GameplayStore.getInstance();
+    const updateSpy = jest.spyOn(storeInstance, 'updateTagName');
 
     await currentPageService.updateTag(originalTag.id, 'New Name');
 
@@ -416,12 +416,12 @@ describe('IPC 桥集成测试 (RPC 架构)', () => {
   });
 
   it('更新标签失败时应该返回错误并且不触发持久化', async () => {
-    const tagManagerInstance = TagManager.getInstance();
-    const updateSpy = jest.spyOn(tagManagerInstance, 'updateTagName').mockReturnValue({
+    const storeInstance = GameplayStore.getInstance();
+    const updateSpy = jest.spyOn(storeInstance, 'updateTagName').mockReturnValue({
       success: false,
       error: 'Name exists',
     });
-    const commitSpy = jest.spyOn(tagManagerInstance, 'commit');
+    const commitSpy = jest.spyOn(storeInstance, 'commit');
 
     await expect(currentPageService.updateTag('t1', 'Existing Name')).rejects.toThrow('Name exists');
 
