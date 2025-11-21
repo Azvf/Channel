@@ -15,6 +15,20 @@ body {
   --glass-reflex-light: 1;
   --saturation: 150%;
   
+  /* --- Glass Physics System (Depth-Aware Rendering) --- */
+  /* 基础模糊度 (Level 0) */
+  --glass-blur-base: 12px;
+  /* 每增加一层深度，模糊度减少的量 (防止多重模糊导致性能雪崩) */
+  --glass-blur-decay: 2px;
+  
+  /* 基础不透明度 */
+  --glass-opacity-base: 0.15; /* 15% */
+  /* 每增加一层，不透明度增加 (为了遮挡下层的杂乱内容) */
+  --glass-opacity-increment: 0.05;
+  
+  /* 基础反射强度 */
+  --glass-reflex-strength: 1;
+  
   /* Animation Tokens */
   --transition-fast: 200ms;
   --transition-base: 300ms;

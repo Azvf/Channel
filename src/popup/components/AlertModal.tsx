@@ -105,6 +105,7 @@ export function AlertModal({
           // - [&>.liquidGlass-content]:h-full : 让内部内容撑满卡片高度
           // - [&>.liquidGlass-content]:overflow-hidden : 防止圆角溢出
           className="flex flex-col min-h-0 overflow-hidden [&>.liquidGlass-content]:flex [&>.liquidGlass-content]:flex-col [&>.liquidGlass-content]:h-full [&>.liquidGlass-content]:max-h-full [&>.liquidGlass-content]:overflow-hidden"
+          depthLevel={10}
           style={{
             width: '100%',
             height: 'auto', // 允许高度自适应（内容少时变矮）

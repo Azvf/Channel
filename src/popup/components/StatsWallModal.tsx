@@ -45,6 +45,7 @@ export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
     <div className="stats-wall-backdrop" onClick={onClose}>
       <GlassCard
         className="stats-wall-container"
+        depthLevel={10}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - 使用标准化的 ModalHeader */}

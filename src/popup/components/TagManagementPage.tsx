@@ -238,7 +238,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
               onClick={(e) => e.stopPropagation()}
               style={{ maxHeight: "90vh", display: "flex" }}
             >
-              <GlassCard className="p-5 flex flex-col" style={{ width: "100%", maxHeight: "90vh" }}>
+              <GlassCard className="p-5 flex flex-col" depthLevel={10} style={{ width: "100%", maxHeight: "90vh" }}>
                 <ModalHeader title="Tag Library" onClose={onClose} />
 
                 <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, paddingRight: "0.5rem", marginTop: "1rem" }}>

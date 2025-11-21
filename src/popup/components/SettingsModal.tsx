@@ -138,13 +138,10 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
             >
               <GlassCard 
                 className="p-5 flex flex-col" 
+                depthLevel={10}
                 style={{ 
                   width: '100%', 
-                  maxHeight: '90vh',
-                  backgroundColor: 'color-mix(in srgb, var(--c-bg) 80%, var(--c-glass) 15%)',
-                  backdropFilter: 'blur(16px) saturate(var(--saturation))',
-                  WebkitBackdropFilter: 'blur(16px) saturate(var(--saturation))',
-                  border: '1px solid color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 30%), transparent)'
+                  maxHeight: '90vh'
                 }}
               >
                 <ModalHeader title="Settings" onClose={onClose} />

@@ -240,6 +240,7 @@ export function EditPageDialog({
       >
         <GlassCard 
           className="overflow-hidden flex flex-col"
+          depthLevel={10}
           style={{ 
             width: '100%', 
             height: '100%'
