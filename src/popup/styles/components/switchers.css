@@ -59,7 +59,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   width: var(--space-12);
   height: var(--space-12);
   padding: 0;
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   cursor: pointer;
   transform: scale(1);
   justify-content: center;
@@ -93,7 +94,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   /* [Refactor] 3.5rem (56px) -> var(--control-height-lg) */
   height: var(--control-height-lg);
   padding: var(--switcher-padding-v) var(--switcher-padding-h) var(--space-2);
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   cursor: default;
   transform: scale(1);
 }
@@ -120,7 +122,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   padding: var(--space-1_5) var(--space-2_5) var(--space-2);
   margin: 0 auto;
   border: none;
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   /* [Refactor] 12% mix -> var(--bg-surface-glass) (10%)，统一使用标准玻璃背景 Token */
   background-color: var(--bg-surface-glass);
   /* [Refactor] blur(8px) -> var(--glass-blur-base) (12px)，统一磨砂质感 */
@@ -176,7 +179,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   align-items: center;
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   z-index: var(--z-content);
   position: relative;
   transition: width var(--transition-base) var(--ease-smooth), 
@@ -252,7 +256,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   content: '';
   position: absolute;
   display: block;
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   /* [Refactor] 36% mix -> var(--bg-surface-glass-active) (20%)，使用更接近的语义化 Token */
   /* 注意：36% 较重，但 active 状态(20%)是最接近的语义化选择 */
   background-color: var(--bg-surface-glass-active);
@@ -277,7 +282,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   left: 0;
   top: 0;
   translate: 0 0;
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   opacity: 0;
   visibility: hidden;
   /* [Refactor] 0ms 延迟表示立即执行，保持为 0ms */
@@ -290,7 +296,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   height: calc(100% - var(--space-2));
   left: var(--space-0_5);
   top: var(--space-0_5);
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   opacity: 1;
   visibility: visible;
   /* [Refactor] 11rem -> 动态计算，基于变量确保动画正确对齐 */
@@ -386,7 +393,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   left: var(--space-2);
   top: var(--space-2);
   height: calc(100% - var(--space-4));
-  border-radius: 99em;
+  /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
+  border-radius: var(--radius-full);
   /* [Refactor] 18% mix -> var(--bg-surface-glass-hover) (15%)，统一使用语义化 Token */
   background-color: var(--bg-surface-glass-hover);
   z-index: -1;

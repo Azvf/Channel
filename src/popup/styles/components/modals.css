@@ -28,7 +28,8 @@
   padding: var(--space-2) 0;
   cursor: pointer;
   transition: background-color var(--transition-fast) var(--ease-smooth);
-  border-radius: 0.5rem;
+  /* [Design] Liquid Conformality: 使用语义化圆角变量，替代硬编码的 0.5rem */
+  border-radius: var(--radius-md); /* 16px */
   padding-left: var(--space-2);
   padding-right: var(--space-2);
   margin-left: calc(var(--space-2) * -1);
@@ -57,7 +58,8 @@
   padding: var(--space-2) var(--space-3);
   background: transparent;
   border: none;
-  border-radius: 0.5rem;
+  /* [Design] Liquid Conformality: 使用语义化圆角变量，替代硬编码的 0.5rem */
+  border-radius: var(--radius-md); /* 16px */
   /* [Refactor] 使用标准字体 Token */
   font: var(--font-list-item);
   color: var(--c-content);
@@ -101,9 +103,13 @@
   backdrop-filter: blur(var(--glass-blur-heavy)) saturate(180%) !important;
   border: 1px solid var(--border-glass-strong);
   box-shadow: var(--shadow-xl); /* Tokenized shadow */
+  /* [Design] Liquid Conformality: 模态框容器使用最大的圆角，像从屏幕升起的 */
+  border-radius: var(--radius-2xl); /* 40px */
   display: flex;
   flex-direction: column;
   max-height: 90vh;
+  /* 确保内容跟随圆角 */
+  overflow: hidden;
 }
 
 .stats-wall-container .liquidGlass-content {

@@ -379,11 +379,10 @@ body {
   --ring: oklch(0.708 0 0);
   
   /* Radius Mapping */
-  --radius: var(--radius-md);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
+  /* ✅ 修复：只保留通用的 --radius 变量，删除所有自我引用的 radius-* 变量 */
+  /* 原因：--radius-sm, --radius-md 等已在第一个 :root 块中正确定义（Line 115-137） */
+  /* 如果在此处重新定义，会造成循环引用，导致变量失效 */
+  --radius: var(--radius-md); /* 通用 radius 变量，供 Shadcn UI 使用 */
   
   /* Sidebar Colors */
   --sidebar: oklch(0.985 0 0);

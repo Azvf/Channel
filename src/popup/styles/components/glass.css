@@ -23,6 +23,11 @@
   /* 使用更保守的 contain 值，避免影响某些 CSS 属性的继承 */
   contain: layout paint;
   
+  /* [Pro Tip] 强制 GPU 按照 alpha 通道进行遮罩裁剪，修复 Safari/Chrome 的圆角溢出问题 */
+  /* 当使用 backdrop-filter 和 transform 时，浏览器有时会忽略 overflow: hidden 对子元素的裁剪 */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
+  
   /* --- [核心优化] 动态模糊计算 --- */
   /* 深度越深，模糊越小（因为背景已经被上层模糊过了，没必要浪费 GPU） */
   /* 使用 clamp() 替代 max()，兼容性更好，防止模糊度变成负数 */
