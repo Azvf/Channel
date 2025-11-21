@@ -12,7 +12,8 @@
   display: flex;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 1.4em;
+  /* [Refactor] 使用 Tokenized Radius */
+  border-radius: var(--radius-xl);
   
   /* [性能优化] 强制提升为合成层 (Compositor Layer) */
   /* 这会让浏览器将此元素及其模糊效果缓存为纹理，避免每帧重绘 */

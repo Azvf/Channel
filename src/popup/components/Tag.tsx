@@ -39,7 +39,7 @@ export function Tag({ label, onRemove, className = "", variant = 'default' }: Ta
       <div 
         className="liquidGlass-wrapper relative"
         style={{
-          borderRadius: '99em', // 覆盖默认的 1.4em，保持 tag 的圆形外观
+          borderRadius: 'var(--radius-full)', // [Refactor] Tokenized
           ...variantStyles
         }}
       >
@@ -63,13 +63,14 @@ export function Tag({ label, onRemove, className = "", variant = 'default' }: Ta
               className="transition-all rounded-full p-0.5 mr-1.5 hover-destructive"
               aria-label="Remove tag"
               style={{
-                color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+                // [Refactor] 使用标准次级文本色，hover 颜色由 hover-destructive 类控制
+                color: 'var(--color-text-secondary)', 
                 background: 'transparent',
                 flexShrink: 0
               }}
             >
               <X 
-                className="w-3 h-3" 
+                className="icon-xs" 
                 strokeWidth={2}
               />
             </button>

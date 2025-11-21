@@ -118,7 +118,7 @@
 */
 .hover-destructive {
   background-color: transparent;
-  color: color-mix(in srgb, var(--c-content) 60%, transparent);
+  color: var(--color-text-secondary);
   transition: background-color var(--transition-fast) var(--ease-smooth),
               color var(--transition-fast) var(--ease-smooth);
 }
@@ -132,3 +132,43 @@
   color: var(--hover-color-destructive) !important;
 }
 
+/* ========================================
+   ICONOGRAPHY UTILITIES (Semantic System)
+   Replaces hardcoded Tailwind w-* h-* classes
+   ======================================== */
+
+/* 12px - Micro (Status, Tags, Inline) */
+.icon-xs {
+  width: var(--icon-size-xs);
+  height: var(--icon-size-xs);
+}
+
+/* 14px - Small (Metadata, Secondary Actions) */
+.icon-sm {
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+}
+
+/* 16px - Base (Standard Buttons, Menu Items) */
+.icon-base {
+  width: var(--icon-size-base);
+  height: var(--icon-size-base);
+}
+
+/* 20px - Medium (Avatars, Favicons) */
+.icon-md {
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+}
+
+/* 24px - Large (Section Headers) */
+.icon-lg {
+  width: var(--icon-size-lg);
+  height: var(--icon-size-lg);
+}
+
+/* 32px - Extra Large (Hero, Empty States) */
+.icon-xl {
+  width: var(--icon-size-xl);
+  height: var(--icon-size-xl);
+}

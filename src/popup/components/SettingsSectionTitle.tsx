@@ -15,8 +15,9 @@ export function SettingsSectionTitle({ children, className = '', style }: Settin
         letterSpacing: 'var(--letter-spacing-section-title)',
         textTransform: 'uppercase',
         color: 'var(--color-text-secondary)',
-        marginTop: '1.5rem',
-        marginBottom: '0.5rem',
+        // [Refactor] Tokenized Margins
+        marginTop: 'var(--space-6)',
+        marginBottom: 'var(--space-2)',
         ...style,
       }}
     >

@@ -154,7 +154,7 @@ export function TagInput({
                     animate={{ rotate: isMenuOpen ? 180 : 0 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
+                    <ChevronDown className="icon-base" strokeWidth={1.5} />
                   </motion.div>
                 </button>
               )}
@@ -171,13 +171,13 @@ export function TagInput({
       >
         <div 
           data-sticky-dropdown
-          className="overflow-hidden border"
+          className="overflow-hidden"
           style={{
-            // [Refactor] Use Design Tokens
-            backgroundColor: 'var(--bg-surface-glass)', // Fallback / Base
-            backdropFilter: 'blur(24px) saturate(180%)', // Keep specific heavy blur for dropdown
+            // [Refactor] 完全 Token 化
+            backgroundColor: 'var(--bg-surface-glass)', 
+            backdropFilter: 'blur(24px) saturate(180%)', // 保持下拉菜单的高模糊度以保证可读性
             WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-            borderColor: 'var(--border-glass-subtle)',
+            border: '1px solid var(--border-glass-subtle)',
             borderRadius: 'var(--radius-lg)',
             boxShadow: 'var(--shadow-elevation-high)'
           }}
@@ -211,25 +211,28 @@ export function TagInput({
                       {...optionProps}
                       className="w-full text-left transition-colors flex items-center gap-2"
                       style={{ 
+                        // [Refactor] 颜色 Token 化
                         padding: 'var(--space-2) var(--space-4)',
                         color: activeIndex === index 
                           ? 'var(--color-text-action)' 
                           : (isCreateOption ? 'var(--color-text-action)' : 'var(--color-text-primary)'),
-                        fontSize: '0.85rem',
+                        // [Refactor] 使用标准字体 Token
+                        font: 'var(--font-body)',
                         fontWeight: isCreateOption ? 500 : 400,
                         letterSpacing: '0.01em',
+                        // [Refactor] 背景 Token 化
                         background: activeIndex === index 
                           ? 'var(--bg-surface-glass-hover)' 
                           : 'transparent',
-                        borderRadius: 'var(--radius-sm)' // Add slight radius to hover state
+                        borderRadius: 'var(--radius-sm)' // 添加圆角让 hover 更自然
                       }}
                     >
                       {isCreateOption && (
                         <div 
-                          className="flex items-center justify-center w-4 h-4 rounded-full"
+                          className="flex items-center justify-center icon-base rounded-full"
                           style={{ background: 'var(--bg-action-subtle)' }}
                         >
-                          <Plus className="w-3 h-3" strokeWidth={2.5} />
+                          <Plus className="icon-xs" strokeWidth={2.5} />
                         </div>
                       )}
                       <span className="truncate">

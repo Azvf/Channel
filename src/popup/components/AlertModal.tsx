@@ -6,6 +6,7 @@ import { ModalHeader } from './ModalHeader';
 import { ModalFooter } from './ModalFooter';
 import { GlassButton } from './GlassButton';
 import { Info, AlertTriangle, XCircle } from 'lucide-react';
+import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from '../utils/motion'; // [Refactor] 使用统一的动画系统
 
 type AlertActionVariant = 'default' | 'primary' | 'destructive';
 
@@ -33,11 +34,11 @@ const intentMap = {
   },
   warning: {
     icon: AlertTriangle,
-    color: '#F5A623',
+    color: '#F5A623', // Keep as is until Warning Token is added
   },
   destructive: {
     icon: XCircle,
-    color: '#D0021B',
+    color: 'var(--color-destructive)', // [Refactor] Tokenized
   },
 } as const;
 
@@ -78,15 +79,17 @@ export function AlertModal({
     <motion.div
       className="fixed inset-0 flex items-center justify-center p-4"
       style={{
-        zIndex: 'var(--z-modal-layer)',
-        background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)',
-        backdropFilter: 'blur(4px)',
+        // [Refactor] 使用明确的 Backdrop 层级
+        zIndex: 'var(--z-modal-backdrop)',
+        // [Refactor] 使用标准遮罩 Token
+        background: 'var(--bg-surface-glass-active)', 
+        backdropFilter: 'blur(var(--glass-blur-base))',
       }}
       initial="hidden"
       animate="visible"
       exit="hidden"
       variants={backdropVariants}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      transition={SMOOTH_TRANSITION} // [Refactor] 使用统一的动画系统
       onClick={onClose}
     >
       <motion.div
@@ -94,9 +97,11 @@ export function AlertModal({
         style={{
           // 1. 硬性限制模态框最大高度，留出上下边距
           maxHeight: '85vh',
+          // [Refactor] 使用明确的 Content 层级，确保在 Backdrop 之上
+          zIndex: 'var(--z-modal-content)',
         }}
         variants={modalVariants}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
+        transition={DIALOG_TRANSITION} // [Refactor] 使用统一的动画系统
         onClick={(event) => event.stopPropagation()}
       >
         <GlassCard
@@ -105,7 +110,7 @@ export function AlertModal({
           // - [&>.liquidGlass-content]:h-full : 让内部内容撑满卡片高度
           // - [&>.liquidGlass-content]:overflow-hidden : 防止圆角溢出
           className="flex flex-col min-h-0 overflow-hidden [&>.liquidGlass-content]:flex [&>.liquidGlass-content]:flex-col [&>.liquidGlass-content]:h-full [&>.liquidGlass-content]:max-h-full [&>.liquidGlass-content]:overflow-hidden"
-          depthLevel={3}
+          depthLevel={10} // Alert 级别较高
           style={{
             width: '100%',
             height: 'auto', // 允许高度自适应（内容少时变矮）
@@ -121,13 +126,14 @@ export function AlertModal({
           <div 
             className="flex-1 overflow-y-auto px-5 py-5 min-h-0"
             style={{
-              scrollbarWidth: 'thin', // Firefox 细滚动条
-              scrollbarColor: 'color-mix(in srgb, var(--c-content) 20%, transparent) transparent',
+              scrollbarWidth: 'thin',
+              // [Refactor] 使用标准 Scrollbar Token
+              scrollbarColor: 'var(--sb-thumb-idle) transparent',
             }}
           >
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 mt-1">
-                <Icon className="w-6 h-6" style={{ color }} />
+                <Icon className="icon-lg" style={{ color }} />
               </div>
               <div
                 className="flex-1 min-w-0"

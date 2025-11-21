@@ -12,6 +12,7 @@ import { AlertModal, type AlertAction } from "./AlertModal";
 // 引入模块化组件
 import { TagRow } from "./tag-library/TagRow";
 import { TagContextMenu } from "./tag-library/TagContextMenu";
+import { LAYOUT, POSITIONING } from "../utils/layoutConstants";
 
 interface TagManagementPageProps {
   isOpen: boolean;
@@ -154,7 +155,8 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
     e.stopPropagation();
     e.preventDefault();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPosition({ x: rect.right - 150, y: rect.bottom + 8 });
+    // [Refactor] 使用标准布局常量
+    setMenuPosition({ x: rect.right - LAYOUT.MENU_MIN_WIDTH, y: rect.bottom + POSITIONING.DROPDOWN_OFFSET });
     setMenuTargetId(tagId);
   }, []);
 
@@ -217,10 +219,11 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
           <motion.div
             className="fixed inset-0 flex items-center justify-center p-4"
             style={{
-              zIndex: "var(--z-modal-layer)",
-              // [Refactor] 使用语义化 Surface Token
-              background: "var(--bg-surface-glass-hover)", 
-              backdropFilter: "blur(4px)", // 可选: 移到 CSS 类中统一管理
+              // [Refactor] 使用明确的 Backdrop 层级
+              zIndex: "var(--z-modal-backdrop)",
+              // [Refactor] Tokenized Backdrop
+              background: "var(--bg-surface-glass-active)", 
+              backdropFilter: "blur(var(--glass-blur-base))",
             }}
             initial="hidden"
             animate="visible"
@@ -233,26 +236,30 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
             }}
           >
             <motion.div
-              className="w-full max-w-sm"
+              className="w-full"
               variants={modalVariants}
               transition={{ duration: 0.2, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
-              style={{ maxHeight: "90vh", display: "flex" }}
+              style={{ 
+                maxWidth: "var(--modal-max-width)", 
+                // [Refactor] 使用标准模态框高度 Token
+                maxHeight: "var(--modal-max-height)", 
+                display: "flex" 
+              }}
             >
-              <GlassCard className="p-5 flex flex-col" depthLevel={3} style={{ width: "100%", maxHeight: "90vh" }}>
+              <GlassCard className="flex flex-col" depthLevel={10} style={{ width: "100%", maxHeight: "var(--modal-max-height)", padding: "var(--space-5)" }}>
                 <ModalHeader title="Tag Library" onClose={onClose} />
 
-                {/* [Refactor] 使用标准 Spacing Tokens */}
                 <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, paddingRight: "var(--space-2)", marginTop: "var(--space-4)" }}>
-                  <div className="flex items-center gap-3 mb-4">
+                  {/* Search Input */}
+                  <div className="mb-4">
                     <GlassInput
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={handleSearchKeyDown}
-                      placeholder="搜索或创建标签..."
+                      placeholder="Search tags..."
                       autoFocus={isOpen}
                       disabled={loading && tags.length === 0}
-                      className="w-full"
                     />
                   </div>
 
@@ -268,15 +275,18 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
                           <GlassCard
                             className="p-3 mb-2 cursor-pointer"
                             onClick={handleCreateTag}
+                            // 不需要 depthLevel，这是内部列表项
                             style={{
-                              opacity: isCreating ? 0.7 : 1,
+                              // [Refactor] 使用标准透明度 Token
+                              opacity: isCreating ? 'var(--opacity-loading)' : 1,
                               cursor: isCreating ? "wait" : "pointer",
-                              // [Refactor] 使用语义化 Border Token
+                              // [Refactor] 使用 Action Border
                               border: "1px solid var(--border-action-subtle)",
+                              padding: "var(--space-3)",
+                              borderRadius: "var(--radius-md)"
                             }}
                             onMouseEnter={(e) => {
                               if (isCreating) return;
-                              // [Refactor] 使用语义化 Bg Token
                               e.currentTarget.style.background = "var(--bg-surface-glass-hover)";
                             }}
                             onMouseLeave={(e) => {
@@ -284,9 +294,8 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
                               e.currentTarget.style.background = "transparent";
                             }}
                           >
-                            {/* [Refactor] 使用 Tokenized Colors */}
-                            <span style={{ color: "var(--color-text-action)", fontWeight: 500, fontSize: "0.9rem" }}>
-                              {isCreating ? "正在创建..." : `+ 创建标签 "${trimmedQuery}"`}
+                            <span style={{ color: "var(--color-text-action)", fontWeight: 500, font: "var(--font-body)" }}>
+                              {isCreating ? "Creating..." : `+ Create "${trimmedQuery}"`}
                             </span>
                           </GlassCard>
                         </motion.div>
@@ -299,7 +308,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
                       </div>
                     ) : filteredTags.length === 0 && !canCreate ? (
                       <div style={{ color: "var(--color-text-tertiary)", textAlign: "center", padding: "var(--space-8)" }}>
-                        {searchQuery ? "未找到标签" : "标签库为空"}
+                        {searchQuery ? "No tags found" : "Library is empty"}
                       </div>
                     ) : (
                       filteredTags.map((tag) => (

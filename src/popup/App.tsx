@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect, useRef } from "react";
+import { useState, useLayoutEffect, useRef, useEffect } from "react";
 import { TaggingPage } from "./components/TaggingPage";
 import { TaggedPage } from "./components/TaggedPage";
 import { TabSwitcher } from "./components/TabSwitcher";
@@ -8,12 +8,11 @@ import { TagManagementPage } from "./components/TagManagementPage";
 import { storageService, STORAGE_KEYS } from "../services/storageService";
 import { usePageSettings } from "./utils/usePageSettings";
 import type { AppInitialState } from "../services/appInitService";
+import { DURATION, EASE, getDurationMs, getEaseString } from "./tokens/animation"; // [Refactor] 引入物理引擎
 
 interface AppProps {
   initialState: AppInitialState;
 }
-
-const DEFAULT_HEADER_HEIGHT = 60; // 52px (Switcher) + 8px (Gap)
 
 export default function App({ initialState }: AppProps) {
   const [activeTab, setActiveTab] = useState<"tagging" | "tagged">(initialState.activeTab);
@@ -23,17 +22,33 @@ export default function App({ initialState }: AppProps) {
 
   usePageSettings(initialState.pageSettings);
 
-  const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
+  // [Refactor] 运行时同步动画 Token 到 CSS 变量
+  // 确保 CSS 和 JS 运行在统一的时间流速上
+  useEffect(() => {
+    const root = document.documentElement;
+    
+    // 将 JS 常量写入 CSS 变量
+    root.style.setProperty('--transition-fast', getDurationMs(DURATION.FAST));
+    root.style.setProperty('--transition-base', getDurationMs(DURATION.BASE));
+    root.style.setProperty('--transition-slow', getDurationMs(DURATION.SLOW));
+    
+    root.style.setProperty('--ease-smooth', getEaseString(EASE.SMOOTH));
+    root.style.setProperty('--ease-glass', getEaseString(EASE.OUT_CUBIC)); // 使用 OUT_CUBIC 作为 glass 缓动
+  }, []);
+
+  // [Refactor] 不再依赖 JS 状态计算高度，改为 CSS 变量控制布局
+  // 如果需要动态测量（例如 Header 内容变化），可以使用 ResizeObserver 更新 CSS 变量
+  const [headerHeight, setHeaderHeight] = useState(60); 
   const floatingHeaderRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    if (!floatingHeaderRef.current) {
-      return;
-    }
+    if (!floatingHeaderRef.current) return;
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setHeaderHeight(entry.contentRect.height);
+        // 可选：将高度写回 CSS 变量，供子组件使用
+        document.documentElement.style.setProperty('--header-real-height', `${entry.contentRect.height}px`);
       }
     });
 
@@ -73,12 +88,15 @@ export default function App({ initialState }: AppProps) {
       />
 
       <div
-        className="relative flex-1 p-4"
+        className="relative flex-1"
         style={{
           minHeight: 0,
           overflowY: "auto",
+          // [Refactor] 使用标准内边距
+          padding: "var(--container-padding)", 
         }}
       >
+        {/* Spacer for Floating Header */}
         <div style={{ height: `${headerHeight}px`, flexShrink: 0 }} />
 
         {activeTab === "tagging" ? (
@@ -101,16 +119,23 @@ export default function App({ initialState }: AppProps) {
         }}
       >
         <div
-          className="relative w-full max-w-md flex justify-center items-center px-4 pt-3 h-11"
-          style={{ pointerEvents: "auto" }}
+          className="relative w-full max-w-md flex justify-center items-center"
+          style={{ 
+            pointerEvents: "auto",
+
+            height: "var(--row-min-height)", // 44px
+
+            marginTop: "var(--space-3)" // 12px top margin
+
+          }}
         >
           <div
             className="channel-title-anchor"
             style={{
-              fontSize: "1rem",
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: "var(--c-content)",
+              // [Refactor] 使用 Typography Tokens
+              font: "var(--font-header-title)",
+              letterSpacing: "var(--letter-spacing-header-title)",
+              color: "var(--color-text-primary)",
               cursor: "default",
               userSelect: "none",
             }}
@@ -120,8 +145,13 @@ export default function App({ initialState }: AppProps) {
         </div>
 
         <div
-          className="w-full max-w-md flex justify-center px-4 pt-2"
-          style={{ pointerEvents: "auto" }}
+          className="w-full max-w-md flex justify-center"
+          style={{ 
+            pointerEvents: "auto",
+
+            padding: "var(--space-2) var(--container-padding) 0" 
+
+          }}
         >
           <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
         </div>

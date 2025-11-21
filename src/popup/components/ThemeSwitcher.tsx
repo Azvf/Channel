@@ -111,7 +111,12 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
                 // 7. 当未展开时，禁用 input 功能
                 disabled={!isExpanded} 
               />
-              <IconComponent className="switcher__icon" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
+              {/* [Refactor] Tokenized Color */}
+              <IconComponent 
+                className="switcher__icon" 
+                style={{ color: 'var(--color-text-primary)' }} 
+                strokeWidth={1.5} 
+              />
             </label>
           );
         })}

@@ -43,8 +43,9 @@ export const TagRow = memo(function TagRow({
       <div
         className="group relative flex items-center justify-between gap-3 p-3 rounded-lg"
         style={{
-          background: "color-mix(in srgb, var(--c-glass) 10%, transparent)",
-          border: "1px solid color-mix(in srgb, var(--c-action) 20%, transparent)",
+          // [Refactor] 使用 Active Surface 和 Action Border
+          background: "var(--bg-surface-glass-active)",
+          border: "1px solid var(--border-action-subtle)",
         }}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -69,8 +70,8 @@ export const TagRow = memo(function TagRow({
             autoFocus
             className="flex-1 w-full bg-transparent outline-none"
             style={{
-              color: "var(--c-content)",
-              fontSize: "0.9rem",
+              color: "var(--color-text-primary)",
+              font: "var(--font-body)",
               fontWeight: 500,
               padding: 0,
               margin: 0,
@@ -81,8 +82,8 @@ export const TagRow = memo(function TagRow({
         <div className="flex items-center gap-3 flex-shrink-0">
           <span
             style={{
-              color: "color-mix(in srgb, var(--c-content) 50%, transparent)",
-              fontSize: "0.75rem",
+              color: "var(--color-text-secondary)",
+              font: "var(--font-footnote)",
               fontWeight: 400,
               opacity: 1,
             }}
@@ -114,8 +115,8 @@ export const TagRow = memo(function TagRow({
         <span
           className="truncate"
           style={{
-            color: 'var(--c-content)',
-            fontSize: '0.9rem',
+            color: 'var(--color-text-primary)',
+            font: 'var(--font-body)',
             fontWeight: 500
           }}
         >
@@ -127,8 +128,8 @@ export const TagRow = memo(function TagRow({
         <span
           className="transition-opacity duration-150 group-hover:opacity-0"
           style={{
-            color: 'color-mix(in srgb, var(--c-content) 50%, transparent)',
-            fontSize: '0.75rem',
+            color: 'var(--color-text-secondary)',
+            font: 'var(--font-footnote)',
             fontWeight: 400
           }}
         >
@@ -140,12 +141,12 @@ export const TagRow = memo(function TagRow({
             onClick={(e) => { e.stopPropagation(); onDeleteTag(tag.id); }}
             className="p-1.5 rounded-md transition-all hover-destructive"
             style={{
-              color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+              color: 'var(--color-text-secondary)',
               background: 'transparent'
             }}
             title="删除标签"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="icon-base" />
           </button>
         </div>
       </div>

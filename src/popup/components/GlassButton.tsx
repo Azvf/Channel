@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, HTMLMotionProps } from 'framer-motion';
+import { getTransition, DURATION } from '../tokens/animation'; // [Refactor] 引入物理引擎
 
 interface GlassButtonProps extends HTMLMotionProps<"button"> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';
@@ -29,10 +30,12 @@ export const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>
       font: 'var(--font-label)', // 使用 Label 字体 (Bold, Small)
       letterSpacing: '0.02em',
       cursor: (disabled || isLoading) ? 'not-allowed' : 'pointer',
-      opacity: (disabled || isLoading) ? 0.6 : 1,
+      // [Refactor] 使用标准透明度 Token
+      opacity: (disabled || isLoading) ? 'var(--opacity-disabled)' : 1,
       border: 'none',
       outline: 'none',
-      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      // [Refactor] 使用统一的物理引擎，确保与 Framer Motion 同步
+      transition: getTransition(DURATION.FAST),
       position: 'relative',
     };
 
@@ -59,9 +62,21 @@ export const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>
     };
 
     const sizes = {
-      sm: { height: '32px', padding: '0 var(--space-3)', fontSize: '0.75rem' },
-      md: { height: '44px', padding: '0 var(--space-5)', fontSize: '0.9rem' }, // 核心尺寸
-      lg: { height: '56px', padding: '0 var(--space-6)', fontSize: '1rem' },
+      sm: { 
+        height: 'var(--control-height-sm)', // [Refactor] 使用标准控件高度 Token
+        padding: '0 var(--space-3)', 
+        font: 'var(--font-small)' // [Refactor] 使用标准字体 Token
+      },
+      md: { 
+        height: 'var(--control-height-md)', // [Refactor] 使用标准控件高度 Token (原 --row-min-height)
+        padding: '0 var(--space-5)', 
+        font: 'var(--font-label)' // [Refactor] 使用标准字体 Token
+      },
+      lg: { 
+        height: 'var(--control-height-lg)', // [Refactor] 使用标准控件高度 Token
+        padding: '0 var(--space-6)', 
+        font: 'var(--font-body)' // [Refactor] 使用标准字体 Token
+      },
     };
 
     return { ...base, ...variants[variant], ...sizes[size] };

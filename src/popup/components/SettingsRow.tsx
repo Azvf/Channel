@@ -8,6 +8,7 @@ interface SettingsRowProps {
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export function SettingsRow({
@@ -18,24 +19,27 @@ export function SettingsRow({
   onClick,
   disabled = false,
   className = '',
+  style,
 }: SettingsRowProps) {
-  const rowContent = (
+  return (
     <div
       className={`settings-row ${className} ${onClick && !disabled ? 'hover-glass' : ''}`}
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        // [Design System] Layout Tokens
+        // [Refactor] Tokenized Layout
         minHeight: 'var(--row-min-height)',
         padding: 'var(--space-2_5) var(--space-3)', // 10px 12px
         borderRadius: 'var(--radius-md)',
-        gap: 'var(--space-3)', // 确保左右布局有最小间距
+        gap: 'var(--space-3)', 
         
         cursor: onClick && !disabled ? 'pointer' : 'default',
-        opacity: disabled ? 0.6 : 1,
+        // [Refactor] 使用标准透明度 Token
+        opacity: disabled ? 'var(--opacity-disabled)' : 1,
         pointerEvents: disabled ? 'none' : 'auto',
-        background: 'transparent'
+        background: 'transparent',
+        ...style
       }}
       onClick={onClick && !disabled ? onClick : undefined}
     >
@@ -112,7 +116,5 @@ export function SettingsRow({
       </div>
     </div>
   );
-
-  return rowContent;
 }
 

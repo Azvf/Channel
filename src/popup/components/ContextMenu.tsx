@@ -39,7 +39,8 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
   const menuElement = (
     <div
       className="fixed inset-0"
-      style={{ zIndex: 'var(--z-context-menu-layer)' }}
+      // [Refactor] 使用明确的 Backdrop 层级
+      style={{ zIndex: 'var(--z-context-menu-backdrop)' }}
       onClick={closeMenu}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -55,11 +56,14 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
             transition={{ duration: 0.15, ease: 'easeOut' }}
             className="fixed liquidGlass-wrapper"
             style={{
-              zIndex: 'calc(var(--z-context-menu-layer) + 1)',
+              // [Refactor] 使用明确的 Body 层级，替代 calc(+1)
+              zIndex: 'var(--z-context-menu-body)',
               top: position.y,
               left: position.x,
-              minWidth: '150px',
-              borderRadius: '0.8em', // Slightly smaller radius for menu
+              // [Refactor] 使用标准菜单宽度 Token
+              minWidth: 'var(--menu-min-width)',
+              // [Refactor] Tokenized Radius
+              borderRadius: 'var(--radius-lg)', 
             }}
           >
             <div className="liquidGlass-content p-1">
@@ -70,16 +74,17 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
                       onClick={() => handleItemClick(item.onClick)}
                       className={`flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all ${item.variant === 'destructive' ? 'hover-destructive' : 'hover-action'}`}
                       style={{
+                        // [Refactor] Tokenized Colors
                         color: item.variant === 'destructive'
-                          ? 'color-mix(in srgb, var(--c-content) 60%, transparent)'
-                          : 'var(--c-content)',
+                          ? 'var(--color-text-secondary)'
+                          : 'var(--color-text-primary)',
                         background: 'transparent',
                         font: 'var(--font-caption)',
                         letterSpacing: 'var(--letter-spacing-caption)',
                         fontWeight: 500,
                       }}
                     >
-                      {item.icon && React.cloneElement(item.icon as any, { className: 'w-3.5 h-3.5' })}
+                      {item.icon && React.cloneElement(item.icon as any, { className: 'icon-sm' })}
                       <span>{item.label}</span>
                     </button>
                   </li>

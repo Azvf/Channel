@@ -1,20 +1,34 @@
 import { Transition, Variants } from 'framer-motion';
+import { DURATION, EASE } from '../tokens/animation'; // [Refactor] 引入物理法则
+import { SPACE } from './layoutConstants'; // [Refactor] 引入间距常量，保持 JS/CSS 值同步
 
 /**
- * 我们的核心缓动曲线和持续时间，用于所有标准过渡。
- * 这匹配了 globals.css 中的 --ease-smooth 和 --transition-fast。
+ * 标准平滑过渡
+ * 对应 CSS --transition-fast + --ease-smooth
+ * 用于微交互 (Hover, Click, Focus)
  */
 export const SMOOTH_TRANSITION: Transition = {
-  duration: 0.2, // 快速响应
-  ease: [0.4, 0, 0.2, 1] // ease-smooth
+  duration: DURATION.FAST,
+  ease: EASE.SMOOTH
 };
 
 /**
- * 布局动画（如高度变化）的过渡，可以稍慢以保证平滑。
+ * 布局过渡 (稍慢，强调过程)
+ * 对应 CSS --transition-base + --ease-smooth
+ * 用于布局动画（如高度变化、列表展开）
  */
 export const LAYOUT_TRANSITION: Transition = {
-  duration: 0.3,
-  ease: [0.4, 0, 0.2, 1]
+  duration: DURATION.BASE,
+  ease: EASE.SMOOTH
+};
+
+/**
+ * 弹窗滑入过渡 (Apple 风格)
+ * 用于 Modal、Dialog 等需要"分量感"的界面切换
+ */
+export const DIALOG_TRANSITION: Transition = {
+  duration: 0.25, // 特殊微调值，介于 Fast 和 Base 之间
+  ease: EASE.OUT_CUBIC
 };
 
 /**
@@ -47,7 +61,8 @@ export const dialogSlideIn: Variants = {
   hidden: {
     opacity: 0,
     x: "-50%", // 水平居中
-    y: "calc(-50% + 16px)", // 垂直居中但稍微偏下（滑入起点）
+    // [Refactor] 16px -> SPACE.SPACE_4，保持 JS/CSS 值同步
+    y: `calc(-50% + ${SPACE.SPACE_4}px)`, // 垂直居中但稍微偏下（滑入起点）
     scale: 0.98
   },
   visible: {
@@ -55,15 +70,14 @@ export const dialogSlideIn: Variants = {
     x: "-50%", // 水平居中
     y: "-50%", // 垂直居中
     scale: 1,
-    transition: {
-      duration: 0.25,
-      ease: [0.16, 1, 0.3, 1] // Apple/Notion 风格的 "easeOutCubic"
-    }
+    // [Refactor] 使用统一的 DIALOG_TRANSITION
+    transition: DIALOG_TRANSITION
   },
   exit: {
     opacity: 0,
     x: "-50%", // 水平居中
-    y: "calc(-50% + 16px)", // 垂直居中但稍微偏下（滑出终点）
+    // [Refactor] 16px -> SPACE.SPACE_4，保持 JS/CSS 值同步
+    y: `calc(-50% + ${SPACE.SPACE_4}px)`, // 垂直居中但稍微偏下（滑出终点）
     scale: 0.98,
     transition: SMOOTH_TRANSITION
   }

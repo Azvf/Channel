@@ -1,5 +1,7 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { POSITIONING } from "../utils/layoutConstants";
+import { DURATION } from "../tokens/animation"; // [Refactor] 使用统一的动画常量
 
 // ----------------------------------------------------------------
 // 独立组件: 负责无延迟跟随的下拉菜单容器
@@ -16,10 +18,12 @@ export function StickyDropdown({ isOpen, anchorRef, children, zIndex = "var(--z-
   const [isMounted, setIsMounted] = useState(isOpen);
 
   // 处理延迟卸载以播放退出动画 (简单的状态同步)
+  // [Refactor] 使用统一的动画常量，避免逻辑-CSS 竞态冒险
   useEffect(() => {
     if (isOpen) setIsMounted(true);
     else {
-      const timer = setTimeout(() => setIsMounted(false), 200); // 匹配 CSS duration
+      // 使用物理引擎常量，确保与 CSS transition 同步
+      const timer = setTimeout(() => setIsMounted(false), DURATION.FAST * 1000);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -32,7 +36,8 @@ export function StickyDropdown({ isOpen, anchorRef, children, zIndex = "var(--z-
 
     const rect = anchor.getBoundingClientRect();
     // 直接操作 style，避开 React Render Cycle
-    dropdown.style.top = `${rect.bottom + 8}px`; // 8px 间距
+    // [Refactor] 使用标准定位常量
+    dropdown.style.top = `${rect.bottom + POSITIONING.DROPDOWN_OFFSET}px`;
     dropdown.style.left = `${rect.left}px`;
     dropdown.style.width = `${rect.width}px`;
   }, [anchorRef]);
@@ -84,8 +89,9 @@ export function StickyDropdown({ isOpen, anchorRef, children, zIndex = "var(--z-
       style={{
         zIndex: zIndex,
         transformOrigin: 'top center',
-        // 初始位置设为 -9999 防止第一帧闪烁
-        top: -9999, 
+        // [Refactor] 使用 visibility 替代 top: -9999 hack，避免布局副作用
+        visibility: isOpen ? 'visible' : 'hidden',
+        top: 0, // 重置为安全值，实际位置由 updatePosition 控制
         left: 0 
       }}
     >

@@ -20,6 +20,7 @@
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
-  z-index: var(--z-tooltip-layer);
+  /* [Refactor] 使用明确的 Tooltip 层级 */
+  z-index: var(--z-tooltip);
 }
 

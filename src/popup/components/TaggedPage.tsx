@@ -22,8 +22,11 @@ import {
 import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
 import { currentPageService } from "../../services/popup/currentPageService";
+import { LAYOUT, POSITIONING } from "../utils/layoutConstants";
 import { TaggedPage as TaggedPageType } from "../../types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
+import { SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
+import { getTransition, DURATION } from "../tokens/animation"; // [Refactor] 引入物理引擎
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
 // 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
@@ -40,7 +43,7 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
     }}
   >
     {React.cloneElement(icon as any, {
-      className: "w-3 h-3 stat-item-icon",
+      className: "icon-xs stat-item-icon",
       strokeWidth: 2,
       style: {
         color: "var(--color-text-secondary)", // Tokenized
@@ -211,8 +214,9 @@ export function TaggedPage({
 
   const openMenuAtRect = (rect: DOMRect, pageId: string) => {
     setMenuPosition({
-      x: rect.right - 150,
-      y: rect.bottom + 8,
+      // [Refactor] 使用标准布局常量
+      x: rect.right - LAYOUT.MENU_MIN_WIDTH,
+      y: rect.bottom + POSITIONING.DROPDOWN_OFFSET,
     });
     setOpenMenuId(pageId);
   };
@@ -326,14 +330,14 @@ export function TaggedPage({
                   title="Tag Library"
                   className="hud-button hud-button-settings"
                 >
-                  <TagIcon className="w-3.5 h-3.5" strokeWidth={2} />
+                  <TagIcon className="icon-sm" strokeWidth={2} />
                 </button>
                 <button
                   onClick={onOpenSettings}
                   title="Settings"
                   className="hud-button hud-button-settings"
                 >
-                  <Settings className="w-3.5 h-3.5" strokeWidth={2} />
+                  <Settings className="icon-sm" strokeWidth={2} />
                 </button>
               </div>
             </div>
@@ -352,7 +356,7 @@ export function TaggedPage({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Search
-                    className="w-3.5 h-3.5"
+                    className="icon-sm"
                     strokeWidth={1.5}
                     style={{ color: "var(--c-action)" }}
                   />
@@ -372,12 +376,15 @@ export function TaggedPage({
                   onClick={() => setSearchTags([])}
                   className="glass-button"
                   style={{
-                    fontSize: "0.8rem",
+                    // [Refactor] 使用标准字体 Token
+                    font: "var(--font-caption)",
+                    letterSpacing: "var(--letter-spacing-caption)",
                     padding: "0.4em 0.9em",
                     opacity: searchTags.length > 0 ? 1 : 0,
                     visibility: searchTags.length > 0 ? "visible" : "hidden",
                     pointerEvents: searchTags.length > 0 ? "auto" : "none",
-                    transition: "all 200ms ease",
+                     // [Refactor] 使用统一的物理引擎
+                     transition: getTransition(DURATION.FAST),
                   }}
                   disabled={loading}
                 >
@@ -409,7 +416,8 @@ export function TaggedPage({
                   style={{
                     color: "var(--color-text-primary)",
                     background: "var(--bg-surface-glass-hover)", // Tokenized: 16% mix
-                    fontSize: "0.7rem",
+                    // [Refactor] 使用标准字体 Token
+                    font: "var(--font-small)",
                     fontWeight: 600,
                     letterSpacing: "0.01em",
                     border: "1px solid var(--border-glass-moderate)", // Tokenized
@@ -475,9 +483,9 @@ export function TaggedPage({
                   }}
                 >
                   <div className="space-y-4">
-                    <div className="w-16 h-16 mx-auto rounded-3xl flex items-center justify-center">
+                    <div className="icon-xl mx-auto rounded-3xl flex items-center justify-center" style={{ width: 'var(--icon-size-xl)', height: 'var(--icon-size-xl)' }}>
                       <Inbox
-                        className="w-8 h-8"
+                        className="icon-lg"
                         strokeWidth={1.5}
                         style={{
                           color: "var(--color-text-quaternary)",
@@ -536,21 +544,24 @@ export function TaggedPage({
             return (
               <div
                 className="fixed inset-0"
-                style={{ zIndex: "var(--z-context-menu-layer)" }}
+                // [Refactor] 使用明确的 Backdrop 层级
+                style={{ zIndex: "var(--z-context-menu-backdrop)" }}
                 onClick={handleCloseMenu}
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  transition={SMOOTH_TRANSITION} // [Refactor] 使用统一的动画系统
                   className="fixed liquidGlass-wrapper"
                   data-menu-id={openMenuId}
                   style={{
-                    zIndex: "calc(var(--z-context-menu-layer) + 1)",
+                    // [Refactor] 使用明确的 Body 层级，替代 calc(+1)
+                    zIndex: "var(--z-context-menu-body)",
                     top: menuPosition.y,
                     left: menuPosition.x,
-                    minWidth: "150px",
+                    // [Refactor] 使用标准菜单宽度 Token
+                    minWidth: "var(--menu-min-width)",
                     borderRadius: "var(--radius-lg)", // Tokenized
                   }}
                   onClick={(e) => e.stopPropagation()}
@@ -566,12 +577,14 @@ export function TaggedPage({
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
                           style={{
                             color: "var(--color-text-primary)", // Tokenized
-                            fontSize: "0.8rem",
+                            // [Refactor] 使用标准字体 Token
+                    font: "var(--font-caption)",
+                    letterSpacing: "var(--letter-spacing-caption)",
                             fontWeight: 500,
                             background: "transparent",
                           }}
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <Pencil className="icon-sm" />
                           <span>Edit</span>
                         </button>
                       </li>
@@ -584,12 +597,14 @@ export function TaggedPage({
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
                           style={{
                             color: "var(--color-text-primary)", // Tokenized
-                            fontSize: "0.8rem",
+                            // [Refactor] 使用标准字体 Token
+                    font: "var(--font-caption)",
+                    letterSpacing: "var(--letter-spacing-caption)",
                             fontWeight: 500,
                             background: "transparent",
                           }}
                         >
-                          <Copy className="w-3.5 h-3.5" />
+                          <Copy className="icon-sm" />
                           <span>Copy URL</span>
                         </button>
                       </li>
@@ -602,12 +617,14 @@ export function TaggedPage({
                           className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-destructive"
                           style={{
                             color: "var(--color-text-secondary)", // Tokenized
-                            fontSize: "0.8rem",
+                            // [Refactor] 使用标准字体 Token
+                    font: "var(--font-caption)",
+                    letterSpacing: "var(--letter-spacing-caption)",
                             fontWeight: 500,
                             background: "transparent",
                           }}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="icon-sm" />
                           <span>Delete</span>
                         </button>
                       </li>
@@ -687,7 +704,7 @@ function PageCard({
             pointerEvents: "auto",
           }}
         >
-          <MoreHorizontal className="w-4 h-4" strokeWidth={1.5} />
+          <MoreHorizontal className="icon-base" strokeWidth={1.5} />
         </button>
       </div>
 
@@ -752,7 +769,8 @@ function PageCard({
                   background: "var(--bg-surface-glass)",
                   // [Refactor] 标签边框: 18% -> --border-glass-moderate
                   border: "1px solid var(--border-glass-moderate)",
-                  transition: "all 200ms ease",
+                     // [Refactor] 使用统一的物理引擎
+                     transition: getTransition(DURATION.FAST),
                 }}
               >
                 {tagName}

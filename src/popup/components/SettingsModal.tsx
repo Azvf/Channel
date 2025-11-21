@@ -16,6 +16,7 @@ import { usePageSettings } from '../utils/usePageSettings';
 import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
 import { currentPageService } from '../../services/popup/currentPageService';
 import { AlertModal, type AlertModalProps } from './AlertModal';
+import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from '../utils/motion'; // [Refactor] 使用统一的动画系统
 
 // 复用 Motion Variants
 const backdropVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
@@ -118,35 +119,55 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
           <motion.div
             className="fixed inset-0 flex items-center justify-center p-4"
             style={{
-              zIndex: 'var(--z-modal-layer)',
-              background: 'color-mix(in srgb, var(--c-bg) 20%, transparent)',
-              backdropFilter: 'blur(8px)',
+              // [Refactor] 使用明确的 Backdrop 层级
+              zIndex: 'var(--z-modal-backdrop)',
+              // [Refactor] 使用标准遮罩颜色
+              background: 'var(--bg-surface-glass-active)', 
+              backdropFilter: 'blur(var(--glass-blur-base))',
             }}
             initial="hidden"
             animate="visible"
             exit="hidden"
             variants={backdropVariants}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            transition={SMOOTH_TRANSITION} // [Refactor] 使用统一的动画系统
             onClick={onClose}
           >
             <motion.div
-              className="w-full max-w-sm"
+              className="w-full"
               variants={modalVariants}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              transition={DIALOG_TRANSITION} // [Refactor] 使用统一的动画系统
               onClick={(e) => e.stopPropagation()}
-              style={{ maxHeight: '90vh', display: 'flex' }}
+              style={{ 
+                // [Refactor] 使用明确的 Content 层级，确保在 Backdrop 之上
+                zIndex: 'var(--z-modal-content)',
+                // [Refactor] 使用标准模态框高度 Token
+                maxHeight: 'var(--modal-max-height)', 
+                display: 'flex',
+                maxWidth: 'var(--modal-max-width)' // [Refactor] Tokenized Width
+              }}
             >
               <GlassCard 
-                className="p-5 flex flex-col" 
-                depthLevel={3}
+                depthLevel={10} // 模态框最高层级
                 style={{ 
                   width: '100%', 
-                  maxHeight: '90vh'
+                  // [Refactor] 使用标准模态框高度 Token
+                  maxHeight: 'var(--modal-max-height)',
+                  padding: 'var(--space-5)' // 20px
                 }}
+                // GlassCard 现在内部已经没有默认 flex-col，需要手动加上或通过 className
+                className="flex flex-col" 
               >
                 <ModalHeader title="Settings" onClose={onClose} />
 
-                <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ minHeight: 0, paddingRight: '0.5rem', marginTop: '1rem' }}>
+                <div 
+                  className="flex-1 overflow-y-auto scrollbar-hide" 
+                  style={{ 
+                    minHeight: 0, 
+                    // [Refactor] 使用标准间距
+                    paddingRight: 'var(--space-2)', 
+                    marginTop: 'var(--space-4)' 
+                  }}
+                >
                   
                   {/* 模块化组件: 账户部分 */}
                   <AccountSection />
@@ -154,15 +175,15 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
                   <SettingsSectionTitle style={{ marginTop: 0 }}>GENERAL</SettingsSectionTitle>
                   <SettingsGroup>
                     <SettingsRow
-                      icon={<Sun className="w-4 h-4" strokeWidth={1.5} />}
+                      icon={<Sun className="icon-base" strokeWidth={1.5} />}
                       label="Theme"
                       control={<ThemeSwitcher initialTheme={initialTheme} />}
                     />
                     <SettingsRow
-                      icon={<AppWindow className="w-4 h-4" strokeWidth={1.5} />}
+                      icon={<AppWindow className="icon-base" strokeWidth={1.5} />}
                       label="App Icon"
                       value={appIconOptions.find(opt => opt.id === selectedAppIcon)?.name || 'Default'}
-                      control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
+                      control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
                       onClick={() => {
                         const currentIndex = appIconOptions.findIndex(opt => opt.id === selectedAppIcon);
                         const nextIndex = (currentIndex + 1) % appIconOptions.length;
@@ -170,7 +191,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
                       }}
                     />
                     <SettingsRow
-                      icon={<Video className="w-4 h-4" strokeWidth={1.5} />}
+                      icon={<Video className="icon-base" strokeWidth={1.5} />}
                       label="Sync Video Timestamp"
                       control={
                         <Checkbox
@@ -185,25 +206,31 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
                   <SettingsSectionTitle>DATA</SettingsSectionTitle>
                   <SettingsGroup>
                     <SettingsRow
-                      icon={<Upload className="w-4 h-4" strokeWidth={1.5} />}
+                      icon={<Upload className="icon-base" strokeWidth={1.5} />}
                       label="Import Data..."
-                      control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
+                      control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isImporting}
                     />
                     <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportData} />
 
                     <SettingsRow
-                      icon={<Download className="w-4 h-4" strokeWidth={1.5} />}
+                      icon={<Download className="icon-base" strokeWidth={1.5} />}
                       label="Export Data..."
-                      control={<ChevronRight className="w-4 h-4" strokeWidth={1.5} />}
+                      control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
                       onClick={handleExportData}
                       disabled={isExporting}
                     />
                   </SettingsGroup>
 
-                  <div className="text-center mt-6" style={{ marginBottom: '0.5rem' }}>
-                    <span style={{ color: 'color-mix(in srgb, var(--c-content) 40%, transparent)', fontSize: '0.75rem', fontWeight: 500 }}>
+                  <div className="text-center" style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-2)' }}>
+                    <span style={{ 
+                      color: 'var(--color-text-tertiary)', 
+                      // [Refactor] 使用标准字体 Token
+                      font: 'var(--font-caption)',
+                      letterSpacing: 'var(--letter-spacing-caption)',
+                      fontWeight: 500 
+                    }}>
                       Version 1.0.0
                     </span>
                   </div>

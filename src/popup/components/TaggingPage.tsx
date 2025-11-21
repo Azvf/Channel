@@ -121,7 +121,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             <motion.div layout="position">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Plus className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
+                  <Plus className="icon-sm" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
                   <span
                     style={{
                       color: "var(--color-text-module-title)",
@@ -144,7 +144,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       className="p-2 rounded-lg transition-all flex-shrink-0 hover:bg-[var(--hover-bg-glass)]"
                       title="重试"
                     >
-                      <RefreshCw className="w-4 h-4" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
+                      <RefreshCw className="icon-base" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
                     </button>
                   ) : currentPage?.url ? (
                     /* 正常状态：仅显示 URL，移除 Loading Icon 及其占位 */
@@ -230,7 +230,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                   }}
                   onMouseEnter={(e) => {
                     if (!loading && !error && currentPage) {
-                      e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--c-glass) 10%, transparent)";
+                      e.currentTarget.style.backgroundColor = "var(--bg-surface-glass-hover)";
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -268,11 +268,11 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       style={{
                         top: "calc(0.25rem + 2px)",
                         right: "4px",
-                        color: "color-mix(in srgb, var(--c-content) 60%, transparent)",
+                        color: "var(--color-text-tertiary)",
                         pointerEvents: "none",
                       }}
                     >
-                      <Pencil className="w-3 h-3" strokeWidth={2} />
+                      <Pencil className="icon-xs" strokeWidth={2} />
                     </div>
                   )}
                 </div>
@@ -297,13 +297,13 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                 <div
                   className="flex items-center justify-between gap-4 pt-3 mt-2"
                   style={{
-                    borderTop: "1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)",
+                    borderTop: "1px solid var(--border-glass-subtle)",
                   }}
                 >
                   <div className="flex items-center gap-1.5" title="Today's tagged items">
                     <Calendar
-                      className="w-3.5 h-3.5"
-                      style={{ color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" }}
+                      className="icon-sm"
+                      style={{ color: "var(--color-text-secondary)" }}
                       strokeWidth={2}
                     />
                     <span style={{ font: "var(--font-footnote)", color: "var(--color-text-secondary)", fontWeight: 500 }}>
@@ -315,8 +315,8 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                   </div>
                   <div className="flex items-center gap-1.5" title="Current tagging streak">
                     <TrendingUp
-                      className="w-3.5 h-3.5"
-                      style={{ color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" }}
+                      className="icon-sm"
+                      style={{ color: "var(--color-text-secondary)" }}
                       strokeWidth={2}
                     />
                     <span style={{ font: "var(--font-footnote)", color: "var(--color-text-secondary)", fontWeight: 500 }}>

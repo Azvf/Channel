@@ -2,14 +2,13 @@ import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn } from '../utils/motion';
+import { POSITIONING } from '../utils/layoutConstants';
+import { DURATION } from '../tokens/animation'; // [Refactor] 使用统一的动画常量
 
 interface ActivityTooltipProps {
   children: React.ReactElement;
   content: string;
 }
-
-// 边距常量
-const VIEWPORT_MARGIN = 8; // 8px 边距
 
 export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
   const [show, setShow] = useState(false);
@@ -26,19 +25,23 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    let top = triggerRect.top - tooltipRect.height - 8; // 8px 间距
+    // [Refactor] 使用标准定位常量
+    const viewportMargin = POSITIONING.VIEWPORT_MARGIN;
+    const tooltipOffset = POSITIONING.TOOLTIP_OFFSET;
+
+    let top = triggerRect.top - tooltipRect.height - tooltipOffset;
     let left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
 
     // 1. 垂直回退 (Fallback Chain)
-    if (top < VIEWPORT_MARGIN) {
+    if (top < viewportMargin) {
       // 如果上方空间不够，放到下方
-      top = triggerRect.bottom + 8;
+      top = triggerRect.bottom + tooltipOffset;
     }
     // 钳制在视口内
-    top = Math.max(VIEWPORT_MARGIN, Math.min(top, viewportHeight - tooltipRect.height - VIEWPORT_MARGIN));
+    top = Math.max(viewportMargin, Math.min(top, viewportHeight - tooltipRect.height - viewportMargin));
 
     // 2. 水平钳制
-    left = Math.max(VIEWPORT_MARGIN, Math.min(left, viewportWidth - tooltipRect.width - VIEWPORT_MARGIN));
+    left = Math.max(viewportMargin, Math.min(left, viewportWidth - tooltipRect.width - viewportMargin));
     
     setPosition({ top, left });
   };
@@ -64,9 +67,10 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    // [Refactor] 300 -> DURATION.BASE * 1000，与系统动画节奏一致
     timerRef.current = setTimeout(() => {
       setShow(true);
-    }, 300); // 延迟 300ms
+    }, DURATION.BASE * 1000);
     // 调用原有的 onMouseEnter（如果有）
     if (children.props.onMouseEnter) {
       children.props.onMouseEnter(e);
@@ -113,16 +117,18 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
       ref={tooltipRef}
       className="fixed px-2.5 py-1.5 rounded-lg"
       style={{
-        zIndex: 'var(--z-tooltip-layer)',
+        // [Refactor] 使用明确的 Tooltip 层级
+        zIndex: 'var(--z-tooltip)',
         top: position.top,
         left: position.left,
-        background: 'color-mix(in srgb, var(--c-bg) 90%, transparent)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid color-mix(in srgb, var(--c-glass) 30%, transparent)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-        fontSize: '0.75rem',
+        // [Refactor] Tokenized Tooltip Styles
+        background: 'var(--tooltip-bg)',
+        border: 'var(--tooltip-border)',
+        boxShadow: 'var(--tooltip-shadow)',
+        fontSize: 'var(--tooltip-font-size)',
         fontWeight: 500,
-        color: 'var(--c-content)',
+        color: 'var(--tooltip-text-color)',
+        backdropFilter: 'blur(12px)', // Optional: keep specific blur if needed
         pointerEvents: 'none',
       }}
       variants={fadeIn}
@@ -131,8 +137,6 @@ export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
       exit="exit"
     >
       {content}
-      
-      {/* (可选) 添加一个小箭头，但为了极简，我倾向于不加 */}
     </motion.div>
   );
 

@@ -28,30 +28,38 @@ export function PageIcon({ url }: PageIconProps) {
   const faviconUrl = !faviconError ? getFaviconUrl(url) : "";
 
   return (
-    <div
-      className="relative inline-flex items-center justify-center flex-shrink-0"
-    >
+    <div className="relative inline-flex items-center justify-center flex-shrink-0">
       <div
-        className="w-5 h-5 rounded-lg flex items-center justify-center overflow-hidden transition-all"
+        className="flex items-center justify-center overflow-hidden transition-all"
         style={{
-          background: 'color-mix(in srgb, var(--c-glass) 12%, transparent)',
-          border: '2px solid color-mix(in srgb, var(--c-glass) 30%, transparent)'
+          // [Refactor] 使用语义化图标 Token，替换 '20px'
+          width: 'var(--icon-size-md)', 
+          height: 'var(--icon-size-md)', 
+          borderRadius: 'var(--radius-md)',
+          // [Refactor] Tokenized Surface
+          background: 'var(--bg-surface-glass-subtle)',
+          border: '1px solid var(--border-glass-moderate)' // 修正为1px以符合整体风格
         }}
       >
         {!faviconError && faviconUrl ? (
           <img
             src={faviconUrl}
             alt=""
-            className="w-3.5 h-3.5"
+            style={{ 
+              width: 'var(--icon-size-sm)', 
+              height: 'var(--icon-size-sm)',
+              objectFit: 'contain' 
+            }}
             onError={() => setFaviconError(true)}
-            style={{ objectFit: 'contain' }}
           />
         ) : (
           <Bookmark
-            className="w-3 h-3"
-            strokeWidth={1.5}
             style={{
-              color: 'color-mix(in srgb, var(--c-content) 40%, var(--c-bg))'
+              width: 'var(--icon-size-xs)',
+              height: 'var(--icon-size-xs)',
+              strokeWidth: 1.5,
+              // [Refactor] Tokenized Placeholder Color
+              color: 'var(--color-text-quaternary)'
             }}
           />
         )}

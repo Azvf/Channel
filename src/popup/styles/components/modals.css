@@ -22,15 +22,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  min-height: 44px;
-  padding: 0.5rem 0;
+  /* [Refactor] 使用标准行高 Token，替换 '44px' */
+  min-height: var(--row-min-height);
+  /* [Refactor] 使用标准间距 Token，替换 '0.5rem' (8px) */
+  padding: var(--space-2) 0;
   cursor: pointer;
   transition: background-color var(--transition-fast) var(--ease-smooth);
   border-radius: 0.5rem;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  margin-left: -0.5rem;
-  margin-right: -0.5rem;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  margin-left: calc(var(--space-2) * -1);
+  margin-right: calc(var(--space-2) * -1);
 }
 
 .settings-row:hover {
@@ -38,8 +40,8 @@
 }
 
 .settings-row-label {
-  font-size: 0.9rem;
-  font-weight: 500;
+  /* [Refactor] 使用标准字体 Token */
+  font: var(--font-list-item);
   color: var(--c-content);
   user-select: none;
 }
@@ -49,13 +51,14 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  min-height: 44px;
-  padding: 0.5rem 0.75rem;
+  /* [Refactor] 同步更新按钮高度 */
+  min-height: var(--row-min-height);
+  padding: var(--space-2) var(--space-3);
   background: transparent;
   border: none;
   border-radius: 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 500;
+  /* [Refactor] 使用标准字体 Token */
+  font: var(--font-list-item);
   color: var(--c-content);
   cursor: pointer;
   transition: background-color var(--transition-fast) var(--ease-smooth),
@@ -75,7 +78,8 @@
 .stats-wall-backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal-layer);
+  /* [Refactor] 使用明确的 Backdrop 层级 */
+  z-index: var(--z-modal-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -118,8 +122,8 @@
 }
 
 .stats-wall-title {
-  font-size: 1.25rem; /* Consider tokenizing if used elsewhere */
-  font-weight: 700;
+  /* [Refactor] 使用标准页面标题 Token */
+  font: var(--font-page-title);
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -150,9 +154,9 @@
 .channel-title {
   position: relative;
   display: inline-block;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  /* [Refactor] 使用标准字体 Token */
+  font: var(--font-header-title);
+  letter-spacing: var(--letter-spacing-header-title);
   background: linear-gradient(
     90deg, 
     var(--c-action) 0%, 

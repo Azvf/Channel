@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react';
+import { getTransition, DURATION } from '../tokens/animation'; // [Refactor] 引入物理引擎
 
 interface GlassInputProps extends React.InputHTMLAttributes<HTMLInputElement | HTMLTextAreaElement> {
   as?: 'input' | 'textarea';
@@ -32,7 +33,8 @@ export const GlassInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Gla
           {...props}
           style={{
             width: '100%',
-            minHeight: as === 'textarea' ? '80px' : '44px', // 44px 最小高度
+            // [Refactor] 使用标准布局 Token
+            minHeight: as === 'textarea' ? 'var(--textarea-min-height)' : 'var(--row-min-height)',
             paddingTop: 'var(--space-2)',
             paddingBottom: 'var(--space-2)',
             paddingLeft: icon ? 'var(--space-10)' : 'var(--space-3)', // 留出 Icon 空间
@@ -45,11 +47,11 @@ export const GlassInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, Gla
             
             // 字体
             color: 'var(--color-text-primary)',
-            font: 'var(--font-body)',
-            fontSize: '0.9rem',
+            font: 'var(--font-body)', // [Refactor] 已使用标准字体 Token，移除冗余 fontSize
             outline: 'none',
             resize: 'none',
-            transition: 'all 0.2s ease',
+            // [Refactor] 使用统一的物理引擎，确保与 Framer Motion 同步
+            transition: getTransition(DURATION.FAST),
             
             ...style
           }}

@@ -104,7 +104,8 @@ export function GlassCard({
               color: 'var(--color-text-primary)', // Tokenized
               borderRadius: '0 1.4em 0 0',
               pointerEvents: 'none',
-              zIndex: 9999,
+              // [Refactor] 开发模式调试信息使用最高层级，确保显示在所有内容之上
+              zIndex: 'var(--z-cursor-drag)',
             }}
           >
             D:{depth}

@@ -9,9 +9,11 @@ interface ModalHeaderProps {
 export function ModalHeader({ title, onClose }: ModalHeaderProps) {
   return (
     <div
-      className="px-4 py-3 flex items-center justify-between flex-shrink-0"
+      className="flex items-center justify-between flex-shrink-0"
       style={{
-        borderBottom: '1px solid color-mix(in srgb, var(--c-glass) 25%, transparent)'
+        // [Refactor] Standard Spacing & Border
+        padding: 'var(--space-3) var(--space-4)',
+        borderBottom: '1px solid var(--border-glass-subtle)'
       }}
     >
       <h2
@@ -27,15 +29,17 @@ export function ModalHeader({ title, onClose }: ModalHeaderProps) {
 
       <button
         onClick={onClose}
-        className="rounded-lg p-2 transition-all hover-destructive"
+        className="rounded-lg transition-all hover-destructive"
         style={{
+          // [Refactor] Standard Button Sizing
+          padding: 'var(--space-2)',
           background: 'transparent',
           border: '1px solid transparent',
-          color: 'color-mix(in srgb, var(--c-content) 60%, transparent)',
+          color: 'var(--color-text-tertiary)',
           cursor: 'pointer'
         }}
       >
-        <X className="w-4 h-4" />
+        <X className="icon-base" />
       </button>
     </div>
   );

@@ -6,7 +6,7 @@ interface CheckboxProps {
 
 export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
   return (
-    <div className="relative flex items-center justify-center w-3.5 h-3.5">
+    <div className="relative flex items-center justify-center icon-sm">
       <input
         type="checkbox"
         id={id}
@@ -15,17 +15,14 @@ export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
         className="absolute opacity-0 cursor-pointer w-full h-full"
       />
       <div
-        className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-all ${
-          checked 
-            ? "border-color: 'var(--c-action)' bg-color: 'var(--c-action)'" 
-            : "border-color-mix(in srgb, var(--c-content) 30%, transparent)"
-        }`}
+        className="icon-sm rounded border-2 flex items-center justify-center transition-all"
         style={{
+          // [Refactor] Tokenized Colors
           borderColor: checked 
-            ? 'var(--c-action)' 
-            : 'color-mix(in srgb, var(--c-content) 30%, transparent)',
+            ? 'var(--bg-action-solid)' 
+            : 'var(--border-glass-strong)',
           backgroundColor: checked 
-            ? 'var(--c-action)' 
+            ? 'var(--bg-action-solid)' 
             : 'transparent'
         }}
       >
@@ -39,7 +36,7 @@ export function Checkbox({ id, checked, onCheckedChange }: CheckboxProps) {
           >
             <path
               d="M2 6L5 9L10 3"
-              stroke="white"
+              stroke="white" // Always white on action color
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"

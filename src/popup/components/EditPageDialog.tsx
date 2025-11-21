@@ -9,6 +9,7 @@ import { ModalFooter } from "./ModalFooter";
 import { Save } from "lucide-react";
 import { TaggedPage } from "../../types/gameplayTag";
 import { GlassButton } from "./GlassButton";
+import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
 
 interface EditPageDialogProps {
   isOpen: boolean;
@@ -223,38 +224,44 @@ export function EditPageDialog({
       // 这是 Backdrop
       className="fixed inset-0 flex items-center justify-center p-4"
       style={{
-        zIndex: 'var(--z-modal-layer)',
-        background: 'var(--bg-surface-glass-hover)', // Tokenized
-        backdropFilter: 'blur(4px)',
+        // [Refactor] 使用明确的 Backdrop 层级
+        zIndex: 'var(--z-modal-backdrop)',
+        background: 'var(--bg-surface-glass-active)', // Tokenized
+        backdropFilter: 'blur(var(--glass-blur-base))',
         margin: 0
       }}
       initial="hidden"
       animate="visible"
       exit="hidden"
       variants={backdropVariants}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      transition={SMOOTH_TRANSITION} // [Refactor] 使用统一的动画系统
       onClick={handleCancel} // 点击背景时关闭
     >
       <motion.div
         ref={dialogRef} // ref 移到这里
         // 这是 Dialog
         style={{
-          width: 'calc(100% - var(--space-8))', // Tokenized padding deduction
-          maxWidth: 'var(--modal-max-width)',    // Tokenized
-          height: 'auto',
-          maxHeight: '90vh',
+          // [Refactor] 使用明确的 Content 层级，确保在 Backdrop 之上
+          zIndex: 'var(--z-modal-content)',
+          width: '100%',
+          maxWidth: 'var(--modal-max-width)', // Tokenized
+          // 使用 padding 代替 calc 宽度
+          margin: 'var(--space-4)', 
+          // [Refactor] 使用标准模态框高度 Token
+          maxHeight: 'var(--modal-max-height)',
           display: 'flex'
         }}
         variants={modalVariants}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
+        transition={DIALOG_TRANSITION} // [Refactor] 使用统一的动画系统
         onClick={(e) => e.stopPropagation()} // 阻止点击弹窗内容时关闭
       >
         <GlassCard 
           className="overflow-hidden flex flex-col"
-          depthLevel={3}
+          depthLevel={10}
           style={{ 
             width: '100%', 
-            height: '100%'
+            height: 'auto', 
+            maxHeight: '100%'
           }}
         >
           {/* Header - 使用标准化的 ModalHeader */}
@@ -266,7 +273,7 @@ export function EditPageDialog({
             className="flex-1 overflow-y-auto"
             style={{ 
               minHeight: 0, 
-              padding: 'var(--space-3)' 
+              padding: 'var(--space-3) var(--space-3) var(--space-2)' 
             }}
           >
             <div className="space-y-4">
@@ -278,7 +285,8 @@ export function EditPageDialog({
                   style={{
                     background: 'var(--bg-surface-glass-subtle)',
                     border: '1px solid var(--border-glass-subtle)',
-                    fontSize: '0.75rem',
+                    // [Refactor] 使用标准字体 Token
+                    font: 'var(--font-small)',
                     color: 'var(--color-text-tertiary)',
                     fontWeight: 500,
                     wordBreak: 'break-all',
@@ -311,7 +319,7 @@ export function EditPageDialog({
                   suggestions={allSuggestions}
                   excludeTags={editedTags}
                   allowCreation={true}
-                  dropdownZIndex="var(--z-tooltip-layer)"
+                  dropdownZIndex="var(--z-tooltip)"
                 />
               </div>
             </div>
@@ -319,38 +327,14 @@ export function EditPageDialog({
 
         {/* Footer - 使用标准化的 ModalFooter */}
         <ModalFooter>
-          <GlassButton
-            onClick={handleCancel}
-            variant="secondary"
+          <GlassButton onClick={handleCancel} variant="secondary">Cancel</GlassButton>
+          <GlassButton 
+            onClick={handleSave} 
+            variant="primary" 
+            icon={<Save className="icon-base" />}
           >
-            Cancel
-          </GlassButton>
-
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 rounded-lg transition-all flex items-center gap-1.5"
-            style={{
-              background: 'var(--bg-action-subtle)',
-              border: '1.5px solid var(--bg-action-subtle)',
-              color: 'var(--color-text-action)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              letterSpacing: '0.01em',
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px -2px rgba(0, 0, 0, 0.1)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--bg-action-moderate)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--bg-action-subtle)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            <Save className="w-4 h-4" />
             Save
-          </button>
+          </GlassButton>
         </ModalFooter>
       </GlassCard>
       </motion.div>

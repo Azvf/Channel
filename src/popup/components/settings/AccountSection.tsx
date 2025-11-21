@@ -18,9 +18,9 @@ const MAX_FREE_DEVICES = 2;
 
 const DeviceIcon = ({ name }: { name: string }) => {
   if (name.toLowerCase().includes('iphone') || name.toLowerCase().includes('android')) {
-    return <Smartphone className="w-4 h-4" strokeWidth={1.5} />;
+    return <Smartphone className="icon-base" strokeWidth={1.5} />;
   }
-  return <Monitor className="w-4 h-4" strokeWidth={1.5} />;
+  return <Monitor className="icon-base" strokeWidth={1.5} />;
 };
 
 export function AccountSection() {
@@ -79,7 +79,7 @@ export function AccountSection() {
     }
   }, [activeDevices, mutateDevices, refreshDevices]);
 
-  // 构建警报内容
+  // [Refactor] Limit Alert Content Tokenization
   const limitReachedAlert = useMemo(() => {
     if (!isAuthenticated || !isLimitReached) return null;
 
@@ -91,16 +91,22 @@ export function AccountSection() {
         intent: 'warning' as const,
         children: (
             <div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--c-content)', margin: '0 0 1rem 0' }}>
+                <p style={{ 
+                        // [Refactor] 使用标准字体 Token
+                        font: 'var(--font-body)',
+                  color: 'var(--color-text-primary)', // Tokenized
+                  margin: '0 0 1rem 0' 
+                }}>
                     您的免费账户已绑定 {deviceCount} 台设备（上限 {MAX_FREE_DEVICES} 台）。请移除旧设备以继续同步。
                 </p>
                 
                 <div style={{ 
                     maxHeight: '200px', 
                     overflowY: 'auto',
-                    border: '1px solid color-mix(in srgb, var(--c-glass) 20%, transparent)',
-                    borderRadius: '0.5rem',
-                    padding: '0.25rem'
+                    // [Refactor] Tokenized Border & Spacing
+                    border: '1px solid var(--border-glass-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: 'var(--space-1)'
                 }}>
                     {removableDevices.map(device => (
                         <SettingsRow
@@ -114,26 +120,37 @@ export function AccountSection() {
                                         e.stopPropagation(); 
                                         handleRemoveDevice(device.id); 
                                     }}
-                                    className="p-1.5 rounded-md transition-all hover-destructive"
+                                    className="rounded-md transition-all hover-destructive"
                                     title="移除此设备"
-                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                    style={{ 
+                                      background: 'transparent', 
+                                      border: 'none', 
+                                      cursor: 'pointer',
+                                      padding: 'var(--space-1_5)' 
+                                    }}
                                 >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="icon-sm" />
                                 </button>
                             }
                             onClick={() => {}}
-                            className="p-1.5"
                         />
                     ))}
                     {removableDevices.length === 0 && (
-                        <p className="text-center text-xs text-gray-500 py-2">没有可移除的其他设备</p>
+                        <p style={{ 
+                          textAlign: 'center', 
+                          // [Refactor] 使用标准字体 Token
+                        font: 'var(--font-small)', 
+                          color: 'var(--color-text-tertiary)', // Tokenized
+                          padding: 'var(--space-2)' 
+                        }}>
+                          没有可移除的其他设备
+                        </p>
                     )}
                 </div>
             </div>
         ),
         actions: [
             { id: 'upgrade', label: '升级至 Pro', variant: 'primary' as const, onClick: () => alert("跳转支付...") },
-            // 添加一个暂时关闭的按钮，防止用户死循环无法操作其他功能（可选）
             { id: 'later', label: '稍后处理', variant: 'default' as const, onClick: () => setAlertState(null) }
         ],
     };
@@ -164,7 +181,7 @@ export function AccountSection() {
   };
 
   // UI status calculation
-  const headerIcon = isAuthenticated ? <User className="w-4 h-4" strokeWidth={1.5} /> : <Cloud className="w-4 h-4" strokeWidth={1.5} />;
+  const headerIcon = isAuthenticated ? <User className="icon-base" strokeWidth={1.5} /> : <Cloud className="icon-base" strokeWidth={1.5} />;
   const headerLabel = isAuthenticated ? user?.displayName : "Sync Data";
   const headerValue = isAuthenticated 
     ? (isPro ? "Pro Plan" : "Free") 
@@ -176,7 +193,7 @@ export function AccountSection() {
 
   return (
     <>
-      <div className="mb-6">
+      <div style={{ marginBottom: 'var(--space-6)' }}>
         <SettingsSectionTitle style={{ marginTop: 0 }}>ACCOUNT</SettingsSectionTitle>
         
         <SettingsGroup>
@@ -196,7 +213,7 @@ export function AccountSection() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}
                 >
-                  <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
+                  <ChevronDown className="icon-base" strokeWidth={1.5} />
                 </div>
               }
               onClick={toggleExpand}
@@ -212,45 +229,64 @@ export function AccountSection() {
                 transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
                 style={{ overflow: 'hidden', pointerEvents: 'auto' }}
               >
-                <div style={{ height: '1px', background: 'color-mix(in srgb, var(--c-glass) 15%, transparent)', margin: '0 0.25rem 0.75rem 0.25rem' }} />
+                {/* [Refactor] Divider Token */}
+                <div style={{ 
+                  height: '1px', 
+                  background: 'var(--border-glass-subtle)', 
+                  margin: '0 var(--space-1) var(--space-3) var(--space-1)' 
+                }} />
                 
-                <div className="px-2 pb-2 space-y-3">
+                <div style={{ padding: '0 var(--space-2) var(--space-2)' }} className="space-y-3">
                   {!isAuthenticated ? (
-                    /* --- Guest State (Existing) --- */
-                    <div className="space-y-3">
-                      <p style={{ fontSize: '0.8rem', color: 'color-mix(in srgb, var(--c-content) 70%, transparent)', lineHeight: 1.4, margin: 0 }}>
+                    /* --- Guest State --- */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                      <p style={{ 
+                        // [Refactor] 使用标准字体 Token
+                        font: 'var(--font-caption)',
+                        letterSpacing: 'var(--letter-spacing-caption)', 
+                        color: 'var(--color-text-secondary)', // Tokenized
+                        lineHeight: 1.4, 
+                        margin: 0 
+                      }}>
                         Enable synchronization to backup your tags and access them across devices.
                       </p>
                       
                       {error && (
                         <div className="flex items-center gap-2 p-2 rounded bg-red-500/10 text-red-500 text-xs">
-                          <AlertCircle className="w-3 h-3" />
+                          <AlertCircle className="icon-xs" />
                           <span>{error}</span>
                         </div>
                       )}
 
-                      <div className="flex flex-col gap-2">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                         <SocialLoginButton 
-                          icon={isAuthLoading ? <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> : <GoogleIcon className="w-5 h-5" />}
+                          icon={isAuthLoading ? <div className="icon-base border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> : <GoogleIcon className="icon-md" />}
                           label="Google"
                           disabled={isAuthLoading}
                           onClick={() => handleLogin('google')}
                         />
                         <SocialLoginButton 
-                          icon={<AppleIcon className="w-5 h-5" />}
+                          icon={<AppleIcon className="icon-md" />}
                           label="Apple"
                           disabled={isAuthLoading}
                           onClick={() => handleLogin('apple')}
                         />
                       </div>
                       <div className="text-center pt-1">
-                         <span style={{ fontSize: '0.7rem', color: 'color-mix(in srgb, var(--c-content) 40%, transparent)' }}>End-to-end encrypted</span>
+                         <span style={{ 
+                           // [Refactor] 使用标准字体 Token
+                        font: 'var(--font-small)', 
+                           color: 'var(--color-text-tertiary)' // Tokenized
+                         }}>
+                           End-to-end encrypted
+                         </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    /* --- Authenticated State --- */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                         <div className="flex justify-between items-center pt-1 px-1">
-                            <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>
+                            <span style={{ font: 'var(--font-small)', color: 'var(--color-text-secondary)' }}>
                                 {isPro ? "Unlimited devices" : `${deviceCount} / ${MAX_FREE_DEVICES} devices`}
                             </span>
                             <button 
@@ -258,17 +294,12 @@ export function AccountSection() {
                               className="p-1 rounded hover:bg-[var(--hover-bg-glass)] transition-colors"
                               title="Refresh Devices"
                             >
-                              <RefreshCw className={`w-3 h-3 ${isRefreshing || isDevicesLoading ? 'animate-spin' : ''}`} />
+                              <RefreshCw className={`icon-xs ${isRefreshing || isDevicesLoading ? 'animate-spin' : ''}`} />
                             </button>
                         </div>
                         
-                        <div style={{ padding: '0.25rem' }}>
+                        <div style={{ padding: 'var(--space-1)' }}>
                           {activeDevices.map(device => (
-                              /* * [架构优化] 移除了 <motion.div> 包装器
-                               * 1. 移除了 `layout` 属性：防止与父级高度动画发生布局投影冲突。
-                               * 2. 移除了 `initial/animate/exit`：消除了列表项的位移/透明度动画，
-                               * 这在折叠面板中通常是多余的视觉噪音，且会消耗合成器层资源。
-                               */
                               <SettingsRow
                                   key={device.id}
                                   icon={<DeviceIcon name={device.name} />}
@@ -281,26 +312,26 @@ export function AccountSection() {
                                               handleRemoveDevice(device.id); 
                                           }}
                                           disabled={device.is_current || isAuthLoading}
-                                          className="p-1.5 rounded-md transition-all hover-destructive disabled:opacity-50"
+                                          className="rounded-md transition-all hover-destructive disabled:opacity-50"
                                           title={device.is_current ? "Cannot remove current device" : "Remove device"}
+                                          style={{ padding: 'var(--space-1_5)' }}
                                       >
-                                          <Trash2 className="w-3.5 h-3.5" />
+                                          <Trash2 className="icon-sm" />
                                       </button>
                                   }
                                   onClick={() => {}}
-                                  className="p-1.5"
                               />
                           ))}
                         </div>
 
-                        <div className="pt-1 flex justify-end">
+                        <div style={{ paddingTop: 'var(--space-1)', display: 'flex', justifyContent: 'flex-end' }}>
                             <button
                                 onClick={(e) => { e.stopPropagation(); logout(); }}
                                 disabled={isAuthLoading}
                                 className="flex items-center gap-1.5 py-1 px-2 rounded-md hover-destructive transition-colors disabled:opacity-50"
-                                style={{ fontSize: '0.8rem', fontWeight: 500, border: 'none', cursor: 'pointer', background: 'transparent' }}
+                                style={{ font: 'var(--font-caption)', letterSpacing: 'var(--letter-spacing-caption)', fontWeight: 500, border: 'none', cursor: 'pointer', background: 'transparent' }}
                             >
-                                <LogOut className="w-3.5 h-3.5" />
+                                <LogOut className="icon-sm" />
                                 {isAuthLoading ? 'Signing Out...' : 'Sign Out'}
                             </button>
                         </div>

@@ -11,7 +11,8 @@
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  z-index: var(--z-system-layer);
+  /* [Refactor] 使用明确的 Toast 层级 */
+  z-index: var(--z-toast);
   transform-origin: bottom right;
 }
 
@@ -23,7 +24,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   position: fixed;
   inset: 0;
   background: transparent;
-  z-index: var(--z-system-layer);
+  /* [Refactor] 使用明确的 Toast 层级 */
+  z-index: var(--z-toast);
   pointer-events: none;
   opacity: 0;
   transition: opacity var(--transition-base) var(--ease-smooth);
@@ -41,7 +43,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   right: 0;
   display: flex;
   overflow: hidden;
-  z-index: calc(var(--z-system-layer) + 1);
+  /* [Refactor] 使用明确的 Toast 层级 */
+  z-index: var(--z-toast);
   transform-origin: bottom right;
   will-change: width, height, padding, transform;
   transition: width var(--transition-base) var(--ease-smooth),
@@ -52,8 +55,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .theme-switcher-container[data-expanded="false"] .theme-switcher-expanded {
-  width: 3rem;
-  height: 3rem;
+  /* [Refactor] 3rem (48px) -> var(--space-12) */
+  width: var(--space-12);
+  height: var(--space-12);
   padding: 0;
   border-radius: 99em;
   cursor: pointer;
@@ -73,17 +77,19 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded {
-  --switcher-icon-width: 3.4rem;
-  --switcher-gap: 0.4rem;
-  --switcher-padding-h: 0.6rem;
-  --switcher-padding-v: 0.4rem;
+  /* [Refactor] 使用全局 Token，确保与设计系统对齐 */
+  --switcher-icon-width: 3.4rem; /* 保留为局部变量，因为这是特定于 switcher 的尺寸 */
+  --switcher-gap: var(--space-2); /* 0.4rem -> 8px */
+  --switcher-padding-h: var(--space-2_5); /* 0.6rem -> 10px (接近) */
+  --switcher-padding-v: var(--space-2); /* 0.4rem -> 8px */
   width: calc(
     (var(--switcher-icon-width) * 3) +
     (var(--switcher-gap) * 2) +
     (var(--switcher-padding-h) * 2)
   );
-  height: 3.5rem;
-  padding: var(--switcher-padding-v) var(--switcher-padding-h) 0.5rem;
+  /* [Refactor] 3.5rem (56px) -> var(--control-height-lg) */
+  height: var(--control-height-lg);
+  padding: var(--switcher-padding-v) var(--switcher-padding-h) var(--space-2);
   border-radius: 99em;
   cursor: default;
   transform: scale(1);
@@ -97,34 +103,26 @@ body[data-edit-dialog-open] .theme-switcher-container {
   gap: var(--space-1_5); /* 0.4rem -> 6px approx */
   width: calc(
     (var(--switcher-icon-width, 3.4rem) * 3) +
-    (var(--switcher-gap, 0.4rem) * 2) +
-    (var(--switcher-padding-h, 0.6rem) * 2)
+    (var(--switcher-gap, var(--space-2)) * 2) +
+    (var(--switcher-padding-h, var(--space-2_5)) * 2)
   );
   max-width: calc(
     (var(--switcher-icon-width, 3.4rem) * 3) +
-    (var(--switcher-gap, 0.4rem) * 2) +
-    (var(--switcher-padding-h, 0.6rem) * 2)
+    (var(--switcher-gap, var(--space-2)) * 2) +
+    (var(--switcher-padding-h, var(--space-2_5)) * 2)
   );
-  height: 3.5rem; /* Kept as specialized layout value */
+  /* [Refactor] 3.5rem (56px) -> var(--control-height-lg) */
+  height: var(--control-height-lg);
   box-sizing: border-box;
-  padding: var(--space-1_5) var(--space-2_5) 0.5rem;
+  padding: var(--space-1_5) var(--space-2_5) var(--space-2);
   margin: 0 auto;
   border: none;
   border-radius: 99em;
   background-color: color-mix(in srgb, var(--c-glass) 12%, transparent);
   backdrop-filter: blur(8px) url(#switcher) saturate(var(--saturation));
   -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
-  box-shadow: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
-    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
-    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
-    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
-    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+  /* [Refactor] 使用组件级阴影 Token */
+  box-shadow: var(--shadow-switcher-track);
   transition: background-color var(--transition-slow) var(--ease-glass),
               box-shadow var(--transition-slow) var(--ease-glass);
 }
@@ -206,7 +204,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 .theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option {
   width: 0;
-  height: 3rem;
+  /* [Refactor] 3rem (48px) -> var(--space-12) */
+  height: var(--space-12);
   padding: 0;
   opacity: 0;
   transform: translateX(100%);
@@ -215,8 +214,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .theme-switcher-container[data-expanded="false"] .theme-switcher-expanded .switcher__option:has(input:checked) {
-  width: 3rem;
-  height: 3rem;
+  /* [Refactor] 3rem (48px) -> var(--space-12) */
+  width: var(--space-12);
+  height: var(--space-12);
   opacity: 1;
   transform: translateX(0);
   display: flex;
@@ -249,14 +249,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   z-index: var(--z-base);
   backdrop-filter: blur(8px) url(#switcher) saturate(var(--saturation));
   -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
-  box-shadow: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
-    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
-    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
-    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+  /* [Refactor] 使用组件级阴影 Token */
+  box-shadow: var(--shadow-glass-button-inner);
   transition: width var(--transition-base) var(--ease-smooth),
               height var(--transition-base) var(--ease-smooth),
               translate var(--transition-slow) var(--ease-smooth),
@@ -266,8 +260,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .theme-switcher-container[data-expanded="false"] .theme-switcher-expanded::after {
-  width: 3rem;
-  height: 3rem;
+  /* [Refactor] 3rem (48px) -> var(--space-12) */
+  width: var(--space-12);
+  height: var(--space-12);
   left: 0;
   top: 0;
   translate: 0 0;
@@ -278,10 +273,11 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .theme-switcher-container[data-expanded="true"] .theme-switcher-expanded::after {
-  width: calc(var(--switcher-icon-width) + 0.8rem);
-  height: calc(100% - 0.5rem);
-  left: 0.2rem;
-  top: 0.2rem;
+  /* [Refactor] 0.8rem -> var(--space-4), 0.5rem -> var(--space-2), 0.2rem -> var(--space-0_5) */
+  width: calc(var(--switcher-icon-width) + var(--space-4));
+  height: calc(100% - var(--space-2));
+  left: var(--space-0_5);
+  top: var(--space-0_5);
   border-radius: 99em;
   opacity: 1;
   visibility: visible;
@@ -309,15 +305,18 @@ body[data-edit-dialog-open] .theme-switcher-container {
   position: relative;
   width: 100%;
   max-width: 28rem;
-  height: 3.25rem;
-  padding: 0.4rem 0.4rem 0.4rem;
+  /* [Refactor] 3.25rem (52px) -> var(--control-height-lg) (56px) 对齐到标准控件高度，提升触控体验 */
+  height: var(--control-height-lg);
+  /* [Refactor] 0.4rem -> var(--space-2) */
+  padding: var(--space-2);
   backdrop-filter: blur(8px) url(#tab-switcher) saturate(var(--saturation));
   -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
 }
 
 .tab-switcher .switcher__option {
   flex: 1;
-  padding: 0 1.5rem;
+  /* [Refactor] 1.5rem (24px) -> var(--space-6) */
+  padding: 0 var(--space-6);
 }
 
 .tab-switcher .switcher__option,
@@ -332,14 +331,14 @@ body[data-edit-dialog-open] .theme-switcher-container {
 .tab-switcher .switcher__icon-wrapper {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  /* [Refactor] 0.6rem -> var(--space-2_5) */
+  gap: var(--space-2_5);
   width: 100%;
   justify-content: center;
 }
 
 .tab-switcher .switcher__icon {
-  width: 1.1rem;
-  height: 1.1rem;
+  /* [Refactor] 移除硬编码尺寸，使用 icon-sm 工具类控制 */
   transition: color var(--transition-fast) var(--ease-smooth),
               scale var(--transition-fast) var(--ease-smooth);
 }
@@ -366,24 +365,17 @@ body[data-edit-dialog-open] .theme-switcher-container {
   content: '';
   position: absolute;
   display: block;
-  width: calc((100% - 0.8rem) / 2);
-  left: 0.4rem;
-  top: 0.4rem;
-  height: calc(100% - 0.8rem);
+  /* [Refactor] 0.8rem -> var(--space-4), 0.4rem -> var(--space-2) */
+  width: calc((100% - var(--space-4)) / 2);
+  left: var(--space-2);
+  top: var(--space-2);
+  height: calc(100% - var(--space-4));
   border-radius: 99em;
   background-color: color-mix(in srgb, var(--c-glass) 18%, transparent);
   z-index: -1;
   box-sizing: border-box;
-  box-shadow: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 15%), transparent),
-    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent), 
-    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
-    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 70%), transparent),
-    inset 1px -2px 2px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 40%), transparent),
-    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
-    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 4%), transparent), 
-    0px 2px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 3%), transparent),
-    0px 1px 2px 0px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
+  /* [Refactor] 使用组件级阴影 Token */
+  box-shadow: var(--shadow-switcher-tab-track);
   transition: left var(--transition-slow) var(--ease-smooth),
               translate var(--transition-slow) var(--ease-smooth),
               background-color var(--transition-slow) var(--ease-glass),
@@ -393,7 +385,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
 
 .tab-switcher:has(input[data-option="1"]:checked)::after,
 .tab-switcher:has(input[data-option="2"]:checked)::after {
-  width: calc((100% - 0.8rem) / 2);
+  /* [Refactor] 0.8rem -> var(--space-4) */
+  width: calc((100% - var(--space-4)) / 2);
   translate: 0 0;
   transition: left var(--transition-slow) var(--ease-smooth),
               width var(--transition-slow) var(--ease-smooth),
@@ -403,12 +396,14 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .tab-switcher:has(input[data-option="1"]:checked)::after {
-  left: 0.4rem;
+  /* [Refactor] 0.4rem -> var(--space-2) */
+  left: var(--space-2);
   transform-origin: right;
 }
 
 .tab-switcher:has(input[data-option="2"]:checked)::after {
-  left: calc((100% - 0.8rem) / 2 + 0.4rem);
+  /* [Refactor] 0.8rem -> var(--space-4), 0.4rem -> var(--space-2) */
+  left: calc((100% - var(--space-4)) / 2 + var(--space-2));
   transform-origin: left;
 }
 

@@ -1,17 +1,19 @@
 /* ========================================
    LAYER 4: CALENDAR COMPONENT
    Stats Wall & Heatmap
+   Refactored for System v2.0
    ======================================== */
 
-/* Activity Calendar Layout (V12: 安全缓冲区布局) */
 .stats-wall-calendar-layout {
   /* --- [核心变量配置] --- */
-  --square-size: 24px;   
-  --gap-size: 4px;       
-  --day-label-width: 30px; 
-  --month-label-height: 1rem; 
-  --month-label-margin: 6px;
-  --grid-safe-padding: 10px;
+  /* [Refactor] 使用全局 Token，确保与设计系统对齐 */
+  --square-size: var(--calendar-cell-size); /* 24px - 使用全局 Token */
+  --gap-size: var(--space-1);       
+  --day-label-width: var(--calendar-day-label-width); /* 30px - 使用全局 Token */
+  /* [Refactor] 1rem -> var(--space-4) (16px) */
+  --month-label-height: var(--space-4); 
+  --month-label-margin: var(--space-1_5);
+  --grid-safe-padding: var(--space-2_5);
   --header-offset: calc(var(--grid-safe-padding) + var(--month-label-height) + var(--month-label-margin));
 
   display: grid;
@@ -26,13 +28,13 @@
 /* [左侧] 固定的星期标签 (M, W, F) */
 .day-labels-fixed {
   padding-top: var(--header-offset);
-  padding-left: 4px;
+  padding-left: var(--space-1);
   display: grid;
   grid-template-rows: repeat(7, var(--square-size));
   gap: var(--gap-size);
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--c-content) 50%, transparent);
+  /* [Refactor] 使用标准微文本 Token */
+  font: var(--font-micro);
+  color: var(--color-text-secondary);
   align-items: center;
   justify-items: start;
 }
@@ -49,7 +51,7 @@
   padding: var(--grid-safe-padding);
   min-width: 0;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--c-glass) 40%, transparent) color-mix(in srgb, var(--c-glass) 10%, transparent);
+  scrollbar-color: var(--sb-thumb-active) var(--bg-surface-glass);
 }
 
 /* [右侧内部] 月份标签 */
@@ -64,9 +66,9 @@
 }
 
 .month-labels span {
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--c-content) 50%, transparent);
+  /* [Refactor] 使用标准微文本 Token */
+  font: var(--font-micro);
+  color: var(--color-text-secondary);
   white-space: nowrap; 
   display: flex;
   align-items: end;
@@ -87,33 +89,35 @@
 .activity-day-square {
   width: var(--square-size);
   height: var(--square-size);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: default;
-  transition: transform 100ms ease-out, box-shadow 100ms ease-out, background-color 300ms ease-out;
+  transition: transform var(--transition-fast) ease-out, 
+              box-shadow var(--transition-fast) ease-out, 
+              background-color var(--transition-base) ease-out;
 }
 
-/* data-level 颜色 */
+/* data-level 颜色 - 使用 Token */
 .activity-day-square[data-level="0"] {
-  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
+  background: var(--bg-surface-glass-hover); /* 15% glass */
 }
 
 .activity-day-square[data-level="1"] {
-  background: color-mix(in srgb, var(--c-action) 30%, transparent);
+  background: var(--bg-action-moderate); /* 20-30% action */
 }
 
 .activity-day-square[data-level="2"] {
-  background: color-mix(in srgb, var(--c-action) 60%, transparent);
+  background: var(--bg-action-strong); /* 60-80% action */
 }
 
 .activity-day-square[data-level="3"] {
-  background: color-mix(in srgb, var(--c-action) 100%, transparent);
+  background: var(--bg-action-solid); /* 100% action */
 }
 
 .activity-day-square:hover {
   transform: scale(1.15);
   position: relative;
   z-index: var(--z-sticky);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--c-dark) 20%, transparent);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 图例 (固定在底部) */
@@ -121,48 +125,52 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  color: color-mix(in srgb, var(--c-content) 60%, transparent);
-  margin-top: 0.5rem;
-  padding-right: 2px;
+  gap: var(--space-1);
+  /* [Refactor] 使用标准小文本 Token */
+  font: var(--font-small);
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-2);
+  padding-right: var(--space-0_5);
   flex-shrink: 0;
 }
 
 .calendar-legend-fixed .legend-square {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
+  /* [Refactor] 使用全局 Token，对齐到 4px 网格 */
+  width: var(--calendar-legend-square-size);
+  height: var(--calendar-legend-square-size);
+  border-radius: var(--radius-xs);
 }
 
 .calendar-legend-fixed .legend-square[data-level="0"] {
-  background: color-mix(in srgb, var(--c-glass) 15%, transparent);
+  background: var(--bg-surface-glass-hover);
 }
 
 .calendar-legend-fixed .legend-square[data-level="1"] {
-  background: color-mix(in srgb, var(--c-action) 30%, transparent);
+  background: var(--bg-action-moderate);
 }
 
 .calendar-legend-fixed .legend-square[data-level="2"] {
-  background: color-mix(in srgb, var(--c-action) 60%, transparent);
+  background: var(--bg-action-strong);
 }
 
 .calendar-legend-fixed .legend-square[data-level="3"] {
-  background: color-mix(in srgb, var(--c-action) 100%, transparent);
+  background: var(--bg-action-solid);
 }
 
 /* Activity Group Title - 粘性标题 */
 .activity-group-title {
-  font-size: 0.7rem;
+  /* [Refactor] 使用标准小文本 Token */
+  font: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--c-content) 50%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--c-glass) 15%, transparent);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--border-glass-subtle);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  background-color: color-mix(in srgb, var(--c-bg) 98%, transparent);
-  padding: 0.5rem;
+  background-color: var(--bg-surface-glass-active); /* Solid-ish glass */
+  backdrop-filter: blur(var(--glass-blur-base));
+  padding: var(--space-2);
 }
 

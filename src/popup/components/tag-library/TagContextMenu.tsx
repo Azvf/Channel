@@ -25,7 +25,8 @@ export function TagContextMenu({
       {isOpen && tag && (
         <div
           className="fixed inset-0"
-          style={{ zIndex: "calc(var(--z-modal-layer) + 1)" }}
+          // [Refactor] 使用明确的 Backdrop 层级
+          style={{ zIndex: "var(--z-context-menu-backdrop)" }}
           onClick={onClose}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -41,10 +42,14 @@ export function TagContextMenu({
             className="fixed liquidGlass-wrapper"
             data-menu-tag-id={tag.id}
             style={{
+              // [Refactor] 使用明确的 Body 层级，替代 calc(+1)
+              zIndex: "var(--z-context-menu-body)",
               top: position.y,
               left: position.x,
-              minWidth: "150px",
-              borderRadius: "0.8em",
+              // [Refactor] 使用标准菜单宽度 Token
+              minWidth: "var(--menu-min-width)",
+              // [Refactor] Tokenized Radius
+              borderRadius: "var(--radius-lg)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -58,13 +63,15 @@ export function TagContextMenu({
                     }}
                     className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
                     style={{
-                      color: "var(--c-content)",
+                      color: "var(--color-text-primary)",
                       background: "transparent",
-                      fontSize: "0.8rem",
+                      // [Refactor] 使用标准字体 Token
+                      font: "var(--font-caption)",
+                      letterSpacing: "var(--letter-spacing-caption)",
                       fontWeight: 500,
                     }}
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="icon-sm" />
                     <span>编辑</span>
                   </button>
                 </li>
@@ -76,13 +83,15 @@ export function TagContextMenu({
                     }}
                     className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-destructive"
                     style={{
-                      color: "color-mix(in srgb, var(--c-content) 60%, transparent)",
+                      color: "var(--color-text-secondary)",
                       background: "transparent",
-                      fontSize: "0.8rem",
+                      // [Refactor] 使用标准字体 Token
+                      font: "var(--font-caption)",
+                      letterSpacing: "var(--letter-spacing-caption)",
                       fontWeight: 500,
                     }}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="icon-sm" />
                     <span>删除</span>
                   </button>
                 </li>

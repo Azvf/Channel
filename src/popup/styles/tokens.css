@@ -50,17 +50,40 @@ body {
 }
 
 :root {
-  /* --- Z-Index System --- */
+  /* ========================================
+     Z-INDEX SCALE (SEMANTIC ELEVATION)
+     System v2.0: Layer + Content Model
+     ======================================== */
+  
+  /* Level 0: Hidden */
   --z-hidden: -1;
+  
+  /* Level 1: Base Content */
   --z-base: 1;
   --z-content: 2;
+  
+  /* Level 2: Sticky / Floating within page */
   --z-sticky: 10;
   --z-app-header: 20;
+  
+  /* Level 3: Dropdowns (Popovers attached to elements) */
   --z-dropdown: 30;
-  --z-modal-layer: 40;
-  --z-tooltip-layer: 50;
-  --z-context-menu-layer: 60;
-  --z-system-layer: 100;
+  --z-dropdown-content: 31; /* [Refactor] Dropdown 内容层 (高于容器背景) */
+  
+  /* Level 4: Modals (Page blocking) */
+  --z-modal-backdrop: 40; /* [Refactor] 模态框背景遮罩 */
+  --z-modal-content: 41;  /* [Refactor] 模态框实体 */
+  
+  /* Level 5: Tooltips (Information overlays) */
+  --z-tooltip: 50;
+  
+  /* Level 6: Context Menus (Highest interaction layer) */
+  --z-context-menu-backdrop: 60; /* [Refactor] 点击外部关闭的透明层 */
+  --z-context-menu-body: 61;     /* [Refactor] 菜单本体 */
+  
+  /* Level 7: System / Toast (Alerts) */
+  --z-toast: 100;
+  --z-cursor-drag: 1000; /* 拖拽时的替身 */
 
   /* --- Spacing Scale (4px Grid) --- */
   --space-0_5: 0.125rem; /* 2px */
@@ -93,8 +116,44 @@ body {
   --row-min-height: 44px; /* Touch-friendly target */
   --container-padding: var(--space-4);
   --modal-max-width: 360px;
+  --modal-max-height: 90vh; /* [Refactor] Tokenized Modal Height */
   --stats-wall-max-width: 560px;
   --dropdown-max-height: 240px;
+  --menu-min-width: 150px; /* [Refactor] Tokenized Menu Width */
+  --textarea-min-height: 80px; /* [Refactor] Tokenized Textarea Height */
+  
+  /* --- Control Heights (Component Sizes) --- */
+  --control-height-sm: 2rem;   /* 32px - Small buttons, compact inputs */
+  --control-height-md: 2.75rem; /* 44px - Standard buttons (原 --row-min-height) */
+  --control-height-lg: 3.5rem;  /* 56px - Large buttons, prominent actions */
+  
+  /* --- Calendar Specific Tokens --- */
+  --calendar-cell-size: var(--space-6); /* 24px - Activity square size */
+  --calendar-day-label-width: 1.875rem; /* 30px - Day label column width */
+  --calendar-legend-square-size: var(--space-2_5); /* 10px - Legend square */
+
+  /* ========================================
+     ICONOGRAPHY SYSTEM
+     Standardized icon container sizes
+     ======================================== */
+  
+  /* 12px - Micro (Status indicators) */
+  --icon-size-xs: var(--space-3); 
+  
+  /* 14px - Small (Metadata icons, Tab switcher) */
+  --icon-size-sm: var(--space-3_5); 
+  
+  /* 16px - Base (Standard menu icons, Button icons) - 对应 Tailwind w-4 */
+  --icon-size-base: var(--space-4); 
+  
+  /* 20px - Medium (List avatars, Favicons) - 对应 Tailwind w-5 */
+  --icon-size-md: var(--space-5); 
+  
+  /* 24px - Large (Section headers) - 对应 Tailwind w-6 */
+  --icon-size-lg: var(--space-6); 
+  
+  /* 32px - Display (Empty states, Hero icons) - 对应 Tailwind w-8 */
+  --icon-size-xl: var(--space-8);
 
   /* --- Typography System --- */
   --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -133,6 +192,10 @@ body {
 
   --font-module-title: 500 0.7rem/1.4 var(--font-family);
   --letter-spacing-module-title: 0.05em;
+
+  /* Micro Text (for Calendar, Legends, etc.) */
+  --font-micro: 500 0.6rem/1 var(--font-family); /* 约 9.6px - 极小的标签 */
+  --font-small: 400 0.7rem/1.4 var(--font-family); /* 约 11.2px - 小文本 */
 
   /* ----------------------------------------
 
@@ -214,6 +277,45 @@ body {
   --shadow-elevation-low: var(--shadow-sm);
   --shadow-elevation-medium: var(--shadow-md);
   --shadow-elevation-high: 0 16px 40px -12px rgba(0, 0, 0, 0.2), 0 4px 12px -4px rgba(0, 0, 0, 0.1);
+
+  /* --- Component-Level Shadow Tokens (Glass Effects) --- */
+  /* [Refactor] 提取复杂阴影逻辑，统一管理光照方向 */
+  --shadow-glass-button-inner: 
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
+    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
+    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+    0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+
+  --shadow-switcher-track: 
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
+    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
+    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
+    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
+    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
+    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
+    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+
+  --shadow-switcher-tab-track: 
+    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 15%), transparent),
+    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent), 
+    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
+    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 70%), transparent),
+    inset 1px -2px 2px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 40%), transparent),
+    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
+    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 4%), transparent), 
+    0px 2px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 3%), transparent),
+    0px 1px 2px 0px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
+
+  /* --- Opacity System --- */
+  --opacity-disabled: 0.6; /* [Refactor] Tokenized Disabled State */
+  --opacity-loading: 0.7; /* [Refactor] Tokenized Loading State */
+  --opacity-hover: 0.8; /* [Refactor] Tokenized Hover State */
 }
 
 /* ----------------------------------------

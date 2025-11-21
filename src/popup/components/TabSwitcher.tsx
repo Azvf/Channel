@@ -25,6 +25,18 @@ export function TabSwitcher({ activeTab, onTabChange }: TabSwitcherProps) {
     onTabChange(tab);
   };
 
+  // 提取通用样式
+  const labelStyle: React.CSSProperties = {
+    fontWeight: 500,
+    font: 'var(--font-caption)', // Tokenized
+    letterSpacing: '0.01em',
+    color: 'var(--color-text-primary)' // Tokenized (was var(--c))
+  };
+
+  const iconStyle: React.CSSProperties = {
+    color: 'var(--color-text-primary)' // Tokenized
+  };
+
   return (
     <fieldset 
       className="switcher tab-switcher"
@@ -43,16 +55,8 @@ export function TabSwitcher({ activeTab, onTabChange }: TabSwitcherProps) {
           onChange={() => handleTabChange("tagging")}
         />
         <div className="switcher__icon-wrapper">
-          <Tags className="switcher__icon w-3.5 h-3.5" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-          <span 
-            className="switcher__label"
-            style={{ 
-              fontWeight: 500,
-              fontSize: '0.8rem',
-              letterSpacing: '0.01em',
-              color: 'var(--c)'
-            }}
-          >
+          <Tags className="switcher__icon icon-sm" style={iconStyle} strokeWidth={1.5} />
+          <span className="switcher__label" style={labelStyle}>
             Tagging
           </span>
         </div>
@@ -69,16 +73,8 @@ export function TabSwitcher({ activeTab, onTabChange }: TabSwitcherProps) {
           onChange={() => handleTabChange("tagged")}
         />
         <div className="switcher__icon-wrapper">
-          <Search className="switcher__icon w-3.5 h-3.5" style={{ color: 'var(--c)' }} strokeWidth={1.5} />
-          <span 
-            className="switcher__label"
-            style={{ 
-              fontWeight: 500,
-              fontSize: '0.8rem',
-              letterSpacing: '0.01em',
-              color: 'var(--c)'
-            }}
-          >
+          <Search className="switcher__icon icon-sm" style={iconStyle} strokeWidth={1.5} />
+          <span className="switcher__label" style={labelStyle}>
             Search
           </span>
         </div>

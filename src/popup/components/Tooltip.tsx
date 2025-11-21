@@ -1,6 +1,7 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { POSITIONING } from '../utils/layoutConstants';
 
 interface TooltipProps {
   children: React.ReactElement;
@@ -33,16 +34,18 @@ export function Tooltip({
     
     // 1. 水平居中
     let left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
-    // 2. 边缘检测 (保持 8px 安全边距)
-    left = Math.max(8, Math.min(left, viewportWidth - tooltipRect.width - 8));
+    // [Refactor] 使用标准定位常量
+    const safeMargin = POSITIONING.VIEWPORT_MARGIN;
+    left = Math.max(safeMargin, Math.min(left, viewportWidth - tooltipRect.width - safeMargin));
     
-    const offset = 6; // 使用 CSS 变量定义的距离
+    // [Refactor] 使用标准定位常量
+    const offset = POSITIONING.TOOLTIP_OFFSET; 
     let top = 0;
 
     // 3. 垂直定位与自动翻转
     if (side === 'top') {
       top = triggerRect.top - tooltipRect.height - offset;
-      if (top < 8) top = triggerRect.bottom + offset; // 空间不足翻转到底部
+      if (top < safeMargin) top = triggerRect.bottom + offset;
     } else {
       top = triggerRect.bottom + offset;
     }
@@ -107,8 +110,9 @@ export function Tooltip({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className="fixed z-[var(--z-tooltip-layer)]"
+              className="fixed"
               style={{ 
+                zIndex: 'var(--z-tooltip)',
                 top: position.top, 
                 left: position.left,
                 pointerEvents: 'none'
