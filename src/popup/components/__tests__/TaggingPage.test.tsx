@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { AppProvider } from '../../context/AppContext';
 import { TaggingPage } from '../TaggingPage';
 import { currentPageService } from '../../../services/popup/currentPageService';
-import { cacheService } from '../../../services/cacheService';
+import { QueryClientWrapper } from '../../../test/queryClientWrapper';
 
 jest.mock('../../../services/popup/currentPageService');
 
@@ -31,9 +31,11 @@ const UPDATED_MOCK_PAGE = {
 
 const renderPage = async () => {
   render(
-    <AppProvider>
-      <TaggingPage />
-    </AppProvider>,
+    <QueryClientWrapper>
+      <AppProvider>
+        <TaggingPage />
+      </AppProvider>
+    </QueryClientWrapper>,
   );
 
   await waitFor(() => {
@@ -45,9 +47,8 @@ describe('TaggingPage (with Context)', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     
-    // 清除单例缓存，确保每个测试都是冷启动
-    // 防止 useCachedResource 从内存缓存中读取旧数据，导致测试间状态污染
-    await cacheService.clear();
+    // 注意：QueryClientWrapper 会为每个测试创建新的 QueryClient
+    // 所以不需要手动清除缓存，每个测试都是独立的
 
     mockedPageService.getAllTags.mockResolvedValue(MOCK_TAGS);
     mockedPageService.getAllTaggedPages.mockResolvedValue([]);

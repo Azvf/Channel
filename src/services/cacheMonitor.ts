@@ -1,4 +1,12 @@
 /**
+ * @deprecated 此服务已被 TanStack Query DevTools 替代
+ * TanStack Query DevTools 提供了更强大的缓存监控和调试能力
+ * 
+ * 注意：此服务监控的是 Repository 层的缓存，而 TanStack Query 监控的是 React Query 层的缓存
+ * 如果仍需要监控 Repository 层缓存，可以保留此服务，但建议迁移到 TanStack Query DevTools
+ */
+
+/**
  * 缓存监控服务
  * 用于监控 Repository 缓存命中率
  */

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsModal } from '../SettingsModal';
 import { currentPageService } from '../../../services/popup/currentPageService';
+import { QueryClientWrapper } from '../../../test/queryClientWrapper';
 
 // Mock supabase before any imports
 jest.mock('../../../infra/database/supabase', () => ({
@@ -34,7 +35,11 @@ describe('SettingsModal (Integration)', () => {
     
     mockedService.exportData.mockResolvedValue(JSON.stringify({ test: 'data' }));
 
-    render(<SettingsModal isOpen={true} onClose={onClose} initialTheme="light" />);
+    render(
+      <QueryClientWrapper>
+        <SettingsModal isOpen={true} onClose={onClose} initialTheme="light" />
+      </QueryClientWrapper>
+    );
 
     const exportBtn = screen.getByText('Export Data...');
     await user.click(exportBtn);
@@ -52,7 +57,11 @@ describe('SettingsModal (Integration)', () => {
       }
     } as any;
 
-    render(<SettingsModal isOpen={true} onClose={onClose} initialTheme="light" />);
+    render(
+      <QueryClientWrapper>
+        <SettingsModal isOpen={true} onClose={onClose} initialTheme="light" />
+      </QueryClientWrapper>
+    );
 
     const file = new File(['{"tags":{}}'], 'backup.json', { type: 'application/json' });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;

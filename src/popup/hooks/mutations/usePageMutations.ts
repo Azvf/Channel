@@ -3,9 +3,10 @@
  * 封装页面操作的乐观更新逻辑，简化组件代码
  */
 
-import { useOptimisticMutation } from '../../../hooks/useOptimisticMutation';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { currentPageService, backgroundApi } from '../../../services/popup/currentPageService';
 import { TaggedPage } from '../../../shared/types/gameplayTag';
+import { queryKeys } from '../../../lib/queryKeys';
 
 /**
  * 页面标题更新 Hook
@@ -14,7 +15,9 @@ export function useUpdatePageTitle(
   page: TaggedPage | null,
   setPage: (p: TaggedPage) => void
 ) {
-  return useOptimisticMutation({
+  const queryClient = useQueryClient();
+
+  return useMutation({
     // 1. RPC 远程调用
     mutationFn: (newTitle: string) => {
       if (!page) throw new Error('Page not loaded');
@@ -22,35 +25,49 @@ export function useUpdatePageTitle(
     },
 
     // 2. 乐观更新（立即执行）
-    onMutate: (newTitle) => {
+    onMutate: async (newTitle) => {
       if (!page) return {};
 
+      // A. 取消正在进行的针对该 Key 的查询，防止旧数据覆盖新数据
+      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage });
+
+      // B. 获取旧数据快照
+      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage);
       const oldTitle = page.title;
 
-      // 立即修改 UI 状态
+      // C. 乐观地更新缓存
+      queryClient.setQueryData<TaggedPage>(queryKeys.currentPage, (old) => {
+        if (!old) return old;
+        return { ...old, title: newTitle };
+      });
+
+      // 同时更新本地状态（保持兼容性）
       setPage({ ...page, title: newTitle });
 
-      // 返回回滚上下文
-      return { oldTitle };
+      // D. 返回上下文供回滚使用
+      return { oldTitle, previousPage };
     },
 
     // 3. 错误回滚
     onError: (_err, _newTitle, context) => {
-      if (page && context?.oldTitle) {
-        setPage({ ...page, title: context.oldTitle });
+      if (context?.previousPage) {
+        queryClient.setQueryData(queryKeys.currentPage, context.previousPage);
+        setPage(context.previousPage);
+      } else if (page && context?.oldTitle) {
+        const revertedPage = { ...page, title: context.oldTitle };
+        queryClient.setQueryData(queryKeys.currentPage, revertedPage);
+        setPage(revertedPage);
       }
     },
 
-    // 4. 重试配置
-    retry: {
-      maxRetries: 2,
-      initialDelay: 500,
+    // 4. 最终结算
+    onSettled: () => {
+      // 无论成功失败，都标记数据"脏"了，触发后台重新拉取最新数据
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentPage });
     },
 
-    // 5. 错误消息格式化
-    getErrorMessage: (error) => {
-      return error instanceof Error ? error.message : '更新标题失败，请重试';
-    },
+    // 5. 重试配置
+    retry: 2,
   });
 }
 
@@ -61,7 +78,9 @@ export function usePageTagsMutation(
   page: TaggedPage | null,
   setPage: (p: TaggedPage) => void
 ) {
-  return useOptimisticMutation({
+  const queryClient = useQueryClient();
+
+  return useMutation({
     mutationFn: async ({
       action,
       tagId,
@@ -78,12 +97,17 @@ export function usePageTagsMutation(
       }
     },
 
-    onMutate: ({ action, tagId }) => {
+    onMutate: async ({ action, tagId }) => {
       if (!page) return { oldTags: [] };
 
+      // A. 取消正在进行的查询
+      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage });
+
+      // B. 获取旧数据快照
+      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage);
       const oldTags = [...page.tags];
 
-      // 计算新标签列表
+      // C. 计算新标签列表
       let newTags = [...page.tags];
       if (action === 'add' && !newTags.includes(tagId)) {
         newTags.push(tagId);
@@ -91,27 +115,35 @@ export function usePageTagsMutation(
         newTags = newTags.filter((t) => t !== tagId);
       }
 
+      // D. 乐观地更新缓存
+      queryClient.setQueryData<TaggedPage>(queryKeys.currentPage, (old) => {
+        if (!old) return old;
+        return { ...old, tags: newTags };
+      });
+
+      // 同时更新本地状态（保持兼容性）
       setPage({ ...page, tags: newTags });
 
-      return { oldTags };
+      return { oldTags, previousPage };
     },
 
     onError: (_err, _vars, context) => {
-      if (page && context?.oldTags) {
-        setPage({ ...page, tags: context.oldTags });
+      if (context?.previousPage) {
+        queryClient.setQueryData(queryKeys.currentPage, context.previousPage);
+        setPage(context.previousPage);
+      } else if (page && context?.oldTags) {
+        const revertedPage = { ...page, tags: context.oldTags };
+        queryClient.setQueryData(queryKeys.currentPage, revertedPage);
+        setPage(revertedPage);
       }
     },
 
-    // 重试配置
-    retry: {
-      maxRetries: 2,
-      initialDelay: 500,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentPage });
     },
 
-    // 错误消息格式化
-    getErrorMessage: (error) => {
-      return error instanceof Error ? error.message : '更新标签失败，请重试';
-    },
+    // 重试配置
+    retry: 2,
   });
 }
 
@@ -123,21 +155,31 @@ export function useUpdatePageTags(
   setPage: (p: TaggedPage) => void,
   onSuccess?: (newPage: TaggedPage) => void
 ) {
-  return useOptimisticMutation({
+  const queryClient = useQueryClient();
+
+  return useMutation({
     mutationFn: async (params: { tagsToAdd: string[]; tagsToRemove: string[] }) => {
       if (!page) throw new Error('Page not loaded');
       const result = await currentPageService.updatePageTags(page.id, params);
       return result.newPage;
     },
 
-    onMutate: (_params) => {
+    onMutate: async (_params) => {
       if (!page) return { previousPage: null };
-      // 保存当前页面状态用于回滚
-      return { previousPage: page };
+
+      // A. 取消正在进行的查询
+      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage });
+
+      // B. 获取旧数据快照
+      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage) || page;
+
+      // C. 保存当前页面状态用于回滚（保持兼容性）
+      return { previousPage };
     },
 
     onSuccess: (newPage) => {
       // 更新缓存
+      queryClient.setQueryData(queryKeys.currentPage, newPage);
       setPage(newPage);
       // 调用成功回调
       onSuccess?.(newPage);
@@ -147,18 +189,16 @@ export function useUpdatePageTags(
       console.error('更新标签失败:', error);
       // 回滚到之前的页面状态
       if (context?.previousPage) {
+        queryClient.setQueryData(queryKeys.currentPage, context.previousPage);
         setPage(context.previousPage);
       }
     },
 
-    retry: {
-      maxRetries: 2,
-      initialDelay: 500,
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentPage });
     },
 
-    getErrorMessage: (error) => {
-      return error instanceof Error ? error.message : '更新标签失败，请重试';
-    },
+    retry: 2,
   });
 }
 

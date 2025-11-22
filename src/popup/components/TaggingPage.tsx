@@ -7,7 +7,8 @@ import { TagInput } from "./TagInput";
 import { currentPageService } from "../../services/popup/currentPageService";
 import type { TaggedPage } from "../../shared/types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
-import { useCachedResource } from "../../hooks/useCachedResource";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
 import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";
 
 interface TaggingPageProps {
@@ -23,20 +24,25 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     refreshAllData, // 添加刷新函数
   } = useAppContext();
 
-  // [核心修改] 使用 useCachedResource 替代 useEffect + useState
-  // 这里的 key 'current_page_view' 确保了数据缓存在内存中
-  // 切换 Tab 回来时，会立即从内存读取，isLoading 保持为 false
+  // [核心修改] 使用 TanStack Query 替代 useCachedResource
+  // 这里的 queryKey 确保了数据缓存在内存中
+  // 切换 Tab 回来时，会立即从内存读取，isPending 保持为 false
+  const queryClient = useQueryClient();
   const {
     data: currentPage,
-    isLoading: pageLoading,
+    isPending: pageLoading,
     error: pageError,
-    mutate: mutatePage,
-    refresh: refreshPage,
-  } = useCachedResource<TaggedPage>({
-    key: 'current_page_view', 
-    fetcher: () => currentPageService.getCurrentPage(),
-    ttl: 5 * 60 * 1000, // 5分钟缓存，这期间切换 Tab 都是瞬时的
+    refetch: refreshPage,
+  } = useQuery<TaggedPage>({
+    queryKey: queryKeys.currentPage,
+    queryFn: () => currentPageService.getCurrentPage(),
+    staleTime: 5 * 60 * 1000, // 5分钟缓存，这期间切换 Tab 都是瞬时的
   });
+
+  // 兼容性：提供 mutate 方法用于乐观更新
+  const mutatePage = (newPage: TaggedPage) => {
+    queryClient.setQueryData(queryKeys.currentPage, newPage);
+  };
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState("");
@@ -49,9 +55,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   }, [currentPage]);
 
   // 1. 初始化 Mutation Hooks
-  const { mutate: updateTitle } = useUpdatePageTitle(currentPage, mutatePage);
-  const { mutate: updateTags, isLoading: isUpdatingTags } = useUpdatePageTags(
-    currentPage,
+  const { mutate: updateTitle } = useUpdatePageTitle(currentPage ?? null, mutatePage);
+  const { mutate: updateTags, isPending: isUpdatingTags } = useUpdatePageTags(
+    currentPage ?? null,
     mutatePage,
     () => {
       // 刷新全局数据

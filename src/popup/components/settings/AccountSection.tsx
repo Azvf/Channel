@@ -12,7 +12,8 @@ import { useAuth } from './useAuth';
 import { AlertModal } from '../AlertModal';
 import { Tooltip } from '../Tooltip';
 import { deviceService, type Device } from '../../../services/deviceService';
-import { useCachedResource } from '../../../hooks/useCachedResource';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../../lib/queryKeys';
 
 const MAX_FREE_DEVICES = 2;
 
@@ -31,25 +32,30 @@ export function AccountSection() {
 
   // [关键修复]
   // 1. enabled: 仅依赖 isAuthenticated。只要已登录，Popup 打开时必须立即检查设备。
-  // 2. fetcher: 即使 register 失败（在 service 内部捕获），getDevices 也会执行，确保能拿到列表判断是否超限。
+  // 2. queryFn: 即使 register 失败（在 service 内部捕获），getDevices 也会执行，确保能拿到列表判断是否超限。
+  const queryClient = useQueryClient();
   const { 
     data: devicesData, 
-    isLoading: isDevicesLoading, 
-    isRefreshing,
-    refresh: refreshDevices,
-    mutate: mutateDevices
-  } = useCachedResource<Device[]>({
-    key: `devices_${user?.id || ''}`,
+    isPending: isDevicesLoading, 
+    isFetching: isRefreshing,
+    refetch: refreshDevices,
+  } = useQuery<Device[]>({
+    queryKey: queryKeys.devices(user?.id),
     enabled: isAuthenticated, // <--- 修复点：移除 && isExpanded
     initialData: [],
-    fetcher: async () => {
+    queryFn: async () => {
       // 串行执行：先心跳（容错），再读取
       await deviceService.registerCurrentDevice();
       return await deviceService.getDevices();
     },
-    // 缩短 TTL 以确保设备状态相对实时，特别是对于刚登录的情况
-    ttl: 60 * 1000 
+    // 缩短 staleTime 以确保设备状态相对实时，特别是对于刚登录的情况
+    staleTime: 60 * 1000 
   });
+
+  // 兼容性：提供 mutate 方法用于乐观更新
+  const mutateDevices = (newDevices: Device[]) => {
+    queryClient.setQueryData(queryKeys.devices(user?.id), newDevices);
+  };
 
   const activeDevices = devicesData ?? [];
   const isPro = useMemo(() => user?.plan === 'pro', [user]);

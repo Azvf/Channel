@@ -1,7 +1,8 @@
 // src/services/deviceService.ts
 import { supabase } from '../infra/database/supabase';
 import { getDeviceId, getDeviceName } from '../popup/utils/device';
-import { cacheService } from './cacheService';
+import { queryClient } from '../lib/queryClient';
+import { queryKeys } from '../lib/queryKeys';
 import { logger } from '../infra/logger';
 
 const log = logger('DeviceService');
@@ -39,7 +40,8 @@ class DeviceService {
         log.warn('Heartbeat update failed (non-critical)', { error: error.message });
       } else {
         // 仅在成功时失效缓存，强制下次读取最新数据
-        await cacheService.remove(`devices_${session.user.id}`);
+        // 使用 TanStack Query 失效缓存
+        queryClient.invalidateQueries({ queryKey: queryKeys.devices(session.user.id) });
       }
     } catch (error) {
       // 捕获所有网络或未知错误
@@ -87,7 +89,8 @@ class DeviceService {
     if (error) throw error;
 
     // 移除成功后，必须让缓存失效
-    await cacheService.remove(`devices_${session.user.id}`);
+    // 使用 TanStack Query 失效缓存
+    queryClient.invalidateQueries({ queryKey: queryKeys.devices(session.user.id) });
   }
 }
 

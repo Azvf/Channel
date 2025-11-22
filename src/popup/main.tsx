@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { loadAppInitialState, loadAppInitialStateSync } from '../services/appInitService';
 import { applyThemeToBody } from './utils/theme';
 import { AppProvider } from './context/AppContext';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { queryClient, chromeStoragePersister } from '../lib/queryClient';
+
+// 仅在开发环境懒加载 DevTools
+const ReactQueryDevtoolsProduction = React.lazy(() =>
+  import('@tanstack/react-query-devtools/build/modern/production.js').then(
+    (d) => ({ default: d.ReactQueryDevtools }),
+  ),
+);
 
 /**
  * 应用初始化
@@ -42,12 +51,31 @@ initializeApp().then((initialState) => {
       document.body.setAttribute('data-theme-ready', 'true');
     }
   });
+
+  // 检查是否为开发环境
+  // @ts-ignore - import.meta.env 在构建时会被替换
+  const isDev = import.meta.env?.DEV || process.env.NODE_ENV === 'development';
   
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <AppProvider>
-        <App initialState={initialState} />
-      </AppProvider>
+      <PersistQueryClientProvider 
+        client={queryClient} 
+        persistOptions={{ persister: chromeStoragePersister }}
+        onSuccess={() => {
+          // 可选：缓存恢复完成后的回调
+          console.log('Query cache restored from Chrome Storage');
+        }}
+      >
+        <AppProvider>
+          <App initialState={initialState} />
+        </AppProvider>
+        {/* 仅在开发环境显示 DevTools */}
+        {isDev && (
+          <Suspense fallback={null}>
+            <ReactQueryDevtoolsProduction initialIsOpen={false} position="bottom" />
+          </Suspense>
+        )}
+      </PersistQueryClientProvider>
     </React.StrictMode>
   );
 });
