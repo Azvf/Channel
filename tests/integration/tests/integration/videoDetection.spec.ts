@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 // Mock supabase before importing
-jest.mock('../../../src/infra/database/supabase', () => require('../../../src/infra/database/supabase/__mocks__/index'));
+jest.mock('../../../../src/infra/database/supabase', () => require('../../../../src/infra/database/supabase/__mocks__/index'));
 
-import { BackgroundServiceImpl } from '../../../src/services/background/BackgroundServiceImpl';
-import { GameplayStore } from '../../../src/services/gameplayStore';
-import { storageService, STORAGE_KEYS } from '../../../src/services/storageService';
-import { resetInitializationForTests } from '../../../src/background/init';
+import { BackgroundServiceImpl } from '../../../../src/services/background/BackgroundServiceImpl';
+import { GameplayStore } from '../../../../src/services/gameplayStore';
+import { storageService, STORAGE_KEYS } from '../../../../src/services/storageService';
+import { resetInitializationForTests } from '../../../../src/background/init';
 
 // Mock chrome APIs
 global.chrome = {
@@ -36,7 +36,7 @@ global.chrome = {
 } as any;
 
 // Mock services
-jest.mock('../../../src/services/timeService', () => ({
+jest.mock('../../../../src/services/timeService', () => ({
   timeService: {
     calibrate: jest.fn(() => Promise.resolve()),
     now: jest.fn(() => Date.now()),
@@ -46,7 +46,7 @@ jest.mock('../../../src/services/timeService', () => ({
   },
 }));
 
-jest.mock('../../../src/services/syncService', () => ({
+jest.mock('../../../../src/services/syncService', () => ({
   syncService: {
     initialize: jest.fn(() => Promise.resolve()),
     markTagChange: jest.fn(() => Promise.resolve()),
@@ -54,8 +54,8 @@ jest.mock('../../../src/services/syncService', () => ({
   },
 }));
 
-jest.mock('../../../src/services/storageService', () => {
-  const actual = jest.requireActual('../../../src/services/storageService') as any;
+jest.mock('../../../../src/services/storageService', () => {
+  const actual = jest.requireActual('../../../../src/services/storageService') as any;
   return {
     ...actual,
     storageService: {

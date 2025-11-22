@@ -8,7 +8,7 @@ const USE_REAL_SUPABASE = process.env.USE_REAL_SUPABASE === 'true';
 if (!USE_REAL_SUPABASE) {
   // Mock Supabase（默认行为）
   // 使用 jest.mock 而不是 vi.mock，因为 jest.mock 在模块顶层调用更可靠
-  jest.mock('../../../src/infra/database/supabase', () => ({
+  jest.mock('../../../../src/infra/database/supabase', () => ({
     supabase: {
       from: jest.fn(() => ({
         select: jest.fn(() => ({
@@ -39,7 +39,7 @@ if (!USE_REAL_SUPABASE) {
 } else {
   // 使用真实数据库时，也需要 mock 以避免 import.meta 错误
   // 但返回真实的 Supabase 客户端实例
-  jest.mock('../../../src/infra/database/supabase', () => {
+  jest.mock('../../../../src/infra/database/supabase', () => {
     const { createClient } = require('@supabase/supabase-js');
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -91,10 +91,10 @@ if (!USE_REAL_SUPABASE) {
   });
 }
 
-import { authService } from '../../../src/services/authService';
-import { GameplayStore } from '../../../src/services/gameplayStore';
-import { storageService, STORAGE_KEYS } from '../../../src/services/storageService';
-import { testHelpers, TEST_ACCOUNT } from '../../../src/test/helpers';
+import { authService } from '../../../../src/services/authService';
+import { GameplayStore } from '../../../../src/services/gameplayStore';
+import { storageService, STORAGE_KEYS } from '../../../../src/services/storageService';
+import { testHelpers, TEST_ACCOUNT } from '../../../../src/test/helpers';
 
 // Mock chrome.identity
 global.chrome = {
@@ -244,7 +244,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
       expect(supabaseUrl).toContain('supabase.co');
       
       // 验证 Supabase 客户端是否正确初始化
-      const { supabase } = await import('../../lib/supabase');
+      const { supabase } = await import('../../../../src/infra/database/supabase');
       expect(supabase).toBeDefined();
       
       // 验证不是 Mock（Mock 的 from 方法会有 mockClear 等属性）
@@ -284,7 +284,7 @@ describe('集成测试 - Auth + Sync + Storage 隐私泄露防范', () => {
       }
     } else {
       // 使用 Mock 时的验证
-      const { supabase } = await import('../../lib/supabase');
+      const { supabase } = await import('../../../../src/infra/database/supabase');
       expect(supabase).toBeDefined();
       
       // 验证是 Mock

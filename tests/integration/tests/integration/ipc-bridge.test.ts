@@ -1,13 +1,13 @@
-import { resetInitializationForTests } from '../../../src/background/init';
-import { currentPageService } from '../../../src/services/popup/currentPageService';
-import { GameplayStore } from '../../../src/services/gameplayStore';
-import { storageService, STORAGE_KEYS } from '../../../src/services/storageService';
-import { BackgroundServiceImpl } from '../../../src/services/background/BackgroundServiceImpl';
-import { registerRpcHandler } from '../../../src/shared/rpc-protocol/server';
-import { JsonRpcRequest, JsonRpcResponse } from '../../../src/shared/rpc-protocol/protocol';
+import { resetInitializationForTests } from '../../../../src/background/init';
+import { currentPageService } from '../../../../src/services/popup/currentPageService';
+import { GameplayStore } from '../../../../src/services/gameplayStore';
+import { storageService, STORAGE_KEYS } from '../../../../src/services/storageService';
+import { BackgroundServiceImpl } from '../../../../src/services/background/BackgroundServiceImpl';
+import { registerRpcHandler } from '../../../../src/shared/rpc-protocol/server';
+import { JsonRpcRequest, JsonRpcResponse } from '../../../../src/shared/rpc-protocol/protocol';
 
 // Mock supabase before any imports
-jest.mock('../../../src/infra/database/supabase', () => {
+jest.mock('../../../../src/infra/database/supabase', () => {
   const { createClient } = require('@supabase/supabase-js');
   const mockSupabaseUrl = 'https://mock.supabase.co';
   const mockSupabaseKey = 'mock-anon-key';
@@ -45,7 +45,7 @@ jest.mock('../../../src/infra/database/supabase', () => {
 });
 
 // Mock timeService to avoid import.meta.env issues
-jest.mock('../../services/timeService', () => ({
+jest.mock('../../../../src/services/timeService', () => ({
   timeService: {
     calibrate: jest.fn(() => Promise.resolve()),
     now: jest.fn(() => Date.now()),
@@ -56,7 +56,7 @@ jest.mock('../../services/timeService', () => ({
 }));
 
 // Mock syncService to avoid import.meta.env issues
-jest.mock('../../services/syncService', () => {
+jest.mock('../../../../src/services/syncService', () => {
   return {
     syncService: {
       initialize: jest.fn(() => Promise.resolve()),
@@ -74,8 +74,8 @@ jest.mock('../../services/syncService', () => {
   };
 });
 
-jest.mock('../../services/storageService', () => {
-  const actual = jest.requireActual('../../services/storageService');
+jest.mock('../../../../src/services/storageService', () => {
+  const actual = jest.requireActual('../../../../src/services/storageService');
 
   const mockStorage = {
     getMultiple: jest.fn(),
@@ -158,7 +158,7 @@ beforeEach(() => {
         }
 
         // 1. 确保初始化（模拟 RPC 服务器）
-        const { getInitializationPromise } = require('../../background/init');
+        const { getInitializationPromise } = require('../../../../src/background/init');
         await getInitializationPromise();
 
         // 2. 如果是写入操作，时间校准（模拟 RPC 服务器）
@@ -166,7 +166,7 @@ beforeEach(() => {
           prefix => message.method.toLowerCase().startsWith(prefix)
         );
         if (isWriteOp) {
-          const { timeService } = require('../../services/timeService');
+          const { timeService } = require('../../../../src/services/timeService');
           await timeService.calibrate().catch(() => {});
         }
 
