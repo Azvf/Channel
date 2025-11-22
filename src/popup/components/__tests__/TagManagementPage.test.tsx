@@ -54,7 +54,7 @@ describe('TagManagementPage (Integration)', () => {
     renderComponent();
     await waitFor(() => screen.getByText('React'));
 
-    const searchInput = screen.getByPlaceholderText(/搜索/);
+    const searchInput = screen.getByPlaceholderText(/Search tags/i);
     await user.type(searchInput, 'Type');
 
     // React 应该消失，TypeScript 应该保留
@@ -66,12 +66,12 @@ describe('TagManagementPage (Integration)', () => {
     renderComponent();
     await waitFor(() => screen.getByText('React'));
 
-    const searchInput = screen.getByPlaceholderText(/搜索/);
+    const searchInput = screen.getByPlaceholderText(/Search tags/i);
     // 输入一个不存在的标签名
     await user.type(searchInput, 'NewTag');
 
     // 应该出现创建按钮
-    const createBtn = await screen.findByText(/创建标签 "NewTag"/);
+    const createBtn = await screen.findByText(/\+ Create "NewTag"/);
     expect(createBtn).toBeInTheDocument();
 
     // Mock 创建 API

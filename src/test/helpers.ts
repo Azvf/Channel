@@ -8,7 +8,7 @@ const USE_REAL_SUPABASE = process.env.USE_REAL_SUPABASE === 'true';
 if (!USE_REAL_SUPABASE) {
   // Mock supabase before importing it
   // This prevents import.meta.env errors in Jest
-  jest.mock('../lib/supabase', () => require('../lib/__mocks__/supabase'));
+  jest.mock('../infra/database/supabase', () => require('../infra/database/supabase/__mocks__/index'));
 }
 
 import { supabase } from '../infra/database/supabase';

@@ -2,7 +2,7 @@ import { describe, it, expect, jest } from '@jest/globals';
 import type { TagsCollection, PageCollection, GameplayTag, TaggedPage } from '../../shared/types/gameplayTag';
 
 // Mock Supabase - 必须在其他导入之前
-jest.mock('../../lib/supabase', () => {
+jest.mock('../../infra/database/supabase', () => {
   const { jest } = require('@jest/globals');
   const mockSelectInner = jest.fn(() => ({
     eq: jest.fn(() => ({

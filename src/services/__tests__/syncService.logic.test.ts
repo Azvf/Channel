@@ -18,7 +18,7 @@ jest.mock('../timeService', () => ({
     reset: jest.fn(),
   },
 }));
-jest.mock('../../lib/supabase', () => {
+jest.mock('../../infra/database/supabase', () => {
   const mockFn = jest.fn as any;
   return {
   supabase: {

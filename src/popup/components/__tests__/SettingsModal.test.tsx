@@ -4,7 +4,7 @@ import { SettingsModal } from '../SettingsModal';
 import { currentPageService } from '../../../services/popup/currentPageService';
 
 // Mock supabase before any imports
-jest.mock('../../../lib/supabase', () => ({
+jest.mock('../../../infra/database/supabase', () => ({
   supabase: {
     auth: {
       getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),

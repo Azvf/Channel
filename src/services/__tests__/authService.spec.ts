@@ -5,7 +5,7 @@ import { storageService, STORAGE_KEYS } from '../storageService';
 import { testHelpers } from '../../test/helpers';
 
 // Mock Supabase
-jest.mock('../../lib/supabase', () => ({
+jest.mock('../../infra/database/supabase', () => ({
   supabase: {
     auth: {
       getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
