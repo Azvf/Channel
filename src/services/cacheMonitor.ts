@@ -3,8 +3,7 @@
  * 用于监控 Repository 缓存命中率
  */
 
-import { CacheStats } from '../repositories/ChromeStorageRepository';
-import { ChromeTagRepository, ChromePageRepository } from '../repositories/ChromeStorageRepository';
+import { CacheStats, ChromeTagRepository, ChromePageRepository } from '../infra/database/chrome-storage/repositories/ChromeStorageRepository';
 
 class CacheMonitor {
   private tagRepo: ChromeTagRepository | null = null;

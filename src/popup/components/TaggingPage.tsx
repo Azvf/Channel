@@ -5,7 +5,7 @@ import { LAYOUT_TRANSITION } from "../utils/motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
 import { currentPageService } from "../../services/popup/currentPageService";
-import type { TaggedPage } from "../../types/gameplayTag";
+import type { TaggedPage } from "../../shared/types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
 import { useCachedResource } from "../../hooks/useCachedResource";
 import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";

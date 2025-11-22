@@ -1,4 +1,4 @@
-import type { GameplayTag } from '../types/gameplayTag';
+import type { GameplayTag } from '../shared/types/gameplayTag';
 import { GameplayStore } from '../services/gameplayStore';
 
 // 条件性 Mock Supabase：只有在 USE_REAL_SUPABASE 不为 'true' 时才 mock
@@ -11,7 +11,7 @@ if (!USE_REAL_SUPABASE) {
   jest.mock('../lib/supabase', () => require('../lib/__mocks__/supabase'));
 }
 
-import { supabase } from '../lib/supabase';
+import { supabase } from '../infra/database/supabase';
 import { authService } from '../services/authService';
 
 /**

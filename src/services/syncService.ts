@@ -1,11 +1,11 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from '../infra/database/supabase';
 import { GameplayStore } from './gameplayStore';
 import { authService } from './authService';
 import { storageService, STORAGE_KEYS } from './storageService';
-import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
-import { logger } from './logger';
-import { mergeDataStrategy, mergeTagFields, computeHash, ShadowMap } from '../logic/DataMergeStrategy';
-import { SupabaseQueryBuilder } from '../logic/SupabaseQueryBuilder';
+import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../shared/types/gameplayTag';
+import { logger } from '../infra/logger';
+import { mergeDataStrategy, mergeTagFields, computeHash, ShadowMap } from '../core/strategies/DataMergeStrategy';
+import { SupabaseQueryBuilder } from '../core/strategies/SupabaseQueryBuilder';
 import { timeService } from './timeService';
 
 const log = logger('SyncService');

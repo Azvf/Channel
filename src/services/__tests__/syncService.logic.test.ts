@@ -3,7 +3,7 @@ import { SyncService } from '../syncService';
 import { authService } from '../authService';
 import { storageService, STORAGE_KEYS } from '../storageService';
 import { GameplayStore } from '../gameplayStore';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../infra/database/supabase';
 
 // 1. Mock 外部依赖
 jest.mock('../authService');

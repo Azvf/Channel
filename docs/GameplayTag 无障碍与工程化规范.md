@@ -1,0 +1,101 @@
+# GameplayTag 无障碍与工程化规范
+**核心理念：包容 (Inclusive) · 清晰 (Clarity) · 稳健 (Robustness)**
+
+## 1. 无障碍访问标准 (Accessibility / A11y)
+*真正的简约不是排斥，而是包容。对于生产力工具，“键盘优先”是核心体验。*
+
+### 1.1 焦点管理 (Focus Management)
+* **模态框 (Modals):**
+    * **Trap (捕获):** 打开模态框时，焦点必须被限制在模态框内部循环，禁止跳到底层页面。
+    * **Restore (还原):** 关闭模态框后，焦点必须自动还原到触发它的那个按钮上。
+    * **Initial (初始):** 打开时，焦点默认停留在第一个可操作元素（通常是输入框）或关闭按钮上。
+* **下拉菜单 (Dropdowns):**
+    * 支持 `ArrowUp` / `ArrowDown` 在选项间移动。
+    * `Enter` 选中，`ESC` 关闭并返回焦点给触发器。
+
+### 1.2 语义化结构 (Semantic Structure)
+* **交互元素:** 严禁使用 `<div onClick={...}>` 替代 `<button>`。如果必须使用非标准元素，必须显式添加 `role="button"` 和 `tabIndex="0"`。
+* **视觉隐藏:** 使用 `.sr-only` (Screen Reader Only) 类为仅图标按钮（如 "X" 关闭按钮）提供文本标签 (`aria-label="Close"`).
+
+### 1.3 ARIA 契约 (ARIA Contracts)
+* **状态同步:** 任何自定义组件的状态变化必须反映在 ARIA 属性上。
+    * `TagInput`: 必须实现 `combobox` 模式，使用 `aria-expanded` (菜单展开状态) 和 `aria-activedescendant` (当前选中的选项ID)。
+    * `Toggle`: 必须使用 `aria-pressed` 或 `aria-checked`。
+
+### 1.4 视觉可达性 (Visual Accessibility)
+* **对比度:** 所有文本与背景的对比度必须符合 **WCAG AA** 标准（至少 4.5:1）。特别注意 `Dim` 和 `Dark` 模式下的次级文本 (`text-secondary`)。
+* **非颜色依赖:** 错误状态不能仅靠颜色（红色）区分，必须辅以图标或文字说明。
+
+---
+
+## 2. 微文案与内容策略 (Microcopy & Content Strategy)
+*界面越简约，文字的权重就越重。每一个字都必须是“精心挑选”的。*
+
+### 2.1 语气与语调 (Tone of Voice)
+* **性格:** 专业、克制、偶尔幽默（仅在成功状态或彩蛋中）。
+* **原则:** * **不说废话:** 避免 "Please", "Successfully" 等冗余词。直接说 "Saved" 而不是 "Successfully saved"。
+    * **动词优先:** 按钮文案应描述动作结果（如 "Create Tag", "Delete"），避免通用的 "OK", "Yes"。
+
+### 2.2 空状态设计 (Empty State Patterns)
+* **原则:** 空状态是 onboarding 的一部分，不能只显示空白。
+* **构成:** 1. **插图/图标:** 视觉锚点（使用 `icon-xl` 尺寸）。
+    2. **状态说明:** 发生了什么（"No tags found"）。
+    3. **行动引导 (CTA):** 用户现在该做什么（"Create your first tag" 或 "Clear search filters"）。
+
+### 2.3 错误消息规范 (Error Messaging)
+* **禁止:** 仅显示 "Error 500" 或 "Something went wrong"。
+* **结构:** * **发生了什么:** "无法保存更改"
+    * **原因 (可选):** "网络连接已断开"
+    * **解决方案:** "请检查网络后重试"
+
+---
+
+## 3. 错误处理与反馈分级 (Feedback & Error Patterns)
+*系统必须有优雅的“降级”策略，建立用户信任。*
+
+### 3.1 反馈分级 (Feedback Hierarchy)
+* **Level 1 - Toast (轻量提示):** * 场景：非阻断性的成功/失败反馈（如“复制成功”、“自动保存中”）。
+    * 行为：自动消失，不打断心流。
+* **Level 2 - Banner (嵌入式警告):** * 场景：当前上下文的特定问题（如“网络离线”、“表单验证错误”）。
+    * 行为：常驻直到问题解决，推挤布局。
+* **Level 3 - Modal (阻断式警告):** * 场景：破坏性操作确认、关键流程中断。
+    * 行为：必须用户显式操作才能关闭。
+
+### 3.2 网络状态感知 (Network Awareness)
+* **离线模式 (Offline):** * 视觉：应用变为 "Read-only" 视觉风格或顶部显示 "Offline Mode" 指示器。
+    * 交互：允许继续操作，但需提示 "Changes will sync when online"（乐观更新的延伸）。
+
+### 3.3 破坏性操作保护 (Destructive Protection)
+* **机制:** * **低风险删除** (如移除标签): 点击即删，但提供 "Undo" Toast。
+    * **高风险删除** (如删除账户): 必须使用 Modal 确认，甚至要求输入名称以确认。
+
+---
+
+## 4. 设计工程化协作规范 (Design Engineering Handshake)
+*设计与开发使用同一套语言。*
+
+### 4.1 Storybook 驱动开发 (CDD)
+* **强制流程:** 所有 UI 组件必须先在 Storybook 中独立开发并通过验收，再集成到业务代码中。
+* **验收标准 (Checklist):**
+    * [ ] Default State (默认态)
+    * [ ] Hover/Active/Focus States (交互态)
+    * [ ] Loading State (加载态 - 必须有 Skeleton 或 Spinner)
+    * [ ] Error State (错误态)
+    * [ ] Empty State (空态 - 针对列表)
+    * [ ] Overflow Text (文本溢出 - 长文本截断或换行)
+
+### 4.2 图标系统 (Iconography System)
+* **库:** 统一使用 `Lucide React`。
+* **规格:** * **Stroke Width:** 统一为 `1.5px` (Refined) 或 `2px` (Standard)，严禁混用。
+    * **Size:** 必须引用 `tokens.css` 中的 `--icon-size-*` 变量。
+
+### 4.3 响应式策略 (Responsive Strategy)
+* **流体布局:** 虽然是 Popup，但也可能面临侧边栏 (Side Panel) 模式。
+* **断点:** * **Compact (< 360px):** 隐藏次要图标，缩小 Padding。
+    * **Standard (360px - 480px):** 标准布局。
+    * **Wide (> 480px):** 利用横向空间（如两列布局）。
+
+---
+
+**执行建议**: 
+请将此文档与之前的《交互手册》合并，作为新功能开发（Feature Kickoff）时的**Definition of Done (DoD)** 标准。只有满足上述所有规范的功能，才能标记为“开发完成”。

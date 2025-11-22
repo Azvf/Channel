@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { GameplayStore } from '../gameplayStore';
-import type { GameplayTag } from '../../types/gameplayTag';
+import type { GameplayTag } from '../../shared/types/gameplayTag';
 import { testHelpers } from '../../test/helpers';
 
 describe('GameplayStore', () => {

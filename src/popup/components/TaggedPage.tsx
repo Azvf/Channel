@@ -23,7 +23,7 @@ import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
 import { currentPageService } from "../../services/popup/currentPageService";
 import { LAYOUT, POSITIONING } from "../utils/layoutConstants";
-import { TaggedPage as TaggedPageType } from "../../types/gameplayTag";
+import { TaggedPage as TaggedPageType } from "../../shared/types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
 import { SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
 import { getTransition, DURATION } from "../tokens/animation"; // [Refactor] 引入物理引擎

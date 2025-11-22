@@ -51,7 +51,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 首次运行或需要重新生成密钥时：
 
 ```bash
-node scripts/generate-dev-key.js
+node scripts/bin/generate-keys.js
 ```
 
 这会：
@@ -83,7 +83,7 @@ Redirect URL: https://kkjcgpimkjnemndlpihnpccpkjjdjkpg.chromiumapp.org/
 
 验证注入状态：
 ```bash
-node scripts/generate-dev-key.js --verify
+node scripts/bin/generate-keys.js --verify
 ```
 
 ### 工作原理

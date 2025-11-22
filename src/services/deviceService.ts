@@ -1,8 +1,8 @@
 // src/services/deviceService.ts
-import { supabase } from '../lib/supabase';
+import { supabase } from '../infra/database/supabase';
 import { getDeviceId, getDeviceName } from '../popup/utils/device';
 import { cacheService } from './cacheService';
-import { logger } from './logger';
+import { logger } from '../infra/logger';
 
 const log = logger('DeviceService');
 

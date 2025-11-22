@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase';
-import { logger } from './logger';
+import { supabase } from '../infra/database/supabase';
+import { logger } from '../infra/logger';
 
 const log = logger('TimeService');
 

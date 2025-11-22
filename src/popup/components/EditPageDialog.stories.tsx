@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { EditPageDialog } from './EditPageDialog';
-import type { TaggedPage } from '../../types/gameplayTag';
+import type { TaggedPage } from '../../shared/types/gameplayTag';
 
 const samplePage: TaggedPage = {
   id: 'page-1',

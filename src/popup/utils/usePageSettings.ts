@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
-import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
+import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../../shared/types/pageSettings';
 
 /**
  * 从存储中加载页面设置

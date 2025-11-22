@@ -4,7 +4,7 @@
 import { GameplayStore } from '../services/gameplayStore';
 import { syncStorageService, storageService, STORAGE_KEYS } from '../services/storageService';
 import { syncService } from '../services/syncService';
-import { TagsCollection, PageCollection } from '../types/gameplayTag';
+import { TagsCollection, PageCollection } from '../shared/types/gameplayTag';
 
 const gameplayStore = GameplayStore.getInstance();
 let initPromise: Promise<void> | null = null;

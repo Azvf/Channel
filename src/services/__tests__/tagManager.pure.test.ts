@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { GameplayStore } from '../gameplayStore';
-import { MockTagRepository, MockPageRepository } from '../../repositories/MockRepository';
+import { MockTagRepository, MockPageRepository } from '../../infra/database/chrome-storage/repositories/MockRepository';
 
 describe('GameplayStore (Pure Logic)', () => {
   let store: GameplayStore;

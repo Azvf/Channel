@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import { TaggedPage as TaggedPageComponent } from './TaggedPage';
 import { setMockPages } from '../mocks/storybookMocks';
-import type { TaggedPage } from '../../types/gameplayTag';
+import type { TaggedPage } from '../../shared/types/gameplayTag';
 
 const basePages: TaggedPage[] = [
   {

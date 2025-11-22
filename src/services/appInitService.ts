@@ -4,7 +4,7 @@
  */
 
 import { storageService, STORAGE_KEYS } from './storageService';
-import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../types/pageSettings';
+import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../shared/types/pageSettings';
 
 /**
  * 应用初始状态

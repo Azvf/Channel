@@ -1,8 +1,8 @@
 // Stats Wall 管理器 - 应用层服务
-import { TaggedPage } from '../types/gameplayTag';
-import { CalendarLayoutInfo, IHeatmapStrategy } from '../types/statsWall';
-import { LinearHeatmapStrategy } from '../logic/LinearHeatmapStrategy';
-import { CalendarGridBuilder } from '../logic/CalendarGridBuilder';
+import { TaggedPage } from '../shared/types/gameplayTag';
+import { CalendarLayoutInfo, IHeatmapStrategy } from '../shared/types/statsWall';
+import { LinearHeatmapStrategy } from '../core/strategies/LinearHeatmapStrategy';
+import { CalendarGridBuilder } from '../core/strategies/CalendarGridBuilder';
 import { currentPageService } from './popup/currentPageService';
 
 export class StatsWallManager {

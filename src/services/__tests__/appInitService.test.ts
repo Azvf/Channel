@@ -1,6 +1,6 @@
 import { loadAppInitialState, loadAppInitialStateSync, DEFAULT_APP_STATE } from '../appInitService';
 import { storageService, STORAGE_KEYS } from '../storageService';
-import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
+import { DEFAULT_PAGE_SETTINGS } from '../../shared/types/pageSettings';
 
 jest.mock('../storageService', () => {
   const actual = jest.requireActual('../storageService');

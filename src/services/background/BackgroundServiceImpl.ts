@@ -3,10 +3,10 @@
 
 import { GameplayStore } from '../gameplayStore';
 import { syncService } from '../syncService';
-import { triggerBackgroundSync } from '../../rpc/server';
-import { IBackgroundApi } from '../../rpc/protocol';
-import { GameplayTag, TaggedPage } from '../../types/gameplayTag';
-import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
+import { triggerBackgroundSync } from '../../shared/rpc-protocol/server';
+import { IBackgroundApi } from '../../shared/rpc-protocol/protocol';
+import { GameplayTag, TaggedPage } from '../../shared/types/gameplayTag';
+import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../../shared/types/pageSettings';
 import { storageService, STORAGE_KEYS } from '../storageService';
 
 const gameplayStore = GameplayStore.getInstance();

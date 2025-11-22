@@ -5,8 +5,8 @@
  * [重构] 使用 RPC 客户端替代原有的消息传递机制
  */
 
-import { createRpcClient } from '../../rpc/client';
-import { IBackgroundApi } from '../../rpc/protocol';
+import { createRpcClient } from '../../shared/rpc-protocol/client';
+import { IBackgroundApi } from '../../shared/rpc-protocol/protocol';
 
 // 创建全类型安全的客户端
 const backgroundApi = createRpcClient<IBackgroundApi>();

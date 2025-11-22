@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { cacheService } from '../services/cacheService';
-import { logger } from '../services/logger';
+import { logger } from '../infra/logger';
 
 const log = logger('useCachedResource');
 

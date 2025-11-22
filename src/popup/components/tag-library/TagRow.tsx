@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Trash2 } from "lucide-react";
 import { useLongPress } from "../../utils/useLongPress";
-import type { GameplayTag } from "../../../types/gameplayTag";
+import type { GameplayTag } from "../../../shared/types/gameplayTag";
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 
 interface TagRowProps {

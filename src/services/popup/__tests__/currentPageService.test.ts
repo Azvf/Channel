@@ -1,5 +1,5 @@
 import { currentPageService } from '../currentPageService';
-import type { JsonRpcRequest, JsonRpcResponse } from '../../../rpc/protocol';
+import type { JsonRpcRequest, JsonRpcResponse } from '../../../shared/rpc-protocol/protocol';
 
 describe('currentPageService (RPC 架构)', () => {
   const originalSendMessage = (global as any).chrome?.runtime?.sendMessage;

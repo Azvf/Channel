@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import { StatsWallModal } from './StatsWallModal';
 import { setMockPages } from '../mocks/storybookMocks';
-import type { TaggedPage } from '../../types/gameplayTag';
+import type { TaggedPage } from '../../shared/types/gameplayTag';
 
 function createMockPages(activityDays: Array<{ offset: number; items: number }>): TaggedPage[] {
   return activityDays.flatMap(({ offset, items }, index) =>

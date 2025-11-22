@@ -14,7 +14,7 @@ self.addEventListener('unhandledrejection', (event) => {
 
 import { onInstalledHandler, getInitializationPromise } from './init';
 import { syncService } from '../services/syncService';
-import { registerRpcHandler } from '../rpc/server';
+import { registerRpcHandler } from '../shared/rpc-protocol/server';
 import { BackgroundServiceImpl } from '../services/background/BackgroundServiceImpl';
 
 // 注册插件安装监听器

@@ -1,9 +1,9 @@
-import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../types/gameplayTag';
-import { logger } from './logger';
+import { GameplayTag, TaggedPage, TagsCollection, PageCollection } from '../shared/types/gameplayTag';
+import { logger } from '../infra/logger';
 import { storageService, STORAGE_KEYS } from './storageService';
 import { timeService } from './timeService';
-import { ITagRepository, IPageRepository } from '../repositories/types';
-import { ChromeTagRepository, ChromePageRepository } from '../repositories/ChromeStorageRepository';
+import { ITagRepository, IPageRepository } from '../infra/database/chrome-storage/repositories/types';
+import { ChromeTagRepository, ChromePageRepository } from '../infra/database/chrome-storage/repositories/ChromeStorageRepository';
 import { cacheMonitor } from './cacheMonitor';
 
 type ChangeListener = () => void;
@@ -531,7 +531,7 @@ export class GameplayStore {
     const dayMs = 24 * 60 * 60 * 1000;
     const markedDays = new Set<number>();
 
-    pages.forEach(page => {
+    pages.forEach((page: TaggedPage) => {
       if (typeof page.createdAt !== 'number') {
         return;
       }
@@ -681,11 +681,11 @@ export class GameplayStore {
         const tagsCollection: TagsCollection = {};
         const pagesCollection: PageCollection = {};
         
-        tags.forEach(tag => {
+        tags.forEach((tag: GameplayTag) => {
           tagsCollection[tag.id] = tag;
         });
         
-        pages.forEach(page => {
+        pages.forEach((page: TaggedPage) => {
           pagesCollection[page.id] = page;
         });
         

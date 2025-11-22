@@ -6,7 +6,7 @@ import { GlassCard } from "./GlassCard";
 import { ModalHeader } from "./ModalHeader";
 import { GlassInput } from "./GlassInput";
 import { currentPageService } from "../../services/popup/currentPageService";
-import { GameplayTag } from "../../types/gameplayTag";
+import { GameplayTag } from "../../shared/types/gameplayTag";
 import { AlertModal, type AlertAction } from "./AlertModal";
 
 // 引入模块化组件

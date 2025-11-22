@@ -1,7 +1,7 @@
 import { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
-import { AuthState, UserProfile, ANONYMOUS_STATE } from '../types/auth';
-import { logger } from './logger';
+import { supabase } from '../infra/database/supabase';
+import { AuthState, UserProfile, ANONYMOUS_STATE } from '../shared/types/auth';
+import { logger } from '../infra/logger';
 import { GameplayStore } from './gameplayStore';
 import { storageService, STORAGE_KEYS } from './storageService';
 

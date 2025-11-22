@@ -7,7 +7,7 @@ import { GlassCard } from "./GlassCard";
 import { ModalHeader } from "./ModalHeader";
 import { ModalFooter } from "./ModalFooter";
 import { Save } from "lucide-react";
-import { TaggedPage } from "../../types/gameplayTag";
+import { TaggedPage } from "../../shared/types/gameplayTag";
 import { GlassButton } from "./GlassButton";
 import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
 

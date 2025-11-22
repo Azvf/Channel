@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authService } from '../../../services/authService';
-import { AuthState } from '../../../types/auth';
+import { AuthState } from '../../../shared/types/auth';
 
 export function useAuth() {
   const [state, setState] = useState<AuthState>(authService.getState());

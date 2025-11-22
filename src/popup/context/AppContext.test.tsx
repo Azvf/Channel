@@ -2,7 +2,7 @@ import { render, screen, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AppProvider, useAppContext } from "./AppContext";
 import { currentPageService } from "../../services/popup/currentPageService";
-import type { GameplayTag, TaggedPage } from "../../types/gameplayTag";
+import type { GameplayTag, TaggedPage } from "../../shared/types/gameplayTag";
 
 jest.mock("../../services/popup/currentPageService");
 

@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { usePageSettings } from '../usePageSettings';
 import { storageService, STORAGE_KEYS } from '../../../services/storageService';
-import { DEFAULT_PAGE_SETTINGS } from '../../../types/pageSettings';
+import { DEFAULT_PAGE_SETTINGS } from '../../../shared/types/pageSettings';
 
 jest.mock('../../../services/storageService', () => {
   const actual = jest.requireActual('../../../services/storageService');

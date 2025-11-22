@@ -5,7 +5,7 @@
 
 import { useOptimisticMutation } from '../../../hooks/useOptimisticMutation';
 import { currentPageService, backgroundApi } from '../../../services/popup/currentPageService';
-import { TaggedPage } from '../../../types/gameplayTag';
+import { TaggedPage } from '../../../shared/types/gameplayTag';
 
 /**
  * 页面标题更新 Hook

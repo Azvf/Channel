@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import type { TagsCollection, PageCollection, GameplayTag, TaggedPage } from '../../types/gameplayTag';
+import type { TagsCollection, PageCollection, GameplayTag, TaggedPage } from '../../shared/types/gameplayTag';
 
 // Mock Supabase - 必须在其他导入之前
 jest.mock('../../lib/supabase', () => {
@@ -55,7 +55,7 @@ jest.mock('../authService', () => ({
   },
 }));
 
-import { mergeDataStrategy } from '../../logic/DataMergeStrategy';
+import { mergeDataStrategy } from '../../core/strategies/DataMergeStrategy';
 
 describe('DataMergeStrategy (Pure Logic)', () => {
   describe('合并算法 - 时间戳优先级', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { logger } from '../logger';
+import { logger } from '../../infra/logger';
 
 describe('Logger', () => {
   let originalConsole: typeof console;

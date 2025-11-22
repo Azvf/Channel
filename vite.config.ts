@@ -4,7 +4,9 @@ import { resolve } from 'path'
 import { fileURLToPath, URL } from 'url'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { writeFileSync, readFileSync, existsSync } from 'fs'
-import { getDevKey } from './scripts/generate-dev-key.js'
+import { getDevKey } from './scripts/bin/generate-keys.js'
+import tailwindcss from 'tailwindcss'
+import autoprefixer from 'autoprefixer'
 
 // 自定义插件：在构建后处理 HTML 文件
 function postBuildPlugin() {
@@ -16,10 +18,18 @@ function postBuildPlugin() {
       
       if (existsSync(htmlPath)) {
         let content = readFileSync(htmlPath, 'utf-8')
-        // 修复路径引用（处理双引号和单引号的情况）
-        content = content.replace(/src=["']\/theme-loader\.js["']/g, 'src="./theme-loader.js"')
-        content = content.replace(/src=["']\/popup\.js["']/g, 'src="./popup.js"')
-        content = content.replace(/href=["']\/index\.css["']/g, 'href="./index.css"')
+        // 修复所有路径为相对路径（Chrome 扩展需要相对路径）
+        // 源文件在 dist/src/popup/index.html，目标文件在 dist/popup.html
+        // 所以需要将 ../../ 或 / 开头的路径改为 ./
+        
+        // 修复绝对路径（以 / 开头）
+        content = content.replace(/src=["']\/([^"']+\.js)["']/g, 'src="./$1"')
+        content = content.replace(/href=["']\/([^"']+\.css)["']/g, 'href="./$1"')
+        
+        // 修复相对路径（../../ 开头的，因为从 dist/src/popup/ 到 dist/ 需要回退两级）
+        content = content.replace(/src=["']\.\.\/\.\.\/([^"']+\.js)["']/g, 'src="./$1"')
+        content = content.replace(/href=["']\.\.\/\.\.\/([^"']+\.css)["']/g, 'href="./$1"')
+        
         writeFileSync(outputPath, content, 'utf-8')
         console.log('✓ Created popup.html with fixed paths')
       }
@@ -40,6 +50,15 @@ export default defineConfig(({ mode }) => {
     port: 3000,
     open: '/src/preview/dev-preview.html',
     host: true
+  },
+  base: './', // Chrome 扩展需要使用相对路径
+  css: {
+    postcss: {
+      plugins: [
+        tailwindcss(),
+        autoprefixer(),
+      ],
+    },
   },
   build: {
     outDir: 'dist',

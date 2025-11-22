@@ -4,8 +4,8 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { withRetry, RetryOptions } from '../utils/retry';
-import { RpcError, NetworkError, getUserFriendlyMessage } from '../types/errors';
+import { withRetry, RetryOptions } from '../shared/utils/retry';
+import { RpcError, NetworkError, getUserFriendlyMessage } from '../shared/types/errors';
 
 /**
  * 乐观更新配置接口

@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Pencil, Trash2 } from "lucide-react";
-import type { GameplayTag } from "../../../types/gameplayTag";
+import type { GameplayTag } from "../../../shared/types/gameplayTag";
 import { SMOOTH_TRANSITION } from "../../utils/motion"; // [Refactor] 使用统一的动画系统
 
 interface TagContextMenuProps {

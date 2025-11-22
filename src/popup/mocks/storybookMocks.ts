@@ -1,4 +1,4 @@
-import type { GameplayTag, TaggedPage } from '../../types/gameplayTag';
+import type { GameplayTag, TaggedPage } from '../../shared/types/gameplayTag';
 import { currentPageService } from '../../services/popup/currentPageService';
 
 const defaultTags: GameplayTag[] = [

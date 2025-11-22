@@ -13,7 +13,7 @@ import { SettingsRow } from './SettingsRow';
 import { SettingsSectionTitle } from './SettingsSectionTitle';
 import { AccountSection } from './settings/AccountSection';
 import { usePageSettings } from '../utils/usePageSettings';
-import { DEFAULT_PAGE_SETTINGS } from '../../types/pageSettings';
+import { DEFAULT_PAGE_SETTINGS } from '../../shared/types/pageSettings';
 import { currentPageService } from '../../services/popup/currentPageService';
 import { AlertModal, type AlertModalProps } from './AlertModal';
 import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from '../utils/motion'; // [Refactor] 使用统一的动画系统

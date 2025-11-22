@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { currentPageService } from "../../services/popup/currentPageService";
-import type { TaggedPage, GameplayTag } from "../../types/gameplayTag";
+import type { TaggedPage, GameplayTag } from "../../shared/types/gameplayTag";
 import { STORAGE_KEYS } from "../../services/storageService";
 
 interface UserStats {
