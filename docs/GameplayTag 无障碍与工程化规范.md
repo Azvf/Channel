@@ -1,6 +1,35 @@
 # GameplayTag 无障碍与工程化规范
 **核心理念：包容 (Inclusive) · 清晰 (Clarity) · 稳健 (Robustness)**
 
+## 技术栈与工具链
+
+### 核心技术
+- **前端框架**: React 18 + TypeScript 5
+- **构建工具**: Vite 7 (ESM + HMR)
+- **样式系统**: Tailwind CSS 3 + 自定义 Design Tokens
+- **动画库**: Framer Motion 12
+- **状态管理**: TanStack Query 5 (Server State)
+- **后端服务**: Supabase (PostgreSQL + Auth)
+- **浏览器扩展**: Chrome Extension Manifest V3
+
+### 开发工具
+- **测试框架**: 
+  - Jest 29 (单元测试)
+  - Playwright 1.56 (E2E + 组件测试)
+  - Testing Library (React 组件测试)
+- **组件开发**: Storybook 10 (CDD - Component-Driven Development)
+- **代码质量**: 
+  - ESLint (代码规范)
+  - TypeScript (类型检查)
+  - Prettier (代码格式化)
+
+### 项目结构约定
+- **组件**: `src/popup/components/` - 按功能模块组织
+- **服务**: `src/services/` - 业务逻辑层
+- **基础设施**: `src/infra/` - 数据访问、日志等
+- **共享代码**: `src/shared/` - 类型、工具、协议
+- **测试**: `tests/` (E2E) + `src/**/__tests__/` (单元测试)
+
 ## 1. 无障碍访问标准 (Accessibility / A11y)
 *真正的简约不是排斥，而是包容。对于生产力工具，“键盘优先”是核心体验。*
 
@@ -83,19 +112,83 @@
     * [ ] Error State (错误态)
     * [ ] Empty State (空态 - 针对列表)
     * [ ] Overflow Text (文本溢出 - 长文本截断或换行)
+* **实现位置:**
+    * Storybook 配置: 项目根目录
+    * Stories 文件: `src/popup/components/**/*.stories.tsx`
+    * 运行命令: `npm run storybook`
+    * 构建命令: `npm run build-storybook`
 
 ### 4.2 图标系统 (Iconography System)
-* **库:** 统一使用 `Lucide React`。
-* **规格:** * **Stroke Width:** 统一为 `1.5px` (Refined) 或 `2px` (Standard)，严禁混用。
+* **库:** 统一使用 `Lucide React` (v0.552.0)。
+* **规格:** 
+    * **Stroke Width:** 统一为 `1.5px` (Refined) 或 `2px` (Standard)，严禁混用。
     * **Size:** 必须引用 `tokens.css` 中的 `--icon-size-*` 变量。
+* **实现位置:**
+    * 图标组件: `src/popup/components/` (按需导入)
+    * 尺寸 Token: `src/popup/styles/tokens.css` (`--icon-size-*`)
+    * 示例: `<Icon size={16} strokeWidth={1.5} />`
 
 ### 4.3 响应式策略 (Responsive Strategy)
 * **流体布局:** 虽然是 Popup，但也可能面临侧边栏 (Side Panel) 模式。
-* **断点:** * **Compact (< 360px):** 隐藏次要图标，缩小 Padding。
+* **断点:** 
+    * **Compact (< 360px):** 隐藏次要图标，缩小 Padding。
     * **Standard (360px - 480px):** 标准布局。
     * **Wide (> 480px):** 利用横向空间（如两列布局）。
+* **实现:**
+    * 使用 Tailwind CSS 响应式类 (`sm:`, `md:`, `lg:`)
+    * 布局常量定义在 `src/popup/utils/layoutConstants.ts`
+    * 设备检测通过 `src/popup/utils/device.ts` 实现
+
+---
+
+## 5. 测试策略 (Testing Strategy)
+
+### 5.1 测试金字塔
+* **单元测试 (Unit Tests)**: 
+    * 业务逻辑: `src/services/**/__tests__/`
+    * 工具函数: `src/**/utils/__tests__/`
+    * 运行: `npm test`
+* **组件测试 (Component Tests)**:
+    * 使用 Playwright Component Testing
+    * 测试文件: `tests/components/`
+    * 运行: `npm run test:ct`
+* **E2E 测试 (End-to-End Tests)**:
+    * 关键用户流程: `tests/e2e/`
+    * 运行: `npm run test:e2e`
+* **集成测试 (Integration Tests)**:
+    * 服务间协作: `tests/integration/`
+    * 运行: `npm run test:int:real` (需要真实 Supabase 环境)
+
+### 5.2 测试覆盖率要求
+* **核心业务逻辑**: 80%+ (GameplayStore, SyncService)
+* **工具函数**: 90%+
+* **UI 组件**: 关键交互路径必须覆盖
+
+### 5.3 视觉回归测试
+* 使用 Playwright 截图对比
+* 关键组件必须通过视觉回归测试
+* 运行: `npm run test:ct` (包含视觉回归)
+
+---
+
+## 6. 代码质量与规范
+
+### 6.1 TypeScript 规范
+* **严格模式**: `strict: true` (tsconfig.json)
+* **禁止 any**: 必须显式类型定义
+* **类型导入**: 使用 `import type` 分离类型和值
+
+### 6.2 代码组织原则
+* **单一职责**: 每个模块/函数只做一件事
+* **依赖注入**: 服务层通过构造函数注入依赖，便于测试
+* **接口隔离**: 使用 TypeScript Interface 定义契约
+
+### 6.3 Git 工作流
+* **分支策略**: `main` (生产) + `develop` (开发) + Feature 分支
+* **提交信息**: 遵循 Conventional Commits 规范
+* **代码审查**: 所有 PR 必须通过 CI/CD 检查
 
 ---
 
 **执行建议**: 
-请将此文档与之前的《交互手册》合并，作为新功能开发（Feature Kickoff）时的**Definition of Done (DoD)** 标准。只有满足上述所有规范的功能，才能标记为“开发完成”。
+请将此文档与之前的《交互手册》和《设计系统规范》合并，作为新功能开发（Feature Kickoff）时的**Definition of Done (DoD)** 标准。只有满足上述所有规范的功能，才能标记为"开发完成"。

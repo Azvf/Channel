@@ -5,6 +5,50 @@
 
 **核心原则：无感 (Invisible) · 流体 (Liquid) · 物理感 (Physical)**
 
+## 项目架构概览
+
+### 技术栈
+- **前端框架**: React 18 + TypeScript
+- **构建工具**: Vite 7
+- **样式系统**: Tailwind CSS + 自定义 Design Tokens
+- **动画引擎**: Framer Motion 12
+- **状态管理**: TanStack Query (React Query) 5
+- **后端服务**: Supabase (PostgreSQL)
+- **浏览器扩展**: Chrome Extension Manifest V3
+- **测试框架**: Jest + Playwright + Storybook
+
+### 项目结构
+```
+src/
+├── popup/              # 弹窗界面 (React UI)
+│   ├── components/     # UI 组件库
+│   ├── styles/         # 样式系统 (tokens.css, base.css)
+│   ├── tokens/         # 动画物理常量 (animation.ts)
+│   └── utils/          # 工具函数
+├── background/         # Service Worker (后台服务)
+├── content/           # Content Scripts (页面注入)
+├── core/              # 核心业务逻辑
+│   ├── config/        # 配置管理
+│   └── strategies/    # 业务策略 (数据合并、查询构建等)
+├── services/          # 服务层
+│   ├── gameplayStore.ts  # 标签管理核心逻辑
+│   ├── syncService.ts    # 数据同步服务
+│   └── storageService.ts # 存储服务
+├── infra/             # 基础设施层
+│   ├── database/      # 数据访问层 (Chrome Storage + Supabase)
+│   └── logger/        # 日志服务
+└── shared/            # 共享代码
+    ├── types/         # 类型定义
+    ├── utils/         # 工具函数
+    └── rpc-protocol/  # RPC 通信协议
+```
+
+### 设计系统实现位置
+- **Design Tokens**: `src/popup/styles/tokens.css`
+- **动画物理常量**: `src/popup/tokens/animation.ts`
+- **玻璃材质组件**: `src/popup/components/GlassCard.tsx`
+- **布局常量**: `src/popup/utils/layoutConstants.ts`
+
 ## 1\. 空间与布局 (Spacing & Layout)
 
 我们使用 **4px 网格系统**。所有间距必须是 4 的倍数。这能创造出潜意识里的视觉韵律感。
@@ -157,6 +201,46 @@
 
 ### 设计师批注 (Designer's Note):
 
-目前的代码实现中，`GlassCard` 组件的 `depthLevel` 逻辑和 `animation.ts` 中的物理常量是整个体验的灵魂。请在后续开发新功能（如“导入/导出”界面）时，严格遵守上述 Token，**不要硬编码任何像素值或颜色值**。
+目前的代码实现中，`GlassCard` 组件的 `depthLevel` 逻辑和 `animation.ts` 中的物理常量是整个体验的灵魂。请在后续开发新功能（如"导入/导出"界面）时，严格遵守上述 Token，**不要硬编码任何像素值或颜色值**。
 
 如果在实现过程中发现现有 Token 无法满足需求，请先与我沟通，我们将讨论是否扩展系统，而不是创造一次性的样式 (One-off styles)。
+
+---
+
+## 8. 实现参考 (Implementation References)
+
+### 核心文件位置
+* **Design Tokens**: `src/popup/styles/tokens.css`
+* **动画物理常量**: `src/popup/tokens/animation.ts`
+* **玻璃材质组件**: `src/popup/components/GlassCard.tsx`
+* **玻璃样式系统**: `src/popup/styles/components/glass.css`
+* **布局常量**: `src/popup/utils/layoutConstants.ts`
+* **动效工具**: `src/popup/utils/motion.ts`
+
+### 使用示例
+```tsx
+// 使用 GlassCard 组件
+import { GlassCard } from './components/GlassCard';
+
+<GlassCard depthLevel={1}>
+  {/* 内容 */}
+</GlassCard>
+
+// 使用动画常量
+import { DURATION, EASE } from './tokens/animation';
+import { motion } from 'framer-motion';
+
+<motion.div
+  animate={{ opacity: 1 }}
+  transition={{ duration: DURATION.BASE, ease: EASE.SMOOTH }}
+>
+  {/* 内容 */}
+</motion.div>
+```
+
+### 扩展指南
+如需添加新的 Design Token：
+1. 在 `tokens.css` 中定义变量
+2. 更新本文档的对应表格
+3. 在组件中使用 `var(--token-name)` 引用
+4. 确保支持 Light/Dark 模式（如适用）

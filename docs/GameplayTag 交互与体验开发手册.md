@@ -5,6 +5,36 @@
 # GameplayTag 交互与体验开发手册
 **核心理念：物理感 (Physicality) · 零延迟 (Zero Latency) · 渐进式 (Progressive)**
 
+## 架构模式与数据流
+
+### 数据层架构
+项目采用**分层架构**，确保关注点分离和可测试性：
+
+1. **表示层 (Presentation Layer)**
+   - `src/popup/components/` - React UI 组件
+   - 使用 TanStack Query 进行数据获取和缓存
+   - 乐观更新通过 `useOptimisticMutation` 实现
+
+2. **服务层 (Service Layer)**
+   - `src/services/gameplayStore.ts` - 标签管理核心逻辑（内存状态）
+   - `src/services/syncService.ts` - 数据同步服务（本地 ↔ 云端）
+   - `src/services/storageService.ts` - 存储抽象层
+
+3. **基础设施层 (Infrastructure Layer)**
+   - `src/infra/database/` - 数据访问层
+     - Chrome Storage Repository (本地存储)
+     - Supabase Repository (云端存储)
+   - `src/infra/logger/` - 日志服务
+
+4. **共享层 (Shared Layer)**
+   - `src/shared/types/` - 类型定义
+   - `src/shared/rpc-protocol/` - Background ↔ Content Script 通信
+
+### 数据同步策略
+- **Stale-While-Revalidate**: 优先显示缓存，后台静默更新
+- **乐观更新**: UI 立即响应，后台提交，失败时回滚
+- **离线优先**: 支持离线操作，网络恢复后自动同步
+
 ## 1. 视觉物理系统 (Visual Physics System)
 *我们不渲染像素，我们模拟材质。*
 
@@ -24,8 +54,11 @@
     * **微交互 (Hover/Tap)**: `DURATION.FAST` (200ms) + `EASE.SMOOTH`
     * **布局变更 (List/Size)**: `DURATION.BASE` (300ms) + `EASE.SMOOTH`
     * **入场/退场 (Modal/Panel)**: `DURATION.SLOW` (400ms) + `EASE.OUT_CUBIC` (Apple式滑入)
-* **实现**: 优先使用 `src/popup/utils/motion.ts` 中的预设变体（Variants）。
-    * *Ref: `src/popup/tokens/animation.ts`*
+* **实现**: 
+    * 优先使用 `src/popup/utils/motion.ts` 中的预设变体（Variants）
+    * 动画常量定义在 `src/popup/tokens/animation.ts`
+    * 运行时通过 `App.tsx` 将 JS 常量注入到 CSS 变量，确保 CSS 和 Framer Motion 使用同一套时间流速
+    * *Ref: `src/popup/tokens/animation.ts`, `src/popup/App.tsx` (useEffect 同步动画 Token)*
 
 ---
 
@@ -67,17 +100,23 @@
     2.  **Render (渲染)**: 界面瞬间变化，不显示 Loading Spinner。
     3.  **Commit (提交)**: 后台静默发送请求。
     4.  **Rollback (回滚)**: 仅在极少数失败情况下，悄悄回滚并提示 Toast。
-* **实现**: 必须使用 `useOptimisticMutation` 钩子包裹 API 调用。
-    * *Ref: `src/hooks/useOptimisticMutation.ts`, `docs/OPTIMISTIC_UPDATE_GUIDE.md`*
+* **实现**: 
+    * 使用 TanStack Query 的 `useMutation` 配合乐观更新模式
+    * 通过 `onMutate` 立即更新 UI，`onError` 回滚，`onSettled` 最终同步
+    * 数据层通过 `GameplayStore` 管理内存状态，确保 UI 和数据层的一致性
+    * *Ref: `src/services/gameplayStore.ts`, TanStack Query 文档*
 
 ### 3.2 缓存优先策略 (Stale-While-Revalidate)
 我们宁愿显示旧数据，也不显示空白屏幕。
 * **规则**: 
-    * 页面加载时：立即从 `localStorage`/`IndexedDB` 读取上次缓存的数据渲染。
-    * 数据校验：后台静默发起网络请求，对比数据版本。
+    * 页面加载时：立即从 Chrome Storage 读取上次缓存的数据渲染。
+    * 数据校验：后台静默发起 Supabase 请求，对比数据版本。
     * 数据更新：如有新数据，无感替换旧数据（尽量避免布局跳动）。
-* **实现**: 数据获取层统一使用 `useCachedResource`。
-    * *Ref: `src/hooks/useCachedResource.ts`*
+* **实现**: 
+    * 使用 TanStack Query 的 `staleTime` 和 `cacheTime` 配置
+    * 配合 `@tanstack/react-query-persist-client` 实现持久化缓存
+    * 数据层通过 `ChromeTagRepository` 和 `ChromePageRepository` 管理本地存储
+    * *Ref: `src/infra/database/chrome-storage/repositories/`, `src/lib/queryClient.ts`*
 
 ### 3.3 布局零偏移 (Zero Layout Shift)
 数据加载前后，核心容器高度应保持稳定。
@@ -96,7 +135,10 @@
     * `--z-sticky` -> Headers
     * `--z-modal-backdrop` -> Overlays
     * `--z-toast` -> Notifications
-* *Ref: `src/popup/styles/tokens.css`*
+* **实现**: 
+    * 所有 z-index 值定义在 `src/popup/styles/tokens.css` 的 `:root` 作用域
+    * 组件中通过 `var(--z-*)` 引用，确保层级语义清晰
+    * *Ref: `src/popup/styles/tokens.css` (Z-INDEX SCALE 部分)*
 
 ### 4.2 幽灵滚动条 (Ghost Pill Scrollbar)
 滚动条是工具，不是内容，平时应当隐形。
