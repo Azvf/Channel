@@ -4,26 +4,42 @@
  * 
  * 从 tokens.ts 自动生成 tokens.css
  * 确保 Design Tokens 是单一真理源
+ * 
+ * 实现方式：使用 tsx 直接导入 TypeScript 模块
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { writeFileSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { createRequire } from 'module';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const require = createRequire(import.meta.url);
+const projectRoot = join(__dirname, '../..');
+const tokensPath = join(projectRoot, 'src/design-tokens/tokens.ts');
+const outputPath = join(projectRoot, 'src/popup/styles/tokens.generated.css');
 
-// 由于 tokens.ts 是 TypeScript，我们需要通过构建后的 JS 文件读取
-// 或者直接解析 TypeScript（简化版本：读取并提取值）
-const tokensPath = join(__dirname, '../../src/design-tokens/tokens.ts');
-const outputPath = join(__dirname, '../../src/popup/styles/tokens.generated.css');
+/**
+ * 获取 CSS 变量值
+ */
+function getCssVarValue(token) {
+  if (typeof token === 'object' && token !== null) {
+    if ('rem' in token) return `${token.rem}rem`;
+    if ('px' in token) return `${token.px}px`;
+    if ('vh' in token) return `${token.vh}vh`;
+    if ('em' in token) return `${token.em}em`;
+    if ('percent' in token) return `${token.percent}%`;
+    if ('value' in token) return String(token.value);
+    if ('ms' in token) return `${token.ms}ms`;
+    if ('bezier' in token) return `cubic-bezier(${token.bezier.join(', ')})`;
+  }
+  return String(token);
+}
 
-try {
-  const tokensContent = readFileSync(tokensPath, 'utf-8');
-  
-  // 生成 CSS 变量
+/**
+ * 生成 CSS 变量
+ */
+function generateCSS(tokens) {
   let css = `/* ========================================
    AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
    Generated from: src/design-tokens/tokens.ts
@@ -33,26 +49,271 @@ try {
 :root {
 `;
 
-  // 解析并生成 CSS 变量（简化版本，实际应该使用 TypeScript 编译器 API）
-  // 这里我们生成一个基础版本，实际使用时应该通过构建脚本调用 TypeScript
-  
-  // 由于直接解析 TypeScript 比较复杂，这里提供一个占位符
-  // 实际实现应该：
-  // 1. 使用 ts-node 或 tsx 直接执行 tokens.ts
-  // 2. 或者通过 Vite/构建工具在构建时生成
-  
-  css += `  /* Note: This file is generated from tokens.ts */
-  /* For now, please manually sync values or use a build-time generator */
-`;
+  // 生成 SPACING 变量
+  if (tokens.SPACING) {
+    css += `  /* Spacing Scale (4px Grid System) */\n`;
+    for (const [key, value] of Object.entries(tokens.SPACING)) {
+      const cssKey = key.replace(/\./g, '_');
+      const cssValue = getCssVarValue(value);
+      css += `  --space-${cssKey}: ${cssValue};\n`;
+    }
+    css += `\n`;
+  }
+
+  // 生成 RADIUS 变量
+  if (tokens.RADIUS) {
+    css += `  /* Radius Scale (Liquid Conformality) */\n`;
+    for (const [key, value] of Object.entries(tokens.RADIUS)) {
+      const cssValue = getCssVarValue(value);
+      css += `  --radius-${key}: ${cssValue};\n`;
+    }
+    css += `\n`;
+  }
+
+  // 生成 Z_INDEX 变量
+  if (tokens.Z_INDEX) {
+    css += `  /* Z-Index Scale (Semantic Elevation) */\n`;
+    for (const [key, value] of Object.entries(tokens.Z_INDEX)) {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      css += `  --z-${cssKey}: ${value};\n`;
+    }
+    css += `\n`;
+  }
+
+  // 生成 LAYOUT 变量
+  if (tokens.LAYOUT) {
+    css += `  /* Layout Constants */\n`;
+    for (const [key, value] of Object.entries(tokens.LAYOUT)) {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      const cssValue = getCssVarValue(value);
+      css += `  --${cssKey}: ${cssValue};\n`;
+    }
+    css += `\n`;
+  }
+
+  // 生成 ANIMATION 变量
+  if (tokens.ANIMATION) {
+    css += `  /* Animation Tokens */\n`;
+    
+    // Duration
+    if (tokens.ANIMATION.duration) {
+      for (const [key, value] of Object.entries(tokens.ANIMATION.duration)) {
+        const cssValue = getCssVarValue(value);
+        css += `  --transition-${key}: ${cssValue};\n`;
+      }
+    }
+    
+    // Ease
+    if (tokens.ANIMATION.ease) {
+      for (const [key, value] of Object.entries(tokens.ANIMATION.ease)) {
+        const cssValue = getCssVarValue(value);
+        css += `  --ease-${key}: ${cssValue};\n`;
+      }
+    }
+    
+    css += `\n`;
+  }
+
+  // 生成 GLASS 变量
+  if (tokens.GLASS) {
+    css += `  /* Glass Physics System */\n`;
+    for (const [key, value] of Object.entries(tokens.GLASS)) {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      const cssValue = getCssVarValue(value);
+      css += `  --glass-${cssKey}: ${cssValue};\n`;
+    }
+    css += `\n`;
+  }
+
+  // 生成 ICON_SIZES 变量
+  if (tokens.ICON_SIZES) {
+    css += `  /* Icon Sizes */\n`;
+    for (const [key, value] of Object.entries(tokens.ICON_SIZES)) {
+      const cssValue = getCssVarValue(value);
+      css += `  --icon-size-${key}: ${cssValue};\n`;
+    }
+    css += `\n`;
+  }
+
+  // 生成 COLORS 变量
+  if (tokens.COLORS) {
+    css += `  /* Color Primitives */\n`;
+    for (const [key, value] of Object.entries(tokens.COLORS)) {
+      css += `  --c-${key}: ${value};\n`;
+    }
+    css += `\n`;
+  }
 
   css += `}\n`;
-
-  writeFileSync(outputPath, css, 'utf-8');
-  console.log(`✅ Generated ${outputPath}`);
-  console.log(`⚠️  Note: Full TypeScript parsing not implemented yet.`);
-  console.log(`   Please use a build-time generator or manually sync values.`);
-} catch (error) {
-  console.error('❌ Error generating tokens CSS:', error);
-  process.exit(1);
+  return css;
 }
 
+/**
+ * 主函数：使用 tsx 导入 TypeScript 模块
+ */
+async function main() {
+  try {
+    // 创建一个临时脚本文件来导入 tokens
+    const tempScript = `
+import * as tokens from '${tokensPath.replace(/\\/g, '/')}';
+import { writeFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const outputPath = '${outputPath.replace(/\\/g, '/')}';
+
+function getCssVarValue(token) {
+  if (typeof token === 'object' && token !== null) {
+    if ('rem' in token) return \`\${token.rem}rem\`;
+    if ('px' in token) return \`\${token.px}px\`;
+    if ('vh' in token) return \`\${token.vh}vh\`;
+    if ('em' in token) return \`\${token.em}em\`;
+    if ('percent' in token) return \`\${token.percent}%\`;
+    if ('value' in token) return String(token.value);
+    if ('ms' in token) return \`\${token.ms}ms\`;
+    if ('bezier' in token) return \`cubic-bezier(\${token.bezier.join(', ')})\`;
+  }
+  return String(token);
+}
+
+function generateCSS(tokens) {
+  let css = \`/* ========================================
+   AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
+   Generated from: src/design-tokens/tokens.ts
+   Run: npm run generate:tokens
+   ======================================== */
+
+:root {
+\`;
+
+  if (tokens.SPACING) {
+    css += \`  /* Spacing Scale (4px Grid System) */\\n\`;
+    for (const [key, value] of Object.entries(tokens.SPACING)) {
+      const cssKey = key.replace(/\\./g, '_');
+      const cssValue = getCssVarValue(value);
+      css += \`  --space-\${cssKey}: \${cssValue};\\n\`;
+    }
+    css += \`\\n\`;
+  }
+
+  if (tokens.RADIUS) {
+    css += \`  /* Radius Scale (Liquid Conformality) */\\n\`;
+    for (const [key, value] of Object.entries(tokens.RADIUS)) {
+      const cssValue = getCssVarValue(value);
+      css += \`  --radius-\${key}: \${cssValue};\\n\`;
+    }
+    css += \`\\n\`;
+  }
+
+  if (tokens.Z_INDEX) {
+    css += \`  /* Z-Index Scale (Semantic Elevation) */\\n\`;
+    for (const [key, value] of Object.entries(tokens.Z_INDEX)) {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      css += \`  --z-\${cssKey}: \${value};\\n\`;
+    }
+    css += \`\\n\`;
+  }
+
+  if (tokens.LAYOUT) {
+    css += \`  /* Layout Constants */\\n\`;
+    for (const [key, value] of Object.entries(tokens.LAYOUT)) {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      const cssValue = getCssVarValue(value);
+      css += \`  --\${cssKey}: \${cssValue};\\n\`;
+    }
+    css += \`\\n\`;
+  }
+
+  if (tokens.ANIMATION) {
+    css += \`  /* Animation Tokens */\\n\`;
+    if (tokens.ANIMATION.duration) {
+      for (const [key, value] of Object.entries(tokens.ANIMATION.duration)) {
+        const cssValue = getCssVarValue(value);
+        css += \`  --transition-\${key}: \${cssValue};\\n\`;
+      }
+    }
+    if (tokens.ANIMATION.ease) {
+      for (const [key, value] of Object.entries(tokens.ANIMATION.ease)) {
+        const cssValue = getCssVarValue(value);
+        css += \`  --ease-\${key}: \${cssValue};\\n\`;
+      }
+    }
+    css += \`\\n\`;
+  }
+
+  if (tokens.GLASS) {
+    css += \`  /* Glass Physics System */\\n\`;
+    for (const [key, value] of Object.entries(tokens.GLASS)) {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      const cssValue = getCssVarValue(value);
+      css += \`  --glass-\${cssKey}: \${cssValue};\\n\`;
+    }
+    css += \`\\n\`;
+  }
+
+  if (tokens.ICON_SIZES) {
+    css += \`  /* Icon Sizes */\\n\`;
+    for (const [key, value] of Object.entries(tokens.ICON_SIZES)) {
+      const cssValue = getCssVarValue(value);
+      css += \`  --icon-size-\${key}: \${cssValue};\\n\`;
+    }
+    css += \`\\n\`;
+  }
+
+  if (tokens.COLORS) {
+    css += \`  /* Color Primitives */\\n\`;
+    for (const [key, value] of Object.entries(tokens.COLORS)) {
+      css += \`  --c-\${key}: \${value};\\n\`;
+    }
+    css += \`\\n\`;
+  }
+
+  css += \`}\\n\`;
+  return css;
+}
+
+const css = generateCSS(tokens);
+writeFileSync(outputPath, css, 'utf-8');
+console.log('✅ Generated', outputPath);
+`;
+
+    const tempFile = join(projectRoot, 'scripts/bin/.generate-tokens-temp.ts');
+    writeFileSync(tempFile, tempScript, 'utf-8');
+
+    try {
+      // 使用 tsx 执行临时脚本
+      execSync(`npx tsx ${tempFile}`, {
+        stdio: 'inherit',
+        cwd: projectRoot,
+      });
+      
+      // 清理临时文件
+      const { unlinkSync } = await import('fs');
+      unlinkSync(tempFile);
+    } catch (error) {
+      // 清理临时文件
+      try {
+        const { unlinkSync } = await import('fs');
+        unlinkSync(tempFile);
+      } catch (e) {
+        // 忽略清理错误
+      }
+      
+      if (error.message.includes('tsx') || error.message.includes('command not found')) {
+        console.error('❌ tsx is required to generate tokens CSS.');
+        console.error('   Please install: npm install -D tsx');
+        console.error('   Then run: npm run generate:tokens');
+        process.exit(1);
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error generating tokens CSS:', error.message);
+    process.exit(1);
+  }
+}
+
+main();

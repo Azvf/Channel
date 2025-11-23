@@ -9,6 +9,7 @@
  * 2. ESLint 检查（包含自定义规则）
  * 3. 依赖架构检查（dependency-cruiser）
  * 4. Design Tokens 生成（确保 CSS 变量是最新的）
+ * 5. 文档规范检查（lint-docs）
  */
 
 import { execSync } from 'child_process';
@@ -79,6 +80,11 @@ function main() {
       allowFailure: false,
     },
     {
+      command: 'node scripts/bin/lint-docs.js',
+      description: '文档规范检查（严禁硬编码）',
+      allowFailure: false,
+    },
+    {
       command: 'npm run generate:tokens',
       description: '生成 Design Tokens CSS',
       allowFailure: true, // 如果生成脚本未完全实现，允许失败
@@ -99,6 +105,7 @@ function main() {
     log('  - 修复 TypeScript 类型错误: npm run check:type', 'yellow');
     log('  - 修复 ESLint 错误: npm run lint:fix', 'yellow');
     log('  - 修复架构依赖违规: npm run check:arch', 'yellow');
+    log('  - 修复文档规范违规: npm run check:docs', 'yellow');
     process.exit(1);
   }
 }
