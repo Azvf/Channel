@@ -1,6 +1,6 @@
 // src/services/deviceService.ts
 import { supabase } from '../infra/database/supabase';
-import { getDeviceId, getDeviceName } from '../popup/utils/device';
+import { getDeviceId, getDeviceName } from '../shared/utils/device';
 import { queryClient } from '../lib/queryClient';
 import { queryKeys } from '../lib/queryKeys';
 import { logger } from '../infra/logger';

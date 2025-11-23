@@ -49,16 +49,20 @@
 
 ### 1.2 统一时间流速 (Unified Time Flow)
 动效不是装饰，是界面状态变化的物理反馈。CSS 与 JS 必须共享同一套物理常量。
-* **规则**: 严禁使用 `0.2s`, `ease-in-out` 等魔法数值。
+
+* **规则**: 严禁使用 `0.2s`, `ease-in-out` 等魔法数值。所有动画参数必须从 Design Tokens 系统引用。
+
 * **常量映射**:
-    * **微交互 (Hover/Tap)**: `DURATION.FAST` (200ms) + `EASE.SMOOTH`
-    * **布局变更 (List/Size)**: `DURATION.BASE` (300ms) + `EASE.SMOOTH`
-    * **入场/退场 (Modal/Panel)**: `DURATION.SLOW` (400ms) + `EASE.OUT_CUBIC` (Apple式滑入)
+    * **微交互 (Micro-interactions)**: 所有瞬态交互必须使用 `src/design-tokens/tokens.ts` 中定义的 `ANIMATION.duration.fast`。具体的毫秒数值由设计 Token 系统统一管理，禁止在组件中硬编码。
+    * **布局变更 (Layout Changes)**: 使用 `ANIMATION.duration.base` + `ANIMATION.ease.smooth`
+    * **入场/退场 (Modal/Panel)**: 使用 `ANIMATION.duration.slow` + `ANIMATION.ease.outCubic` (Apple式滑入)
+
 * **实现**: 
     * 优先使用 `src/popup/utils/motion.ts` 中的预设变体（Variants）
-    * 动画常量定义在 `src/popup/tokens/animation.ts`
+    * 动画常量定义在 `src/design-tokens/tokens.ts`（单一真理源）
     * 运行时通过 `App.tsx` 将 JS 常量注入到 CSS 变量，确保 CSS 和 Framer Motion 使用同一套时间流速
-    * *Ref: `src/popup/tokens/animation.ts`, `src/popup/App.tsx` (useEffect 同步动画 Token)*
+    * *开发者请参阅 Storybook "Motion" 章节查看当前物理参数配置。*
+    * *Ref: `src/design-tokens/tokens.ts`, `src/popup/tokens/animation.ts` (向后兼容), `src/popup/App.tsx`*
 
 ---
 
@@ -95,16 +99,20 @@
 
 ### 3.1 乐观更新 (Optimistic UI) - **核心军规**
 任何简单的 CRUD 操作（修改标题、添加标签、删除条目），**严禁**等待服务器响应 loading。
+
 * **流程**:
     1.  **Predict (预测)**: 用户触发操作，立即在 UI 上渲染成功后的状态。
     2.  **Render (渲染)**: 界面瞬间变化，不显示 Loading Spinner。
     3.  **Commit (提交)**: 后台静默发送请求。
     4.  **Rollback (回滚)**: 仅在极少数失败情况下，悄悄回滚并提示 Toast。
+
 * **实现**: 
     * 使用 TanStack Query 的 `useMutation` 配合乐观更新模式
     * 通过 `onMutate` 立即更新 UI，`onError` 回滚，`onSettled` 最终同步
     * 数据层通过 `GameplayStore` 管理内存状态，确保 UI 和数据层的一致性
     * *Ref: `src/services/gameplayStore.ts`, TanStack Query 文档*
+
+> **架构守护**: 自定义 ESLint 规则 `require-optimistic-update` 会检测 Mutation Hook 是否缺少 `onMutate` 处理，并在代码审查时提醒开发者。
 
 ### 3.2 缓存优先策略 (Stale-While-Revalidate)
 我们宁愿显示旧数据，也不显示空白屏幕。
@@ -130,15 +138,20 @@
 
 ### 4.1 语义化层级 (Semantic Z-Index)
 严禁在 CSS 中手写 `z-index: 999`。
-* **规则**: 所有层级必须引用 `tokens.css` 中的语义变量。
+
+* **规则**: 所有层级必须引用 Design Tokens 中的语义变量。
     * `--z-base` -> Content
     * `--z-sticky` -> Headers
     * `--z-modal-backdrop` -> Overlays
     * `--z-toast` -> Notifications
+
 * **实现**: 
-    * 所有 z-index 值定义在 `src/popup/styles/tokens.css` 的 `:root` 作用域
+    * 所有 z-index 值定义在 `src/design-tokens/tokens.ts` 的 `Z_INDEX` 对象中（单一真理源）
+    * 通过构建脚本自动生成到 `src/popup/styles/tokens.css`
     * 组件中通过 `var(--z-*)` 引用，确保层级语义清晰
-    * *Ref: `src/popup/styles/tokens.css` (Z-INDEX SCALE 部分)*
+    * *Ref: `src/design-tokens/tokens.ts`, `src/popup/styles/tokens.css`*
+
+> **架构守护**: 自定义 ESLint 规则 `no-raw-z-index` 会检测到魔法数字 z-index 并报错。如果代码中使用 `z-index: 999`，构建将直接失败。
 
 ### 4.2 幽灵滚动条 (Ghost Pill Scrollbar)
 滚动条是工具，不是内容，平时应当隐形。
@@ -150,5 +163,43 @@
 
 ---
 
+## 5. 渲染性能规范 (Rendering Performance)
+
+### 5.1 RAIL 模型性能预算
+
+不要只说"零延迟"。定义具体的性能指标：
+
+* **Response (响应)**: 点击后 < 50ms 必须有视觉反馈（乐观更新）
+* **Animation (动画)**: 每一帧必须在 16.6ms (60fps) 或 8.3ms (120fps) 内完成
+* **Idle (空闲)**: 后台同步任务不得阻塞主线程超过 50ms (Long Task)
+* **Load (加载)**: 首屏交互时间 < 3s
+
+### 5.2 GPU 渲染策略 (Compositing)
+
+浏览器对"毛玻璃" (`backdrop-filter: blur`) 的渲染是非常昂贵的，尤其是在高分辨率屏幕上。
+
+* **合成层策略**: 
+    * 所有 `GlassCard` 组件默认开启 `will-change: transform` 以提升为合成层
+    * 警告：过多的合成层会导致 GPU 显存爆炸（Crash）
+    * **同屏最大玻璃组件数**: 建议不超过 10 个（需根据设备性能调整）
+
+* **性能监控**:
+    * 使用 Chrome DevTools Performance 面板监控 Long Task
+    * 利用 Chrome Tracing 确保关键交互没有引起意外的 Layout Thrashing (重排)
+    * 视觉回归测试：使用 Playwright 截图对比，确保关键交互没有引起渲染性能退化
+
+### 5.3 视觉回归测试
+
+* 使用 Playwright 进行视觉回归测试
+* 关键组件必须通过视觉回归测试
+* 运行: `npm run test:ct` (包含视觉回归)
+
+---
+
 **执行建议**:
-请所有开发者在提交代码审查 (PR) 前，对照此手册进行自查。任何违反“乐观更新”或“硬编码动画数值”的代码，原则上不予通过。这不仅是代码规范，更是我们对用户的承诺。
+请所有开发者在提交代码审查 (PR) 前，对照此手册进行自查。任何违反"乐观更新"或"硬编码动画数值"的代码，原则上不予通过。这不仅是代码规范，更是我们对用户的承诺。
+
+> **架构守护**: 架构规则已由工具强制执行：
+> - 依赖规则：`dependency-cruiser`
+> - Z-Index 规则：ESLint `no-raw-z-index`
+> - 乐观更新提醒：ESLint `require-optimistic-update`

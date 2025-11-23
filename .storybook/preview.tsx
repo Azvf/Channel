@@ -1,5 +1,5 @@
-import type { Preview } from 'storybook';
-import type { Decorator } from 'storybook/react';
+import type { Preview } from '@storybook/react';
+import type { Decorator } from '@storybook/react';
 
 import { AppProvider } from '../src/popup/context/AppContext';
 import { setupStorybookMocks } from '../src/popup/mocks/storybookMocks';
@@ -7,7 +7,7 @@ import '../src/popup/index.css';
 
 setupStorybookMocks();
 
-const withAppProvider: Decorator = (Story, context) => {
+const withAppProvider: Decorator = (Story: any, context: any) => {
   const content = (
     <div className="min-h-screen bg-[var(--c-bg)] p-6">
       <Story />

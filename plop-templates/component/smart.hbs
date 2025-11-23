@@ -1,0 +1,39 @@
+import React, { useState, useEffect } from 'react';
+import { cn } from '@/popup/utils';
+
+/**
+ * {{name}} 组件的 Props 接口
+ */
+export interface {{name}}Props {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+/**
+ * {{name}}
+ * 
+ * @description 这是一个容器型组件 (Smart Component)，包含业务逻辑和状态管理。
+ * 架构规范：可以包含 useEffect、API 请求、状态管理等。
+ * 
+ * @example
+ * ```tsx
+ * <{{name}} className="custom-class">
+ *   Content
+ * </{{name}}>
+ * ```
+ */
+export const {{name}} = ({ className, children }: {{name}}Props) => {
+  const [state, setState] = useState<unknown>(null);
+
+  useEffect(() => {
+    // TODO: 实现业务逻辑
+  }, []);
+
+  return (
+    <div className={cn('relative', className)}>
+      {children}
+    </div>
+  );
+};
+
+

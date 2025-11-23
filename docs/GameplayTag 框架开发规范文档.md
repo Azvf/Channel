@@ -48,25 +48,75 @@ src/
 
 项目采用严格的分层架构，每层有明确的职责边界：
 
+```mermaid
+graph TB
+    subgraph "视图架构层 (View Architecture)"
+        A[React UI Components]
+        B[Headless Hooks]
+    end
+    
+    subgraph "进程间通信层 (IPC Layer)"
+        C[RPC Client]
+        D[RPC Server]
+    end
+    
+    subgraph "内容感知系统 (Content Perception)"
+        E[Feature Orchestrator]
+        F[Page Detectors]
+    end
+    
+    subgraph "同步与存储引擎 (Sync & Storage)"
+        G[SyncService]
+        H[Repository Pattern]
+    end
+    
+    subgraph "核心领域策略层 (Core Domain)"
+        I[Pure Logic<br/>No Dependencies]
+    end
+    
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    
+    style I fill:#e1f5ff,stroke:#01579b,stroke-width:3px
+    style A fill:#fff4e6,stroke:#e65100
+    style G fill:#f3e5f5,stroke:#4a148c
 ```
-┌─────────────────────────────────────┐
-│  视图架构层 (View Architecture)     │  React UI, Headless Hooks
-├─────────────────────────────────────┤
-│  进程间通信层 (IPC Layer)           │  RPC Protocol, Type Safety
-├─────────────────────────────────────┤
-│  内容感知系统 (Content Perception)  │  Feature Orchestrator, Detectors
-├─────────────────────────────────────┤
-│  同步与存储引擎 (Sync & Storage)    │  SyncService, Repository Pattern
-├─────────────────────────────────────┤
-│  核心领域策略层 (Core Domain)       │  纯逻辑，无依赖
-└─────────────────────────────────────┘
-```
+
+> **架构守护**: 依赖方向规则已由 `dependency-cruiser` 工具强制执行。运行 `npm run check:arch` 检查依赖违规。
 
 ### 1.2 依赖方向规则
 
 - **单向依赖**: 上层可以依赖下层，下层严禁依赖上层
 - **核心层隔离**: `src/core/` 严禁导入 React、Chrome API 或任何 UI 框架
 - **服务层独立**: `src/services/` 可以依赖 `core/` 和 `infra/`，但不能依赖 `popup/` 或 `content/`
+
+#### 1.2.1 架构依赖图
+
+以下 Mermaid 图表展示了系统的分层依赖关系：
+
+```mermaid
+graph TD
+    A[Popup UI Layer] --> B[Service Layer]
+    A --> C[IPC Layer]
+    C --> B
+    B --> D[Core Domain]
+    B --> E[Infrastructure]
+    D -.->|严禁依赖| F[React/Chrome API]
+    E --> D
+    
+    style D fill:#e1f5ff
+    style F fill:#ffcccc
+    style A fill:#fff4e6
+    style B fill:#f3e5f5
+```
+
+> **架构守护**: 依赖规则已由 `dependency-cruiser` 工具强制执行。运行 `npx dependency-cruiser --validate` 检查依赖违规。如果有人在 `src/core` 中 `import React`，构建将直接失败。
 
 ## 2. 核心领域策略层 (Core Domain Strategy Layer)
 
@@ -290,13 +340,15 @@ interface IBackgroundApi {
 }
 ```
 
-#### 5.2.2 类型安全实现
+#### 5.2.3 类型安全实现
 
 - 使用 TypeScript 接口定义请求/响应类型
 - Client 调用时自动类型检查
 - Server 实现时自动类型推断
 
-#### 5.2.3 错误处理
+> **架构守护**: 所有 RPC 接口定义在 `src/shared/rpc-protocol/protocol.ts` 中，通过 TypeScript 类型系统强制类型安全。建议使用 TypeDoc 自动生成 API 文档。
+
+#### 5.2.4 错误处理
 
 **RpcError** - 标准化错误
 
@@ -307,16 +359,13 @@ class RpcError extends Error {
 }
 ```
 
-**实现位置**:
-- RPC 客户端: `src/shared/rpc-protocol/client.ts`
-- RPC 服务端: `src/shared/rpc-protocol/server.ts`
-- 类型定义: `src/shared/rpc-protocol/types.ts`
-
 ### 5.3 实现规范
 
 - 严禁使用 `chrome.runtime.sendMessage` 直接通信
 - 所有跨进程调用必须通过 RPC Client
 - Server 端必须实现完整的错误处理
+
+> **架构守护**: 架构规则已由 `.dependency-cruiser.cjs` 和自定义 ESLint 规则强制执行。违反分层原则的代码将在构建时失败。
 
 ---
 

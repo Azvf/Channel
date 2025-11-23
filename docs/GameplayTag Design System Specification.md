@@ -55,17 +55,21 @@ src/
 
 ### 基础网格 (Grid System)
 
-| Token Variable | Value (rem/px) | Use Case (使用场景) |
-| :--- | :--- | :--- |
-| `--space-0_5` | `0.125rem` (2px) | 微调、边框内间距 |
-| `--space-1` | `0.25rem` (4px) | 极紧凑元素间距 (Tag内部) |
-| `--space-1_5` | `0.375rem` (6px) | 图标与文本间距 |
-| `--space-2` | `0.5rem` (8px) | **标准组件内边距** (Input, Button) |
-| `--space-3` | `0.875rem` (14px) | 列表项间距 |
-| `--space-4` | `1.125rem` (18px) | **标准容器内边距** (Card Padding) |
-| `--space-5` | `1.5rem` (24px) | 模块间距 |
-| `--space-6` | `1.5rem` (24px) | 宽松的模块分割 |
-| `--space-8` | `2rem` (32px) | 大留白 |
+> **架构改进**: 以下数值已迁移到 `src/design-tokens/tokens.ts` 作为单一真理源。具体数值由 Design Tokens 系统统一管理，本文档仅说明语义用途。开发者请直接引用 Token 变量，禁止硬编码像素值。
+
+| Token Variable | Semantic Meaning (语义用途) |
+| :--- | :--- |
+| `--space-0_5` | 微调、边框内间距 |
+| `--space-1` | 极紧凑元素间距 (Tag内部) |
+| `--space-1_5` | 图标与文本间距 |
+| `--space-2` | **标准组件内边距** (Input, Button) |
+| `--space-3` | 列表项间距 |
+| `--space-4` | **标准容器内边距** (Card Padding) |
+| `--space-5` | 模块间距 |
+| `--space-6` | 宽松的模块分割 |
+| `--space-8` | 大留白 |
+
+> **参考**: 具体数值请查看 `src/design-tokens/tokens.ts` 或 Storybook "Design Tokens" 章节。
 
 ### 布局常量 (Layout Constants)
 
@@ -88,15 +92,19 @@ src/
 
 ### 圆角系统 (Radius Scale)
 
-| Token Variable | Value | Visual Metaphor (视觉隐喻) |
-| :--- | :--- | :--- |
-| `--radius-xs` | `8px` | 鹅卵石 (Tag, Checkbox) |
-| `--radius-sm` | `12px` | 内部元素 (List Items) |
-| `--radius-md` | `16px` | **标准容器** (Cards, Inputs) |
-| `--radius-lg` | `24px` | 强调容器 (Dropdowns) |
-| `--radius-xl` | `32px` | 独立面板 (Floating Panels) |
-| `--radius-2xl` | `40px` | **模态框** (Modals) - 像从屏幕升起的气泡 |
-| `--radius-full` | `9999px` | 胶囊 (Buttons, Pills) |
+> **架构改进**: 以下数值已迁移到 `src/design-tokens/tokens.ts`。文档仅说明语义，具体数值由 Token 系统管理。
+
+| Token Variable | Visual Metaphor (视觉隐喻) |
+| :--- | :--- |
+| `--radius-xs` | 鹅卵石 (Tag, Checkbox) |
+| `--radius-sm` | 内部元素 (List Items) |
+| `--radius-md` | **标准容器** (Cards, Inputs) |
+| `--radius-lg` | 强调容器 (Dropdowns) |
+| `--radius-xl` | 独立面板 (Floating Panels) |
+| `--radius-2xl` | **模态框** (Modals) - 像从屏幕升起的气泡 |
+| `--radius-full` | 胶囊 (Buttons, Pills) |
+
+> **参考**: 具体数值请查看 `src/design-tokens/tokens.ts` 或 Storybook "Design Tokens" 章节。
 
 -----
 
@@ -139,16 +147,20 @@ src/
 
 ### 时间单位 (Duration)
 
-  * **Fast (`200ms`):** `--transition-fast` — 微交互 (Hover, Click, Focus)。
-  * **Base (`300ms`):** `--transition-base` — 布局变化 (列表展开, 卡片翻转)。
-  * **Slow (`400ms`):** `--transition-slow` — 场景切换 (Modal 进出)。
-  * **Hero (`700ms`):** `--transition-hero` — 品牌/Logo 出现的优雅动画。
+> **架构改进**: 所有动画常量已迁移到 `src/design-tokens/tokens.ts` 的 `ANIMATION` 对象中。文档仅说明语义用途。
+
+  * **Fast:** `--transition-fast` — 微交互 (Hover, Click, Focus)
+  * **Base:** `--transition-base` — 布局变化 (列表展开, 卡片翻转)
+  * **Slow:** `--transition-slow` — 场景切换 (Modal 进出)
+  * **Hero:** `--transition-hero` — 品牌/Logo 出现的优雅动画
 
 ### 缓动曲线 (Easing)
 
-  * **Smooth:** `cubic-bezier(0.4, 0, 0.2, 1)` — 通用平滑运动 (Google Material/iOS Standard)。
-  * **Glass:** `cubic-bezier(1, 0.0, 0.4, 1)` — 玻璃材质的阻尼感。
-  * **Out Cubic:** `cubic-bezier(0.16, 1, 0.3, 1)` — 更有重量感的滑入 (Apple Style)。
+  * **Smooth:** `--ease-smooth` — 通用平滑运动 (Google Material/iOS Standard)
+  * **Glass:** `--ease-glass` — 玻璃材质的阻尼感
+  * **Out Cubic:** `--ease-out-cubic` — 更有重量感的滑入 (Apple Style)
+
+> **参考**: 具体数值请查看 `src/design-tokens/tokens.ts` 或 Storybook "Motion" 章节。开发者请使用 `DURATION` 和 `EASE` 常量，禁止硬编码毫秒值。
 
 -----
 
@@ -201,9 +213,36 @@ src/
 
 ### 设计师批注 (Designer's Note):
 
-目前的代码实现中，`GlassCard` 组件的 `depthLevel` 逻辑和 `animation.ts` 中的物理常量是整个体验的灵魂。请在后续开发新功能（如"导入/导出"界面）时，严格遵守上述 Token，**不要硬编码任何像素值或颜色值**。
+目前的代码实现中，`GlassCard` 组件的 `depthLevel` 逻辑和 Design Tokens 系统中的物理常量是整个体验的灵魂。请在后续开发新功能（如"导入/导出"界面）时，严格遵守上述 Token，**不要硬编码任何像素值或颜色值**。
 
 如果在实现过程中发现现有 Token 无法满足需求，请先与我沟通，我们将讨论是否扩展系统，而不是创造一次性的样式 (One-off styles)。
+
+---
+
+## 9. 架构改进说明 (Architecture Improvements)
+
+### 9.1 Design Tokens 单一真理源
+
+所有设计值（间距、圆角、颜色、动画等）现在统一管理在 `src/design-tokens/tokens.ts` 中。这是整个设计系统的唯一真理源。
+
+* **优势**:
+  * 类型安全：TypeScript 类型检查
+  * 可测试：Token 值可以通过单元测试验证
+  * 自动同步：通过构建脚本自动生成 CSS 变量
+  * 文档自动更新：Token 变更时，文档只需更新语义说明，无需更新具体数值
+
+* **使用方式**:
+  * 在 TypeScript 代码中：`import { SPACING, RADIUS, ANIMATION } from '@/design-tokens/tokens'`
+  * 在 CSS 中：`var(--space-4)`, `var(--radius-md)`, `var(--transition-fast)`
+
+### 9.2 文档结构优化
+
+本文档已重构为**稳定层（Principles）**和**易变层（Reference）**：
+
+* **稳定层**: 设计原则、语义说明（极少变动）
+* **易变层**: 具体数值（指向 Token 系统或 Storybook）
+
+这样，即使 Token 值发生变化，文档的语义说明依然准确。
 
 ---
 

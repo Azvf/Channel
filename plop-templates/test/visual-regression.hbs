@@ -1,0 +1,38 @@
+import { test, expect } from '@playwright/experimental-ct-react';
+import { {{name}} } from '@/popup/components/{{name}}';
+
+/**
+ * {{name}} 组件视觉回归测试
+ * 
+ * 测试目标：
+ * 1. 确保组件在不同状态下渲染正确
+ * 2. 检测视觉回归（样式变更）
+ * 3. 验证响应式布局
+ */
+test.describe('{{name}} Visual Regression', () => {
+  test('默认状态应该匹配快照', async ({ mount }) => {
+    const component = await mount(
+      <{{name}}>
+        Default Content
+      </{{name}}>
+    );
+
+    await expect(component).toHaveScreenshot('{{name}}-default.png', {
+      threshold: 0.2, // 允许 20% 的像素差异（用于抗锯齿等）
+    });
+  });
+
+  test('自定义样式应该匹配快照', async ({ mount }) => {
+    const component = await mount(
+      <{{name}} className="p-4 bg-surface-glass">
+        Custom Styled Content
+      </{{name}}>
+    );
+
+    await expect(component).toHaveScreenshot('{{name}}-custom.png', {
+      threshold: 0.2,
+    });
+  });
+});
+
+

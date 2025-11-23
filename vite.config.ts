@@ -52,6 +52,11 @@ export default defineConfig(({ mode }) => {
     host: true
   },
   base: './', // Chrome 扩展需要使用相对路径
+  resolve: {
+    alias: {
+      '@': resolve(fileURLToPath(new URL('./src', import.meta.url))),
+    },
+  },
   css: {
     postcss: {
       plugins: [

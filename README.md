@@ -1,31 +1,27 @@
 # GameplayTag Extension
 
-基于 React + TypeScript + Tailwind CSS 构建的 Edge 浏览器插件
+基于 React + TypeScript + Tailwind CSS 构建的 Edge 浏览器插件，提供智能页面标签管理系统。
 
 ## 技术栈
 
 - **React 18** - UI 框架
-- **TypeScript** - 类型安全
-- **Tailwind CSS** - 样式框架
-- **Vite** - 构建工具
+- **TypeScript 5** - 类型安全
+- **Tailwind CSS 3** - 样式框架
+- **Vite 7** - 构建工具
+- **TanStack Query 5** - 状态管理
+- **Framer Motion 12** - 动画引擎
+- **Supabase** - 后端服务（PostgreSQL + Auth）
 - **Chrome Extension Manifest V3** - 插件规范
 
-## 目录结构
+## 快速开始
 
-```
-src/
-├── popup/           # 弹窗界面 (React + TypeScript)
-├── background/      # 后台服务 (Service Worker)
-├── content/         # 内容脚本 (页面注入)
-├── services/        # 核心功能服务
-│   └── tagManager.ts # 标签管理核心逻辑
-├── config/          # 配置管理
-└── types/           # 类型定义
+### 安装依赖
+
+```bash
+npm install
 ```
 
-## 环境配置
-
-在构建之前，需要配置 Supabase 环境变量：
+### 环境配置
 
 1. 复制环境变量示例文件：
 ```bash
@@ -40,71 +36,33 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 这些值可以从 Supabase Dashboard -> Settings -> API 获取。
 
-**重要**：`.env.development` 文件已在 `.gitignore` 中，不会提交到版本控制。
+### 开发密钥配置
 
-## 开发密钥配置
-
-为了在开发环境中使用固定的 Extension ID（便于配置 Supabase 认证），项目使用持久化的开发密钥对。
-
-### 1. 生成开发密钥
-
-首次运行或需要重新生成密钥时：
+首次运行需要生成开发密钥（用于固定 Extension ID）：
 
 ```bash
 node scripts/bin/generate-keys.js
 ```
 
-这会：
-- 在项目根目录生成 `key.development.pem` 私钥文件（已加入 `.gitignore`）
-- 输出 Extension ID 和 Redirect URL
-
-示例输出：
+然后在 Supabase Dashboard -> Authentication -> URL Configuration 中添加重定向 URL：
 ```
-Extension ID: kkjcgpimkjnemndlpihnpccpkjjdjkpg
-Redirect URL: https://kkjcgpimkjnemndlpihnpccpkjjdjkpg.chromiumapp.org/
+https://<你的Extension ID>.chromiumapp.org/
 ```
 
-**注意**：`key.development.pem` 文件包含私钥，请妥善保管。如果是团队协作，需要安全地共享此文件。
-
-### 2. 配置 Supabase 重定向 URL
-
-1. 前往 [Supabase Dashboard](https://app.supabase.com)
-2. 选择你的项目
-3. 进入 **Authentication** -> **URL Configuration**
-4. 在 **Redirect URLs** 中添加：
-   ```
-   https://<你的Extension ID>.chromiumapp.org/
-   ```
-   例如：`https://kkjcgpimkjnemndlpihnpccpkjjdjkpg.chromiumapp.org/`
-
-### 3. 验证密钥注入
-
-开发构建时，Vite 会自动将公钥注入到 `dist/manifest.json` 的 `key` 字段中，确保 Extension ID 固定。
-
-验证注入状态：
-```bash
-node scripts/bin/generate-keys.js --verify
-```
-
-### 工作原理
-
-- **开发模式**（`npm run build:dev`）：自动注入 `key` 字段到 `dist/manifest.json`
-- **生产模式**（`npm run build`）：不注入 `key` 字段，使用 Chrome 自动生成的 ID
-- 源文件 `manifest.json` 不包含 `key` 字段，只在构建时动态注入
-
-## 构建
+### 开发
 
 ```bash
-# 安装依赖
-npm install
-
 # 开发模式（监听文件变化）
 npm run dev
 
 # 开发构建
 npm run build:dev
+```
 
-# 生产构建
+### 构建
+
+```bash
+# 生产构建（自动执行架构检查）
 npm run build
 
 # 生产构建（含代码混淆保护）
@@ -113,24 +71,73 @@ npm run build:prod
 
 构建输出到 `dist/` 目录，在 Edge 中加载该目录即可。
 
-**注意**：如果没有配置环境变量，构建后的扩展在加载时会报错：
-- `Service worker registration failed. Status code: 15`
-- `Supabase URL or Key is missing`
+## 架构守护
 
-这是因为 Supabase 客户端在初始化时需要这些环境变量。
+项目采用**"代码即文档"**和**"工具强制"**的理念，所有架构规范由工具强制执行。
+
+### 自动构建时检查
+
+运行 `npm run build` 时会自动执行：
+
+- ✅ **TypeScript 类型检查** - 确保类型安全
+- ✅ **ESLint 检查** - 代码风格和自定义规则
+- ✅ **依赖架构检查** - 使用 `dependency-cruiser` 验证分层架构
+- ✅ **Design Tokens 生成** - 确保设计系统单一真理源
+
+如果任何检查失败，构建将停止。这确保了生产代码始终符合架构规范。
+
+### 自定义 ESLint 规则
+
+- `no-raw-z-index`: 禁止魔法数字 z-index，必须使用 `var(--z-*)`
+- `require-optimistic-update`: 提醒为 CRUD 操作实现乐观更新
+
+### 手动运行检查
+
+```bash
+# 运行所有预构建检查
+npm run prebuild:checks
+
+# 单独运行检查
+npm run type-check    # TypeScript 类型检查
+npm run lint          # ESLint 检查
+npm run check:arch    # 依赖架构检查
+```
+
+> 详细说明请查看 [docs/构建时架构检查说明.md](./docs/构建时架构检查说明.md)
+
+## 项目结构
+
+```
+src/
+├── core/              # 核心领域逻辑（纯逻辑，无依赖）
+│   ├── strategies/    # 业务策略（数据合并、查询构建等）
+│   └── config/        # 配置管理
+├── services/          # 服务层（业务逻辑编排）
+│   ├── gameplayStore.ts   # 标签管理核心逻辑
+│   ├── syncService.ts     # 数据同步服务
+│   └── storageService.ts  # 存储服务
+├── infra/             # 基础设施层
+│   ├── database/      # 数据访问层 (Chrome Storage + Supabase)
+│   └── logger/        # 日志服务
+├── shared/            # 共享代码
+│   ├── types/         # 类型定义
+│   ├── utils/         # 工具函数
+│   └── rpc-protocol/  # RPC 通信协议
+├── popup/             # 弹窗界面 (React UI)
+├── background/        # Service Worker (后台服务)
+├── content/           # Content Scripts (页面注入)
+└── design-tokens/     # Design Tokens 单一真理源
+```
 
 ## 核心功能
 
-保留了以下底层核心功能模块：
-- TagManager - 标签管理系统
-- Logger - 日志服务
-- ConfigService - 配置管理
-- Background Service Worker - 后台服务
-- Content Scripts - 内容脚本注入
+- **标签管理系统** - 基于 Unreal Engine GameplayTag 设计
+- **数据同步** - 本地优先，自动同步到云端
+- **乐观更新** - 零延迟的用户体验
+- **深度感知毛玻璃系统** - 物理感视觉设计
+- **无障碍支持** - 完整的键盘导航和屏幕阅读器支持
 
 ## 测试
-
-项目配置了完整的自动化测试流程：
 
 ### 运行测试
 
@@ -138,31 +145,76 @@ npm run build:prod
 # 运行所有测试
 npm test
 
-# 监听模式运行测试
+# 监听模式
 npm run test:watch
 
 # 生成覆盖率报告
 npm run test:coverage
+
+# 组件测试
+npm run test:ct
+
+# E2E 测试
+npm run test:e2e
+
+# 全量检测
+npm run test:all
 ```
 
 ### 测试覆盖
 
 - ✅ **TagManager** - 74个测试用例，覆盖核心标签管理功能
-- ✅ **Logger** - 完整的日志服务测试，包括性能计时功能
-- 测试覆盖率：TagManager 78%+, Logger 100%
+- ✅ **Logger** - 完整的日志服务测试
+- ✅ **组件测试** - Playwright Component Testing
+- ✅ **E2E 测试** - 关键用户流程测试
 
-### 新功能
+## 文档
 
-- ✅ **导入/导出** - 支持完整的标签和页面数据导入导出，方便在多设备间迁移数据
-  - 覆盖模式：完全替换现有数据
-  - 合并模式：保留现有数据，添加新数据
-  - 详细使用说明请参考 [IMPORT_EXPORT.md](./docs/IMPORT_EXPORT.md)
+项目文档位于 `docs/` 目录，采用**稳定层（Principles）**和**易变层（Reference）**结构：
 
-### CI/CD
+### 核心文档
 
-项目已配置 GitHub Actions 自动化测试流程，每次推送或PR时自动运行：
+- **[文档索引](./docs/文档索引.md)** - 文档结构和使用指南
+- **[框架开发规范](./docs/GameplayTag%20框架开发规范文档.md)** - 分层架构原则和依赖规则
+- **[交互与体验开发手册](./docs/GameplayTag%20交互与体验开发手册.md)** - 乐观更新、物理感、性能规范
+- **[设计系统规范](./docs/GameplayTag%20Design%20System%20Specification.md)** - Design Tokens 和视觉规范
+- **[无障碍与工程化规范](./docs/GameplayTag%20无障碍与工程化规范.md)** - 无障碍标准和测试策略
+
+### 工具文档
+
+- **[构建时架构检查说明](./docs/构建时架构检查说明.md)** - 架构守护工具使用指南
+
+## 开发工作流
+
+### 新功能开发
+
+1. 创建功能分支
+2. 开发前阅读相关文档（框架规范、交互手册等）
+3. 开发时遵循架构规范（由工具自动检查）
+4. 提交前运行 `npm run prebuild:checks` 确保通过所有检查
+5. 创建 PR，CI/CD 会自动运行所有检查
+
+### 代码审查检查清单
+
+- [ ] 遵循分层架构原则（无循环依赖）
+- [ ] 核心层无外部依赖（React、Chrome API）
+- [ ] 所有策略类有单元测试
+- [ ] RPC 调用使用类型安全接口
+- [ ] 同步操作通过 SyncService
+- [ ] UI 组件使用 Headless Hooks 模式
+- [ ] 使用 Design Tokens，无硬编码值
+
+## CI/CD
+
+项目已配置 GitHub Actions 自动化流程，每次推送或 PR 时自动运行：
+
 - Node.js 18.x 和 20.x 双版本测试
-- 类型检查
-- Lint 检查
+- TypeScript 类型检查
+- ESLint 检查（包含自定义规则）
+- 依赖架构检查
 - 测试套件
 - 覆盖率报告
+
+## 许可证
+
+MIT

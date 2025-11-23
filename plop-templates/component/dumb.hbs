@@ -1,0 +1,33 @@
+import React from 'react';
+import { cn } from '@/popup/utils';
+
+/**
+ * {{name}} 组件的 Props 接口
+ */
+export interface {{name}}Props {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+/**
+ * {{name}}
+ * 
+ * @description 这是一个展示型组件 (Dumb Component)，只负责渲染。
+ * 架构规范：严禁包含 useEffect 或 API 请求。
+ * 
+ * @example
+ * ```tsx
+ * <{{name}} className="custom-class">
+ *   Content
+ * </{{name}}>
+ * ```
+ */
+export const {{name}} = ({ className, children }: {{name}}Props) => {
+  return (
+    <div className={cn('relative', className)}>
+      {children}
+    </div>
+  );
+};
+
+

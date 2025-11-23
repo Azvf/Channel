@@ -7,6 +7,7 @@ import { logger } from '../infra/logger';
 import { mergeDataStrategy, mergeTagFields, computeHash, ShadowMap } from '../core/strategies/DataMergeStrategy';
 import { SupabaseQueryBuilder } from '../core/strategies/SupabaseQueryBuilder';
 import { timeService } from './timeService';
+import { toDomainTag, toDBTag, toDomainPage, toDBPage } from '../infra/database/supabase/mapper';
 
 const log = logger('SyncService');
 
@@ -542,38 +543,20 @@ export class SyncService {
       if (tagsError) throw tagsError;
       if (pagesError) throw pagesError;
 
-      // 转换为本地格式（保留 deleted 字段）
+      // 使用 Mapper 转换为领域模型（防腐层）
       const tags: TagsCollection = {};
       if (tagsData) {
         for (const row of tagsData) {
-          tags[row.id] = {
-            id: row.id,
-            name: row.name,
-            description: row.description || undefined,
-            color: row.color || undefined,
-            bindings: row.bindings || [],
-            createdAt: row.created_at || timeService.now(),
-            updatedAt: row.updated_at || timeService.now(),
-            deleted: row.deleted || false,
-          };
+          const domainTag = toDomainTag(row);
+          tags[domainTag.id] = domainTag;
         }
       }
 
       const pages: PageCollection = {};
       if (pagesData) {
         for (const row of pagesData) {
-          pages[row.id] = {
-            id: row.id,
-            url: row.url,
-            title: row.title || '',
-            domain: row.domain || '',
-            tags: row.tags || [],
-            createdAt: row.created_at || timeService.now(),
-            updatedAt: row.updated_at || timeService.now(),
-            favicon: row.favicon || undefined,
-            description: row.description || undefined,
-            deleted: row.deleted || false,
-          };
+          const domainPage = toDomainPage(row);
+          pages[domainPage.id] = domainPage;
         }
       }
 
@@ -612,22 +595,13 @@ export class SyncService {
       return;
     }
 
-    const { error } = await supabase.from('tags').upsert(
-      {
-        id: tag.id,
-        user_id: userId,
-        name: tag.name,
-        description: tag.description || null,
-        color: tag.color || null,
-        bindings: tag.bindings || [],
-        created_at: tag.createdAt,
-        updated_at: tag.updatedAt,
-        deleted: false, // 确保创建/更新时 deleted = false
-      },
-      {
-        onConflict: 'id,user_id',
-      },
-    );
+    // 使用 Mapper 转换为数据库格式
+    const dbTag = toDBTag(tag, userId);
+    dbTag.deleted = false; // 确保创建/更新时 deleted = false
+    
+    const { error } = await supabase.from('tags').upsert(dbTag, {
+      onConflict: 'id,user_id',
+    });
 
     if (error) throw error;
   }
@@ -659,24 +633,13 @@ export class SyncService {
       return;
     }
 
-    const { error } = await supabase.from('pages').upsert(
-      {
-        id: page.id,
-        user_id: userId,
-        url: page.url,
-        title: page.title,
-        domain: page.domain,
-        tags: page.tags || [],
-        created_at: page.createdAt,
-        updated_at: page.updatedAt,
-        favicon: page.favicon || null,
-        description: page.description || null,
-        deleted: false, // 确保创建/更新时 deleted = false
-      },
-      {
-        onConflict: 'id,user_id',
-      },
-    );
+    // 使用 Mapper 转换为数据库格式
+    const dbPage = toDBPage(page, userId);
+    dbPage.deleted = false; // 确保创建/更新时 deleted = false
+    
+    const { error } = await supabase.from('pages').upsert(dbPage, {
+      onConflict: 'id,user_id',
+    });
 
     if (error) throw error;
   }

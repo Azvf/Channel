@@ -259,9 +259,9 @@ test.describe('StatsWallModal - Tooltip 交互', () => {
     // tooltip 应该消失（验证方式：检查 tooltip 不存在或不可见）
     const tooltip = page.locator('text=/items on/i');
     // 由于 tooltip 可能已经移除，我们检查它不应该在可见状态
-    const isVisible = await tooltip.first().isVisible().catch(() => false);
     // 这个测试可能不太可靠，因为 tooltip 可能立即消失
     // 我们主要验证没有错误发生
+    await tooltip.first().isVisible().catch(() => false);
   });
 
   test('tooltip 内容包含正确的日期和数量', async ({ mount, page }) => {

@@ -1,0 +1,7 @@
+{
+  "name": "eslint-plugin-gameplaytag",
+  "version": "1.0.0",
+  "description": "Custom ESLint rules for GameplayTag project",
+  "main": "index.js"
+}
+

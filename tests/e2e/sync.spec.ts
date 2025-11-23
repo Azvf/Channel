@@ -1,4 +1,4 @@
-import { test, expect, BrowserContext } from '@playwright/test';
+import { test, BrowserContext } from '@playwright/test';
 
 /**
  * E2E 测试 - 多设备同步
@@ -75,7 +75,7 @@ async function getExtensionUrl(context: BrowserContext): Promise<string> {
 }
 
 test.describe('E2E 多设备同步测试', () => {
-  test.beforeEach(async ({ context }) => {
+  test.beforeEach(async () => {
     // 等待扩展加载完成
     // 扩展会在 context 创建时自动加载（通过 playwright.config.ts 配置）
     await new Promise(resolve => setTimeout(resolve, 1000));
