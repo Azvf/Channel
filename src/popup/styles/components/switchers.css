@@ -331,9 +331,20 @@ body[data-edit-dialog-open] .theme-switcher-container {
   height: var(--control-height-lg);
   /* [Refactor] 0.4rem -> var(--space-2) */
   padding: var(--space-2);
+  /* [Design] 定义覆盖层间距变量，使用语义化变量确保与选项内容区域对齐 */
+  /* 底部间距略大于顶部，让覆盖层略微下移以更好地对齐选项内容 */
+  --tab-switcher-overlay-inset-top: var(--space-0_5);
+  --tab-switcher-overlay-inset-bottom: var(--space-0_5);
+  --tab-switcher-overlay-inset-horizontal: var(--space-0_5);
+  /* [Refactor] 统一使用标准玻璃背景 Token，与 ExpandableSwitcher 保持一致 */
+  background-color: var(--bg-surface-glass);
   /* [Refactor] blur(8px) -> var(--glass-blur-base) (12px)，统一磨砂质感 */
   backdrop-filter: blur(var(--glass-blur-base)) url(#tab-switcher) saturate(var(--saturation));
   -webkit-backdrop-filter: blur(var(--glass-blur-base)) saturate(var(--saturation));
+  /* [Refactor] 使用组件级阴影 Token，与 ExpandableSwitcher 保持一致 */
+  box-shadow: var(--shadow-switcher-track);
+  transition: background-color var(--transition-slow) var(--ease-glass),
+              box-shadow var(--transition-slow) var(--ease-glass);
 }
 
 .tab-switcher .switcher__option {
@@ -380,7 +391,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .tab-switcher .switcher__label {
-  transition: color var(--transition-fast);
+  transition: color var(--transition-fast) var(--ease-smooth);
   pointer-events: none;
 }
 
@@ -388,47 +399,69 @@ body[data-edit-dialog-open] .theme-switcher-container {
   content: '';
   position: absolute;
   display: block;
-  /* [Refactor] 0.8rem -> var(--space-4), 0.4rem -> var(--space-2) */
-  width: calc((100% - var(--space-4)) / 2);
-  left: var(--space-2);
-  top: var(--space-2);
-  height: calc(100% - var(--space-4));
+  /* [Design] 使用语义化变量设置垂直间距，确保覆盖层与选项内容区域对齐 */
+  /* 顶部间距：var(--space-0_5)，底部间距：var(--space-1)（略微下移以对齐内容） */
+  top: var(--tab-switcher-overlay-inset-top);
+  bottom: var(--tab-switcher-overlay-inset-bottom);
+  /* [Design] 水平位置和宽度：每个 option 占 50%，减去左右各 var(--space-0_5) 的间距 */
+  left: var(--tab-switcher-overlay-inset-horizontal);
+  width: calc(50% - var(--space-0_5));
   /* [Design] Liquid Conformality: 使用语义化变量，替代硬编码的 99em */
   border-radius: var(--radius-full);
-  /* [Refactor] 18% mix -> var(--bg-surface-glass-hover) (15%)，统一使用语义化 Token */
-  background-color: var(--bg-surface-glass-hover);
-  z-index: -1;
+  /* [Fix] 使用 var(--bg-surface-glass-active) (20%) 以匹配激活状态，与 ExpandableSwitcher 保持一致 */
+  background-color: var(--bg-surface-glass-active);
+  /* [Fix] 使用 var(--z-base) 而不是 -1，确保 glass 效果在内容之上，与 ExpandableSwitcher 保持一致 */
+  z-index: var(--z-base);
   box-sizing: border-box;
-  /* [Refactor] 使用组件级阴影 Token */
-  box-shadow: var(--shadow-switcher-tab-track);
-  transition: left var(--transition-slow) var(--ease-smooth),
+  /* [Fix] 添加 backdrop-filter 效果以匹配 ExpandableSwitcher 的玻璃态 */
+  backdrop-filter: blur(var(--glass-blur-base)) url(#tab-switcher) saturate(var(--saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur-base)) saturate(var(--saturation));
+  /* [Fix] 使用组件级阴影 Token，与 ExpandableSwitcher 保持一致 */
+  box-shadow: var(--shadow-glass-button-inner);
+  transition: top var(--transition-base) var(--ease-smooth),
+              bottom var(--transition-base) var(--ease-smooth),
+              left var(--transition-slow) var(--ease-smooth),
               translate var(--transition-slow) var(--ease-smooth),
+              width var(--transition-base) var(--ease-smooth),
               background-color var(--transition-slow) var(--ease-glass),
-              box-shadow var(--transition-slow) var(--ease-glass);
-  will-change: left, translate;
+              box-shadow var(--transition-slow) var(--ease-glass),
+              backdrop-filter var(--transition-slow) var(--ease-glass);
+  will-change: top, bottom, left, translate, width;
 }
 
 .tab-switcher:has(input[data-option="1"]:checked)::after,
 .tab-switcher:has(input[data-option="2"]:checked)::after {
-  /* [Refactor] 0.8rem -> var(--space-4) */
-  width: calc((100% - var(--space-4)) / 2);
+  /* [Design] 参考 ExpandableSwitcher 的设计，使用 translate 而不是 left 来移动 */
+  /* 宽度保持为每个 option 的宽度，与基础样式保持一致 */
+  width: calc(50% - var(--space-0_5));
+  /* [Design] 使用语义化变量确保垂直对齐 */
+  top: var(--tab-switcher-overlay-inset-top);
+  bottom: var(--tab-switcher-overlay-inset-bottom);
   translate: 0 0;
-  transition: left var(--transition-slow) var(--ease-smooth),
-              width var(--transition-slow) var(--ease-smooth),
+  transition: top var(--transition-base) var(--ease-smooth),
+              bottom var(--transition-base) var(--ease-smooth),
+              left var(--transition-slow) var(--ease-smooth),
+              width var(--transition-base) var(--ease-smooth),
               translate var(--transition-slow) var(--ease-smooth),
               background-color var(--transition-slow) var(--ease-glass),
-              box-shadow var(--transition-slow) var(--ease-glass);
+              box-shadow var(--transition-slow) var(--ease-glass),
+              backdrop-filter var(--transition-slow) var(--ease-glass);
 }
 
 .tab-switcher:has(input[data-option="1"]:checked)::after {
-  /* [Refactor] 0.4rem -> var(--space-2) */
-  left: var(--space-2);
+  /* [Design] 第一个 tab：从左侧偏移使用语义化变量，translate 为 0 */
+  left: var(--tab-switcher-overlay-inset-horizontal);
+  translate: 0 0;
   transform-origin: right;
 }
 
 .tab-switcher:has(input[data-option="2"]:checked)::after {
-  /* [Refactor] 0.8rem -> var(--space-4), 0.4rem -> var(--space-2) */
-  left: calc((100% - var(--space-4)) / 2 + var(--space-2));
+  /* [Design] 第二个 tab：移动到右侧，使用基于覆盖层自身宽度的 translate 计算 */
+  /* 覆盖层宽度是 calc(50% - var(--space-0_5))，约等于容器宽度的 50% */
+  /* 要移动到第二个选项（容器宽度的 50% 位置），需要移动覆盖层自身宽度的 100% */
+  /* 这样覆盖层左边缘会从 var(--tab-switcher-overlay-inset-horizontal) 移动到 50% 位置，精确对齐第二个选项 */
+  left: var(--tab-switcher-overlay-inset-horizontal);
+  translate: 100% 0;
   transform-origin: left;
 }
 
