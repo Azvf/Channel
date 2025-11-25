@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent, KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { FunctionalModal } from "./FunctionalModal";
 import { GlassCard } from "./GlassCard";
-import { ModalHeader } from "./ModalHeader";
 import { GlassInput } from "./GlassInput";
 import { currentPageService } from "../../services/popup/currentPageService";
 import { GameplayTag } from "../../shared/types/gameplayTag";
@@ -208,133 +207,100 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
     }
   };
 
-  // --- Variants ---
-  const backdropVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
-  const modalVariants = { hidden: { opacity: 0, scale: 0.95, y: 20 }, visible: { opacity: 1, scale: 1, y: 0 } };
-
-  return createPortal(
+  return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center p-4"
-            style={{
-              // [Refactor] 使用明确的 Backdrop 层级
-              zIndex: "var(--z-modal-backdrop)",
-              // [Refactor] Tokenized Backdrop
-              background: "var(--bg-surface-glass-active)", 
-              backdropFilter: "blur(var(--glass-blur-base))",
-            }}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            variants={backdropVariants}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            onClick={() => {
-              setMenuTargetId(null);
-              onClose();
-            }}
-          >
-            <motion.div
-              className="w-full"
-              variants={modalVariants}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              onClick={(e) => e.stopPropagation()}
-              style={{ 
-                maxWidth: "var(--modal-max-width)", 
-                // [Refactor] 使用标准模态框高度 Token
-                maxHeight: "var(--modal-max-height)", 
-                display: "flex" 
-              }}
-            >
-              <GlassCard className="flex flex-col" depthLevel={10} style={{ width: "100%", maxHeight: "var(--modal-max-height)", padding: "var(--space-5)" }}>
-                <ModalHeader title="Tag Library" onClose={onClose} />
+      <FunctionalModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Tag Library"
+        onBackdropClick={() => {
+          setMenuTargetId(null);
+          onClose();
+        }}
+        glassCardStyle={{
+          padding: "var(--space-5)",
+        }}
+        contentStyle={{
+          paddingRight: "var(--space-2)",
+          marginTop: "var(--space-4)",
+        }}
+      >
+        {/* Search Input */}
+        <div className="mb-4">
+          <GlassInput
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search tags..."
+            autoFocus={isOpen}
+            disabled={loading && tags.length === 0}
+          />
+        </div>
 
-                <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, paddingRight: "var(--space-2)", marginTop: "var(--space-4)" }}>
-                  {/* Search Input */}
-                  <div className="mb-4">
-                    <GlassInput
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={handleSearchKeyDown}
-                      placeholder="Search tags..."
-                      autoFocus={isOpen}
-                      disabled={loading && tags.length === 0}
-                    />
-                  </div>
+        <div className="space-y-1">
+          <AnimatePresence>
+            {canCreate && (
+              <motion.div
+                key="create-tag-row"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+              >
+                <GlassCard
+                  className="p-3 mb-2 cursor-pointer"
+                  onClick={handleCreateTag}
+                  style={{
+                    opacity: isCreating ? 'var(--opacity-loading)' : 1,
+                    cursor: isCreating ? "wait" : "pointer",
+                    border: "1px solid var(--border-action-subtle)",
+                    padding: "var(--space-3)",
+                    borderRadius: "var(--radius-md)"
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isCreating) return;
+                    e.currentTarget.style.background = "var(--bg-surface-glass-hover)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (isCreating) return;
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <span style={{ color: "var(--color-text-action)", fontWeight: 500, font: "var(--font-body)" }}>
+                    {isCreating ? "Creating..." : `+ Create "${trimmedQuery}"`}
+                  </span>
+                </GlassCard>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-                  <div className="space-y-1">
-                    <AnimatePresence>
-                      {canCreate && (
-                        <motion.div
-                          key="create-tag-row"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                        >
-                          <GlassCard
-                            className="p-3 mb-2 cursor-pointer"
-                            onClick={handleCreateTag}
-                            // 不需要 depthLevel，这是内部列表项
-                            style={{
-                              // [Refactor] 使用标准透明度 Token
-                              opacity: isCreating ? 'var(--opacity-loading)' : 1,
-                              cursor: isCreating ? "wait" : "pointer",
-                              // [Refactor] 使用 Action Border
-                              border: "1px solid var(--border-action-subtle)",
-                              padding: "var(--space-3)",
-                              borderRadius: "var(--radius-md)"
-                            }}
-                            onMouseEnter={(e) => {
-                              if (isCreating) return;
-                              e.currentTarget.style.background = "var(--bg-surface-glass-hover)";
-                            }}
-                            onMouseLeave={(e) => {
-                              if (isCreating) return;
-                              e.currentTarget.style.background = "transparent";
-                            }}
-                          >
-                            <span style={{ color: "var(--color-text-action)", fontWeight: 500, font: "var(--font-body)" }}>
-                              {isCreating ? "Creating..." : `+ Create "${trimmedQuery}"`}
-                            </span>
-                          </GlassCard>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-
-                    {loading && tags.length === 0 ? (
-                      <div style={{ color: "var(--color-text-secondary)", textAlign: "center", padding: "var(--space-8)" }}>
-                        Loading...
-                      </div>
-                    ) : filteredTags.length === 0 && !canCreate ? (
-                      <div style={{ color: "var(--color-text-tertiary)", textAlign: "center", padding: "var(--space-8)" }}>
-                        {searchQuery ? "No tags found" : "Library is empty"}
-                      </div>
-                    ) : (
-                      filteredTags.map((tag) => (
-                        <TagRow
-                          key={tag.id}
-                          tag={tag}
-                          isEditing={editingTag?.id === tag.id}
-                          editValue={editValue}
-                          usageCount={usageCounts[tag.id] || 0}
-                          onEditValueChange={setEditValue}
-                          onSaveEdit={handleSaveEdit}
-                          onCancelEdit={() => { setEditingTag(null); setEditValue(""); }}
-                          onEditTag={handleEditTag}
-                          onDeleteTag={() => handleDeleteTag(tag.id)}
-                          onOpenMenu={handleOpenMenu}
-                          setMenuButtonRef={setMenuButtonRef}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              </GlassCard>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {loading && tags.length === 0 ? (
+            <div style={{ color: "var(--color-text-secondary)", textAlign: "center", padding: "var(--space-8)" }}>
+              Loading...
+            </div>
+          ) : filteredTags.length === 0 && !canCreate ? (
+            <div style={{ color: "var(--color-text-tertiary)", textAlign: "center", padding: "var(--space-8)" }}>
+              {searchQuery ? "No tags found" : "Library is empty"}
+            </div>
+          ) : (
+            filteredTags.map((tag) => (
+              <TagRow
+                key={tag.id}
+                tag={tag}
+                isEditing={editingTag?.id === tag.id}
+                editValue={editValue}
+                usageCount={usageCounts[tag.id] || 0}
+                onEditValueChange={setEditValue}
+                onSaveEdit={handleSaveEdit}
+                onCancelEdit={() => { setEditingTag(null); setEditValue(""); }}
+                onEditTag={handleEditTag}
+                onDeleteTag={() => handleDeleteTag(tag.id)}
+                onOpenMenu={handleOpenMenu}
+                setMenuButtonRef={setMenuButtonRef}
+              />
+            ))
+          )}
+        </div>
+      </FunctionalModal>
 
       <TagContextMenu
         isOpen={menuTargetId !== null}
@@ -359,7 +325,6 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
       >
         {alertState?.children}
       </AlertModal>
-    </>,
-    document.body
+    </>
   );
 }

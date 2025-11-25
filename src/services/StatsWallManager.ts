@@ -1,14 +1,16 @@
 // Stats Wall 管理器 - 应用层服务
 import { TaggedPage } from '../shared/types/gameplayTag';
-import { CalendarLayoutInfo, IHeatmapStrategy } from '../shared/types/statsWall';
+import { CalendarLayoutInfo, IHeatmapStrategy, IDateRangeStrategy } from '../shared/types/statsWall';
 import { LinearHeatmapStrategy } from '../core/strategies/LinearHeatmapStrategy';
 import { CalendarGridBuilder } from '../core/strategies/CalendarGridBuilder';
+import { TodayOnlyDateRangeStrategy } from '../core/strategies/DateRangeStrategy';
 import { currentPageService } from './popup/currentPageService';
 
 export class StatsWallManager {
   private static instance: StatsWallManager;
   
   private strategy: IHeatmapStrategy;
+  private dateRangeStrategy: IDateRangeStrategy;
   private gridBuilder: CalendarGridBuilder;
   
   // 简单的内存缓存
@@ -19,6 +21,7 @@ export class StatsWallManager {
   private constructor() {
     // 依赖注入（这里简化为直接实例化）
     this.strategy = new LinearHeatmapStrategy();
+    this.dateRangeStrategy = new TodayOnlyDateRangeStrategy();
     this.gridBuilder = new CalendarGridBuilder();
   }
 
@@ -52,7 +55,7 @@ export class StatsWallManager {
     const levelMap = this.strategy.computeLevels(activityMap);
 
     // 4. 生成网格布局 (Layout Logic)
-    const layoutInfo = this.gridBuilder.build(activityMap, levelMap);
+    const layoutInfo = this.gridBuilder.build(activityMap, levelMap, this.dateRangeStrategy);
 
     // 更新缓存
     this.cache = layoutInfo;
@@ -85,11 +88,17 @@ export class StatsWallManager {
     this.cache = null; // 策略改变，缓存失效
   }
 
+  // 允许运行时切换日期范围策略
+  public setDateRangeStrategy(strategy: IDateRangeStrategy): void {
+    this.dateRangeStrategy = strategy;
+    this.cache = null; // 策略改变，缓存失效
+  }
+
   /**
    * 生成空的日历结构（用于初始渲染，避免闪烁）
    */
   public generateEmptyCalendar(): CalendarLayoutInfo {
-    return this.gridBuilder.build(new Map(), new Map());
+    return this.gridBuilder.build(new Map(), new Map(), this.dateRangeStrategy);
   }
 
   /**
@@ -101,6 +110,7 @@ export class StatsWallManager {
     this.lastFetchTime = 0;
     // 如果 strategy 也是有状态的，也需要重置
     this.strategy = new LinearHeatmapStrategy();
+    this.dateRangeStrategy = new TodayOnlyDateRangeStrategy();
   }
 }
 

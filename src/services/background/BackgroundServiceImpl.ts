@@ -220,7 +220,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     let domain: string;
     try {
       domain = new URL(resolvedUrl).hostname;
-    } catch (error) {
+    } catch (_error) {
       const protocolMatch = resolvedUrl.match(/^([a-z]+):\/\//);
       domain = protocolMatch ? `${protocolMatch[1]}-page` : 'internal-page';
     }

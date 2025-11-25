@@ -1,5 +1,6 @@
 // 日历网格生成器
-import { CalendarLayoutInfo, CalendarCell, ActivityLevel } from '../../shared/types/statsWall';
+import { CalendarLayoutInfo, CalendarCell, ActivityLevel, IDateRangeStrategy } from '../../shared/types/statsWall';
+import { DefaultDateRangeStrategy } from './DateRangeStrategy';
 
 export class CalendarGridBuilder {
   // [CLEANUP] 移除了未使用的 _defaultLookbackDays
@@ -12,10 +13,12 @@ export class CalendarGridBuilder {
    * 生成完整的日历网格数据
    * @param activityMap 日期字符串到计数的映射
    * @param levelMap 日期字符串到等级的映射
+   * @param dateRangeStrategy 可选的日期范围策略，用于过滤日期
    */
   public build(
     activityMap: Map<string, number>,
-    levelMap: Map<string, ActivityLevel>
+    levelMap: Map<string, ActivityLevel>,
+    dateRangeStrategy?: IDateRangeStrategy
   ): CalendarLayoutInfo {
     const cells: CalendarCell[] = [];
     const months: { label: string; colStart: number }[] = [];
@@ -59,10 +62,9 @@ export class CalendarGridBuilder {
 
     // ---------------------------------------------------------
 
-    // 计算结束日期（移动到本周六，保证填满最后一行）
-    const endDate = new Date(today);
-    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-    endDate.setHours(0, 0, 0, 0);
+    // 使用策略计算结束日期（用于网格对齐和计算 totalWeeks）
+    const strategy = dateRangeStrategy || new DefaultDateRangeStrategy();
+    const endDate = strategy.getEndDate(today);
 
     // 预分配数组内存 (微优化)
     // 计算大概的天数差（保留用于将来可能的优化）
@@ -83,6 +85,10 @@ export class CalendarGridBuilder {
 
     while (currentTs <= endTs) {
       const currentDate = new Date(currentTs);
+      
+      // 使用策略判断是否应该包含该日期
+      const shouldInclude = strategy.shouldIncludeDate(currentDate, today);
+      
       // key 格式: YYYY-MM-DD (保持本地时间)
       // 注意：toISOString 会转 UTC，导致日期偏差。
       // 这里使用手动格式化保证本地时间准确性:
@@ -91,34 +97,37 @@ export class CalendarGridBuilder {
       const day = String(currentDate.getDate()).padStart(2, '0');
       const key = `${year}-${month}-${day}`;
       
-      const count = activityMap.get(key) || 0;
-      const level = levelMap.get(key) || 0;
+      // 只对包含的日期生成 cell
+      if (shouldInclude) {
+        const count = activityMap.get(key) || 0;
+        const level = levelMap.get(key) || 0;
 
-      cells.push({
-        id: key,
-        date: currentDate, // 这里保存 Date 对象引用
-        count,
-        level,
-        label: dateStringFormatter.format(currentDate)
-      });
+        cells.push({
+          id: key,
+          date: currentDate, // 这里保存 Date 对象引用
+          count,
+          level,
+          label: dateStringFormatter.format(currentDate)
+        });
 
-      // 处理月份标签逻辑
-      const monthKey = monthFormatter.format(currentDate);
-      if (monthKey !== currentMonthLabel) {
-        currentMonthLabel = monthKey;
-        
-        // 只有当这一天是该周的后面几天（比如周三后），或者是第一周，才显示月份标签
-        // 防止月份标签出现在行末导致拥挤，或者根据需要调整策略
-        // 这里简化策略：如果是新出现的月份，就标记
-        
-        const colStart = currentDate.getDay() === 0 ? currentWeekIndex : currentWeekIndex + 1;
-        
-        // 简单去重，防止同一行出现重复月份（如果一行跨两月）
-        const lastMonth = months[months.length - 1];
-        // 只有当该月的第一天出现在该周的"早期"（比如周日到周三），才在当前周标示
-        // 否则如果在周六换月，标签可能标在下一周
-        if (!lastMonth || lastMonth.label !== monthKey) {
-           months.push({ label: monthKey, colStart });
+        // 处理月份标签逻辑（只对包含的日期生成标签）
+        const monthKey = monthFormatter.format(currentDate);
+        if (monthKey !== currentMonthLabel) {
+          currentMonthLabel = monthKey;
+          
+          // 只有当这一天是该周的后面几天（比如周三后），或者是第一周，才显示月份标签
+          // 防止月份标签出现在行末导致拥挤，或者根据需要调整策略
+          // 这里简化策略：如果是新出现的月份，就标记
+          
+          const colStart = currentDate.getDay() === 0 ? currentWeekIndex : currentWeekIndex + 1;
+          
+          // 简单去重，防止同一行出现重复月份（如果一行跨两月）
+          const lastMonth = months[months.length - 1];
+          // 只有当该月的第一天出现在该周的"早期"（比如周日到周三），才在当前周标示
+          // 否则如果在周六换月，标签可能标在下一周
+          if (!lastMonth || lastMonth.label !== monthKey) {
+             months.push({ label: monthKey, colStart });
+          }
         }
       }
 
@@ -129,10 +138,16 @@ export class CalendarGridBuilder {
       currentTs += oneDayMs;
     }
 
+    // 计算总周数：基于从 startDate 到 endDate 的完整周数
+    // 而不是基于 cells.length，因为某些日期可能被策略过滤掉了
+    const diffTime = endDate.getTime() - startDate.getTime();
+    const diffDays = Math.ceil(diffTime / (24 * 60 * 60 * 1000)) + 1; // +1 因为包含起始日期
+    const totalWeeks = Math.ceil(diffDays / 7);
+
     return {
       cells,
       months,
-      totalWeeks: Math.ceil(cells.length / 7)
+      totalWeeks
     };
   }
 }

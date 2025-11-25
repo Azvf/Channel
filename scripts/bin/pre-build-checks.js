@@ -39,10 +39,15 @@ function runCommand(command, description, allowFailure = false) {
   log('='.repeat(60), 'cyan');
   
   try {
+    // 移除 NO_COLOR 以避免与 FORCE_COLOR 冲突
+    const env = { ...process.env };
+    delete env.NO_COLOR;
+    env.FORCE_COLOR = '1';
+    
     execSync(command, {
       cwd: projectRoot,
       stdio: 'inherit',
-      env: { ...process.env, FORCE_COLOR: '1' },
+      env,
     });
     log(`✅ ${description} - 通过`, 'green');
     return true;

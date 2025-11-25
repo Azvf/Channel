@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from 'framer-motion';
 import { GlassInput } from "./GlassInput";
 import { TagInput } from "./TagInput";
-import { GlassCard } from "./GlassCard";
-import { ModalHeader } from "./ModalHeader";
+import { FunctionalModal } from "./FunctionalModal";
 import { ModalFooter } from "./ModalFooter";
 import { Save } from "lucide-react";
 import { TaggedPage } from "../../shared/types/gameplayTag";
 import { GlassButton } from "./GlassButton";
-import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
 
 interface EditPageDialogProps {
   isOpen: boolean;
@@ -41,7 +37,7 @@ export function EditPageDialog({
   const [editedTitle, setEditedTitle] = useState(page.title);
   const [editedTags, setEditedTags] = useState<string[]>(initialTagNames);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Reset form when page changes or dialog opens
   useEffect(() => {
@@ -72,9 +68,9 @@ export function EditPageDialog({
 
       // 检查元素是否在对话框内（包括header和footer）
       const isInDialog = (target: EventTarget | null): boolean => {
-        if (!target || !dialogRef.current) return false;
+        if (!target || !modalRef.current) return false;
         const element = target as HTMLElement;
-        return dialogRef.current.contains(element) || dialogRef.current === element;
+        return modalRef.current.contains(element) || modalRef.current === element;
       };
 
       // 检查可滚动内容区域是否可以继续滚动
@@ -207,151 +203,77 @@ export function EditPageDialog({
     onClose();
   };
 
-  // 定义与 SettingsModal 一致的 variants（适用于 flex 布局）
-  const backdropVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-  };
-
-  const modalVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: 20 },
-    visible: { opacity: 1, scale: 1, y: 0 },
-  };
-
-  // 合并为一个 modalContent 变量，结构与 SettingsModal 一致
-  const modalContent = (
-    <motion.div
-      // 这是 Backdrop
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{
-        // [Refactor] 使用明确的 Backdrop 层级
-        zIndex: 'var(--z-modal-backdrop)',
-        background: 'var(--bg-surface-glass-active)', // Tokenized
-        backdropFilter: 'blur(var(--glass-blur-base))',
-        margin: 0
-      }}
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      variants={backdropVariants}
-      transition={SMOOTH_TRANSITION} // [Refactor] 使用统一的动画系统
-      onClick={handleCancel} // 点击背景时关闭
-    >
-      <motion.div
-        ref={dialogRef} // ref 移到这里
-        // 这是 Dialog
-        style={{
-          // [Refactor] 使用明确的 Content 层级，确保在 Backdrop 之上
-          zIndex: 'var(--z-modal-content)',
-          width: '100%',
-          maxWidth: 'var(--modal-max-width)', // Tokenized
-          // 使用 padding 代替 calc 宽度
-          margin: 'var(--space-4)', 
-          // [Refactor] 使用标准模态框高度 Token
-          maxHeight: 'var(--modal-max-height)',
-          display: 'flex'
-        }}
-        variants={modalVariants}
-        transition={DIALOG_TRANSITION} // [Refactor] 使用统一的动画系统
-        onClick={(e) => e.stopPropagation()} // 阻止点击弹窗内容时关闭
+  const footer = (
+    <ModalFooter>
+      <GlassButton onClick={handleCancel} variant="secondary">Cancel</GlassButton>
+      <GlassButton 
+        onClick={handleSave} 
+        variant="primary" 
+        icon={<Save className="icon-base" />}
       >
-        <GlassCard 
-          className="overflow-hidden flex flex-col"
-          depthLevel={10}
-          style={{ 
-            width: '100%', 
-            height: 'auto', 
-            maxHeight: '100%',
-            // [Design] Liquid Conformality: 模态框使用 40px 圆角，像从屏幕底部浮出的气泡
-            borderRadius: 'var(--radius-2xl)' // 40px - 覆盖默认的 --radius-xl
-          }}
-        >
-          {/* Header - 使用标准化的 ModalHeader */}
-          <ModalHeader title="Edit Page" onClose={handleCancel} />
-
-          {/* Content - Scrollable */}
-          <div 
-            ref={scrollableContentRef}
-            className="flex-1 overflow-y-auto"
-            style={{ 
-              minHeight: 0, 
-              padding: 'var(--space-3) var(--space-3) var(--space-2)' 
-            }}
-          >
-            <div className="space-y-4">
-              {/* URL Display */}
-              <div>
-                <label style={labelStyle}>URL</label>
-                <div
-                  className="px-2.5 py-1.5 rounded-lg"
-                  style={{
-                    background: 'var(--bg-surface-glass-subtle)',
-                    border: '1px solid var(--border-glass-subtle)',
-                    // [Refactor] 使用标准字体 Token
-                    font: 'var(--font-small)',
-                    color: 'var(--color-text-tertiary)',
-                    fontWeight: 500,
-                    wordBreak: 'break-all',
-                    lineHeight: 1.4
-                  }}
-                >
-                  {page.url}
-                </div>
-              </div>
-
-              {/* Title Input */}
-              <div>
-                <label style={labelStyle}>Title</label>
-                <GlassInput
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  placeholder="Enter page title"
-                  as="textarea"
-                  rows={2}
-                />
-              </div>
-
-              {/* Tags Input */}
-              <div>
-                <label style={labelStyle}>Tags</label>
-                <TagInput
-                  tags={editedTags}
-                  onTagsChange={setEditedTags}
-                  placeholder="Add or remove tags"
-                  suggestions={allSuggestions}
-                  excludeTags={editedTags}
-                  allowCreation={true}
-                  dropdownZIndex="var(--z-tooltip)"
-                />
-              </div>
-            </div>
-          </div>
-
-        {/* Footer - 使用标准化的 ModalFooter */}
-        <ModalFooter>
-          <GlassButton onClick={handleCancel} variant="secondary">Cancel</GlassButton>
-          <GlassButton 
-            onClick={handleSave} 
-            variant="primary" 
-            icon={<Save className="icon-base" />}
-          >
-            Save
-          </GlassButton>
-        </ModalFooter>
-      </GlassCard>
-      </motion.div>
-    </motion.div>
+        Save
+      </GlassButton>
+    </ModalFooter>
   );
 
-  // Portal
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* 只 Portal *一个* 组件 */}
-          {typeof document !== 'undefined' && createPortal(modalContent, document.body)}
-        </>
-      )}
-    </AnimatePresence>
+    <FunctionalModal
+      isOpen={isOpen}
+      onClose={handleCancel}
+      title="Edit Page"
+      footer={footer}
+      modalRef={modalRef}
+      contentRef={scrollableContentRef}
+      contentStyle={{
+        padding: 'var(--space-3) var(--space-3) var(--space-2)',
+      }}
+    >
+      <div className="space-y-4">
+        {/* URL Display */}
+        <div>
+          <label style={labelStyle}>URL</label>
+          <div
+            className="px-2.5 py-1.5 rounded-lg"
+            style={{
+              background: 'var(--bg-surface-glass-subtle)',
+              border: '1px solid var(--border-glass-subtle)',
+              font: 'var(--font-small)',
+              color: 'var(--color-text-tertiary)',
+              fontWeight: 500,
+              wordBreak: 'break-all',
+              lineHeight: 1.4
+            }}
+          >
+            {page.url}
+          </div>
+        </div>
+
+        {/* Title Input */}
+        <div>
+          <label style={labelStyle}>Title</label>
+          <GlassInput
+            value={editedTitle}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            placeholder="Enter page title"
+            as="textarea"
+            rows={2}
+          />
+        </div>
+
+        {/* Tags Input */}
+        <div>
+          <label style={labelStyle}>Tags</label>
+          <TagInput
+            tags={editedTags}
+            onTagsChange={setEditedTags}
+            placeholder="Add or remove tags"
+            suggestions={allSuggestions}
+            excludeTags={editedTags}
+            allowCreation={true}
+            dropdownZIndex="var(--z-tooltip)"
+          />
+        </div>
+      </div>
+    </FunctionalModal>
   );
 }

@@ -88,7 +88,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-surface-glass-active); /* Tokenized backdrop */
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--glass-blur-base)); /* [Refactor] 统一使用 Token，与 BaseModal 保持一致 */
   overflow-y: auto;
   padding: var(--space-4);
 }

@@ -189,7 +189,7 @@ export const testHelpers = {
   async logoutTestAccount(): Promise<void> {
     try {
       await authService.logout();
-    } catch (error) {
+    } catch (_error) {
       // 即使登出失败，也尝试清理本地数据
       await this.clearAllData();
     }

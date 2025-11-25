@@ -76,7 +76,7 @@ describe('TagManager Edge Cases & Error Handling', () => {
       // 尝试创建一个包含特殊字符的标签，触发 ID 生成逻辑
       // 这应该会进入 try-catch 块并打印错误
       store.createTag('测试标签_NoEnv');
-    } catch (e) {
+    } catch (_e) {
       // 我们只关心是否记录了错误
     }
 

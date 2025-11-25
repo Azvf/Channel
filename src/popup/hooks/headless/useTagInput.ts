@@ -212,7 +212,7 @@ export function useTagInput({
   // --- 交互：键盘事件处理 (核心复杂性所在) ---
   const getInputProps = useCallback((userProps?: React.InputHTMLAttributes<HTMLInputElement>) => {
     // 解构 userProps，排除可能冲突的属性
-    const { value: _, onChange: userOnChange, onKeyDown: userOnKeyDown, onFocus: userOnFocus, onClick: userOnClick, placeholder: userPlaceholder, className: userClassName, style: userStyle, ...restUserProps } = userProps || {};
+    const { value: _value, onChange: userOnChange, onKeyDown: userOnKeyDown, onFocus: userOnFocus, onClick: userOnClick, placeholder: userPlaceholder, className: userClassName, style: userStyle, ...restUserProps } = userProps || {};
     
     return {
       ...restUserProps,

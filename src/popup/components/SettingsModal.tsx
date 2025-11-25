@@ -1,13 +1,9 @@
-import React, { useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ChevronRight, Download, Upload, Sun, AppWindow, Video, 
 } from 'lucide-react';
-import { GlassCard } from './GlassCard';
-import { ModalHeader } from './ModalHeader';
+import { FunctionalModal } from './FunctionalModal';
 import { Checkbox } from './ui/checkbox';
-import { ThemeSwitcher } from './ThemeSwitcher';
 import { SettingsGroup } from './SettingsGroup';
 import { SettingsRow } from './SettingsRow';
 import { SettingsSectionTitle } from './SettingsSectionTitle';
@@ -16,11 +12,8 @@ import { usePageSettings } from '../utils/usePageSettings';
 import { DEFAULT_PAGE_SETTINGS } from '../../shared/types/pageSettings';
 import { currentPageService } from '../../services/popup/currentPageService';
 import { AlertModal, type AlertModalProps } from './AlertModal';
-import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from '../utils/motion'; // [Refactor] 使用统一的动画系统
-
-// 复用 Motion Variants
-const backdropVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
-const modalVariants = { hidden: { opacity: 0, scale: 0.95, y: 20 }, visible: { opacity: 1, scale: 1, y: 0 } };
+import { applyThemeToBody } from '../utils/theme';
+import { storageService, STORAGE_KEYS } from '../../services/storageService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -33,6 +26,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   const { settings, updateSyncVideoTimestamp } = usePageSettings(DEFAULT_PAGE_SETTINGS);
   
   // 2. 本地 UI 状态
+  const [theme, setTheme] = useState<string>(initialTheme);
   const [selectedAppIcon, setSelectedAppIcon] = useState<string>('default');
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -40,6 +34,34 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   
   // 3. Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 主题选项配置
+  const themeOptions = [
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'dim', label: 'Dim' },
+  ];
+
+  // 主题切换处理函数
+  const handleThemeChange = async () => {
+    const currentIndex = themeOptions.findIndex(opt => opt.value === theme);
+    const nextIndex = (currentIndex + 1) % themeOptions.length;
+    const newTheme = themeOptions[nextIndex].value;
+    
+    setTheme(newTheme);
+    await storageService.set(STORAGE_KEYS.THEME, newTheme);
+    applyThemeToBody(newTheme);
+  };
+
+  // 获取当前主题显示名称
+  const getCurrentThemeLabel = () => {
+    return themeOptions.find(opt => opt.value === theme)?.label || 'Light';
+  };
+
+  // 同步 initialTheme 的变化
+  useEffect(() => {
+    setTheme(initialTheme);
+  }, [initialTheme]);
 
   // 4. Event Handlers (业务逻辑)
   // 注意：这部分逻辑如果进一步膨胀，可以抽取为 useDataImportExport Hook
@@ -79,7 +101,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error) {
+    } catch (_error) {
       setAlertState({ title: '导出失败', intent: 'destructive', children: '导出数据时发生错误，请重试。', actions: [{ id: 'ok', label: '好的', variant: 'primary', onClick: () => setAlertState(null) }] });
     } finally {
       setIsExporting(false);
@@ -112,136 +134,88 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
     { id: 'ruby', name: 'Ruby' },
   ];
 
-  return createPortal(
+  return (
     <>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center p-4"
-            style={{
-              // [Refactor] 使用明确的 Backdrop 层级
-              zIndex: 'var(--z-modal-backdrop)',
-              // [Refactor] 使用标准遮罩颜色
-              background: 'var(--bg-surface-glass-active)', 
-              backdropFilter: 'blur(var(--glass-blur-base))',
+      <FunctionalModal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Settings"
+        glassCardStyle={{
+          padding: 'var(--space-5)',
+        }}
+        contentClassName="scrollbar-hide"
+        contentStyle={{
+          paddingRight: 'var(--space-2)',
+          marginTop: 'var(--space-4)',
+        }}
+      >
+        {/* 模块化组件: 账户部分 */}
+        <AccountSection />
+
+        <SettingsSectionTitle style={{ marginTop: 0 }}>GENERAL</SettingsSectionTitle>
+        <SettingsGroup>
+          <SettingsRow
+            icon={<Sun className="icon-base" strokeWidth={1.5} />}
+            label="Theme"
+            value={getCurrentThemeLabel()}
+            control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
+            onClick={handleThemeChange}
+          />
+          <SettingsRow
+            icon={<AppWindow className="icon-base" strokeWidth={1.5} />}
+            label="App Icon"
+            value={appIconOptions.find(opt => opt.id === selectedAppIcon)?.name || 'Default'}
+            control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
+            onClick={() => {
+              const currentIndex = appIconOptions.findIndex(opt => opt.id === selectedAppIcon);
+              const nextIndex = (currentIndex + 1) % appIconOptions.length;
+              setSelectedAppIcon(appIconOptions[nextIndex].id);
             }}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-            variants={backdropVariants}
-            transition={SMOOTH_TRANSITION} // [Refactor] 使用统一的动画系统
-            onClick={onClose}
-          >
-            <motion.div
-              className="w-full"
-              variants={modalVariants}
-              transition={DIALOG_TRANSITION} // [Refactor] 使用统一的动画系统
-              onClick={(e) => e.stopPropagation()}
-              style={{ 
-                // [Refactor] 使用明确的 Content 层级，确保在 Backdrop 之上
-                zIndex: 'var(--z-modal-content)',
-                // [Refactor] 使用标准模态框高度 Token
-                maxHeight: 'var(--modal-max-height)', 
-                display: 'flex',
-                maxWidth: 'var(--modal-max-width)' // [Refactor] Tokenized Width
-              }}
-            >
-              <GlassCard 
-                depthLevel={10} // 模态框最高层级
-                style={{ 
-                  width: '100%', 
-                  // [Refactor] 使用标准模态框高度 Token
-                  maxHeight: 'var(--modal-max-height)',
-                  padding: 'var(--space-5)', // 20px
-                  // [Design] Liquid Conformality: 模态框使用 40px 圆角，像从屏幕底部浮出的气泡
-                  borderRadius: 'var(--radius-2xl)' // 40px - 覆盖默认的 --radius-xl
-                }}
-                // GlassCard 现在内部已经没有默认 flex-col，需要手动加上或通过 className
-                className="flex flex-col" 
-              >
-                <ModalHeader title="Settings" onClose={onClose} />
+          />
+          <SettingsRow
+            icon={<Video className="icon-base" strokeWidth={1.5} />}
+            label="Sync Video Timestamp"
+            control={
+              <Checkbox
+                id="sync-video-timestamp"
+                checked={settings.syncVideoTimestamp}
+                onCheckedChange={updateSyncVideoTimestamp}
+              />
+            }
+          />
+        </SettingsGroup>
 
-                <div 
-                  className="flex-1 overflow-y-auto scrollbar-hide" 
-                  style={{ 
-                    minHeight: 0, 
-                    // [Refactor] 使用标准间距
-                    paddingRight: 'var(--space-2)', 
-                    marginTop: 'var(--space-4)' 
-                  }}
-                >
-                  
-                  {/* 模块化组件: 账户部分 */}
-                  <AccountSection />
+        <SettingsSectionTitle>DATA</SettingsSectionTitle>
+        <SettingsGroup>
+          <SettingsRow
+            icon={<Upload className="icon-base" strokeWidth={1.5} />}
+            label="Import Data..."
+            control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+          />
+          <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportData} />
 
-                  <SettingsSectionTitle style={{ marginTop: 0 }}>GENERAL</SettingsSectionTitle>
-                  <SettingsGroup>
-                    <SettingsRow
-                      icon={<Sun className="icon-base" strokeWidth={1.5} />}
-                      label="Theme"
-                      control={<ThemeSwitcher initialTheme={initialTheme} />}
-                    />
-                    <SettingsRow
-                      icon={<AppWindow className="icon-base" strokeWidth={1.5} />}
-                      label="App Icon"
-                      value={appIconOptions.find(opt => opt.id === selectedAppIcon)?.name || 'Default'}
-                      control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
-                      onClick={() => {
-                        const currentIndex = appIconOptions.findIndex(opt => opt.id === selectedAppIcon);
-                        const nextIndex = (currentIndex + 1) % appIconOptions.length;
-                        setSelectedAppIcon(appIconOptions[nextIndex].id);
-                      }}
-                    />
-                    <SettingsRow
-                      icon={<Video className="icon-base" strokeWidth={1.5} />}
-                      label="Sync Video Timestamp"
-                      control={
-                        <Checkbox
-                          id="sync-video-timestamp"
-                          checked={settings.syncVideoTimestamp}
-                          onCheckedChange={updateSyncVideoTimestamp}
-                        />
-                      }
-                    />
-                  </SettingsGroup>
+          <SettingsRow
+            icon={<Download className="icon-base" strokeWidth={1.5} />}
+            label="Export Data..."
+            control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
+            onClick={handleExportData}
+            disabled={isExporting}
+          />
+        </SettingsGroup>
 
-                  <SettingsSectionTitle>DATA</SettingsSectionTitle>
-                  <SettingsGroup>
-                    <SettingsRow
-                      icon={<Upload className="icon-base" strokeWidth={1.5} />}
-                      label="Import Data..."
-                      control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isImporting}
-                    />
-                    <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportData} />
-
-                    <SettingsRow
-                      icon={<Download className="icon-base" strokeWidth={1.5} />}
-                      label="Export Data..."
-                      control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
-                      onClick={handleExportData}
-                      disabled={isExporting}
-                    />
-                  </SettingsGroup>
-
-                  <div className="text-center" style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-2)' }}>
-                    <span style={{ 
-                      color: 'var(--color-text-tertiary)', 
-                      // [Refactor] 使用标准字体 Token
-                      font: 'var(--font-caption)',
-                      letterSpacing: 'var(--letter-spacing-caption)',
-                      fontWeight: 500 
-                    }}>
-                      Version 1.0.0
-                    </span>
-                  </div>
-                </div>
-              </GlassCard>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <div className="text-center" style={{ marginTop: 'var(--space-6)', marginBottom: 'var(--space-2)' }}>
+          <span style={{ 
+            color: 'var(--color-text-tertiary)', 
+            font: 'var(--font-caption)',
+            letterSpacing: 'var(--letter-spacing-caption)',
+            fontWeight: 500 
+          }}>
+            Version 1.0.0
+          </span>
+        </div>
+      </FunctionalModal>
 
       <AlertModal
         isOpen={!!alertState}
@@ -252,7 +226,6 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
       >
         {alertState?.children}
       </AlertModal>
-    </>,
-    document.body
+    </>
   );
 }

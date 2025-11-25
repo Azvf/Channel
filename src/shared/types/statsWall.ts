@@ -30,3 +30,21 @@ export interface IHeatmapStrategy {
   computeLevels(dataMap: Map<string, number>): Map<string, ActivityLevel>;
 }
 
+// 策略接口：用于日期范围过滤
+export interface IDateRangeStrategy {
+  /**
+   * 判断是否应该包含该日期
+   * @param date 要判断的日期
+   * @param today 今天的日期（用于比较）
+   * @returns 是否应该包含该日期
+   */
+  shouldIncludeDate(date: Date, today: Date): boolean;
+  
+  /**
+   * 计算用于网格对齐的结束日期（用于计算 totalWeeks）
+   * @param today 今天的日期
+   * @returns 结束日期
+   */
+  getEndDate(today: Date): Date;
+}
+

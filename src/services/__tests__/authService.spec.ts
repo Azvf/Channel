@@ -59,7 +59,7 @@ describe('AuthService 状态流转测试', () => {
       // 执行登出
       try {
         await authService.logout();
-      } catch (error) {
+      } catch (_error) {
         // 忽略 Supabase 相关的错误（因为我们只测试清理逻辑）
       }
 
@@ -90,7 +90,7 @@ describe('AuthService 状态流转测试', () => {
       // 执行登出
       try {
         await authService.logout();
-      } catch (error) {
+      } catch (_error) {
         // 忽略 Supabase 相关的错误
       }
 
@@ -115,7 +115,7 @@ describe('AuthService 状态流转测试', () => {
       // 执行登出
       try {
         await authService.logout();
-      } catch (error) {
+      } catch (_error) {
         // 忽略 Supabase 相关的错误
       }
 
@@ -168,7 +168,7 @@ describe('AuthService 状态流转测试', () => {
       // 执行登出
       try {
         await authService.logout();
-      } catch (error) {
+      } catch (_error) {
         // 忽略错误
       }
 
