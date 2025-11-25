@@ -36,10 +36,13 @@ export async function getInitializationPromise(): Promise<void> {
       // 读取页面设置（保持加载以初始化存储状态）
       void data[STORAGE_KEYS.PAGE_SETTINGS];
 
-      // 初始化同步服务
-      await syncService.initialize();
+      // ✅ 性能优化：延迟初始化同步服务，不阻塞首次操作
+      // 同步服务在后台异步初始化，允许首次操作立即返回
+      syncService.initialize().catch((error) => {
+        console.warn('Background: SyncService 后台初始化失败（不影响核心功能）:', error);
+      });
 
-      console.log('Background: 初始化完成。');
+      console.log('Background: 核心初始化完成（SyncService 正在后台初始化）。');
     } catch (error) {
       console.error('Background: 初始化失败:', error);
       throw error;

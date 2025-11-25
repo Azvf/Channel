@@ -97,6 +97,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [loadAllData]);
 
   useEffect(() => {
+    // ✅ 性能优化：预热 background service worker
+    // 在首次操作前提前触发初始化，减少首次创建 tag 的延迟
+    const warmupBackground = async () => {
+      try {
+        // 发送一个轻量级请求来预热 background service worker
+        // 这会触发 getInitializationPromise()，让初始化提前完成
+        await currentPageService.getAllTags();
+        console.log('[AppContext] Background service worker 预热完成');
+      } catch (error) {
+        // 预热失败不影响应用启动，只记录日志
+        console.warn('[AppContext] Background 预热失败（不影响功能）:', error);
+      }
+    };
+
+    // 立即启动预热（不等待完成）
+    warmupBackground();
+
     // 1. 初始加载 (非静默)
     loadAllData(false).catch((err) => {
       console.error("Failed to initialize app context:", err);

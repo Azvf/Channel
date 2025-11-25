@@ -76,12 +76,17 @@ export function registerRpcHandler<T extends object>(service: T): void {
           // 3. 确保数据是最新的 (Rehydration)
           await getInitializationPromise();
 
-          // 4. 时间校准 (如果是写入操作)
+          // 4. ✅ 性能优化：异步时间校准 (如果是写入操作)
+          // 时间校准改为 fire-and-forget 模式，不阻塞操作响应
+          // 首次创建tag时使用本地时间，校准在后台进行
           if (isWriteOperation(method)) {
-            await timeService.calibrate().catch(() => {
-              // 校准失败不影响业务，降级使用本地时间
-              console.warn(`[RPC-Server] 时间校准失败，降级使用本地时间 (${method})`);
-            });
+            // 如果还未校准，在后台异步校准（不阻塞）
+            if (!timeService.isCalibrated) {
+              timeService.calibrate().catch(() => {
+                // 校准失败不影响业务，降级使用本地时间
+                console.warn(`[RPC-Server] 时间校准失败，降级使用本地时间 (${method})`);
+              });
+            }
           }
 
           // 5. 执行业务逻辑
