@@ -26,7 +26,7 @@ import { LAYOUT, POSITIONING } from "../utils/layoutConstants";
 import { TaggedPage as TaggedPageType } from "../../shared/types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
 import { SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
-import { getTransition, DURATION } from "../tokens/animation"; // [Refactor] 引入物理引擎
+import { getTransition, DURATION } from "../../design-tokens/animation"; // [Refactor] 引入物理引擎
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
 // 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)

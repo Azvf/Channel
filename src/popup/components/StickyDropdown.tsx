@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { POSITIONING } from "../utils/layoutConstants";
-import { DURATION } from "../tokens/animation"; // [Refactor] 使用统一的动画常量
+import { DURATION } from "../../design-tokens/animation"; // [Refactor] 使用统一的动画常量
 
 // ----------------------------------------------------------------
 // 独立组件: 负责无延迟跟随的下拉菜单容器

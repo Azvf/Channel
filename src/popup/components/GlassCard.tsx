@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { GlassDepthProvider, useGlassDepth } from '../context/GlassDepthContext';
-import { DURATION } from '../tokens/animation'; // [Refactor] 使用统一的动画时间常量
+import { DURATION } from '../../design-tokens/animation'; // [Refactor] 使用统一的动画时间常量
 
 // 让 Props 继承 HTMLAttributes，支持所有标准的 div 属性
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {

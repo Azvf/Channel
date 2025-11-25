@@ -4,7 +4,7 @@ import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { Tooltip } from './Tooltip';
 import { useStatsWall, DayData } from '../hooks/headless/useStatsWall';
-import { DELAY } from '../tokens/animation'; // [Refactor] 使用统一的延迟常量
+import { DELAY } from '../../design-tokens/animation'; // [Refactor] 使用统一的延迟常量
 
 interface StatsWallModalProps {
   isOpen: boolean;

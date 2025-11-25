@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Sun, Moon, Sparkles } from "lucide-react";
 import { applyThemeToBody } from "../utils/theme";
 import { storageService, STORAGE_KEYS } from "../../services/storageService";
-import { DELAY } from "../tokens/animation"; // [Refactor] 使用统一的延迟常量
+import { DELAY } from "../../design-tokens/animation"; // [Refactor] 使用统一的延迟常量
 
 interface ThemeSwitcherProps {
   initialTheme: string;

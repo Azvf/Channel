@@ -1,6 +1,6 @@
 /* ========================================
    AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
-   Generated from: src/design-tokens/tokens.ts
+   Generated from: src/design-tokens/index.ts
    Run: npm run generate:tokens
    ======================================== */
 
@@ -70,7 +70,7 @@
   --transition-hero: 700ms;
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-glass: cubic-bezier(1, 0, 0.4, 1);
-  --ease-outCubic: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-cubic: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.5, 1.5, 0.5, 1);
 
   /* Glass Physics System */

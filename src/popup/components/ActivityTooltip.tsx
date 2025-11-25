@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn } from '../utils/motion';
 import { POSITIONING } from '../utils/layoutConstants';
-import { DURATION } from '../tokens/animation'; // [Refactor] 使用统一的动画常量
+import { DURATION } from '../../design-tokens/animation'; // [Refactor] 使用统一的动画常量
 
 interface ActivityTooltipProps {
   children: React.ReactElement;

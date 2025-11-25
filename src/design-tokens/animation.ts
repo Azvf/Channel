@@ -1,7 +1,7 @@
 /**
- * Animation Physics Layer
+ * Animation System
+ * 动画系统 - 核心时间单位与缓动曲线定义
  * 
- * 核心时间单位与缓动曲线定义
  * 这是整个应用的"物理引擎"，确保 CSS 和 JS (Framer Motion) 运行在统一的时间流速上
  * 
  * Strategy: JS-First, CSS-Derived
@@ -21,6 +21,8 @@ export const DURATION = {
   BASE: 0.3,
   /** 0.4s - 较大的界面切换 (Page transition, Modal) */
   SLOW: 0.4,
+  /** 0.7s - 品牌/Logo 出现的优雅动画 */
+  HERO: 0.7,
 } as const;
 
 /**
@@ -55,15 +57,24 @@ export const EASE = {
   SMOOTH: [0.4, 0, 0.2, 1] as const,
   
   /** 
+   * [1, 0.0, 0.4, 1] - 玻璃材质的阻尼感
+   * 用于玻璃效果过渡
+   * 对应 CSS: --ease-glass
+   */
+  GLASS: [1, 0.0, 0.4, 1] as const,
+  
+  /** 
    * [0.16, 1, 0.3, 1] - 更有"分量"的物理感
    * 用于 Modal 弹窗、Dialog 滑入
    * Apple/Notion 风格的 "easeOutCubic"
+   * 对应 CSS: --ease-out-cubic
    */
   OUT_CUBIC: [0.16, 1, 0.3, 1] as const,
   
   /** 
    * [0.5, 1.5, 0.5, 1] - 机械/回弹感
    * 用于 Toggle、Switch 等需要"反馈感"的交互
+   * 对应 CSS: --ease-spring
    */
   SPRING: [0.5, 1.5, 0.5, 1] as const,
 } as const;
@@ -121,4 +132,29 @@ export function getEaseString(ease: readonly number[]): string {
 export function getDurationMs(duration: number): string {
   return `${duration * 1000}ms`;
 }
+
+/**
+ * 为了向后兼容和生成脚本，导出 ANIMATION 对象格式
+ * 这个格式用于 CSS 生成脚本
+ */
+export const ANIMATION = {
+  duration: {
+    fast: { ms: 200, description: '微交互 (Hover, Click, Focus)' },
+    base: { ms: 300, description: '布局变化 (列表展开, 卡片翻转)' },
+    slow: { ms: 400, description: '场景切换 (Modal 进出)' },
+    hero: { ms: 700, description: '品牌/Logo 出现的优雅动画' },
+  },
+  delay: {
+    none: { ms: 0 },
+    instant: { ms: 100, description: '即时反馈' },
+    short: { ms: 200, description: '短延迟' },
+  },
+  ease: {
+    smooth: { bezier: [0.4, 0, 0.2, 1], description: '通用平滑运动 (Google Material/iOS Standard)' },
+    glass: { bezier: [1, 0.0, 0.4, 1], description: '玻璃材质的阻尼感' },
+    outCubic: { bezier: [0.16, 1, 0.3, 1], description: '更有重量感的滑入 (Apple Style)' },
+    spring: { bezier: [0.5, 1.5, 0.5, 1], description: '机械/回弹感 (Toggle, Switch)' },
+  },
+  renderTick: { ms: 100, description: '一个渲染周期' },
+} as const;
 

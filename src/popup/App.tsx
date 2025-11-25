@@ -8,7 +8,7 @@ import { TagManagementPage } from "./components/TagManagementPage";
 import { storageService, STORAGE_KEYS } from "../services/storageService";
 import { usePageSettings } from "./utils/usePageSettings";
 import type { AppInitialState } from "../services/appInitService";
-import { DURATION, EASE, DELAY, getDurationMs, getEaseString } from "./tokens/animation"; // [Refactor] 引入物理引擎
+import { DURATION, EASE, DELAY, getDurationMs, getEaseString } from "../design-tokens/animation"; // [Refactor] 引入物理引擎
 
 interface AppProps {
   initialState: AppInitialState;

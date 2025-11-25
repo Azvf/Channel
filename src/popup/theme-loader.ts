@@ -8,7 +8,10 @@
     // 1. 立即读取同步的 localStorage
     const theme = localStorage.getItem('theme') || 'light';
     
-    // 2. 定义主题变量 (与 inline script 中一致)
+    // 2. 定义主题变量
+    // 注意：主题变量定义已统一到 src/design-tokens/color.ts 的 THEME_VARS
+    // 但此处保留硬编码，因为此脚本在 React 加载前同步执行，不能导入 TypeScript 模块
+    // 如需修改主题变量，请同时更新 src/design-tokens/color.ts
     const themeVars: Record<string, Record<string, string>> = {
       light: {
         '--c-glass': '#bbbbbc',

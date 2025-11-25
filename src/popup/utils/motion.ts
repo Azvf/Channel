@@ -1,5 +1,5 @@
 import { Transition, Variants } from 'framer-motion';
-import { DURATION, EASE } from '../tokens/animation'; // [Refactor] 引入物理法则
+import { DURATION, EASE } from '../../design-tokens/animation'; // [Refactor] 引入物理法则
 import { SPACE } from './layoutConstants'; // [Refactor] 引入间距常量，保持 JS/CSS 值同步
 
 /**

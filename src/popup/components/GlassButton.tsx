@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, HTMLMotionProps } from 'framer-motion';
-import { getTransition, DURATION } from '../tokens/animation'; // [Refactor] 引入物理引擎
+import { getTransition, DURATION } from '../../design-tokens/animation'; // [Refactor] 引入物理引擎
 
 interface GlassButtonProps extends HTMLMotionProps<"button"> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'destructive';

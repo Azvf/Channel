@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { statsWallManager } from '../../../services/StatsWallManager';
 import { CalendarLayoutInfo } from '../../../shared/types/statsWall';
-import { RENDER_TICK } from '../../tokens/animation'; // [Refactor] 使用统一的渲染周期常量
+import { RENDER_TICK } from '../../../design-tokens/animation'; // [Refactor] 使用统一的渲染周期常量
 
 export interface DayData {
   id: string;

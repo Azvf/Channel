@@ -16,7 +16,7 @@ import { execSync } from 'child_process';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '../..');
-const tokensPath = join(projectRoot, 'src/design-tokens/tokens.ts');
+const tokensPath = join(projectRoot, 'src/design-tokens/index.ts');
 const outputPath = join(projectRoot, 'src/popup/styles/tokens.generated.css');
 
 /**
@@ -42,7 +42,7 @@ function getCssVarValue(token) {
 function generateCSS(tokens) {
   let css = `/* ========================================
    AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
-   Generated from: src/design-tokens/tokens.ts
+   Generated from: src/design-tokens/index.ts
    Run: npm run generate:tokens
    ======================================== */
 
@@ -100,6 +100,7 @@ function generateCSS(tokens) {
       for (const [key, value] of Object.entries(tokens.ANIMATION.duration)) {
         const cssValue = getCssVarValue(value);
         css += `  --transition-${key}: ${cssValue};\n`;
+        // hero 动画已经在上面生成了，不需要重复生成
       }
     }
     
@@ -107,7 +108,9 @@ function generateCSS(tokens) {
     if (tokens.ANIMATION.ease) {
       for (const [key, value] of Object.entries(tokens.ANIMATION.ease)) {
         const cssValue = getCssVarValue(value);
-        css += `  --ease-${key}: ${cssValue};\n`;
+        // 转换 outCubic -> out-cubic
+        const cssKey = key === 'outCubic' ? 'out-cubic' : key;
+        css += `  --ease-${cssKey}: ${cssValue};\n`;
       }
     }
     
@@ -159,7 +162,7 @@ async function main() {
     const outputFileURL = pathToFileURL(outputPath).href;
     
     const tempScript = `
-import * as tokens from '${tokensFileURL}';
+import { TOKENS } from '${tokensFileURL}';
 import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -185,7 +188,7 @@ function getCssVarValue(token) {
 function generateCSS(tokens) {
   let css = \`/* ========================================
    AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
-   Generated from: src/design-tokens/tokens.ts
+   Generated from: src/design-tokens/index.ts
    Run: npm run generate:tokens
    ======================================== */
 
@@ -241,7 +244,8 @@ function generateCSS(tokens) {
     if (tokens.ANIMATION.ease) {
       for (const [key, value] of Object.entries(tokens.ANIMATION.ease)) {
         const cssValue = getCssVarValue(value);
-        css += \`  --ease-\${key}: \${cssValue};\\n\`;
+        const cssKey = key === 'outCubic' ? 'out-cubic' : key;
+        css += \`  --ease-\${cssKey}: \${cssValue};\\n\`;
       }
     }
     css += \`\\n\`;
@@ -278,7 +282,7 @@ function generateCSS(tokens) {
   return css;
 }
 
-const css = generateCSS(tokens);
+const css = generateCSS(TOKENS);
 writeFileSync(outputPath, css, 'utf-8');
 console.log('✅ Generated', outputPath);
 `;
