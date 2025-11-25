@@ -9,8 +9,8 @@
  */
 
 import { writeFileSync, readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { dirname, join, relative } from 'path';
 import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -154,15 +154,19 @@ function generateCSS(tokens) {
 async function main() {
   try {
     // 创建一个临时脚本文件来导入 tokens
+    // 在 Windows 上，使用 file:// URL 来确保路径正确
+    const tokensFileURL = pathToFileURL(tokensPath).href;
+    const outputFileURL = pathToFileURL(outputPath).href;
+    
     const tempScript = `
-import * as tokens from '${tokensPath.replace(/\\/g, '/')}';
+import * as tokens from '${tokensFileURL}';
 import { writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const outputPath = '${outputPath.replace(/\\/g, '/')}';
+const outputPath = fileURLToPath('${outputFileURL}');
 
 function getCssVarValue(token) {
   if (typeof token === 'object' && token !== null) {
@@ -284,9 +288,17 @@ console.log('✅ Generated', outputPath);
 
     try {
       // 使用 tsx 执行临时脚本
-      execSync(`npx tsx ${tempFile}`, {
+      // 使用相对路径以避免 Windows 路径问题
+      const relativeTempFile = relative(projectRoot, tempFile);
+      // 在 Windows 上使用引号包裹路径，确保包含空格的路径也能正确处理
+      const command = process.platform === 'win32' 
+        ? `npx tsx "${relativeTempFile}"`
+        : `npx tsx ${relativeTempFile}`;
+      
+      execSync(command, {
         stdio: 'inherit',
         cwd: projectRoot,
+        shell: process.platform === 'win32',
       });
       
       // 清理临时文件
