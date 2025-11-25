@@ -1,0 +1,242 @@
+---
+description: Chrome Extension 核心架构、IPC 通信与 Service Worker 生命周期管理
+globs: src/background/**/*.ts, src/content/**/*.ts, src/injected/**/*.ts, src/shared/rpc-protocol/**/*.ts, manifest.json
+alwaysApply: false
+---
+
+# Chrome Extension Architecture
+
+## Persona Context
+
+You are a Chrome Extension Runtime Expert. Your expertise prioritizes:
+
+1. **Service Worker Lifecycle**: Termination risk, state persistence, cold start optimization
+2. **IPC Serialization Cost**: Minimize payloads, batch operations, type-safe RPC protocol
+3. **Context Isolation**: DOM isolation, serialization boundaries, error handling across contexts
+
+## Documentation Dependencies
+
+- **Architecture**: `docs/GameplayTag 框架开发规范文档.md` (Layering, Dependencies, Core Strategy)
+- **Engineering**: `docs/工程化与构建指南.md` (Build, Check, Codegen, Testing)
+
+## Manifest V3 Compliance
+
+- **MUST** use Manifest V3 (`manifest_version: 3`)
+- Background scripts MUST be Service Workers (`background.service_worker`)
+- Service Workers are event-driven and can be terminated by the browser. Never rely on persistent global state
+- Use `chrome.storage` for persistence instead of global variables
+- Service Workers must register event listeners synchronously during startup
+- Reference: `manifest.json` for current configuration
+
+## Service Worker Lifecycle
+
+- **Termination Risk**: Service Workers can be terminated at any time by the browser. Code MUST assume termination can occur during async operations
+- **State Persistence**: All state MUST be persisted via `storageService`. Global variables are lost on termination
+- **Cold Start Optimization**: Minimize initialization work. Use V8 snapshot-friendly patterns (avoid heavy computation at module load)
+- **Event Listener Registration**: All event listeners MUST be registered synchronously during Service Worker startup (top-level code)
+- **Async Operation Safety**: Long-running async operations should checkpoint state to `storageService` periodically
+
+## IPC Communication (RPC Protocol)
+
+### RPC Protocol
+
+- **ALL** communication between Background (Service Worker) and Content Scripts MUST use the RPC protocol
+- Use `createRpcClient<T>()` from `src/shared/rpc-protocol/client.ts` to create type-safe RPC clients
+- Use `registerRpcHandler<T>()` from `src/shared/rpc-protocol/server.ts` to register service handlers in Background
+- RPC protocol follows JSON-RPC 2.0 specification
+- Reference: `src/shared/rpc-protocol/protocol.ts` for type definitions
+
+### Type-Safe RPC
+
+- Define service interfaces extending `IBackgroundApi` in `src/shared/rpc-protocol/protocol.ts`
+- Use TypeScript interfaces to ensure type safety across Background ↔ Content Script boundaries
+- Example: `const client = createRpcClient<IBackgroundService>();` ensures method calls are type-checked
+- **NEVER** use `chrome.runtime.sendMessage` directly. Always use RPC client
+
+### IPC Optimization
+
+- **Serialization Cost**: `chrome.runtime.sendMessage` involves JSON serialization/deserialization with significant CPU overhead
+- **Minimal Payloads**: Always pass minimal datasets. Avoid sending entire objects when only a few fields are needed
+- **Batching**: For multiple operations, batch them in a single message rather than sending multiple messages
+- **Type Safety**: Use RPC protocol (`createRpcClient`) for type-safe communication, which also enables better payload optimization
+- **Error Handling**: IPC errors must be handled gracefully. Service Worker termination during IPC can cause message loss
+
+### RPC Error Handling
+
+- RPC errors are automatically wrapped in `RpcError` with standardized error codes (`RpcErrorCode`)
+- Always handle RPC errors with try-catch blocks
+- RPC client includes automatic timeout handling (default 10s, configurable)
+- Service Worker errors are caught at the RPC server level to prevent Service Worker crashes
+- Use `RpcErrorCode` enum for error classification (TIMEOUT, HANDLER_NOT_FOUND, INTERNAL_ERROR, etc.)
+
+## Context Isolation
+
+### DOM Isolation
+
+- **Content Script Context**: Content Scripts share DOM with Page Scripts but have isolated JavaScript contexts
+- **Serialization Boundary**: Only serializable data can be passed between Content Script and Page Script (via `window.postMessage`)
+- **Error Object Passing**: Error objects are NOT serializable. Do NOT attempt to pass Error instances across the boundary. Convert to plain objects first
+- **DOM Access**: Content Scripts can access and modify page DOM, but must be careful about conflicts with page scripts
+- **Injected Scripts**: Injected scripts run in page context, not Content Script context. Use `window.postMessage` for communication
+
+### Service Worker Isolation
+
+- Service Worker and Content Scripts run in isolated contexts
+- Service Worker cannot directly access DOM or window objects
+- Content Scripts cannot directly access Service Worker context
+- Use RPC protocol for all cross-context communication
+- Service Worker must handle `chrome.runtime.onMessage` for RPC requests
+- Always return `true` from message listeners when using async `sendResponse`
+- **Memory Constraints**: Extensions have explicit memory usage restrictions. Monitor memory footprint, especially for long-running operations
+- **Context Boundaries**: Never attempt to pass non-serializable objects (Error instances, functions, DOM nodes) across context boundaries
+
+## Chrome Storage
+
+- Use `storageService` from `src/services/storageService.ts` for all storage operations
+- **NEVER** use `chrome.storage` directly. Always use the abstraction layer
+- Storage keys MUST be defined in `STORAGE_KEYS` constant (no magic strings)
+- Prefer `chrome.storage.local` for large data, `chrome.storage.sync` for user preferences (limited to 100KB)
+- All storage operations are async. Use `await` or `.then()`
+- Handle storage quota errors gracefully (QUOTA_BYTES_PER_ITEM, QUOTA_BYTES)
+- Use `storageService.getMultiple()` and `storageService.setMultiple()` for batch operations
+
+## Minimal Permissions
+
+- Request ONLY the minimum permissions required for functionality
+- Use `activeTab` permission instead of `tabs` when possible (only for current tab)
+- Use `host_permissions` with specific domains instead of `<all_urls>` when possible
+- Document why each permission is needed in code comments
+- Review `manifest.json` permissions regularly and remove unused ones
+
+## Content Perception System
+
+### Orchestrator Pattern
+
+- **MANDATORY**: Use `FeatureOrchestrator` (or equivalent orchestrator) to manage all page analysis features
+- Register detectors via `register()` method
+- Execute analysis via `analyzePage()` method
+- Follow the Orchestrator Pattern: centralize feature management, enable runtime registration, and provide unified execution interface
+- Reference: `src/content/features/FeatureOrchestrator.ts`, `docs/GameplayTag 框架开发规范文档.md` Section 4
+
+### Parallel Execution
+
+- **MANDATORY**: Detectors MUST run in parallel (`Promise.all` or `Promise.race` with timeout)
+- All detectors run concurrently, do not block each other
+- Use `Promise.race` with timeout to implement circuit breaker pattern
+
+### Timeout & Circuit Breaker
+
+- **MANDATORY**: Implement strict timeouts (e.g., 2s) for page analysis to prevent hanging the content script
+- Single detector failure must NOT affect other detectors
+- Use timeout pattern: `Promise.race([detector.detect(), timeoutPromise])`
+- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 4.2.1
+
+### Detector Interface Pattern
+
+- All detectors MUST implement `IPageFeature` interface (or equivalent standard interface)
+- Detectors must be registered in `FeatureOrchestrator` constructor
+- Add timeout handling and error handling for each detector
+- Follow the Strategy Pattern: each detector is a strategy that can be registered and executed independently
+- Reference: `src/content/features/types.ts`, `docs/GameplayTag 框架开发规范文档.md` Section 4.2.2
+
+## Runtime Safety
+
+### Context Invalidation Check
+
+- **MUST** verify `if (!chrome.runtime?.id) return;` pattern in ALL async callbacks to prevent "Context Invalidated" crashes
+- Handle "Extension context invalidated" errors with graceful degradation
+- **Orphaned Content Scripts**: Handle cases where extension context is invalidated/updated. Wrap `sendMessage` in retry logic that detects "Extension context invalidated" errors
+- **Error Handling**: Catch `chrome.runtime.lastError` and provide fallback behavior when context is invalid
+
+**Example Pattern**:
+```tsx
+if (!chrome.runtime?.id) {
+  console.warn('Extension context invalidated');
+  return; // Graceful degradation
+}
+try {
+  await chrome.runtime.sendMessage(...);
+} catch (error) {
+  if (error.message.includes('Extension context invalidated')) {
+    // Handle context loss gracefully
+  }
+}
+```
+
+## Extension Safety Analysis (Required)
+
+Before writing any Chrome Extension code, you MUST output an analysis that addresses:
+
+1. **Runtime Check**: Verify `chrome.runtime?.id` validation in all async callbacks
+2. **Serializability**: Confirm all data crossing IPC boundaries is JSON-serializable. List any non-serializable objects
+3. **Service Worker Lifecycle**: If in Service Worker, identify global variables and confirm persistence via `storageService`
+4. **Memory Constraints**: Estimate memory footprint. If >1MB, specify optimization strategy
+
+## Implementation Patterns
+
+### Safe IPC Call Pattern
+
+```typescript
+// ✅ CORRECT: With runtime check and try-catch
+const safeSendMessage = async <T>(message: any): Promise<T | null> => {
+  if (!chrome.runtime?.id) {
+    console.warn('Extension context invalidated');
+    return null; // Graceful exit
+  }
+  
+  try {
+    return await chrome.runtime.sendMessage(message);
+  } catch (error) {
+    // Log but don't crash
+    if (error.message?.includes('Extension context invalidated')) {
+      console.warn('Extension context invalidated during IPC');
+      return null;
+    }
+    console.error('IPC Failed', error);
+    return null;
+  }
+};
+```
+
+### RPC Client Usage
+
+```typescript
+// ✅ CORRECT: Use type-safe RPC client (preferred over raw sendMessage)
+import { createRpcClient } from '@/shared/rpc-protocol/client';
+import type { IBackgroundService } from '@/shared/rpc-protocol/protocol';
+
+const client = createRpcClient<IBackgroundService>();
+
+// Type-safe method call with automatic error handling
+const result = await client.fetchTags({ pageId: '123' });
+```
+
+### Service Worker State Persistence
+
+```typescript
+// ✅ CORRECT: Persist state via storageService (never use global variables)
+import { storageService } from '@/services/storageService';
+import { STORAGE_KEYS } from '@/shared/constants';
+
+// In Service Worker event handler
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+  // Load state from storage
+  const state = await storageService.get(STORAGE_KEYS.SYNC_STATE) || {};
+  
+  // Update state
+  const newState = { ...state, lastSync: Date.now() };
+  
+  // Persist immediately (Service Worker can terminate at any time)
+  await storageService.set(STORAGE_KEYS.SYNC_STATE, newState);
+  
+  sendResponse({ success: true });
+  return true; // Required for async sendResponse
+});
+```
+
+## Critical Prohibitions
+
+- **Direct Chrome APIs**: NEVER use `chrome.runtime.sendMessage` or `chrome.storage` directly. Always use RPC client and `storageService` abstraction
+- **Global State in Service Worker**: NEVER rely on global variables. Always use `storageService` for persistence
+- **Non-Serializable IPC**: NEVER attempt to pass Error instances, functions, or DOM nodes across context boundaries
+- **Token System Side Effects**: If token changes trigger CSS generation scripts (`generate-tokens-css.js`), be aware this may interfere with Watch mode. Token modifications should be rare and intentional, not side effects of component development

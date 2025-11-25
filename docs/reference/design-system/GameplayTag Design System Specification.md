@@ -6,6 +6,7 @@
 > 本文档仅描述视觉语言的**语义用途**。
 > * **设计常量 (Token)**: 定义于 [`src/design-tokens/tokens.ts`](../src/design-tokens/tokens.ts)
 > * **样式变量 (CSS)**: 定义于 [`src/popup/styles/tokens.css`](../src/popup/styles/tokens.css)
+> * **主题系统**: 定义于 [`src/popup/themes/`](../src/popup/themes/)
 > * **组件预览**: 请运行 `npm run storybook` 查看 "Design Tokens" 章节。
 
 ## 1. 空间与布局 (Spacing & Layout)
@@ -74,3 +75,49 @@
 * `--z-cursor-drag`: 拖拽替身 (最高)
 
 > **架构守护**: ESLint 规则 `no-raw-z-index` 会自动检测并报错。
+
+## 6. 多主题系统 (Multi-Theme System)
+
+支持动态主题切换，通过继承机制简化主题扩展流程。
+
+### 架构设计
+
+主题系统采用**分组结构**和**继承机制**：
+
+* **分组组织**: 主题变量按语义分组（colors, intent, text, fill, glass, material, buttons, controls, menu, glassEffect）
+* **继承机制**: 新主题可以继承基础主题或现有主题，只需覆盖需要不同的变量
+* **统一数据源**: 所有主题定义统一在 [`src/popup/themes/`](../src/popup/themes/) 目录中
+
+### 主题定义位置
+
+* **类型定义**: [`src/popup/themes/types.ts`](../src/popup/themes/types.ts) - 主题配置类型系统
+* **基础主题**: [`src/popup/themes/base.ts`](../src/popup/themes/base.ts) - 包含所有默认值和通用变量
+* **主题实现**: [`src/popup/themes/light.ts`](../src/popup/themes/light.ts), [`dark.ts`](../src/popup/themes/dark.ts), [`dim.ts`](../src/popup/themes/dim.ts)
+* **主题注册**: [`src/popup/themes/index.ts`](../src/popup/themes/index.ts) - 主题注册和工具函数
+* **运行时应用**: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) - 主题应用到 DOM
+
+### 主题变量分组
+
+主题变量按以下类别分组，每个类别包含相关的 CSS 变量：
+
+* **colors**: 基础颜色（glass, light, dark, bg）
+* **intent**: 语义化颜色（action, destructive, warning, success）
+* **text**: 文本颜色层级（primary, secondary, tertiary 等）
+* **fill**: 填充颜色层级（primary, secondary, tertiary 等）
+* **glass**: Glass 效果参数（reflex, saturation, blur 等）
+* **material**: 材质厚度系统
+* **buttons**: 按钮颜色变量
+* **controls**: 控件颜色变量
+* **menu**: 菜单颜色变量
+* **glassEffect**: Glass 效果颜色（用于 Liquid Glass）
+
+### 扩展新主题
+
+添加新主题只需：
+
+1. 在 [`src/popup/themes/`](../src/popup/themes/) 目录创建新主题文件
+2. 使用 `extendTheme()` 继承基础主题或现有主题
+3. 只覆盖需要不同的变量（支持深度部分覆盖）
+4. 在 [`src/popup/themes/index.ts`](../src/popup/themes/index.ts) 中注册新主题
+
+详见: [`src/popup/themes/utils.ts`](../src/popup/themes/utils.ts) 中的 `extendTheme()` 函数。

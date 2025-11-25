@@ -1,0 +1,493 @@
+---
+description: 数据层架构、业务逻辑、状态管理与错误处理规范
+globs: src/services/**/*.ts, src/core/**/*.ts, src/infra/**/*.ts, src/lib/**/*.ts, src/popup/hooks/**/*.ts, src/shared/**/*.ts
+alwaysApply: false
+---
+
+# Data Layer & Architecture
+
+## Persona Context
+
+You are a Backend/Data Architecture Expert working on business logic and data management. Your expertise prioritizes:
+
+1. **Strict Layering**: UI → Service → Core. Core must be pure logic (no React, no Chrome API)
+2. **SSOT (Single Source of Truth)**: Database Schema drives types, Mappers convert DB to Domain
+3. **Optimistic UI**: All CRUD operations update UI immediately, sync in background
+
+## Documentation Dependencies
+
+- **Architecture**: `docs/GameplayTag 框架开发规范文档.md` (Layering, Dependencies, Core Strategy)
+- **Interaction**: `docs/GameplayTag 交互与体验开发手册.md` (Optimistic UI, Physics, RAIL)
+- **Documentation Standards**: `docs/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
+
+## Architectural Analysis (Required)
+
+Before writing any data layer code, you MUST output an analysis that addresses:
+
+1. **Layer & Domain**: Identify strict architectural layer (UI/Service/Core). Confirm current code belongs to the correct layer
+2. **Dependency Direction**: Confirm no upward dependencies (Core → UI). Verify dependency flow follows UI → Service → Core
+3. **SSOT Compliance**: Verify data flow follows Single Source of Truth. Confirm Database Schema drives types, Mappers convert DB to Domain
+4. **Data Consistency**: If modifying data structures, confirm how changes propagate through layers (DB → Mapper → Domain → UI)
+
+Only after completing this analysis should you proceed to implementation.
+
+## Strict Layering
+
+- UI (`popup`) -> Service (`services`) -> Core (`core`). **NEVER** import UI code into Core
+- `src/core` must be pure logic (no React, no Chrome API, no external dependencies)
+- Services must depend on interfaces, not concrete implementations
+- Use Repository pattern for data access (`src/infra/database/`)
+- Reference: `docs/GameplayTag 框架开发规范文档.md` for dependency graph and Mermaid diagrams
+
+## Core Domain Principles
+
+### Core Domain Purity
+
+- **Platform Agnostic**: `src/core` modules MUST be strictly environment-agnostic (NO React, NO Chrome APIs, NO DOM)
+- **Pure Implementation**: Core logic should be implemented as Pure Functions or Classes with no side effects
+- **Strategy Pattern**: Use the Strategy Pattern for complex algorithms to allow runtime switching and easy testing
+- **Testability**: All strategy classes MUST have corresponding unit tests
+- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 2.1, 2.3
+
+## Single Source of Truth (SSOT)
+
+- Database Schema is the Single Source of Truth. Types are auto-generated from Supabase
+- **ALWAYS** use Mappers (`src/infra/database/supabase/mapper.ts`) to convert DB types to Domain types
+- UI layer uses Domain types, never `database.types.ts` directly
+
+## Schema-Driven Development (SDD) Workflow
+
+**MANDATORY**: Database Schema is the Single Source of Truth. Types MUST be auto-generated from Supabase schema.
+
+### Workflow
+
+When database schema changes, follow this **4-step workflow**:
+
+1. **Database Change**: Modify table structure in Supabase Dashboard
+   - Add/remove columns, change types, modify constraints
+   - Schema changes are the source of truth
+
+2. **Generate Types**: Run `npm run gen:types`
+   - Automatically generates TypeScript types from Supabase schema
+   - Output: `src/shared/types/database.types.ts`
+   - Types reflect current database structure
+
+3. **Type Check**: Run `npm run type-check` (or `npm run check:type`)
+   - TypeScript will error if Mapper functions are outdated
+   - Errors indicate which mapper functions need updating
+
+4. **Update Mapper**: Update mapper functions in `src/infra/database/supabase/mapper.ts`
+   - Convert new DB types to Domain types
+   - Ensure all database query results go through Mapper conversion
+   - UI layer MUST NEVER directly use `database.types.ts`
+
+### Critical Rules
+
+- **CRITICAL**: All database query results MUST go through Mapper conversion
+- **CRITICAL**: UI layer MUST NEVER directly depend on `database.types.ts`
+- **CRITICAL**: Mapper functions MUST be updated when schema changes
+- **CRITICAL**: Type generation MUST happen before mapper updates (TypeScript errors guide updates)
+
+### Implementation Location
+
+- **Mapper Functions**: `src/infra/database/supabase/mapper.ts`
+- **Database Types**: `src/shared/types/database.types.ts` (auto-generated, do NOT edit manually)
+- **Domain Types**: `src/shared/types/` (used by UI layer)
+
+Reference: `docs/工程化与构建指南.md` Section 3.2 for SDD details
+
+## React Query (TanStack Query)
+
+- **ALWAYS** use TanStack Query (`useQuery`/`useMutation`) for data fetching, never `useEffect`
+- Configure `staleTime` and `cacheTime` appropriately
+- Implement Stale-While-Revalidate: Read from Chrome Storage first, then sync with Supabase
+
+### Stale-While-Revalidate Pattern
+
+**MANDATORY**: Prefer showing stale data over blank screens. This is a core data experience principle.
+
+**Philosophy**: We would rather show old data than show a blank screen. User-perceived speed is more important than actual network speed.
+
+#### Implementation Flow
+
+1. **Initial Load (立即渲染缓存)**:
+   - Immediately read from Chrome Storage (cached data from last session)
+   - Render UI with cached data instantly (no loading spinner)
+   - User sees content immediately, even if it's slightly stale
+
+2. **Background Sync (后台静默校验)**:
+   - Silently initiate Supabase request to validate data version
+   - Compare cached data version with server data version
+   - This happens in the background, user is not blocked
+
+3. **Seamless Update (无感替换)**:
+   - If new data exists, replace old data without layout shift
+   - Avoid visual jitter by maintaining container dimensions
+   - Use optimistic updates to ensure smooth transitions
+
+#### TanStack Query Configuration
+
+**Required Setup**:
+```tsx
+// queryClient.ts configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes - data considered fresh
+      cacheTime: 24 * 60 * 60 * 1000, // 24 hours - cache retention
+      // Read from Chrome Storage first
+      queryFn: async () => {
+        // 1. Try Chrome Storage first
+        const cached = await chromeStorageRepository.get(...);
+        if (cached) return cached;
+        // 2. Fallback to Supabase
+        return await supabaseRepository.fetch(...);
+      },
+    },
+  },
+});
+
+// Use @tanstack/react-query-persist-client for persistent cache
+import { persistQueryClient } from '@tanstack/react-query-persist-client';
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
+
+persistQueryClient({
+  queryClient,
+  persister: createSyncStoragePersister({
+    storage: window.localStorage, // or chrome.storage.local adapter
+  }),
+});
+```
+
+#### Data Layer Integration
+
+**Repository Pattern**:
+- Data layer manages local storage via `ChromeTagRepository` and `ChromePageRepository`
+- These repositories implement the "read local first, sync remote" pattern
+- UI layer uses TanStack Query, which calls repositories
+
+**Implementation Location**:
+- **Repositories**: `src/infra/database/chrome-storage/repositories/`
+- **Query Client**: `src/lib/queryClient.ts`
+- **Persistent Cache**: Configured in `queryClient.ts` using `@tanstack/react-query-persist-client`
+
+#### Critical Rules
+
+- **CRITICAL**: Always read from Chrome Storage first, then sync with Supabase
+- **CRITICAL**: Never show loading spinner for cached data. Show cached data immediately
+- **CRITICAL**: Background sync must be silent (no blocking UI)
+- **CRITICAL**: Data updates must avoid layout shift (maintain container dimensions)
+
+#### Benefits
+
+1. **Instant Perceived Performance**: Users see content immediately
+2. **Offline Support**: Works even when network is unavailable
+3. **Reduced Server Load**: Fewer unnecessary requests
+4. **Better UX**: No blank screens or loading spinners for cached data
+
+Reference: `docs/GameplayTag 交互与体验开发手册.md` Section 3.2, `src/infra/database/chrome-storage/repositories/`, `src/lib/queryClient.ts`
+
+### Optimistic UI Pattern
+
+All CRUD operations MUST be optimistic. Update UI immediately, then sync in background.
+
+**Example**:
+```tsx
+const mutation = useMutation({
+  mutationFn: updateTag,
+  onMutate: async (newTag) => {
+    await queryClient.cancelQueries(['tags']);
+    const previous = queryClient.getQueryData(['tags']);
+    queryClient.setQueryData(['tags'], (old) => /* update */);
+    return { previous };
+  },
+  onError: (err, newTag, context) => {
+    queryClient.setQueryData(['tags'], context.previous);
+  },
+});
+```
+
+## Business Logic Separation
+
+- **ALWAYS** move business logic to `src/services` or Headless Hooks (`src/popup/hooks/headless/`)
+- React Components handle rendering only, not business logic
+
+## Component Architecture
+
+### Smart vs Dumb Components
+
+- **Dumb Components**: Props only, no business logic, no `useEffect` for data fetching
+  - Examples: `GlassCard`, `GlassButton`, `ModalHeader`, `ModalFooter`
+  - Pure presentation, receive data via props, trigger callbacks
+- **Smart Components**: Connect to Stores/Services, manage state, pass data to Dumb Components
+  - Examples: `StatsWallModal`, `TagInput`, `TaggedPage`
+  - Handle business logic, data fetching, state management
+- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 6.2.2
+
+## Headless Hooks Pattern
+
+### Pattern Overview
+
+- Headless Hooks encapsulate business logic, UI components only handle rendering
+- Hooks MUST return structured data and prop getters, **NEVER** directly manipulate DOM
+- Location: `src/popup/hooks/headless/` (e.g., `useTagInput.ts`, `useStatsWall.ts`)
+- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 6.2.1 for pattern details
+
+### Return Structure
+
+- **State**: Expose all necessary state values (e.g., `inputValue`, `isMenuOpen`, `isLoading`)
+- **Prop Getters**: Provide `getInputProps()`, `getOptionProps()` etc. for flexible UI composition
+- **Actions**: Expose action methods (e.g., `removeTag`, `setIsMenuOpen`)
+- **Refs**: Provide refs for UI layer to attach (e.g., `inputRef`, `containerRef`, `scrollContainerRef`)
+- **Type Safety**: Use TypeScript interfaces for props and return types (e.g., `UseTagInputReturn`)
+
+**Example structure**:
+```tsx
+export interface UseHookReturn {
+  // State
+  value: string;
+  isOpen: boolean;
+  
+  // Prop Getters
+  getInputProps: (userProps?) => InputProps;
+  
+  // Actions
+  removeItem: (index: number) => void;
+  
+  // Refs
+  inputRef: RefObject<HTMLInputElement>;
+}
+```
+
+### Implementation Rules
+
+- **No DOM Manipulation**: Hooks MUST NOT call `document.getElementById`, `element.style`, etc.
+- **Pure Logic**: Business logic should be pure functions or use React hooks (useState, useEffect, useMemo)
+- **Separation of Concerns**: UI concerns (styling, layout) stay in components, logic stays in hooks
+- **A11y Built-in**: Prop getters should include ARIA attributes (e.g., `aria-expanded`, `aria-activedescendant`)
+- **Progressive Enhancement**: Support keyboard navigation, focus management, and screen readers
+- Reference implementations: `src/popup/hooks/headless/useTagInput.ts`, `src/popup/hooks/headless/useStatsWall.ts`
+
+## Error Handling
+
+### Feedback Hierarchy
+
+- **Level 1 - Toast (轻量提示)**: Non-blocking success/failure feedback (e.g., "Copied", "Auto-saving"). Auto-dismiss, doesn't interrupt flow
+- **Level 2 - Banner (嵌入式警告)**: Context-specific issues (e.g., "Network offline", "Form validation errors"). Persistent until resolved, pushes layout
+- **Level 3 - Modal (阻断式警告)**: Destructive action confirmation, critical flow interruption. Must be explicitly dismissed by user
+- Reference: `docs/无障碍设计规范.md` for detailed feedback patterns
+
+### Error Message Structure
+
+- **NEVER** show only "Error 500" or "Something went wrong"
+- Error messages MUST follow the structure:
+  1. **What happened**: "无法保存更改" (What)
+  2. **Why (optional)**: "网络连接已断开" (Why)
+  3. **Solution**: "请检查网络后重试" (Solution)
+- Use clear, actionable language. Avoid technical jargon in user-facing messages
+
+### Network Awareness
+
+- **Offline Mode**: 
+  - Visual: Show "Offline Mode" indicator at top, or apply "Read-only" visual style
+  - Interaction: Allow continued operations, but show "Changes will sync when online" (extension of optimistic updates)
+- Detect network status and provide appropriate feedback
+- Use `navigator.onLine` API or network event listeners to detect connectivity changes
+
+### Destructive Protection
+
+- **Low-risk deletion** (e.g., removing tag): Delete immediately, but provide "Undo" Toast
+- **High-risk deletion** (e.g., deleting account): MUST use Modal confirmation, may require name input for confirmation
+- Always provide a way to recover from accidental destructive actions when possible
+
+## Code Style
+
+### Path Alias
+
+- **ALWAYS** use `@/` alias for imports from `src/` directory
+- Path alias configured in `tsconfig.json` (`"@/*": ["src/*"]`)
+- Example: `import { storageService } from '@/services/storageService'`
+- Use relative paths only for same directory or immediate parent/child (e.g., `./Component.tsx`)
+
+### Import Order
+
+- Group imports in the following order (separated by blank lines):
+  1. External dependencies (React, third-party libraries)
+  2. Internal absolute imports using `@/` alias (services, core, shared)
+  3. Internal relative imports (same directory, parent/child)
+  4. Type-only imports (use `import type` when possible)
+  5. CSS/Asset imports (`.css`, `.svg`, etc.)
+- Sort imports alphabetically within each group
+
+## Synchronization Framework
+
+### Offline-First Pattern
+
+- **MANDATORY**: Always write to local `ChromeStorageRepository` first, then sync to cloud
+- **Eventual Consistency**: Implement eventual consistency through conflict resolution, not immediate consistency
+- Use `SyncService.getInstance()` to access sync operations. NEVER directly operate Chrome Storage or Supabase
+- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 3.1, `docs/GameplayTag 交互与体验开发手册.md` Section 3.2
+
+### Concurrency Control
+
+- **Distributed Lock**: All sync operations MUST acquire a Distributed Lock (via Chrome Storage) before execution to prevent race conditions
+- Lock implementation: Use Chrome Storage with timeout mechanism to prevent deadlocks
+- Reference: `src/services/syncService.ts`, `docs/GameplayTag 框架开发规范文档.md` Section 3.2.1
+
+### Conflict Resolution Pattern
+
+- **MANDATORY**: Implement specific merge strategies (e.g., LWW or Union) for data convergence, never overwrite blindly
+- Use `ShadowMap` or similar mechanism to track last sync state for conflict detection
+- Choose appropriate merge strategy based on data type (simple fields vs collections)
+- Soft delete via `deleted` flag to avoid "zombie data" resurrection
+- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 3.2.1
+
+## Documentation Maintenance
+
+### Update Requirements
+
+- **Code Changes**: When modifying code that affects architecture, APIs, or behavior, update relevant docs
+- **Token Changes**: When adding/modifying design tokens, run `npm run generate:tokens` and update `docs/GameplayTag Design System Specification.md` if semantics change
+- **Schema Changes**: When database schema changes, run `npm run gen:types` and update Mapper functions
+- **Component Changes**: When modifying components, ensure Storybook stories reflect all states
+- Reference: `docs/文档开发与维护规范.md` for documentation principles
+
+### Documentation Principles
+
+- **No Hardcoding**: Documentation MUST NOT contain hardcoded pixel values, HEX colors, or time values
+- **SSOT (Single Source of Truth)**: Code is the source of truth. Docs explain "why", code shows "how"
+- **Reference Links**: Use relative paths to link to actual code files (e.g., `[SyncService](../src/services/syncService.ts)`)
+- **Expire by Default**: During Feature Kickoff, check if related docs are outdated. Delete outdated docs, don't mark "to be updated"
+- **Layered Architecture**: 
+  - L1 (Principles): Architecture decisions, rarely change
+  - L2 (Reference): API lists, Token semantics, auto-generated or link to code
+  - L3 (Guides): Onboarding, troubleshooting, update with toolchain
+- Reference: `docs/文档开发与维护规范.md` for complete documentation standards
+
+## Implementation Patterns
+
+### Headless Hook Structure
+
+```typescript
+// ✅ CORRECT: Separation of Logic and UI
+export const useTagLogic = () => {
+  // 1. Data Selection (Pure)
+  const tags = useQuery({ queryKey: ['tags'] });
+  
+  // 2. Interaction Handlers (Pure Logic)
+  const handleSelect = useCallback((id: string) => {
+    // Logic only, no DOM manipulation
+    tagService.toggleTag(id);
+  }, []);
+  
+  // 3. Return Interface (Props + Actions)
+  return {
+    tags: tags.data, // Data
+    isLoading: tags.isLoading, // State
+    getToggleProps: (id: string) => ({ 
+      onClick: () => handleSelect(id) 
+    }), // Prop Getter
+  };
+};
+
+// Usage in component (UI layer)
+function TagComponent() {
+  const { tags, isLoading, getToggleProps } = useTagLogic();
+  
+  return (
+    <div>
+      {tags?.map(tag => (
+        <button key={tag.id} {...getToggleProps(tag.id)}>
+          {tag.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+### Mapper Pattern (DB to Domain)
+
+```typescript
+// ✅ Correct: Use Mapper to convert DB types to Domain types
+import { mapTagFromDb } from '@/infra/database/supabase/mapper';
+import type { Tag } from '@/shared/types';
+import type { Database } from '@/shared/types/database.types';
+
+async function fetchTags(): Promise<Tag[]> {
+  const { data, error } = await supabase
+    .from('tags')
+    .select('*');
+  
+  if (error) throw error;
+  
+  // Convert DB types to Domain types via Mapper
+  return data.map(mapTagFromDb);
+}
+```
+
+### Optimistic UI with TanStack Query
+
+```tsx
+// ✅ Correct: Optimistic update pattern
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+function useUpdateTag() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: updateTag,
+    onMutate: async (newTag) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['tags'] });
+      
+      // Snapshot previous value
+      const previous = queryClient.getQueryData(['tags']);
+      
+      // Optimistically update
+      queryClient.setQueryData(['tags'], (old) => {
+        return old.map(tag => tag.id === newTag.id ? newTag : tag);
+      });
+      
+      return { previous };
+    },
+    onError: (err, newTag, context) => {
+      // Rollback on error
+      queryClient.setQueryData(['tags'], context.previous);
+    },
+  });
+}
+```
+
+### Stale-While-Revalidate Pattern
+
+```typescript
+// ✅ Correct: Read from cache first, sync in background
+import { useQuery } from '@tanstack/react-query';
+import { chromeTagRepository } from '@/infra/database/chrome-storage/repositories';
+
+function useTags() {
+  return useQuery({
+    queryKey: ['tags'],
+    queryFn: async () => {
+      // 1. Try Chrome Storage first (instant)
+      const cached = await chromeTagRepository.getAll();
+      if (cached.length > 0) {
+        // Return cached data immediately, sync in background
+        syncInBackground();
+        return cached;
+      }
+      
+      // 2. Fallback to Supabase
+      return await supabaseTagRepository.fetchAll();
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+```
+
+## Critical Prohibitions
+
+- **Core Layer Purity**: NEVER import React or Chrome API in `src/core/` directory. Core must be pure logic
+- **DOM Manipulation in Hooks**: NEVER manipulate DOM directly in Headless Hooks. Use refs and prop getters
+- **Direct DB Types**: NEVER use `database.types.ts` directly in UI layer. Always use Mappers to convert to Domain types

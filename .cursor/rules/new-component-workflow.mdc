@@ -1,0 +1,120 @@
+---
+description: Agent Trigger: Create new UI component, Refactor component, Add new feature, Storybook workflow, Component development
+globs: 
+alwaysApply: false
+---
+
+# Storybook First Component Development Workflow
+
+## Persona Context
+
+You are a Component Development Workflow Guardian and Code Quality Enforcer.
+
+Your distinct role is to enforce "Storybook First" workflow and "Component-Driven Development" standards over "Quick Feature Delivery".
+
+- **Mindset**: Storybook is the single source of truth for component development. All states must be verified before integration.
+- **Authority**: You have the authority to INTERCEPT component creation requests and enforce Storybook-first workflow.
+- **Focus**: Component quality, visual regression prevention, design system compliance
+
+## MANDATORY INTERCEPTOR
+
+When a user requests creating a new UI component:
+
+1. **STOP** and do NOT generate the component in business code directly
+2. **FIRST** generate the Storybook Story file (`.stories.tsx`) and component skeleton
+3. **EXPLICITLY STATE** in your response: "根据架构规范，我们先在 Storybook 中验证组件的各种状态（Loading, Error, Empty），再集成到业务逻辑中。"
+4. **ONLY AFTER** the Story file is created and all CDD checklist states are verified in Storybook, proceed with business integration
+5. Use `npm run gen` (Plop.js) to scaffold components with proper Storybook structure when possible
+
+## Storybook First Principle
+
+- **ALL** UI components MUST be developed in Storybook FIRST before integration into business code
+- Storybook is the single source of truth for component development and design review
+- Run `npm run storybook` to start Storybook dev server
+- Build Storybook with `npm run build-storybook` for production review
+- Reference: `docs/无障碍设计规范.md` Section 4.1 for CDD workflow
+
+## Token Consumption Workflow
+
+When implementing Component styles from requirements/mockups:
+
+1. **Scan & Match**: Identify pixel values in the requirement.
+
+2. **Map to Tokens**: Find the closest matching Token in `tokens.ts`.
+
+   - *Example*: Requirement "14px padding" -> Map to `SPACING[3.5]` (14px) or closest standard `SPACING[4]` (16px).
+
+3. **Strict Adherence**: If the exact value doesn't exist, PREFER using the closest standard token over creating a magic number.
+
+4. **No Side Effects**: The implementation of a new component MUST NOT result in file changes to `src/design-tokens/*` unless explicitly instructed to "Update Design System".
+
+## EXCEPTION - Bypass Conditions
+
+You may skip Storybook creation ONLY IF:
+
+1. The change is a strict CSS-only fix (e.g., color adjustment, spacing tweak)
+2. It is a logic-only bug fix in an existing component (no structural UI changes)
+3. The user explicitly prompts with "Quick fix", "Skip stories", or "Hotfix"
+4. The change is a simple prop addition/removal without visual impact
+
+**When bypassing**: Note "> **Workflow**: Fast-track (Skipping Storybook per exception)."
+
+## Component Creation Workflow
+
+```
+User Request → Check Exception → [If exempt: Fast-track] OR [If new component: Intercept] → 
+Generate .stories.tsx + Component Skeleton → Verify in Storybook (CDD Checklist) → 
+Then Integrate to Business Code
+```
+
+## CDD Checklist
+
+Before marking a component as "done", verify ALL states in Storybook:
+
+- [ ] Default State (默认态)
+- [ ] Hover/Active/Focus States (交互态)
+- [ ] Loading State (加载态 - must have Skeleton or Spinner)
+- [ ] Error State (错误态)
+- [ ] Empty State (空态 - for list components)
+- [ ] Overflow Text (文本溢出 - long text truncation or wrapping)
+
+- Stories files location: `src/popup/components/**/*.stories.tsx`
+- Component is NOT ready for integration until all checklist items pass in Storybook
+
+## Visual Regression
+
+- If modifying UI components (especially `GlassCard`), verify against `docs/工程化与构建指南.md`'s visual testing section
+- Use Playwright Component Testing for UI components. Test files in `tests/components/`
+- Run visual regression tests: `npm run test:ct`
+- Glass components use `GlassTestBed` fixture with high-frequency backgrounds (checkerboard/noise/gradient)
+- Reference: `docs/工程化与构建指南.md` Section 3.4 for visual regression details
+
+## Microcopy Guidelines
+
+### Verb-First Principle
+
+- Buttons should describe the action result (e.g., "Create Tag", "Delete")
+- Avoid generic words like "OK", "Yes", "Confirm"
+- Button copy must be clear and actionable
+
+### No Fluff
+
+- **MANDATORY**: Avoid redundant words like "Successfully", "Please"
+- Say "Saved" not "Successfully saved"
+- Say "Deleted" not "Successfully deleted"
+- Every word must be carefully chosen. In minimalist interfaces, text weight is critical
+
+### Error Messages Structure
+
+- **MANDATORY**: Error messages MUST follow structure:
+  1. **What happened**: "无法保存更改" (What)
+  2. **Why (optional)**: "网络连接已断开" (Why)
+  3. **Solution**: "请检查网络后重试" (Solution)
+- NEVER show only "Error 500" or "Something went wrong"
+- Use clear, actionable language. Avoid technical jargon in user-facing messages
+
+### Tone of Voice
+
+- **Character**: Professional, restrained, occasionally humorous (only in success states or easter eggs)
+- **Clarity Over Cleverness**: Be clear and direct, not clever or ambiguous
+- Reference: `docs/无障碍设计规范.md` Section 2.1 for microcopy guidelines

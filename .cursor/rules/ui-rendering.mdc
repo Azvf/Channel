@@ -1,0 +1,431 @@
+---
+description: UI 组件开发、Glassmorphism 渲染优化与无障碍设计规范
+globs: src/popup/**/*.tsx, src/popup/**/*.css, src/popup/utils/**/*.ts, src/hooks/useProgressiveEscape.ts, src/design-tokens/**/*.ts
+alwaysApply: false
+---
+
+# UI Engineering & Visual System
+
+## Persona Context
+
+You are a Senior Frontend Rendering Architect working on Glassmorphism UI components. Your expertise prioritizes:
+
+1. **Compositing & Layers (最高优先级)**: Guard against Layer Explosion and Overdraw in Glassmorphism components
+2. **CSS Houdini & Compositor Thread**: Isolate backdrop-filter operations to separate compositing layers
+3. **Performance Budget**: Target 60fps (16ms per frame). Use GPU-accelerated properties (transform/opacity)
+
+## Documentation Dependencies
+
+- **Visual Design**: `docs/GameplayTag Design System Specification.md` (Tokens, Layout, Glassmorphism)
+- **Interaction**: `docs/GameplayTag 交互与体验开发手册.md` (Optimistic UI, Physics, RAIL)
+- **Accessibility**: `docs/无障碍设计规范.md` (A11y, Wording, Content Strategy)
+- **Engineering**: `docs/工程化与构建指南.md` (Build, Check, Codegen, Testing)
+
+## Design Tokens
+
+- **ALWAYS** use CSS variables from `src/design-tokens/tokens.ts` (e.g., `var(--space-4)`, `var(--radius-md)`, `var(--transition-fast)`)
+- In TypeScript, import from `@/design-tokens/tokens` (e.g., `ANIMATION.duration.base`, `SPACING[4]`)
+- Use semantic z-index tokens like `var(--z-modal-content)` instead of magic numbers
+- Extend the Design Token system for new values rather than creating one-off styles
+- Reference: `docs/GameplayTag Design System Specification.md` for token semantics
+
+### Token Stability Protocol (CRITICAL)
+
+- **Immutable Infrastructure**: Treat `src/design-tokens/tokens.ts` as **Read-Only** during standard UI development.
+
+- **Prohibition**: NEVER modify an existing token value (e.g., changing `space-4` from 16px to 15px) to fix a local visual bug.
+
+- **Adaptation Strategy**: If a design requires a value not present in tokens:
+
+  1. **Nearest Neighbor**: Use the closest existing token (e.g., use `space-4` for 15px).
+
+  2. **Composition**: Use CSS `calc()` with multiple tokens if absolutely necessary.
+
+  3. **New Token Request**: ONLY if the value is a reusable pattern, propose adding a **NEW** token (e.g., `space-3_5`), but NEVER mutate existing ones.
+
+### 🔓 System Maintenance Override
+
+You are prohibited from modifying `src/design-tokens/tokens.ts` during normal component development.
+
+**HOWEVER**, you may enter "Maintainer Mode" and modify tokens ONLY IF:
+
+1. **Explicit Intent**: The user prompt starts with **"UPDATE DESIGN SYSTEM:"** or **"REFACTOR TOKENS:"**.
+
+   - *Example*: "UPDATE DESIGN SYSTEM: Increase base spacing from 4px to 5px."
+
+2. **New Pattern**: The user explicitly requests adding a reusable semantic token.
+
+   - *Example*: "Create a new token `surface-glass-heavy` for the sidebar."
+
+**Maintenance Workflow**:
+
+1. **Modify**: Update `src/design-tokens/tokens.ts`.
+
+2. **Regenerate**: MUST run `npm run generate:tokens` immediately to update CSS variables.
+
+3. **Document**: Remind the user to update `docs/GameplayTag Design System Specification.md` if semantics changed.
+
+### Iconography System
+
+- **Library Constraint**: **MUST** use `Lucide React` exclusively. Do NOT use other icon libraries
+- **Stroke Consistency**: **STRICTLY** enforce `Refined` or `Standard` weight across the app. Mixing weights is prohibited
+- **Sizing Strategy**: Icons **MUST** use semantic size tokens (`--icon-size-*`) from the design system, never raw pixels
+- **Implementation**: 
+  - Icon components: `src/popup/components/` (import on demand)
+  - Size tokens: `src/popup/styles/tokens.css` (`--icon-size-*`)
+  - Reference: `src/design-tokens/tokens.ts` for `ICON_SIZES` object
+  - Reference: `docs/无障碍设计规范.md` Section 4.2 for iconography guidelines
+
+### Theme System
+
+- **ALWAYS** use CSS variables from the theme system (e.g., `var(--c-content)`, `var(--c-action)`, `var(--button-color-default-tint)`)
+- **Theme Definition**: All themes are defined in `src/popup/themes/` directory with inheritance support
+- **Theme Application**: Use `applyThemeToBody()` from `src/popup/utils/theme.ts` to apply themes at runtime
+- **Theme Variables**: Theme variables are automatically flattened to CSS variables and applied to `body` element
+- **Extending Themes**: To create a new theme:
+  1. Create a new theme file in `src/popup/themes/` (e.g., `ocean.ts`)
+  2. Use `extendTheme()` from `src/popup/themes/utils.ts` to inherit from base or existing theme
+  3. Override only the variables that need to differ (supports deep partial override)
+  4. Register the theme in `src/popup/themes/index.ts`
+- **Theme Structure**: Themes are organized by semantic groups (colors, intent, text, fill, glass, material, buttons, controls, menu, glassEffect)
+- **Reference**: 
+  - Theme system: `src/popup/themes/` directory
+  - Theme utilities: `src/popup/themes/utils.ts`
+  - Theme application: `src/popup/utils/theme.ts`
+  - Design system spec: `docs/reference/design-system/GameplayTag Design System Specification.md` Section 6
+
+## Glassmorphism Effects
+
+- **ALWAYS** use `<GlassCard depthLevel={n} />` component from `src/popup/components/GlassCard.tsx` for glassmorphism effects
+- **Layer Promotion**: Ensure `will-change: transform` or `transform: translateZ(0)` for proper layer promotion
+- **Isolation**: Isolate backdrop-filter operations to separate compositing layers to avoid repainting parent elements
+- **Optimization**: Use blur radius 8-16px and `contain: layout style paint` for scrollable containers
+
+## Depth-Aware Rendering Physics
+
+**MANDATORY**: All glass material components (`GlassCard`, `GlassPanel`) MUST be depth-aware and follow physical optical laws.
+
+### Physical Rules
+
+As depth level increases, visual properties MUST follow these physical optical laws:
+
+1. **Blur (模糊度)**: **Decreases** with depth
+   - Lower layers already have blurred backgrounds, upper layers don't need heavy blur again
+   - Rationale: Simulates real optical depth attenuation, not simple transparency
+
+2. **Opacity (不透明度)**: **Increases** with depth
+   - Upper layers must be more opaque for readability
+   - Rationale: Ensures text and content remain readable as layers stack
+
+3. **Shadow (阴影)**: **Increases** with depth
+   - Higher layers cast more diffused shadows
+   - Rationale: Simulates real-world light physics
+
+**Formula**: `Depth ↑ = Blur ↓ + Opacity ↑ + Shadow ↑`
+
+### Implementation Rules
+
+- **CRITICAL**: NEVER manually write `backdrop-filter` CSS. MUST use `<GlassCard depthLevel={n} />` component
+- **CRITICAL**: NEVER manually set background colors. Must use GlassCard component or `GlassDepthProvider` for automatic calculation
+- **CRITICAL**: Depth level MUST be explicitly set via `depthLevel` prop or `GlassDepthProvider` context
+
+### Component Usage
+
+```tsx
+// ✅ Correct: Use GlassCard with depthLevel
+<GlassCard depthLevel={1}>
+  <Content />
+</GlassCard>
+
+// ✅ Correct: Use GlassDepthProvider for nested contexts
+<GlassDepthProvider initialDepth={1}>
+  <GlassCard> {/* Automatically uses depth from context */}
+    <Content />
+  </GlassCard>
+</GlassDepthProvider>
+
+// ❌ Wrong: Manual backdrop-filter
+<div style={{ backdropFilter: 'blur(10px)' }}> {/* FORBIDDEN */}
+  <Content />
+</div>
+```
+
+### Rationale
+
+Depth-aware rendering simulates real optical physics, not simple transparency. This creates a more natural, physically consistent visual hierarchy that users perceive as more "real" and less "digital".
+
+Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/GameplayTag 交互与体验开发手册.md` Section 1.1, `src/popup/components/GlassCard.tsx`, `src/popup/styles/components/glass.css`
+
+## Rendering Performance
+
+### Layout Thrashing Prevention
+
+- **ALWAYS** batch DOM reads, then batch DOM writes (read-read-write-write pattern)
+- Defer layout-triggering operations using `requestAnimationFrame`
+- When measuring multiple elements, read all measurements first, then apply all changes
+
+### Layer Promotion
+
+- For elements with backdrop-filter, transform animations, or fixed positioning, ensure proper layer promotion:
+  - Use `transform: translateZ(0)` or `will-change: transform` (but remove will-change after animation completes)
+  - Avoid excessive layer promotion (each layer consumes memory)
+  - Use Chrome DevTools Layers panel to verify layer boundaries
+
+### Animation Performance
+
+- All animations must target 60fps (16.67ms per frame)
+- Use CSS `transform` and `opacity` for animations (compositor-only properties)
+- For Framer Motion: Prefer `layout` prop for layout animations, but verify it doesn't cause layout thrashing
+- Avoid animating properties that trigger layout: `width`, `height`, `margin`, `padding`, `border-width`
+- Use `contain: layout style paint` for isolated animation contexts when appropriate
+
+### RAIL Metrics
+
+- **Response**: Interactive feedback < 100ms
+- **Animation**: 60fps (16ms per frame)
+- **Idle**: Maximize idle time for background work
+- **Load**: Critical content < 1s, full load < 3s
+- Reference: `docs/GameplayTag 交互与体验开发手册.md` for RAIL guidelines
+
+## Interaction Patterns
+
+### Optimistic UI
+
+- All CRUD operations MUST be optimistic. Update UI immediately, then sync in background
+- Use `onMutate` in TanStack Query mutations for immediate UI updates
+- Reference: `docs/GameplayTag 交互与体验开发手册.md` for detailed patterns
+
+### Unified Physics
+
+- **ALWAYS** use animation constants from `src/design-tokens/tokens.ts` (e.g., `ANIMATION.duration.base`, `ANIMATION.ease.smooth`)
+- Use motion variants from `src/popup/utils/motion.ts` when available
+- **GPU-Accelerated Properties**: Prefer `transform` and `opacity` for animations (compositor thread)
+- **Performance**: Ensure animations complete within 16ms per frame (60fps). Use `requestAnimationFrame` for complex sequences
+- **will-change**: Apply only when animation is imminent, remove after animation completes
+
+### Progressive Escape
+
+- **LIFO (Last-In-First-Out)**: ESC key MUST follow LIFO order to progressively close nested UI elements
+  - Level 1: Close dropdown menu / Clear current input focus
+  - Level 2: Clear input field content
+  - Level 3: Close modal / Sidebar
+- **Implementation**: Use `useProgressiveEscape` hook to register hierarchy and callbacks
+- **Rule**: Do NOT close parent Modals if a child Dropdown is open. Each ESC press closes only the topmost layer
+- Reference: `src/hooks/useProgressiveEscape.ts`, `docs/GameplayTag 交互与体验开发手册.md` Section 2.1
+
+### Interaction Adaptation Pattern
+
+- **Input Modality Detection**: Detect device type via `device.ts` or similar utility
+- **Contextual Actions**:
+  - **Desktop (Mouse)**: Reveal actions on **Hover** (`onMouseEnter`)
+  - **Touch (Mobile/Tablet)**: Reveal actions on **Long Press** context menu. **NEVER** rely on hover for touch devices
+- **Implementation**: Use the `useLongPress` hook abstraction for all touch interactions
+- **Rule**: Do NOT implement hover-only interactions. Always provide touch alternative via `useLongPress`
+- Reference: `src/popup/utils/useLongPress.ts`, `docs/GameplayTag 交互与体验开发手册.md` Section 2.3
+
+### Scroll Locking
+
+- **MANDATORY**: When mounting a Modal or Overlay, explicitly set `overflow: hidden` on `body` to prevent background scrolling
+- **Exception**: Modal internal content area is allowed to scroll
+- **Rendering Expert Note**: Use `overflow: hidden` on body, but be aware this can cause layout shift. Consider using `position: fixed` with calculated scroll position for smoother experience
+- Reference: `docs/GameplayTag 交互与体验开发手册.md` Section 2.2
+
+### Ghost Scrollbar
+
+- **Behavior**: Scrollbars must be invisible (idle) and appear as a semi-transparent pill on hover/scroll
+- **Layout**: Scrollbars **MUST** be "overlay" style (not consuming layout space). They float above content
+- **Implementation**: 
+  - Idle state: Scrollbar invisible or extremely faint
+  - Hover/Scroll state: Scrollbar appears as semi-transparent pill
+  - Overlay style: Scrollbar floats above content, does not push layout
+- Reference: `src/popup/styles/base.css`, `docs/GameplayTag 交互与体验开发手册.md` Section 4.2
+
+## Accessibility
+
+### Focus Management
+
+- **Modal Focus Trap**: Modals MUST trap focus within the component using `radix-ui` or custom logic. Tab key cycles within modal, cannot escape to underlying page
+- **Focus Restore**: Upon closing a modal/popover, focus MUST return to the triggering element (button that opened it)
+- **Initial Focus**: On modal open, focus should default to first interactive element (usually input) or close button
+- **Dropdown Navigation**: Support `ArrowUp` / `ArrowDown` to navigate options. `Enter` selects, `ESC` closes and returns focus to trigger
+- Use `useProgressiveEscape` hook for LIFO ESC key handling in nested modals
+- Reference: `docs/无障碍设计规范.md` Section 1.1
+
+### Keyboard Navigation
+
+- All interactive elements MUST be keyboard accessible
+- Support standard keyboard patterns:
+  - `Tab` / `Shift+Tab`: Navigate between interactive elements
+  - `Enter` / `Space`: Activate buttons/links
+  - `ESC`: Close modals/dropdowns
+  - `ArrowUp` / `ArrowDown`: Navigate lists/dropdowns
+- Ensure logical tab order matches visual order
+- Provide visible focus indicators (outline or ring) for all focusable elements
+
+### ARIA Requirements
+
+- **Semantic Elements**: NEVER use `<div onClick={...}>` instead of `<button>`. If non-standard element is required, MUST add `role="button"` and `tabIndex="0"`
+- **Visual Hidden Labels**: Use `.sr-only` (Screen Reader Only) class for icon-only buttons (e.g., "X" close button) with `aria-label="Close"`
+- **State Synchronization**: Any custom component state changes MUST be reflected in ARIA attributes:
+  - `TagInput`: Implement `combobox` pattern with `aria-expanded` (menu open state) and `aria-activedescendant` (currently selected option ID)
+  - `Toggle`: Use `aria-pressed` or `aria-checked`
+- **ARIA Contracts**: Ensure ARIA attributes match component behavior. Test with screen readers
+- Reference: `docs/无障碍设计规范.md` for ARIA patterns
+
+### Empty State Design
+
+- Empty states are part of onboarding. NEVER show just blank space
+- Empty state MUST include:
+  1. **Visual Anchor**: Illustration/icon (use `icon-xl` size from design tokens)
+  2. **State Description**: What happened ("No tags found")
+  3. **Action CTA**: What user should do next ("Create your first tag" or "Clear search filters")
+- Make empty states helpful and actionable, not just decorative
+
+### Microcopy
+
+- **Tone**: Professional, restrained, occasionally humorous (only in success states or easter eggs)
+- **Principles**:
+  - **No Fluff**: Avoid "Please", "Successfully" redundancy. Say "Saved" not "Successfully saved"
+  - **Verb-First**: Button copy should describe action result (e.g., "Create Tag", "Delete"), avoid generic "OK", "Yes"
+  - **Clarity Over Cleverness**: Be clear and direct, not clever or ambiguous
+- Every word must be carefully chosen. In minimalist interfaces, text weight is critical
+- Reference: `docs/无障碍设计规范.md` for microcopy guidelines
+
+### Visual Accessibility
+
+- **Contrast Ratio**: All text-to-background contrast MUST meet **WCAG AA** standard (minimum 4.5:1). Pay special attention to secondary text (`text-secondary`) in Dim and Dark modes
+- **Non-Color Dependency**: Error states MUST NOT rely solely on color (red). MUST include icon or text explanation
+- Test color contrast using tools like WebAIM Contrast Checker
+- Ensure all interactive states (hover, focus, active) are visually distinct
+
+## Code Style
+
+### Path Alias
+
+- **ALWAYS** use `@/` alias for imports from `src/` directory
+- Path alias configured in `tsconfig.json` (`"@/*": ["src/*"]`)
+- Example: `import { storageService } from '@/services/storageService'`
+- Use relative paths only for same directory or immediate parent/child (e.g., `./Component.tsx`)
+
+### Import Order
+
+- Group imports in the following order (separated by blank lines):
+  1. External dependencies (React, third-party libraries)
+  2. Internal absolute imports using `@/` alias (services, core, shared)
+  3. Internal relative imports (same directory, parent/child)
+  4. Type-only imports (use `import type` when possible)
+  5. CSS/Asset imports (`.css`, `.svg`, etc.)
+- Sort imports alphabetically within each group
+
+## Rendering Impact Analysis (Required)
+
+Before writing any UI code, you MUST output an analysis that addresses:
+
+1. **Layer Count**: Estimate compositing layers. If >10, specify virtualization strategy
+2. **Repaint Scope**: Explicitly state if this triggers `Layout` or just `Compositing`. If Layout, justify why strictly required
+3. **Houdini Strategy**: If `backdrop-filter` is used, specify isolation strategy (e.g., "Isolated via transform: translateZ(0) on container X")
+4. **Animation Properties**: List exact properties being animated. Confirm GPU-accelerated (transform/opacity) or justify layout-triggering properties
+5. **Performance Budget**: Quantify frame budget (target: 16ms per frame). If exceeded, specify optimization strategy
+6. **Token Compliance**: List required design tokens. If missing, specify which tokens need to be added
+
+## Implementation Patterns
+
+### Glass Component Skeleton
+
+```tsx
+// ✅ CORRECT: Using GlassCard, Tokens, and Semantic Layering
+import { GlassCard } from '@/popup/components/GlassCard';
+import { SPACING } from '@/design-tokens/tokens';
+
+export const UserProfile = () => (
+  <GlassCard
+    depthLevel={2} // Explicit depth
+    className="flex flex-col"
+    style={{ gap: SPACING[4] }} // Use Token, not magic number
+  >
+    <div className="z-base relative"> {/* Explicit Stacking Context */}
+      {/* Content */}
+    </div>
+  </GlassCard>
+);
+```
+
+### Design Token Usage
+
+```tsx
+// ✅ CORRECT: Use CSS variables in styles (preferred)
+const Container = styled.div`
+  padding: var(--space-4); /* Token, not 16px */
+  border-radius: var(--radius-md);
+  background: var(--color-surface-glass);
+  transition: transform var(--transition-base);
+`;
+
+// ✅ CORRECT: Use TypeScript imports for calculations
+import { SPACING, ANIMATION } from '@/design-tokens/tokens';
+
+const dynamicSpacing = SPACING[4] * 2; // 32px (calculated from token)
+const animationDuration = ANIMATION.duration.base;
+```
+
+### Headless Hooks Integration
+
+```tsx
+// ✅ Correct: Use Headless Hooks for business logic
+import { useTagInput } from '@/popup/hooks/headless/useTagInput';
+
+function TagInputComponent() {
+  const {
+    inputValue,
+    options,
+    isMenuOpen,
+    getInputProps,
+    getOptionProps,
+    inputRef,
+  } = useTagInput({
+    tags: [],
+    suggestions: [],
+    onTagsChange: handleChange,
+  });
+
+  return (
+    <div>
+      <input {...getInputProps()} ref={inputRef} />
+      {isMenuOpen && (
+        <ul>
+          {options.map((option, index) => (
+            <li key={option} {...getOptionProps(index)}>
+              {option}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+### GPU-Accelerated Animations
+
+```tsx
+// ✅ Correct: Animate transform/opacity only
+import { motion } from 'framer-motion';
+
+const AnimatedCard = motion.div;
+
+<AnimatedCard
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.2 }}
+>
+  Content
+</AnimatedCard>
+```
+
+## Critical Prohibitions
+
+- **DOM Manipulation**: NEVER manipulate DOM directly in React Components. Use refs and prop getters
+- **Hardcoded Values**: NEVER use magic numbers for spacing, colors, or z-index. Always use design tokens
+- **Layout-Triggering Animations**: NEVER animate `width`, `height`, `margin`, `padding`, `border-width` without justification
+- **Logic Coupling**: NEVER implement business logic or Chrome API calls directly in UI components. MUST use Headless Hooks or Service abstraction (e.g., `useTagInput`, `storageService`, RPC client)
+- **Token Mutation**: NEVER modify existing design token definitions to suit a specific component's need. Fix the component, not the system.

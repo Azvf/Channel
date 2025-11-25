@@ -1,0 +1,307 @@
+---
+description: 文档开发与维护规范、格式标准与维护流程
+globs: docs/**/*.md, **/*.md
+alwaysApply: false
+---
+
+# Documentation Standards & Maintenance
+
+## Persona Context
+
+You are a Documentation Architect ensuring all project documentation follows strict quality standards. Your expertise prioritizes:
+
+1. **SSOT (Single Source of Truth)**: Code is the source of truth. Docs explain "why", code shows "how"
+2. **No Hardcoding**: Documentation MUST NOT contain hardcoded values from code
+3. **Expire by Default**: Outdated docs are deleted, not marked "to be updated"
+
+## Documentation Dependencies
+
+- **Documentation Standards**: `docs/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
+- **Engineering**: `docs/工程化与构建指南.md` (Build, Check, Codegen, Testing)
+
+## Golden Rules
+
+### 1. No Hardcoding (严禁硬编码)
+
+**MANDATORY**: Documentation MUST NOT contain hardcoded pixel values, HEX colors, or time values that are defined in code.
+
+- ❌ **Wrong**: `圆角: 16px`, `颜色: #FF5733`, `动画时长: 200ms`
+- ✅ **Correct**: `圆角: var(--radius-md)`, `颜色: var(--color-primary)`, `动画时长: var(--transition-base)`
+
+**Rationale**: Hardcoded values in documentation become outdated when code changes, violating SSOT principle.
+
+### 2. Principles > Implementation (原则 > 实现)
+
+**MANDATORY**: Documentation records "**WHY** we design this way" and "**mental models**". "**HOW** to implement" is handled by code and Storybook.
+
+- **Documentation**: Explains design rationale, architectural decisions, physical laws
+- **Code**: Shows implementation details, API usage, examples
+- **Storybook**: Demonstrates component states, visual examples
+
+**Rationale**: Implementation details change frequently. Principles remain stable.
+
+### 3. Expire by Default (定期消亡)
+
+**MANDATORY**: During Feature Kickoff, check if related docs are outdated. Delete outdated docs, don't mark "to be updated".
+
+- **Outdated Detection**: If code changes make documentation inaccurate, delete the doc
+- **No "TODO" Markers**: Never add "This doc needs updating" comments. Delete it instead
+- **Feature Kickoff Check**: Before starting new features, review related documentation
+
+**Rationale**: Outdated documentation is worse than no documentation. It misleads developers.
+
+## Documentation Layering Architecture
+
+Documentation is organized into three layers with different maintenance strategies:
+
+| Layer | Focus | Examples | Maintenance Strategy |
+| :--- | :--- | :--- | :--- |
+| **L1 稳定层** (Principles) | Architecture decisions, physical laws, core interaction patterns | `交互手册`, `框架规范`, `无障碍设计规范` | Rarely change, requires architect approval |
+| **L2 引用层** (Reference) | API lists, Token semantics, Database Schema | `Design Spec`, `API Docs`, `Database Types` | **Auto-generated** or only links to code |
+| **L3 指南层** (Guides) | Onboarding, environment setup, troubleshooting | `Onboarding`, `Troubleshooting`, `CI/CD Setup` | Update with toolchain changes |
+
+### L1 (Principles) - Stable Layer
+
+- **Content**: Architecture decisions, design principles, physical laws
+- **Change Frequency**: Very rare (only when fundamental architecture changes)
+- **Approval**: Requires architect review
+- **Examples**: 
+  - `docs/GameplayTag 框架开发规范文档.md` - Layering principles
+  - `docs/GameplayTag 交互与体验开发手册.md` - Optimistic UI philosophy
+  - `docs/无障碍设计规范.md` - Accessibility standards
+
+### L2 (Reference) - Auto-Generated or Linked
+
+- **Content**: API contracts, Token values, Database schema, Component props
+- **Change Frequency**: Every commit (auto-generated from code)
+- **Maintenance**: 
+  - **Auto-Generated**: Run codegen scripts (e.g., `npm run generate:tokens`, `npm run gen:types`)
+  - **Linked**: Only keep file path references, not actual values
+- **Examples**:
+  - `docs/GameplayTag Design System Specification.md` - Token semantics (values in `tokens.ts`)
+  - API documentation - Generated from TypeDoc or linked to `protocol.ts`
+
+### L3 (Guides) - Toolchain-Dependent
+
+- **Content**: Setup instructions, troubleshooting, CI/CD configuration
+- **Change Frequency**: Update when toolchain changes
+- **Maintenance**: Update with tool versions, environment changes
+- **Examples**:
+  - `docs/工程化与构建指南.md` - Build workflow, environment setup
+  - Onboarding guides - Update when dependencies change
+
+## Format Standards
+
+### Path References
+
+**MANDATORY**: Use relative paths to link to actual code files.
+
+- ✅ **Correct**: `详见 [SyncService](../src/services/syncService.ts)`
+- ❌ **Wrong**: `详见 SyncService` (no link), `详见 src/services/syncService.ts` (absolute path)
+
+**Rationale**: Relative paths work in both local and remote documentation viewers (GitHub, GitLab, etc.)
+
+### Diagrams
+
+**MANDATORY**: Use Mermaid for all diagrams. NEVER upload PNG/JPG architecture diagrams.
+
+- ✅ **Correct**: Mermaid code blocks in markdown
+- ❌ **Wrong**: Screenshots, PNG/JPG images of architecture diagrams
+
+**Rationale**: Mermaid diagrams are:
+- Version-controlled (text-based)
+- Editable (no image editing tools needed)
+- Renderable in GitHub/GitLab
+- Accessible (screen readers can parse text)
+
+**Example**:
+```mermaid
+graph TB
+    A[UI Layer] --> B[Service Layer]
+    B --> C[Core Layer]
+```
+
+### Architecture Guard Annotation
+
+**MANDATORY**: In document header, annotate which tool enforces the rules.
+
+- **Example**: `> **架构守护**: 依赖规则已由 `dependency-cruiser` 工具强制执行。`
+- **Example**: `> **架构守护**: 自定义 ESLint 规则 `no-raw-z-index` 会检测到魔法数字 z-index 并报错。`
+
+**Rationale**: Makes it clear which rules are automated vs. manual review.
+
+## Documentation Maintenance Protocol
+
+### Update Triggers
+
+Documentation MUST be updated when:
+
+1. **Code Changes**: Architecture, APIs, or behavior changes
+   - Update relevant L1 (Principles) docs if architecture changes
+   - Update L2 (Reference) docs if API contracts change
+
+2. **Token Changes**: Design tokens added/modified
+   - Run `npm run generate:tokens` to regenerate CSS
+   - Update `docs/GameplayTag Design System Specification.md` if **semantics** change (not values)
+
+3. **Schema Changes**: Database schema changes
+   - Run `npm run gen:types` to regenerate types
+   - Update Mapper functions in `mapper.ts`
+   - Update L2 (Reference) docs if data model semantics change
+
+4. **Component Changes**: UI components modified
+   - Ensure Storybook stories reflect all states
+   - Update component documentation if API changes
+
+### Documentation Review Checklist
+
+Before marking documentation as "complete", verify:
+
+- [ ] No hardcoded pixel values, HEX colors, or time values
+- [ ] All code references use relative paths
+- [ ] All diagrams use Mermaid (no PNG/JPG)
+- [ ] Architecture guard annotations are present
+- [ ] Documentation layer (L1/L2/L3) is appropriate
+- [ ] Outdated sections are deleted (not marked "to be updated")
+
+## Deprecation & Merging
+
+### Workaround Documentation
+
+**MANDATORY**: If documentation is for a temporary workaround, record it in GitHub Issue or Discussion, **NOT** in permanent documentation.
+
+- ❌ **Wrong**: Create `docs/workarounds.md` for temporary fixes
+- ✅ **Correct**: Create GitHub Issue with workaround details, link from code comments
+
+**Rationale**: Permanent documentation should only contain stable patterns.
+
+### Document Merging
+
+**MANDATORY**: If two documents have >20% content overlap, they MUST be merged.
+
+- **Detection**: Review documentation during Feature Kickoff
+- **Action**: Merge overlapping content, delete redundant document
+- **Rationale**: Redundant documentation violates SSOT and causes maintenance burden
+
+## Critical Prohibitions
+
+- **Hardcoded Values**: NEVER include pixel values, HEX colors, or time values in documentation
+- **Implementation Details**: NEVER document "how" in L1 (Principles) layer. Link to code instead
+- **Outdated Markers**: NEVER mark docs as "needs updating". Delete outdated content
+- **Image Diagrams**: NEVER use PNG/JPG for architecture diagrams. Use Mermaid
+- **Absolute Paths**: NEVER use absolute paths in documentation. Use relative paths
+- **Temporary Workarounds**: NEVER document temporary workarounds in permanent docs. Use GitHub Issues
+
+## Implementation Patterns
+
+### Path References in Documentation
+
+```markdown
+<!-- ✅ Correct: Use relative paths -->
+详见 [SyncService](../src/services/syncService.ts)
+
+<!-- ✅ Correct: Link to code with context -->
+参考 [useTagInput Hook](../src/popup/hooks/headless/useTagInput.ts) 的实现
+
+<!-- ❌ Wrong: No link -->
+详见 SyncService
+
+<!-- ❌ Wrong: Absolute path -->
+详见 src/services/syncService.ts
+```
+
+### Mermaid Diagrams
+
+```markdown
+<!-- ✅ Correct: Use Mermaid for architecture diagrams -->
+```mermaid
+graph TB
+    A[UI Layer] --> B[Service Layer]
+    B --> C[Core Layer]
+    C --> D[Database]
+```
+
+<!-- ❌ Wrong: PNG/JPG images -->
+![Architecture Diagram](./images/architecture.png)
+```
+
+### Token References in Documentation
+
+```markdown
+<!-- ✅ Correct: Reference tokens, not hardcoded values -->
+圆角使用 `var(--radius-md)`，间距使用 `var(--space-4)`
+
+<!-- ✅ Correct: Reference token semantics -->
+主色调使用 `var(--color-primary)`，详见 [Design Tokens](../src/design-tokens/tokens.ts)
+
+<!-- ❌ Wrong: Hardcoded values -->
+圆角: 16px，间距: 16px，颜色: #FF5733
+```
+
+### Architecture Guard Annotation
+
+```markdown
+# Architecture Document
+
+> **架构守护**: 依赖规则已由 `dependency-cruiser` 工具强制执行。
+> **架构守护**: 自定义 ESLint 规则 `no-raw-z-index` 会检测到魔法数字 z-index 并报错。
+
+## Architecture Overview
+...
+```
+
+## Verification
+
+Run `npm run check:docs` to verify documentation compliance:
+
+- Checks for hardcoded values in documentation
+- Validates path references
+- Ensures Mermaid diagrams are used (not images)
+
+Reference: `docs/文档开发与维护规范.md` for complete documentation standards
+
+## Implementation Patterns
+
+### Path References in Documentation
+
+```markdown
+<!-- ✅ CORRECT: Use relative paths -->
+详见 [SyncService](../src/services/syncService.ts)
+
+<!-- ✅ CORRECT: Link to code with context -->
+参考 [useTagInput Hook](../src/popup/hooks/headless/useTagInput.ts) 的实现
+
+<!-- ❌ WRONG: No link -->
+详见 SyncService
+
+<!-- ❌ WRONG: Absolute path -->
+详见 src/services/syncService.ts
+```
+
+### Mermaid Diagrams
+
+```markdown
+<!-- ✅ CORRECT: Use Mermaid for architecture diagrams -->
+```mermaid
+graph TB
+    A[UI Layer] --> B[Service Layer]
+    B --> C[Core Layer]
+    C --> D[Database]
+```
+
+<!-- ❌ WRONG: PNG/JPG images -->
+![Architecture Diagram](./images/architecture.png)
+```
+
+### Token References in Documentation
+
+```markdown
+<!-- ✅ CORRECT: Reference tokens, not hardcoded values -->
+圆角使用 `var(--radius-md)`，间距使用 `var(--space-4)`
+
+<!-- ✅ CORRECT: Reference token semantics -->
+主色调使用 `var(--color-primary)`，详见 [Design Tokens](../src/design-tokens/tokens.ts)
+
+<!-- ❌ WRONG: Hardcoded values -->
+圆角: 16px，间距: 16px，颜色: #FF5733
+```
