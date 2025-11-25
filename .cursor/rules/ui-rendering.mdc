@@ -16,10 +16,10 @@ You are a Senior Frontend Rendering Architect working on Glassmorphism UI compon
 
 ## Documentation Dependencies
 
-- **Visual Design**: `docs/GameplayTag Design System Specification.md` (Tokens, Layout, Glassmorphism)
-- **Interaction**: `docs/GameplayTag 交互与体验开发手册.md` (Optimistic UI, Physics, RAIL)
-- **Accessibility**: `docs/无障碍设计规范.md` (A11y, Wording, Content Strategy)
-- **Engineering**: `docs/工程化与构建指南.md` (Build, Check, Codegen, Testing)
+- **Visual Design**: `docs/reference/design-system/GameplayTag Design System Specification.md` (Tokens, Layout, Glassmorphism)
+- **Interaction**: `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` (Optimistic UI, Physics, RAIL)
+- **Accessibility**: `docs/principles/accessibility/无障碍设计规范.md` (A11y, Wording, Content Strategy)
+- **Engineering**: `docs/reference/engineering/工程化与构建指南.md` (Build, Check, Codegen, Testing)
 
 ## Design Tokens
 
@@ -27,7 +27,7 @@ You are a Senior Frontend Rendering Architect working on Glassmorphism UI compon
 - In TypeScript, import from `@/design-tokens/tokens` (e.g., `ANIMATION.duration.base`, `SPACING[4]`)
 - Use semantic z-index tokens like `var(--z-modal-content)` instead of magic numbers
 - Extend the Design Token system for new values rather than creating one-off styles
-- Reference: `docs/GameplayTag Design System Specification.md` for token semantics
+- Reference: `docs/reference/design-system/GameplayTag Design System Specification.md` for token semantics
 
 ### Token Stability Protocol (CRITICAL)
 
@@ -63,7 +63,7 @@ You are prohibited from modifying `src/design-tokens/tokens.ts` during normal co
 
 2. **Regenerate**: MUST run `npm run generate:tokens` immediately to update CSS variables.
 
-3. **Document**: Remind the user to update `docs/GameplayTag Design System Specification.md` if semantics changed.
+3. **Document**: Remind the user to update `docs/reference/design-system/GameplayTag Design System Specification.md` if semantics changed.
 
 ### Iconography System
 
@@ -74,24 +74,23 @@ You are prohibited from modifying `src/design-tokens/tokens.ts` during normal co
   - Icon components: `src/popup/components/` (import on demand)
   - Size tokens: `src/popup/styles/tokens.css` (`--icon-size-*`)
   - Reference: `src/design-tokens/tokens.ts` for `ICON_SIZES` object
-  - Reference: `docs/无障碍设计规范.md` Section 4.2 for iconography guidelines
+  - Reference: `docs/principles/accessibility/无障碍设计规范.md` Section 4.2 for iconography guidelines
 
 ### Theme System
 
-- **ALWAYS** use CSS variables from the theme system (e.g., `var(--c-content)`, `var(--c-action)`, `var(--button-color-default-tint)`)
-- **Theme Definition**: All themes are defined in `src/popup/themes/` directory with inheritance support
-- **Theme Application**: Use `applyThemeToBody()` from `src/popup/utils/theme.ts` to apply themes at runtime
-- **Theme Variables**: Theme variables are automatically flattened to CSS variables and applied to `body` element
+- **ALWAYS** use CSS variables from the theme system (e.g., `var(--c-content)`, `var(--c-action)`, `var(--c-bg)`)
+- **Theme Definition**: All theme variables are defined in `src/popup/utils/theme.ts` as `THEME_VARS` object
+- **Theme Loader**: Use `src/popup/theme-loader.ts` for synchronous theme application before React loads (prevents theme flash)
+- **Theme Application**: Theme variables are applied as CSS custom properties to the `body` element
 - **Extending Themes**: To create a new theme:
-  1. Create a new theme file in `src/popup/themes/` (e.g., `ocean.ts`)
-  2. Use `extendTheme()` from `src/popup/themes/utils.ts` to inherit from base or existing theme
-  3. Override only the variables that need to differ (supports deep partial override)
-  4. Register the theme in `src/popup/themes/index.ts`
-- **Theme Structure**: Themes are organized by semantic groups (colors, intent, text, fill, glass, material, buttons, controls, menu, glassEffect)
+  1. Add new theme configuration to `THEME_VARS` object in `src/popup/utils/theme.ts`
+  2. Add the same configuration to `themeVars` object in `src/popup/theme-loader.ts`
+  3. Ensure all required CSS variables are defined (e.g., `--c-glass`, `--c-light`, `--c-dark`, `--c-content`, `--c-action`, `--c-bg`)
+- **Theme Structure**: Theme variables include base colors (glass, light, dark, bg), content color, action color, and glass effect parameters (reflex, saturation)
 - **Reference**: 
-  - Theme system: `src/popup/themes/` directory
-  - Theme utilities: `src/popup/themes/utils.ts`
-  - Theme application: `src/popup/utils/theme.ts`
+  - Theme variables: `src/popup/utils/theme.ts` (`THEME_VARS` object)
+  - Theme loader: `src/popup/theme-loader.ts` (synchronous theme application)
+  - CSS variables: `src/popup/styles/tokens.css`
   - Design system spec: `docs/reference/design-system/GameplayTag Design System Specification.md` Section 6
 
 ## Glassmorphism Effects
@@ -154,7 +153,7 @@ As depth level increases, visual properties MUST follow these physical optical l
 
 Depth-aware rendering simulates real optical physics, not simple transparency. This creates a more natural, physically consistent visual hierarchy that users perceive as more "real" and less "digital".
 
-Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/GameplayTag 交互与体验开发手册.md` Section 1.1, `src/popup/components/GlassCard.tsx`, `src/popup/styles/components/glass.css`
+Reference: `docs/reference/design-system/GameplayTag Design System Specification.md` Section 3, `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 1.1, `src/popup/components/GlassCard.tsx`, `src/popup/styles/components/glass.css`
 
 ## Rendering Performance
 
@@ -185,7 +184,7 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
 - **Animation**: 60fps (16ms per frame)
 - **Idle**: Maximize idle time for background work
 - **Load**: Critical content < 1s, full load < 3s
-- Reference: `docs/GameplayTag 交互与体验开发手册.md` for RAIL guidelines
+- Reference: `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` for RAIL guidelines
 
 ## Interaction Patterns
 
@@ -193,7 +192,7 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
 
 - All CRUD operations MUST be optimistic. Update UI immediately, then sync in background
 - Use `onMutate` in TanStack Query mutations for immediate UI updates
-- Reference: `docs/GameplayTag 交互与体验开发手册.md` for detailed patterns
+- Reference: `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` for detailed patterns
 
 ### Unified Physics
 
@@ -211,7 +210,7 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
   - Level 3: Close modal / Sidebar
 - **Implementation**: Use `useProgressiveEscape` hook to register hierarchy and callbacks
 - **Rule**: Do NOT close parent Modals if a child Dropdown is open. Each ESC press closes only the topmost layer
-- Reference: `src/hooks/useProgressiveEscape.ts`, `docs/GameplayTag 交互与体验开发手册.md` Section 2.1
+- Reference: `src/hooks/useProgressiveEscape.ts`, `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 2.1
 
 ### Interaction Adaptation Pattern
 
@@ -221,14 +220,14 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
   - **Touch (Mobile/Tablet)**: Reveal actions on **Long Press** context menu. **NEVER** rely on hover for touch devices
 - **Implementation**: Use the `useLongPress` hook abstraction for all touch interactions
 - **Rule**: Do NOT implement hover-only interactions. Always provide touch alternative via `useLongPress`
-- Reference: `src/popup/utils/useLongPress.ts`, `docs/GameplayTag 交互与体验开发手册.md` Section 2.3
+- Reference: `src/popup/utils/useLongPress.ts`, `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 2.3
 
 ### Scroll Locking
 
 - **MANDATORY**: When mounting a Modal or Overlay, explicitly set `overflow: hidden` on `body` to prevent background scrolling
 - **Exception**: Modal internal content area is allowed to scroll
 - **Rendering Expert Note**: Use `overflow: hidden` on body, but be aware this can cause layout shift. Consider using `position: fixed` with calculated scroll position for smoother experience
-- Reference: `docs/GameplayTag 交互与体验开发手册.md` Section 2.2
+- Reference: `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 2.2
 
 ### Ghost Scrollbar
 
@@ -238,7 +237,7 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
   - Idle state: Scrollbar invisible or extremely faint
   - Hover/Scroll state: Scrollbar appears as semi-transparent pill
   - Overlay style: Scrollbar floats above content, does not push layout
-- Reference: `src/popup/styles/base.css`, `docs/GameplayTag 交互与体验开发手册.md` Section 4.2
+- Reference: `src/popup/styles/base.css`, `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 4.2
 
 ## Accessibility
 
@@ -249,7 +248,7 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
 - **Initial Focus**: On modal open, focus should default to first interactive element (usually input) or close button
 - **Dropdown Navigation**: Support `ArrowUp` / `ArrowDown` to navigate options. `Enter` selects, `ESC` closes and returns focus to trigger
 - Use `useProgressiveEscape` hook for LIFO ESC key handling in nested modals
-- Reference: `docs/无障碍设计规范.md` Section 1.1
+- Reference: `docs/principles/accessibility/无障碍设计规范.md` Section 1.1
 
 ### Keyboard Navigation
 
@@ -270,7 +269,7 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
   - `TagInput`: Implement `combobox` pattern with `aria-expanded` (menu open state) and `aria-activedescendant` (currently selected option ID)
   - `Toggle`: Use `aria-pressed` or `aria-checked`
 - **ARIA Contracts**: Ensure ARIA attributes match component behavior. Test with screen readers
-- Reference: `docs/无障碍设计规范.md` for ARIA patterns
+- Reference: `docs/principles/accessibility/无障碍设计规范.md` for ARIA patterns
 
 ### Empty State Design
 
@@ -289,7 +288,7 @@ Reference: `docs/GameplayTag Design System Specification.md` Section 3, `docs/Ga
   - **Verb-First**: Button copy should describe action result (e.g., "Create Tag", "Delete"), avoid generic "OK", "Yes"
   - **Clarity Over Cleverness**: Be clear and direct, not clever or ambiguous
 - Every word must be carefully chosen. In minimalist interfaces, text weight is critical
-- Reference: `docs/无障碍设计规范.md` for microcopy guidelines
+- Reference: `docs/principles/accessibility/无障碍设计规范.md` for microcopy guidelines
 
 ### Visual Accessibility
 

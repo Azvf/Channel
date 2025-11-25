@@ -32,7 +32,7 @@ When a user requests creating a new UI component:
 - Storybook is the single source of truth for component development and design review
 - Run `npm run storybook` to start Storybook dev server
 - Build Storybook with `npm run build-storybook` for production review
-- Reference: `docs/无障碍设计规范.md` Section 4.1 for CDD workflow
+- Reference: `docs/principles/accessibility/无障碍设计规范.md` Section 4.1 for CDD workflow
 
 ## Token Consumption Workflow
 
@@ -83,11 +83,11 @@ Before marking a component as "done", verify ALL states in Storybook:
 
 ## Visual Regression
 
-- If modifying UI components (especially `GlassCard`), verify against `docs/工程化与构建指南.md`'s visual testing section
+- If modifying UI components (especially `GlassCard`), verify against `docs/reference/engineering/工程化与构建指南.md`'s visual testing section
 - Use Playwright Component Testing for UI components. Test files in `tests/components/`
 - Run visual regression tests: `npm run test:ct`
 - Glass components use `GlassTestBed` fixture with high-frequency backgrounds (checkerboard/noise/gradient)
-- Reference: `docs/工程化与构建指南.md` Section 3.4 for visual regression details
+- Reference: `docs/reference/engineering/工程化与构建指南.md` Section 3.4 for visual regression details
 
 ## Microcopy Guidelines
 
@@ -117,4 +117,4 @@ Before marking a component as "done", verify ALL states in Storybook:
 
 - **Character**: Professional, restrained, occasionally humorous (only in success states or easter eggs)
 - **Clarity Over Cleverness**: Be clear and direct, not clever or ambiguous
-- Reference: `docs/无障碍设计规范.md` Section 2.1 for microcopy guidelines
+- Reference: `docs/principles/accessibility/无障碍设计规范.md` Section 2.1 for microcopy guidelines

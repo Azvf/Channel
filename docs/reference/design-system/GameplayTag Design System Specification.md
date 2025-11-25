@@ -6,7 +6,7 @@
 > 本文档仅描述视觉语言的**语义用途**。
 > * **设计常量 (Token)**: 定义于 [`src/design-tokens/tokens.ts`](../src/design-tokens/tokens.ts)
 > * **样式变量 (CSS)**: 定义于 [`src/popup/styles/tokens.css`](../src/popup/styles/tokens.css)
-> * **主题系统**: 定义于 [`src/popup/themes/`](../src/popup/themes/)
+> * **主题系统**: 定义于 [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 和 [`src/popup/theme-loader.ts`](../src/popup/theme-loader.ts)
 > * **组件预览**: 请运行 `npm run storybook` 查看 "Design Tokens" 章节。
 
 ## 1. 空间与布局 (Spacing & Layout)
@@ -78,46 +78,37 @@
 
 ## 6. 多主题系统 (Multi-Theme System)
 
-支持动态主题切换，通过继承机制简化主题扩展流程。
+支持动态主题切换，通过 CSS 变量实现主题变量管理。
 
 ### 架构设计
 
-主题系统采用**分组结构**和**继承机制**：
+主题系统采用**CSS 变量**和**同步加载**机制：
 
-* **分组组织**: 主题变量按语义分组（colors, intent, text, fill, glass, material, buttons, controls, menu, glassEffect）
-* **继承机制**: 新主题可以继承基础主题或现有主题，只需覆盖需要不同的变量
-* **统一数据源**: 所有主题定义统一在 [`src/popup/themes/`](../src/popup/themes/) 目录中
+* **CSS 变量**: 所有主题变量通过 CSS 自定义属性（`--c-*`）定义
+* **同步加载**: 使用 `theme-loader.ts` 在 React 加载前同步应用主题，防止主题闪烁
+* **统一数据源**: 主题变量定义在 [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 中
 
 ### 主题定义位置
 
-* **类型定义**: [`src/popup/themes/types.ts`](../src/popup/themes/types.ts) - 主题配置类型系统
-* **基础主题**: [`src/popup/themes/base.ts`](../src/popup/themes/base.ts) - 包含所有默认值和通用变量
-* **主题实现**: [`src/popup/themes/light.ts`](../src/popup/themes/light.ts), [`dark.ts`](../src/popup/themes/dark.ts), [`dim.ts`](../src/popup/themes/dim.ts)
-* **主题注册**: [`src/popup/themes/index.ts`](../src/popup/themes/index.ts) - 主题注册和工具函数
-* **运行时应用**: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) - 主题应用到 DOM
+* **主题变量定义**: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) - 包含所有主题的 CSS 变量映射
+* **主题加载器**: [`src/popup/theme-loader.ts`](../src/popup/theme-loader.ts) - 在页面加载前同步应用主题，防止闪烁
+* **样式变量**: [`src/popup/styles/tokens.css`](../src/popup/styles/tokens.css) - CSS 变量声明
 
-### 主题变量分组
+### 主题变量结构
 
-主题变量按以下类别分组，每个类别包含相关的 CSS 变量：
+主题变量主要包括：
 
-* **colors**: 基础颜色（glass, light, dark, bg）
-* **intent**: 语义化颜色（action, destructive, warning, success）
-* **text**: 文本颜色层级（primary, secondary, tertiary 等）
-* **fill**: 填充颜色层级（primary, secondary, tertiary 等）
-* **glass**: Glass 效果参数（reflex, saturation, blur 等）
-* **material**: 材质厚度系统
-* **buttons**: 按钮颜色变量
-* **controls**: 控件颜色变量
-* **menu**: 菜单颜色变量
-* **glassEffect**: Glass 效果颜色（用于 Liquid Glass）
+* **基础颜色**: `--c-glass`, `--c-light`, `--c-dark`, `--c-bg` - 基础颜色系统
+* **内容颜色**: `--c-content` - 文本内容颜色
+* **操作颜色**: `--c-action` - 主要操作按钮颜色
+* **Glass 效果**: `--glass-reflex-dark`, `--glass-reflex-light`, `--saturation` - 毛玻璃效果参数
 
 ### 扩展新主题
 
 添加新主题只需：
 
-1. 在 [`src/popup/themes/`](../src/popup/themes/) 目录创建新主题文件
-2. 使用 `extendTheme()` 继承基础主题或现有主题
-3. 只覆盖需要不同的变量（支持深度部分覆盖）
-4. 在 [`src/popup/themes/index.ts`](../src/popup/themes/index.ts) 中注册新主题
+1. 在 [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 的 `THEME_VARS` 对象中添加新主题配置
+2. 在 [`src/popup/theme-loader.ts`](../src/popup/theme-loader.ts) 的 `themeVars` 对象中添加相同的配置
+3. 确保所有必需的 CSS 变量都已定义
 
-详见: [`src/popup/themes/utils.ts`](../src/popup/themes/utils.ts) 中的 `extendTheme()` 函数。
+详见: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 中的 `THEME_VARS` 对象。

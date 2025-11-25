@@ -16,8 +16,8 @@ You are a Chrome Extension Runtime Expert. Your expertise prioritizes:
 
 ## Documentation Dependencies
 
-- **Architecture**: `docs/GameplayTag 框架开发规范文档.md` (Layering, Dependencies, Core Strategy)
-- **Engineering**: `docs/工程化与构建指南.md` (Build, Check, Codegen, Testing)
+- **Architecture**: `docs/principles/framework/GameplayTag 框架开发规范文档.md` (Layering, Dependencies, Core Strategy)
+- **Engineering**: `docs/reference/engineering/工程化与构建指南.md` (Build, Check, Codegen, Testing)
 
 ## Manifest V3 Compliance
 
@@ -116,7 +116,7 @@ You are a Chrome Extension Runtime Expert. Your expertise prioritizes:
 - Register detectors via `register()` method
 - Execute analysis via `analyzePage()` method
 - Follow the Orchestrator Pattern: centralize feature management, enable runtime registration, and provide unified execution interface
-- Reference: `src/content/features/FeatureOrchestrator.ts`, `docs/GameplayTag 框架开发规范文档.md` Section 4
+- Reference: `src/content/features/FeatureOrchestrator.ts`, `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 4
 
 ### Parallel Execution
 
@@ -129,7 +129,7 @@ You are a Chrome Extension Runtime Expert. Your expertise prioritizes:
 - **MANDATORY**: Implement strict timeouts (e.g., 2s) for page analysis to prevent hanging the content script
 - Single detector failure must NOT affect other detectors
 - Use timeout pattern: `Promise.race([detector.detect(), timeoutPromise])`
-- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 4.2.1
+- Reference: `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 4.2.1
 
 ### Detector Interface Pattern
 
@@ -137,7 +137,7 @@ You are a Chrome Extension Runtime Expert. Your expertise prioritizes:
 - Detectors must be registered in `FeatureOrchestrator` constructor
 - Add timeout handling and error handling for each detector
 - Follow the Strategy Pattern: each detector is a strategy that can be registered and executed independently
-- Reference: `src/content/features/types.ts`, `docs/GameplayTag 框架开发规范文档.md` Section 4.2.2
+- Reference: `src/content/features/types.ts`, `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 4.2.2
 
 ## Runtime Safety
 

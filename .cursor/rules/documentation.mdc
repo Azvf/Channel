@@ -16,8 +16,8 @@ You are a Documentation Architect ensuring all project documentation follows str
 
 ## Documentation Dependencies
 
-- **Documentation Standards**: `docs/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
-- **Engineering**: `docs/工程化与构建指南.md` (Build, Check, Codegen, Testing)
+- **Documentation Standards**: `docs/meta/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
+- **Engineering**: `docs/reference/engineering/工程化与构建指南.md` (Build, Check, Codegen, Testing)
 
 ## Golden Rules
 
@@ -66,9 +66,9 @@ Documentation is organized into three layers with different maintenance strategi
 - **Change Frequency**: Very rare (only when fundamental architecture changes)
 - **Approval**: Requires architect review
 - **Examples**: 
-  - `docs/GameplayTag 框架开发规范文档.md` - Layering principles
-  - `docs/GameplayTag 交互与体验开发手册.md` - Optimistic UI philosophy
-  - `docs/无障碍设计规范.md` - Accessibility standards
+  - `docs/principles/framework/GameplayTag 框架开发规范文档.md` - Layering principles
+  - `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` - Optimistic UI philosophy
+  - `docs/principles/accessibility/无障碍设计规范.md` - Accessibility standards
 
 ### L2 (Reference) - Auto-Generated or Linked
 
@@ -78,7 +78,7 @@ Documentation is organized into three layers with different maintenance strategi
   - **Auto-Generated**: Run codegen scripts (e.g., `npm run generate:tokens`, `npm run gen:types`)
   - **Linked**: Only keep file path references, not actual values
 - **Examples**:
-  - `docs/GameplayTag Design System Specification.md` - Token semantics (values in `tokens.ts`)
+  - `docs/reference/design-system/GameplayTag Design System Specification.md` - Token semantics (values in `tokens.ts`)
   - API documentation - Generated from TypeDoc or linked to `protocol.ts`
 
 ### L3 (Guides) - Toolchain-Dependent
@@ -87,7 +87,7 @@ Documentation is organized into three layers with different maintenance strategi
 - **Change Frequency**: Update when toolchain changes
 - **Maintenance**: Update with tool versions, environment changes
 - **Examples**:
-  - `docs/工程化与构建指南.md` - Build workflow, environment setup
+  - `docs/reference/engineering/工程化与构建指南.md` - Build workflow, environment setup
   - Onboarding guides - Update when dependencies change
 
 ## Format Standards
@@ -142,7 +142,7 @@ Documentation MUST be updated when:
 
 2. **Token Changes**: Design tokens added/modified
    - Run `npm run generate:tokens` to regenerate CSS
-   - Update `docs/GameplayTag Design System Specification.md` if **semantics** change (not values)
+   - Update `docs/reference/design-system/GameplayTag Design System Specification.md` if **semantics** change (not values)
 
 3. **Schema Changes**: Database schema changes
    - Run `npm run gen:types` to regenerate types
@@ -258,7 +258,7 @@ Run `npm run check:docs` to verify documentation compliance:
 - Validates path references
 - Ensures Mermaid diagrams are used (not images)
 
-Reference: `docs/文档开发与维护规范.md` for complete documentation standards
+Reference: `docs/meta/文档开发与维护规范.md` for complete documentation standards
 
 ## Implementation Patterns
 

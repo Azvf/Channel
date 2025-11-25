@@ -16,9 +16,9 @@ You are a Backend/Data Architecture Expert working on business logic and data ma
 
 ## Documentation Dependencies
 
-- **Architecture**: `docs/GameplayTag 框架开发规范文档.md` (Layering, Dependencies, Core Strategy)
-- **Interaction**: `docs/GameplayTag 交互与体验开发手册.md` (Optimistic UI, Physics, RAIL)
-- **Documentation Standards**: `docs/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
+- **Architecture**: `docs/principles/framework/GameplayTag 框架开发规范文档.md` (Layering, Dependencies, Core Strategy)
+- **Interaction**: `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` (Optimistic UI, Physics, RAIL)
+- **Documentation Standards**: `docs/meta/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
 
 ## Architectural Analysis (Required)
 
@@ -37,7 +37,7 @@ Only after completing this analysis should you proceed to implementation.
 - `src/core` must be pure logic (no React, no Chrome API, no external dependencies)
 - Services must depend on interfaces, not concrete implementations
 - Use Repository pattern for data access (`src/infra/database/`)
-- Reference: `docs/GameplayTag 框架开发规范文档.md` for dependency graph and Mermaid diagrams
+- Reference: `docs/principles/framework/GameplayTag 框架开发规范文档.md` for dependency graph and Mermaid diagrams
 
 ## Core Domain Principles
 
@@ -47,7 +47,7 @@ Only after completing this analysis should you proceed to implementation.
 - **Pure Implementation**: Core logic should be implemented as Pure Functions or Classes with no side effects
 - **Strategy Pattern**: Use the Strategy Pattern for complex algorithms to allow runtime switching and easy testing
 - **Testability**: All strategy classes MUST have corresponding unit tests
-- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 2.1, 2.3
+- Reference: `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 2.1, 2.3
 
 ## Single Source of Truth (SSOT)
 
@@ -94,7 +94,7 @@ When database schema changes, follow this **4-step workflow**:
 - **Database Types**: `src/shared/types/database.types.ts` (auto-generated, do NOT edit manually)
 - **Domain Types**: `src/shared/types/` (used by UI layer)
 
-Reference: `docs/工程化与构建指南.md` Section 3.2 for SDD details
+Reference: `docs/reference/engineering/工程化与构建指南.md` Section 3.2 for SDD details
 
 ## React Query (TanStack Query)
 
@@ -185,7 +185,7 @@ persistQueryClient({
 3. **Reduced Server Load**: Fewer unnecessary requests
 4. **Better UX**: No blank screens or loading spinners for cached data
 
-Reference: `docs/GameplayTag 交互与体验开发手册.md` Section 3.2, `src/infra/database/chrome-storage/repositories/`, `src/lib/queryClient.ts`
+Reference: `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 3.2, `src/infra/database/chrome-storage/repositories/`, `src/lib/queryClient.ts`
 
 ### Optimistic UI Pattern
 
@@ -222,7 +222,7 @@ const mutation = useMutation({
 - **Smart Components**: Connect to Stores/Services, manage state, pass data to Dumb Components
   - Examples: `StatsWallModal`, `TagInput`, `TaggedPage`
   - Handle business logic, data fetching, state management
-- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 6.2.2
+- Reference: `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 6.2.2
 
 ## Headless Hooks Pattern
 
@@ -231,7 +231,7 @@ const mutation = useMutation({
 - Headless Hooks encapsulate business logic, UI components only handle rendering
 - Hooks MUST return structured data and prop getters, **NEVER** directly manipulate DOM
 - Location: `src/popup/hooks/headless/` (e.g., `useTagInput.ts`, `useStatsWall.ts`)
-- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 6.2.1 for pattern details
+- Reference: `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 6.2.1 for pattern details
 
 ### Return Structure
 
@@ -275,7 +275,7 @@ export interface UseHookReturn {
 - **Level 1 - Toast (轻量提示)**: Non-blocking success/failure feedback (e.g., "Copied", "Auto-saving"). Auto-dismiss, doesn't interrupt flow
 - **Level 2 - Banner (嵌入式警告)**: Context-specific issues (e.g., "Network offline", "Form validation errors"). Persistent until resolved, pushes layout
 - **Level 3 - Modal (阻断式警告)**: Destructive action confirmation, critical flow interruption. Must be explicitly dismissed by user
-- Reference: `docs/无障碍设计规范.md` for detailed feedback patterns
+- Reference: `docs/principles/accessibility/无障碍设计规范.md` for detailed feedback patterns
 
 ### Error Message Structure
 
@@ -326,13 +326,13 @@ export interface UseHookReturn {
 - **MANDATORY**: Always write to local `ChromeStorageRepository` first, then sync to cloud
 - **Eventual Consistency**: Implement eventual consistency through conflict resolution, not immediate consistency
 - Use `SyncService.getInstance()` to access sync operations. NEVER directly operate Chrome Storage or Supabase
-- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 3.1, `docs/GameplayTag 交互与体验开发手册.md` Section 3.2
+- Reference: `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 3.1, `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 3.2
 
 ### Concurrency Control
 
 - **Distributed Lock**: All sync operations MUST acquire a Distributed Lock (via Chrome Storage) before execution to prevent race conditions
 - Lock implementation: Use Chrome Storage with timeout mechanism to prevent deadlocks
-- Reference: `src/services/syncService.ts`, `docs/GameplayTag 框架开发规范文档.md` Section 3.2.1
+- Reference: `src/services/syncService.ts`, `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 3.2.1
 
 ### Conflict Resolution Pattern
 
@@ -340,17 +340,17 @@ export interface UseHookReturn {
 - Use `ShadowMap` or similar mechanism to track last sync state for conflict detection
 - Choose appropriate merge strategy based on data type (simple fields vs collections)
 - Soft delete via `deleted` flag to avoid "zombie data" resurrection
-- Reference: `docs/GameplayTag 框架开发规范文档.md` Section 3.2.1
+- Reference: `docs/principles/framework/GameplayTag 框架开发规范文档.md` Section 3.2.1
 
 ## Documentation Maintenance
 
 ### Update Requirements
 
 - **Code Changes**: When modifying code that affects architecture, APIs, or behavior, update relevant docs
-- **Token Changes**: When adding/modifying design tokens, run `npm run generate:tokens` and update `docs/GameplayTag Design System Specification.md` if semantics change
+- **Token Changes**: When adding/modifying design tokens, run `npm run generate:tokens` and update `docs/reference/design-system/GameplayTag Design System Specification.md` if semantics change
 - **Schema Changes**: When database schema changes, run `npm run gen:types` and update Mapper functions
 - **Component Changes**: When modifying components, ensure Storybook stories reflect all states
-- Reference: `docs/文档开发与维护规范.md` for documentation principles
+- Reference: `docs/meta/文档开发与维护规范.md` for documentation principles
 
 ### Documentation Principles
 
@@ -362,7 +362,7 @@ export interface UseHookReturn {
   - L1 (Principles): Architecture decisions, rarely change
   - L2 (Reference): API lists, Token semantics, auto-generated or link to code
   - L3 (Guides): Onboarding, troubleshooting, update with toolchain
-- Reference: `docs/文档开发与维护规范.md` for complete documentation standards
+- Reference: `docs/meta/文档开发与维护规范.md` for complete documentation standards
 
 ## Implementation Patterns
 

@@ -16,8 +16,8 @@ You are a Code Quality Guardian and Engineering Standards Enforcer. Your distinc
 
 ## Documentation Dependencies
 
-- **Engineering**: `docs/工程化与构建指南.md` (Build, Check, Codegen, Testing)
-- **Documentation Standards**: `docs/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
+- **Engineering**: `docs/reference/engineering/工程化与构建指南.md` (Build, Check, Codegen, Testing)
+- **Documentation Standards**: `docs/meta/文档开发与维护规范.md` (SSOT, No Hardcoding, Reference Links)
 
 ## Pre-Edit Checklist
 
@@ -79,7 +79,7 @@ Before editing code, verify:
   - Ensure layered architecture (Layered Architecture) is not violated
   - Core layer must remain pure (no external dependencies)
 
-- Reference: `docs/工程化与构建指南.md` Section 2.1, `.dependency-cruiser.cjs`
+- Reference: `docs/reference/engineering/工程化与构建指南.md` Section 2.1, `.dependency-cruiser.cjs`
 
 ## 4. Code Style
 
@@ -121,7 +121,7 @@ Before editing code, verify:
 
 - Test files location: `tests/components/`
 
-- Reference: `docs/工程化与构建指南.md` Section 3.4 for visual regression details
+- Reference: `docs/reference/engineering/工程化与构建指南.md` Section 3.4 for visual regression details
 
 ## 6. Code Generation
 
@@ -132,7 +132,7 @@ Before editing code, verify:
 - Token change process:
   1. **Modify Token Source**: Update `src/design-tokens/tokens.ts` with new/updated tokens
   2. **Generate CSS**: Run `npm run generate:tokens` to regenerate CSS variables
-  3. **Update Documentation**: If token semantics change, update `docs/GameplayTag Design System Specification.md` with semantic description (NOT hardcoded values)
+  3. **Update Documentation**: If token semantics change, update `docs/reference/design-system/GameplayTag Design System Specification.md` with semantic description (NOT hardcoded values)
   4. **Verify**: Run `npm run check:docs` to ensure no hardcoded values in documentation
   5. **Reference in Code**: Use tokens via CSS variables (`var(--token-name)`) or TypeScript imports (`@/design-tokens/tokens`)
 
