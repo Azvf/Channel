@@ -21,9 +21,9 @@ import {
 } from "lucide-react";
 import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
-import { currentPageService } from "../../services/popup/currentPageService";
 import { LAYOUT, POSITIONING } from "../utils/layoutConstants";
 import { TaggedPage as TaggedPageType } from "../../shared/types/gameplayTag";
+import { useUpdatePageDetails } from "../hooks/mutations/usePageMutations";
 import { useAppContext } from "../context/AppContext";
 import { SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
 import { getTransition, DURATION } from "../../design-tokens/animation"; // [Refactor] 引入物理引擎
@@ -139,9 +139,15 @@ export function TaggedPage({
 
   const suggestions = useMemo(() => allTags.map((tag) => tag.name), [allTags]);
 
+  // 本地状态用于乐观更新 allPages
+  const [optimisticPages, setOptimisticPages] = useState<TaggedPageType[] | null>(null);
+  
+  // 合并本地乐观更新和 AppContext 的 allPages
+  const displayPages = optimisticPages ?? allPages;
+
   const visiblePages = useMemo(
-    () => allPages.filter((page) => !removedPageIds.has(page.id)),
-    [allPages, removedPageIds],
+    () => displayPages.filter((page) => !removedPageIds.has(page.id)),
+    [displayPages, removedPageIds],
   );
 
   const filteredPages = useMemo(() => {
@@ -170,9 +176,57 @@ export function TaggedPage({
     setEditingPage(null);
   };
 
-  const handleSavePage = useCallback(
-    async ({ title, tagNames }: { title: string; tagNames: string[] }) => {
+  // 保存原始页面用于回滚
+  const originalPageRef = useRef<TaggedPageType | null>(null);
+
+  // 使用乐观更新的 mutation hook
+  const { mutate: updatePageDetails, isPending: isUpdatingPage } = useUpdatePageDetails(
+    editingPage,
+    // 乐观更新：立即更新显示的页面列表
+    useCallback((updatedPage: TaggedPageType) => {
       if (!editingPage) return;
+      
+      // 更新本地状态中的页面列表（只更新标题，标签在 handleSavePage 中处理）
+      setOptimisticPages((prevPages) => {
+        const basePages = prevPages ?? allPages;
+        return basePages.map((p) =>
+          p.id === editingPage.id
+            ? {
+                ...p,
+                title: updatedPage.title,
+              }
+            : p
+        );
+      });
+    }, [editingPage, allPages]),
+    // 回滚：恢复原始页面
+    useCallback((originalPage: TaggedPageType) => {
+      setOptimisticPages((prevPages) => {
+        const basePages = prevPages ?? allPages;
+        return basePages.map((p) => (p.id === originalPage.id ? originalPage : p));
+      });
+      
+      setEditingPage(originalPage);
+    }, [allPages])
+  );
+
+  // 当 allPages 从 AppContext 更新时，清除乐观更新状态
+  useEffect(() => {
+    if (optimisticPages && !isUpdatingPage) {
+      // 延迟清除，确保数据已同步
+      const timer = setTimeout(() => {
+        setOptimisticPages(null);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [allPages, isUpdatingPage]);
+
+  const handleSavePage = useCallback(
+    ({ title, tagNames }: { title: string; tagNames: string[] }) => {
+      if (!editingPage) return;
+
+      // 保存原始页面用于回滚
+      originalPageRef.current = { ...editingPage };
 
       const trimmedTitle = title.trim();
       const nextTitle = trimmedTitle.length > 0 ? trimmedTitle : editingPage.title;
@@ -184,24 +238,70 @@ export function TaggedPage({
       const addedTags = tagNames.filter((name) => !currentTagNames.includes(name));
       const removedTags = currentTagNames.filter((name) => !tagNames.includes(name));
 
-      try {
-        await currentPageService.updatePageDetails(editingPage.id, {
+      // 计算新的标签 ID 列表（用于乐观更新）
+      const newTagIds = tagNames.map((name) => tagNameToId.get(name)).filter(Boolean) as string[];
+      
+      // 乐观更新：立即更新显示的页面列表
+      setOptimisticPages((prevPages) => {
+        const basePages = prevPages ?? allPages;
+        return basePages.map((p) =>
+          p.id === editingPage.id
+            ? {
+                ...p,
+                title: nextTitle,
+                tags: newTagIds,
+              }
+            : p
+        );
+      });
+
+      // 同时更新 editingPage 状态
+      setEditingPage((prev) => {
+        if (!prev || prev.id !== editingPage.id) return prev;
+        return {
+          ...prev,
+          title: nextTitle,
+          tags: newTagIds,
+        };
+      });
+
+      // 使用乐观更新的 mutation
+      updatePageDetails(
+        {
           title: nextTitle,
           tagsToAdd: addedTags,
           tagsToRemove: removedTags,
-        });
-
-        await refreshAllData();
-        setActionError(null);
-        closeEditDialog();
-      } catch (err) {
-        console.error("更新页面失败:", err);
-        const message = err instanceof Error ? err.message : "更新页面失败";
-        setActionError(message);
-        await refreshAllData();
-      }
+        },
+        {
+          onSuccess: () => {
+            setActionError(null);
+            closeEditDialog();
+            // 静默刷新以确保数据同步（不显示 loading）
+            refreshAllData().catch(console.error);
+          },
+          onError: (err) => {
+            console.error("更新页面失败:", err);
+            const message = err instanceof Error ? err.message : "更新页面失败";
+            setActionError(message);
+            
+            // 回滚乐观更新
+            if (originalPageRef.current) {
+              setOptimisticPages((prevPages) => {
+                const basePages = prevPages ?? allPages;
+                return basePages.map((p) => 
+                  p.id === originalPageRef.current!.id ? originalPageRef.current! : p
+                );
+              });
+              setEditingPage(originalPageRef.current);
+            }
+            
+            // 错误时也刷新数据以恢复正确状态
+            refreshAllData().catch(console.error);
+          },
+        }
+      );
     },
-    [editingPage, refreshAllData, tagIdToName],
+    [editingPage, tagIdToName, tagNameToId, updatePageDetails, refreshAllData, allPages],
   );
 
   const registerMenuButton = (pageId: string, button: HTMLButtonElement | null) => {

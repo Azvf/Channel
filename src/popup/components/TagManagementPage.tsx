@@ -7,6 +7,7 @@ import { GlassInput } from "./GlassInput";
 import { currentPageService } from "../../services/popup/currentPageService";
 import { GameplayTag } from "../../shared/types/gameplayTag";
 import { AlertModal, type AlertAction } from "./AlertModal";
+import { useUpdateTag, useDeleteTag, useCreateTag } from "../hooks/mutations/useTagMutations";
 
 // 引入模块化组件
 import { TagRow } from "./tag-library/TagRow";
@@ -34,7 +35,6 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   const [editingTag, setEditingTag] = useState<GameplayTag | null>(null);
   const [editValue, setEditValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
   const [alertState, setAlertState] = useState<AlertState | null>(null);
 
   // Menu State
@@ -79,6 +79,52 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
     void loadTags();
   }, [isOpen, loadTags]);
 
+  // 使用乐观更新的 mutation hooks
+  const { mutate: updateTag } = useUpdateTag(
+    // 乐观更新：立即更新标签名称
+    useCallback((tagId: string, newName: string) => {
+      setTags((prevTags) =>
+        prevTags.map((tag) => (tag.id === tagId ? { ...tag, name: newName } : tag))
+      );
+    }, []),
+    // 回滚：恢复旧名称
+    useCallback((tagId: string, oldName: string) => {
+      setTags((prevTags) =>
+        prevTags.map((tag) => (tag.id === tagId ? { ...tag, name: oldName } : tag))
+      );
+    }, [])
+  );
+
+  const { mutate: deleteTag } = useDeleteTag(
+    // 乐观更新：立即从列表中移除
+    useCallback((tagId: string) => {
+      setTags((prevTags) => prevTags.filter((tag) => tag.id !== tagId));
+    }, []),
+    // 回滚：恢复标签到列表
+    useCallback((tag: GameplayTag) => {
+      setTags((prevTags) => {
+        const newTags = [...prevTags, tag];
+        newTags.sort((a, b) => a.name.localeCompare(b.name));
+        return newTags;
+      });
+    }, [])
+  );
+
+  const { mutate: createTag, isPending: isCreatingTagMutation } = useCreateTag(
+    // 乐观更新：立即添加到列表
+    useCallback((tag: GameplayTag) => {
+      setTags((prevTags) => {
+        const newTags = [...prevTags, tag];
+        newTags.sort((a, b) => a.name.localeCompare(b.name));
+        return newTags;
+      });
+    }, []),
+    // 回滚：移除临时标签
+    useCallback((tempTagId: string) => {
+      setTags((prevTags) => prevTags.filter((tag) => tag.id !== tempTagId));
+    }, [])
+  );
+
   // --- Actions ---
   const handleEditTag = (tag: GameplayTag) => {
     setEditingTag(tag);
@@ -86,7 +132,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
     setMenuTargetId(null); // Close menu if open
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
     if (!editingTag) return;
     const trimmedValue = editValue.trim();
     if (!trimmedValue || trimmedValue === editingTag.name) {
@@ -95,36 +141,56 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
       return;
     }
 
-    try {
-      await currentPageService.updateTag(editingTag.id, trimmedValue);
-      await loadTags();
-      setEditingTag(null);
-      setEditValue("");
-    } catch (error) {
-      setAlertState({
-        isOpen: true,
-        title: "更新失败",
-        intent: "destructive",
-        children: error instanceof Error ? error.message : "未知错误",
-        actions: [{ id: "ok", label: "好的", variant: "primary", onClick: () => setAlertState(null) }],
-      });
-    }
+    // 使用乐观更新的 mutation（传入 oldName 用于回滚）
+    updateTag(
+      { tagId: editingTag.id, newName: trimmedValue, oldName: editingTag.name },
+      {
+        onSuccess: () => {
+          setEditingTag(null);
+          setEditValue("");
+          // 静默刷新以确保数据同步
+          loadTags().catch(console.error);
+        },
+        onError: (error) => {
+          setAlertState({
+            isOpen: true,
+            title: "更新失败",
+            intent: "destructive",
+            children: error instanceof Error ? error.message : "未知错误",
+            actions: [{ id: "ok", label: "好的", variant: "primary", onClick: () => setAlertState(null) }],
+          });
+          // 错误时也刷新数据以恢复正确状态
+          loadTags().catch(console.error);
+        },
+      }
+    );
   };
 
-  const confirmDelete = async (tagId: string) => {
+  const confirmDelete = (tagId: string) => {
     setAlertState(null);
-    try {
-      await currentPageService.deleteTag(tagId);
-      await loadTags();
-    } catch (error) {
-      setAlertState({
-        isOpen: true,
-        title: "删除失败",
-        intent: "destructive",
-        children: error instanceof Error ? error.message : "未知错误",
-        actions: [{ id: "ok", label: "好的", variant: "primary", onClick: () => setAlertState(null) }],
-      });
-    }
+    
+    // 保存要删除的标签用于回滚
+    const tagToDelete = tags.find((t) => t.id === tagId);
+    if (!tagToDelete) return;
+
+    // 使用乐观更新的 mutation
+    deleteTag({ tagId, tag: tagToDelete }, {
+      onSuccess: () => {
+        // 静默刷新以确保数据同步
+        loadTags().catch(console.error);
+      },
+      onError: (error) => {
+        setAlertState({
+          isOpen: true,
+          title: "删除失败",
+          intent: "destructive",
+          children: error instanceof Error ? error.message : "未知错误",
+          actions: [{ id: "ok", label: "好的", variant: "primary", onClick: () => setAlertState(null) }],
+        });
+        // 错误时也刷新数据以恢复正确状态
+        loadTags().catch(console.error);
+      },
+    });
   };
 
   const handleDeleteTag = (tagId: string) => {
@@ -179,25 +245,37 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   }, [tags, trimmedQuery]);
 
   const canCreate = trimmedQuery.length > 0 && !exactMatch && !loading;
+  const isCreating = isCreatingTagMutation;
 
-  const handleCreateTag = async () => {
+  const handleCreateTag = () => {
     if (!canCreate || isCreating) return;
-    setIsCreating(true);
-    try {
-      await currentPageService.createTag(trimmedQuery);
-      setSearchQuery("");
-      await loadTags();
-    } catch (error) {
-      setAlertState({
-        isOpen: true,
-        title: "创建失败",
-        intent: "destructive",
-        children: error instanceof Error ? error.message : "未知错误",
-        actions: [{ id: "ok", label: "好的", variant: "primary", onClick: () => setAlertState(null) }],
-      });
-    } finally {
-      setIsCreating(false);
-    }
+    
+    // 使用乐观更新的 mutation
+    createTag(trimmedQuery, {
+      onSuccess: (createdTag) => {
+        setSearchQuery("");
+        // 用真实标签替换临时标签
+        setTags((prevTags) => {
+          const filtered = prevTags.filter((tag) => tag.id.startsWith('temp-'));
+          const newTags = [...filtered, createdTag];
+          newTags.sort((a, b) => a.name.localeCompare(b.name));
+          return newTags;
+        });
+        // 静默刷新以确保数据同步
+        loadTags().catch(console.error);
+      },
+      onError: (error) => {
+        setAlertState({
+          isOpen: true,
+          title: "创建失败",
+          intent: "destructive",
+          children: error instanceof Error ? error.message : "未知错误",
+          actions: [{ id: "ok", label: "好的", variant: "primary", onClick: () => setAlertState(null) }],
+        });
+        // 错误时也刷新数据以恢复正确状态
+        loadTags().catch(console.error);
+      },
+    });
   };
 
   const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {

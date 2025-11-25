@@ -232,3 +232,91 @@ export function useUpdatePageTags(
   });
 }
 
+/**
+ * 更新页面详情 Hook（标题和标签）
+ * 用于 TaggedPage 组件的页面编辑功能
+ * 
+ * @param page - 要更新的页面
+ * @param onOptimisticUpdate - 乐观更新回调，接收更新后的页面对象
+ * @param onRollback - 回滚回调，接收原始页面对象
+ */
+export function useUpdatePageDetails(
+  page: TaggedPage | null,
+  onOptimisticUpdate?: (updatedPage: TaggedPage) => void,
+  onRollback?: (originalPage: TaggedPage) => void
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      title: string;
+      tagsToAdd: string[];
+      tagsToRemove: string[];
+    }) => {
+      if (!page) throw new Error('Page not loaded');
+      return currentPageService.updatePageDetails(page.id, params);
+    },
+
+    onMutate: async (params) => {
+      if (!page) return { previousPage: null };
+
+      const pageUrl = page.url;
+      const currentPageKey = queryKeys.currentPage(pageUrl);
+
+      // A. 取消正在进行的查询
+      await queryClient.cancelQueries({ queryKey: currentPageKey });
+
+      // B. 获取旧数据快照
+      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey) || page;
+
+      // C. 乐观更新当前页面缓存
+      // 注意：这里我们只更新标题，标签更新需要调用方在 onOptimisticUpdate 中处理
+      // 因为需要 tagName 到 tagId 的映射
+      const updatedPage: TaggedPage = {
+        ...page,
+        title: params.title,
+      };
+
+      queryClient.setQueryData<TaggedPage>(currentPageKey, updatedPage);
+
+      // D. 调用乐观更新回调（调用方会处理标签更新和 allPages 更新）
+      onOptimisticUpdate?.(updatedPage);
+
+      return { previousPage, pageUrl, pageId: page.id };
+    },
+
+    onSuccess: (_data, _params, context) => {
+      if (!context?.pageUrl) return;
+
+      const currentPageKey = queryKeys.currentPage(context.pageUrl);
+
+      // 成功时，标记缓存为脏，让后台重新获取最新数据
+      queryClient.invalidateQueries({ queryKey: currentPageKey });
+    },
+
+    onError: (error, _params, context) => {
+      console.error('更新页面详情失败:', error);
+
+      // 回滚当前页面缓存
+      if (context?.previousPage && context?.pageUrl) {
+        const currentPageKey = queryKeys.currentPage(context.pageUrl);
+        queryClient.setQueryData(currentPageKey, context.previousPage);
+      }
+
+      // 回滚 allPages（通过回调）
+      if (context?.previousPage && onRollback) {
+        onRollback(context.previousPage);
+      }
+    },
+
+    onSettled: (_data, _error, _variables, context) => {
+      // 最终结算：标记数据为脏，触发后台重新拉取
+      if (context?.pageUrl) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
+      }
+    },
+
+    retry: 2,
+  });
+}
+
