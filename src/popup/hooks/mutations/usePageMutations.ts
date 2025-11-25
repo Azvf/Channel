@@ -28,15 +28,18 @@ export function useUpdatePageTitle(
     onMutate: async (newTitle) => {
       if (!page) return {};
 
+      const pageUrl = page.url;
+      const currentPageKey = queryKeys.currentPage(pageUrl);
+
       // A. 取消正在进行的针对该 Key 的查询，防止旧数据覆盖新数据
-      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage });
+      await queryClient.cancelQueries({ queryKey: currentPageKey });
 
       // B. 获取旧数据快照
-      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage);
+      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey);
       const oldTitle = page.title;
 
       // C. 乐观地更新缓存
-      queryClient.setQueryData<TaggedPage>(queryKeys.currentPage, (old) => {
+      queryClient.setQueryData<TaggedPage>(currentPageKey, (old) => {
         if (!old) return old;
         return { ...old, title: newTitle };
       });
@@ -45,25 +48,32 @@ export function useUpdatePageTitle(
       setPage({ ...page, title: newTitle });
 
       // D. 返回上下文供回滚使用
-      return { oldTitle, previousPage };
+      return { oldTitle, previousPage, pageUrl };
     },
 
     // 3. 错误回滚
     onError: (_err, _newTitle, context) => {
+      if (!context?.pageUrl) return;
+      const currentPageKey = queryKeys.currentPage(context.pageUrl);
+
       if (context?.previousPage) {
-        queryClient.setQueryData(queryKeys.currentPage, context.previousPage);
+        queryClient.setQueryData(currentPageKey, context.previousPage);
         setPage(context.previousPage);
       } else if (page && context?.oldTitle) {
         const revertedPage = { ...page, title: context.oldTitle };
-        queryClient.setQueryData(queryKeys.currentPage, revertedPage);
+        queryClient.setQueryData(currentPageKey, revertedPage);
         setPage(revertedPage);
       }
     },
 
     // 4. 最终结算
-    onSettled: () => {
+    onSettled: (_data, _error, _variables, context) => {
       // 无论成功失败，都标记数据"脏"了，触发后台重新拉取最新数据
-      queryClient.invalidateQueries({ queryKey: queryKeys.currentPage });
+      if (context?.pageUrl) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
+      } else if (page?.url) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(page.url) });
+      }
     },
 
     // 5. 重试配置
@@ -100,11 +110,14 @@ export function usePageTagsMutation(
     onMutate: async ({ action, tagId }) => {
       if (!page) return { oldTags: [] };
 
+      const pageUrl = page.url;
+      const currentPageKey = queryKeys.currentPage(pageUrl);
+
       // A. 取消正在进行的查询
-      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage });
+      await queryClient.cancelQueries({ queryKey: currentPageKey });
 
       // B. 获取旧数据快照
-      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage);
+      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey);
       const oldTags = [...page.tags];
 
       // C. 计算新标签列表
@@ -116,7 +129,7 @@ export function usePageTagsMutation(
       }
 
       // D. 乐观地更新缓存
-      queryClient.setQueryData<TaggedPage>(queryKeys.currentPage, (old) => {
+      queryClient.setQueryData<TaggedPage>(currentPageKey, (old) => {
         if (!old) return old;
         return { ...old, tags: newTags };
       });
@@ -124,22 +137,29 @@ export function usePageTagsMutation(
       // 同时更新本地状态（保持兼容性）
       setPage({ ...page, tags: newTags });
 
-      return { oldTags, previousPage };
+      return { oldTags, previousPage, pageUrl };
     },
 
     onError: (_err, _vars, context) => {
+      if (!context?.pageUrl) return;
+      const currentPageKey = queryKeys.currentPage(context.pageUrl);
+
       if (context?.previousPage) {
-        queryClient.setQueryData(queryKeys.currentPage, context.previousPage);
+        queryClient.setQueryData(currentPageKey, context.previousPage);
         setPage(context.previousPage);
       } else if (page && context?.oldTags) {
         const revertedPage = { ...page, tags: context.oldTags };
-        queryClient.setQueryData(queryKeys.currentPage, revertedPage);
+        queryClient.setQueryData(currentPageKey, revertedPage);
         setPage(revertedPage);
       }
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.currentPage });
+    onSettled: (_data, _error, _variables, context) => {
+      if (context?.pageUrl) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
+      } else if (page?.url) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(page.url) });
+      }
     },
 
     // 重试配置
@@ -167,19 +187,24 @@ export function useUpdatePageTags(
     onMutate: async (_params) => {
       if (!page) return { previousPage: null };
 
+      const pageUrl = page.url;
+      const currentPageKey = queryKeys.currentPage(pageUrl);
+
       // A. 取消正在进行的查询
-      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage });
+      await queryClient.cancelQueries({ queryKey: currentPageKey });
 
       // B. 获取旧数据快照
-      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage) || page;
+      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey) || page;
 
       // C. 保存当前页面状态用于回滚（保持兼容性）
-      return { previousPage };
+      return { previousPage, pageUrl };
     },
 
     onSuccess: (newPage) => {
-      // 更新缓存
-      queryClient.setQueryData(queryKeys.currentPage, newPage);
+      // 更新缓存（使用新页面的URL，因为URL可能包含时间戳变化）
+      const pageUrl = newPage.url;
+      const currentPageKey = queryKeys.currentPage(pageUrl);
+      queryClient.setQueryData(currentPageKey, newPage);
       setPage(newPage);
       // 调用成功回调
       onSuccess?.(newPage);
@@ -188,14 +213,19 @@ export function useUpdatePageTags(
     onError: (error, _params, context) => {
       console.error('更新标签失败:', error);
       // 回滚到之前的页面状态
-      if (context?.previousPage) {
-        queryClient.setQueryData(queryKeys.currentPage, context.previousPage);
+      if (context?.previousPage && context?.pageUrl) {
+        const currentPageKey = queryKeys.currentPage(context.pageUrl);
+        queryClient.setQueryData(currentPageKey, context.previousPage);
         setPage(context.previousPage);
       }
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.currentPage });
+    onSettled: (_data, _error, _variables, context) => {
+      if (context?.pageUrl) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
+      } else if (page?.url) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(page.url) });
+      }
     },
 
     retry: 2,

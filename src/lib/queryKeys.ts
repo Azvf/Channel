@@ -8,7 +8,7 @@ export const queryKeys = {
   allTags: ['tags'] as const,
   
   // 页面相关
-  currentPage: ['page', 'current'] as const,
+  currentPage: (url?: string) => url ? ['page', 'current', url] as const : ['page', 'current'] as const,
   page: (id: string) => ['page', id] as const,
   
   // 设备相关
