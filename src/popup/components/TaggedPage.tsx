@@ -704,6 +704,36 @@ function PageCard({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
       >
+        <div
+          className="absolute top-0 right-0 group/more"
+          style={{
+            width: "120px",
+            height: "80px",
+            pointerEvents: "none",
+          }}
+        >
+          <button
+            aria-label="编辑"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditPage(page);
+            }}
+            className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0
+                       group-hover/more:opacity-100 transition-all
+                       hover-action"
+            style={{
+              // [Refactor] 菜单按钮背景: color-mix 18% -> 接近 --bg-surface-glass-active (20%)
+              background: "var(--bg-surface-glass-active)",
+              backdropFilter: "blur(var(--glass-blur-base))",
+              border: "1.5px solid var(--border-glass-moderate)",
+              color: "var(--color-text-tertiary)",
+              cursor: "pointer",
+              pointerEvents: "auto",
+            }}
+          >
+            <Pencil className="icon-base" strokeWidth={1.5} />
+          </button>
+        </div>
 
       <div className="space-y-3.5">
         <a
