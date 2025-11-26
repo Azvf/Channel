@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Plus, RefreshCw, Pencil, TrendingUp, Calendar, Loader2 } from "lucide-react";
+import { Plus, RefreshCw, TrendingUp, Calendar } from "lucide-react";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
+import { EditableTitle } from "./TaggingPage/EditableTitle";
 import { currentPageService } from "../../services/popup/currentPageService";
 import type { TaggedPage } from "../../shared/types/gameplayTag";
 import { useAppContext } from "../context/AppContext";
@@ -238,16 +239,6 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     queryClient.setQueryData(queryKeys.currentPage(currentUrl), newPage);
   };
 
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleValue, setTitleValue] = useState("");
-
-  // 当缓存数据更新时，同步更新标题输入框
-  useEffect(() => {
-    if (currentPage) {
-      setTitleValue(currentPage.title);
-    }
-  }, [currentPage]);
-
   // 当 title 是 URL 样式时，定期 refetch 以获取更新后的 title
   useEffect(() => {
     if (!currentPage || !currentUrl || !isTitleUrl(currentPage.title)) {
@@ -299,21 +290,13 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     }
   );
 
-  // 2. 事件处理变得极其简单
-  const handleTitleChange = (newTitle: string) => {
+  const handleTitleSave = (newTitle: string) => {
     if (!currentPage) return;
 
-    const trimmedTitle = newTitle.trim();
-    if (!trimmedTitle || trimmedTitle === currentPage.title) {
-      setTitleValue(currentPage.title);
-      setEditingTitle(false);
-      return;
+    const trimmed = newTitle.trim();
+    if (trimmed && trimmed !== currentPage.title) {
+      updateTitle(trimmed);
     }
-
-    // 之前这里需要 try-catch, loading state, revert logic...
-    // 现在只需要一行：
-    updateTitle(trimmedTitle);
-    setEditingTitle(false);
   };
 
   const handleTagsChange = async (newTagNames: string[]) => {
@@ -347,6 +330,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   // 只有在没有任何数据（首次加载）时才显示 loading
   const loading = (appLoading || pageLoading) && !currentPage;
   const error = appError || (pageError ? String(pageError) : null);
+  const isUrlTitle = useMemo(() => isTitleUrl(currentPage?.title), [currentPage?.title]);
 
   return (
     <div className={className}>
@@ -387,7 +371,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       <RefreshCw className="icon-base" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
                     </button>
                   ) : currentPage?.url ? (
-                    /* 正常状态：仅显示 URL，移除 Loading Icon 及其占位 */
+                    /* 正常状态：显示 URL */
                     <p
                       style={{
                         color: "var(--color-text-secondary)",
@@ -410,136 +394,24 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               </div>
             </motion.div>
 
-            <motion.div layout="position">
-              {editingTitle ? (
-                <textarea
-                  value={titleValue}
-                  onChange={(e) => setTitleValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault();
-                      handleTitleChange(titleValue);
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      setTitleValue(currentPage?.title || "");
-                      setEditingTitle(false);
-                    }
-                  }}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    color: "var(--color-text-primary)",
-                    font: "var(--font-page-title)",
-                    letterSpacing: "var(--letter-spacing-page-title)",
-                    lineHeight: 1.35,
-                    maxHeight: "3.47rem",
-                    minHeight: "1.985rem",
-                    padding: "0.25rem 0",
-                    overflow: "auto",
-                    background: "transparent",
-                    border: "none",
-                    borderRadius: "0.5rem",
-                    outline: "none",
-                    resize: "none",
-                    margin: 0,
-                    boxShadow: "none",
-                    boxSizing: "border-box",
-                  }}
-                  onBlur={() => handleTitleChange(titleValue)}
-                  autoFocus
-                />
-              ) : (
-                <div
-                  className="group relative"
-                  style={{
-                    maxHeight: "3.47rem",
-                    minHeight: "1.985rem",
-                    width: "100%",
-                    padding: "0.25rem 0",
-                    boxSizing: "border-box",
-                    borderRadius: "0.5rem",
-                    display: "flex",
-                    alignItems: "flex-start",
-                    cursor: loading || error || !currentPage ? "default" : "text",
-                    transition: "background-color 0.2s var(--ease-smooth)",
-                  }}
-                  onClick={() => {
-                    if (!loading && !error && currentPage) {
-                      setEditingTitle(true);
-                    }
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loading && !error && currentPage) {
-                      e.currentTarget.style.backgroundColor = "var(--bg-surface-glass-hover)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                  }}
-                >
-                  <h2
-                    style={{
-                      color: "var(--color-text-primary)",
-                      font: "var(--font-page-title)",
-                      letterSpacing: "var(--letter-spacing-page-title)",
-                      lineHeight: 1.35,
-                      overflow: "hidden",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical" as any,
-                      wordBreak: "break-word",
-                      margin: 0,
-                      width: "100%",
-                      flex: "1 1 100%",
-                      minWidth: 0,
-                    }}
-                    title={currentPage ? "点击编辑标题" : undefined}
-                  >
-                    {loading ? (
-                      "Loading..."
-                    ) : error ? (
-                      `Error: ${error}`
-                    ) : currentPage ? (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>{currentPage.title || "No page loaded"}</span>
-                        {isTitleUrl(currentPage.title) && (
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            style={{ display: 'inline-flex' }}
-                          >
-                            <Loader2 
-                              className="icon-xs" 
-                              style={{ 
-                                color: "var(--color-text-tertiary)"
-                              }} 
-                            />
-                          </motion.div>
-                        )}
-                      </span>
-                    ) : (
-                      "No page loaded"
-                    )}
-                  </h2>
-
-                  {!loading && !error && currentPage && (
-                    <div
-                      className="absolute right-1 top-1 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{
-                        top: "calc(0.25rem + 2px)",
-                        right: "4px",
-                        color: "var(--color-text-tertiary)",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      <Pencil className="icon-xs" strokeWidth={2} />
-                    </div>
-                  )}
-                </div>
-              )}
+            {/* Title Section (使用新组件) */}
+            <motion.div
+              layout="position" // [关键] 必须有 layout="position" 才能参与流体布局
+              className="relative z-20" // [关键] 提高层级，防止阴影或扩展时被遮挡
+            >
+              <EditableTitle
+                title={currentPage?.title || ""}
+                isUrl={isUrlTitle}
+                isLoading={loading}
+                onSave={handleTitleSave}
+              />
             </motion.div>
 
-            <motion.div layout="position">
+            {/* Tag Input Section */}
+            <motion.div
+              layout="position" // [关键] 当上面的 Title 变高时，这个组件会自动滑下去
+              className="relative z-10"
+            >
               <TagInput
                 tags={currentPageTagNames}
                 onTagsChange={handleTagsChange}
