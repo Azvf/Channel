@@ -38,6 +38,7 @@ export interface UseTagInputReturn {
     role?: string;
     'aria-autocomplete'?: 'none' | 'list' | 'inline' | 'both';
     'aria-expanded'?: boolean;
+    'aria-controls'?: string;
     'aria-activedescendant'?: string;
   };
   getOptionProps: (index: number) => {
@@ -318,6 +319,7 @@ export function useTagInput({
       role: 'combobox',
       'aria-autocomplete': 'list' as const,
       'aria-expanded': isMenuOpen,
+      'aria-controls': 'tag-input-listbox',
       'aria-activedescendant': activeIndex >= 0 ? `tag-input-option-${activeIndex}` : undefined,
     };
   }, [inputValue, isMenuOpen, options, activeIndex, tags, mode, disabled, suggestions, allowCreation, handleEscape, addTag, removeTag]);

@@ -144,6 +144,7 @@ body {
   --modal-max-height: 90vh; /* [Refactor] Tokenized Modal Height */
   --stats-wall-max-width: 560px;
   --dropdown-max-height: 240px;
+  --dropdown-option-height: 35px; /* [Refactor] 单个下拉选项高度 (padding + line-height) */
   --menu-min-width: 150px; /* [Refactor] Tokenized Menu Width */
   --textarea-min-height: 80px; /* [Refactor] Tokenized Textarea Height */
   

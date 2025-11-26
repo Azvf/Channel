@@ -57,6 +57,7 @@
   --modal-max-height: 90vh;
   --stats-wall-max-width: 560px;
   --dropdown-max-height: 240px;
+  --dropdown-option-height: 35px;
   --menu-min-width: 150px;
   --textarea-min-height: 80px;
   --calendar-cell-size: 24px;

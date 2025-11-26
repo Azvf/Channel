@@ -13,6 +13,7 @@ export const LAYOUT = {
   modalMaxHeight: { vh: 90 },
   statsWallMaxWidth: { px: 560 },
   dropdownMaxHeight: { px: 240 },
+  dropdownOptionHeight: { px: 35, description: '单个下拉选项高度 (padding + line-height)' },
   menuMinWidth: { px: 150 },
   textareaMinHeight: { px: 80 },
   calendarCellSize: { px: 24 },

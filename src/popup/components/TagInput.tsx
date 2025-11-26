@@ -4,6 +4,7 @@ import { Tag } from "./Tag";
 import { ChevronDown, Plus } from "lucide-react";
 import { StickyDropdown } from "./StickyDropdown";
 import { useTagInput } from "../hooks/headless/useTagInput";
+import { GlassCard } from "./GlassCard";
 
 interface TagInputProps {
   tags: string[];
@@ -169,28 +170,29 @@ export function TagInput({
         anchorRef={containerRef}
         zIndex={dropdownZIndex}
       >
-        <div 
+        <GlassCard
+          depthLevel={1}
           data-sticky-dropdown
-          className="overflow-hidden"
+          id="tag-input-listbox"
+          role="listbox"
           style={{
-            // [Refactor] 完全 Token 化
-            backgroundColor: 'var(--bg-surface-glass)', 
-            backdropFilter: 'blur(24px) saturate(180%)', // 保持下拉菜单的高模糊度以保证可读性
-            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-            border: '1px solid var(--border-glass-subtle)',
+            overflow: 'hidden',
             borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--shadow-elevation-high)'
+            boxShadow: 'var(--shadow-elevation-high)',
+            // [Refactor] 使用 GlassCard 自动处理 backdrop-filter，移除手动样式
           }}
         >
           <div className="flex flex-col p-1.5">
-            <div 
-              className="overflow-y-auto overflow-x-hidden"
-              style={{ 
-                maxHeight: 'var(--dropdown-max-height)',
-                scrollbarWidth: 'none', 
-                msOverflowStyle: 'none' 
-              }}
-            >
+             <div 
+               className="overflow-y-auto overflow-x-hidden"
+               style={{ 
+                 // [Refactor] 默认只展示 3 个选项的高度
+                 // 使用 Design Token：3 个选项高度 + 容器上下 padding
+                 maxHeight: 'calc(3 * var(--dropdown-option-height) + 2 * var(--space-1_5))',
+                 scrollbarWidth: 'none', 
+                 msOverflowStyle: 'none' 
+               }}
+             >
               <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
 
               {options.map((option, index) => {
@@ -244,7 +246,7 @@ export function TagInput({
               })}
             </div>
           </div>
-        </div>
+        </GlassCard>
       </StickyDropdown>
     </div>
   );
