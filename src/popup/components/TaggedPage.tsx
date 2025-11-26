@@ -1,6 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
 import { Tag } from "./Tag";
@@ -10,7 +8,6 @@ import { Tooltip } from "./Tooltip";
 import {
   Search,
   Inbox,
-  MoreHorizontal,
   Trash2,
   Copy,
   Pencil,
@@ -21,12 +18,11 @@ import {
 } from "lucide-react";
 import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
-import { LAYOUT, POSITIONING } from "../utils/layoutConstants";
 import { TaggedPage as TaggedPageType } from "../../shared/types/gameplayTag";
 import { useUpdatePageDetails } from "../hooks/mutations/usePageMutations";
 import { useAppContext } from "../context/AppContext";
-import { SMOOTH_TRANSITION } from "../utils/motion"; // [Refactor] 使用统一的动画系统
 import { getTransition, DURATION } from "../../design-tokens/animation"; // [Refactor] 引入物理引擎
+import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
 // 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
@@ -74,9 +70,9 @@ interface TaggedPageProps {
 interface PageCardProps {
   page: TaggedPageType;
   searchTags: string[];
-  onMenuButtonClick: (e: React.MouseEvent, page: TaggedPageType) => void;
-  registerMenuButton: (pageId: string, button: HTMLButtonElement | null) => void;
-  openMenuFromButtonRef: (pageId: string) => void;
+  onEditPage: (page: TaggedPageType) => void;
+  onCopyUrl: (url: string) => void;
+  onRemovePage: (pageId: string) => void;
   tagIdToName: Map<string, string>;
 }
 
@@ -101,9 +97,6 @@ export function TaggedPage({
   const [editingPage, setEditingPage] = useState<TaggedPageType | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const menuButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   const [removedPageIds, setRemovedPageIds] = useState<Set<string>>(new Set<string>());
 
   const removePageFromView = useCallback((pageId: string) => {
@@ -360,62 +353,7 @@ export function TaggedPage({
     [editingPage, tagIdToName, tagNameToId, updatePageDetails, refreshAllData, allPages],
   );
 
-  const registerMenuButton = (pageId: string, button: HTMLButtonElement | null) => {
-    if (button) {
-      menuButtonRefs.current.set(pageId, button);
-    } else {
-      menuButtonRefs.current.delete(pageId);
-    }
-  };
-
-  const openMenuAtRect = (rect: DOMRect, pageId: string) => {
-    setMenuPosition({
-      // [Refactor] 使用标准布局常量
-      x: rect.right - LAYOUT.MENU_MIN_WIDTH,
-      y: rect.bottom + POSITIONING.DROPDOWN_OFFSET,
-    });
-    setOpenMenuId(pageId);
-  };
-
-  const handleOpenMenu = (e: React.MouseEvent, page: TaggedPageType) => {
-    e.stopPropagation();
-    const button = e.currentTarget as HTMLButtonElement;
-    const rect = button.getBoundingClientRect();
-    openMenuAtRect(rect, page.id);
-  };
-
-  const openMenuFromButtonRef = (pageId: string) => {
-    const button = menuButtonRefs.current.get(pageId);
-    if (!button) return;
-    const rect = button.getBoundingClientRect();
-    openMenuAtRect(rect, pageId);
-  };
-
-  const handleCloseMenu = () => {
-    setOpenMenuId(null);
-  };
-
-  useEffect(() => {
-    if (openMenuId === null) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const menuElement = document.querySelector("[data-menu-id]");
-      const buttonElement = menuButtonRefs.current.get(openMenuId);
-
-      if (
-        menuElement &&
-        !menuElement.contains(target) &&
-        buttonElement &&
-        !buttonElement.contains(target)
-      ) {
-        handleCloseMenu();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [openMenuId]);
+  // 菜单管理已移除，改用 ContextMenu 组件内部管理
 
   const editingPageTagNames = useMemo(() => {
     if (!editingPage) return [];
@@ -624,9 +562,9 @@ export function TaggedPage({
                         key={page.id}
                         page={page}
                         searchTags={searchTags}
-                        onMenuButtonClick={handleOpenMenu}
-                        registerMenuButton={registerMenuButton}
-                        openMenuFromButtonRef={openMenuFromButtonRef}
+                        onEditPage={handleEditPage}
+                        onCopyUrl={(url) => navigator.clipboard.writeText(url).catch(console.error)}
+                        onRemovePage={removePageFromView}
                         tagIdToName={tagIdToName}
                       />
                     )}
@@ -704,108 +642,6 @@ export function TaggedPage({
         />
       )}
 
-      {createPortal(
-        <AnimatePresence>
-          {openMenuId !== null && (() => {
-            const page = visiblePages.find((p) => p.id === openMenuId);
-            if (!page) return null;
-
-            return (
-              <div
-                className="fixed inset-0"
-                // [Refactor] 使用明确的 Backdrop 层级
-                style={{ zIndex: "var(--z-context-menu-backdrop)" }}
-                onClick={handleCloseMenu}
-              >
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={SMOOTH_TRANSITION} // [Refactor] 使用统一的动画系统
-                  className="fixed liquidGlass-wrapper"
-                  data-menu-id={openMenuId}
-                  style={{
-                    // [Refactor] 使用明确的 Body 层级，替代 calc(+1)
-                    zIndex: "var(--z-context-menu-body)",
-                    top: menuPosition.y,
-                    left: menuPosition.x,
-                    // [Refactor] 使用标准菜单宽度 Token
-                    minWidth: "var(--menu-min-width)",
-                    borderRadius: "var(--radius-lg)", // Tokenized
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="liquidGlass-content p-1">
-                    <ul className="list-none m-0 p-0">
-                      <li>
-                        <button
-                          onClick={() => {
-                            handleEditPage(page);
-                            handleCloseMenu();
-                          }}
-                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
-                          style={{
-                            color: "var(--color-text-primary)", // Tokenized
-                            // [Refactor] 使用标准字体 Token
-                    font: "var(--font-caption)",
-                    letterSpacing: "var(--letter-spacing-caption)",
-                            fontWeight: 500,
-                            background: "transparent",
-                          }}
-                        >
-                          <Pencil className="icon-sm" />
-                          <span>Edit</span>
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(page.url).catch(console.error);
-                            handleCloseMenu();
-                          }}
-                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-action"
-                          style={{
-                            color: "var(--color-text-primary)", // Tokenized
-                            // [Refactor] 使用标准字体 Token
-                    font: "var(--font-caption)",
-                    letterSpacing: "var(--letter-spacing-caption)",
-                            fontWeight: 500,
-                            background: "transparent",
-                          }}
-                        >
-                          <Copy className="icon-sm" />
-                          <span>Copy URL</span>
-                        </button>
-                      </li>
-                      <li>
-                        <button
-                          onClick={() => {
-                            removePageFromView(page.id);
-                            handleCloseMenu();
-                          }}
-                          className="flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all hover-destructive"
-                          style={{
-                            color: "var(--color-text-secondary)", // Tokenized
-                            // [Refactor] 使用标准字体 Token
-                    font: "var(--font-caption)",
-                    letterSpacing: "var(--letter-spacing-caption)",
-                            fontWeight: 500,
-                            background: "transparent",
-                          }}
-                        >
-                          <Trash2 className="icon-sm" />
-                          <span>Delete</span>
-                        </button>
-                      </li>
-                    </ul>
-                  </div>
-                </motion.div>
-              </div>
-            );
-          })()}
-        </AnimatePresence>,
-        document.body
-      )}
     </div>
   );
 }
@@ -813,15 +649,34 @@ export function TaggedPage({
 function PageCard({
   page,
   searchTags,
-  onMenuButtonClick,
-  registerMenuButton,
-  openMenuFromButtonRef,
+  onEditPage,
+  onCopyUrl,
+  onRemovePage,
   tagIdToName,
 }: PageCardProps) {
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: 'Edit',
+      onClick: () => onEditPage(page),
+      icon: <Pencil />,
+    },
+    {
+      label: 'Copy URL',
+      onClick: () => onCopyUrl(page.url),
+      icon: <Copy />,
+    },
+    {
+      label: 'Delete',
+      onClick: () => onRemovePage(page.id),
+      icon: <Trash2 />,
+      variant: 'destructive',
+    },
+  ];
+
   const longPressHandlers = useLongPress({
-    onLongPress: (e) => {
-      e.preventDefault();
-      openMenuFromButtonRef(page.id);
+    onLongPress: () => {
+      // 长按触发编辑（与右键菜单的编辑功能一致）
+      onEditPage(page);
     },
     delay: 500,
   });
@@ -830,52 +685,25 @@ function PageCard({
     longPressHandlers;
 
   return (
-    <div
-      data-testid={`page-card-${page.id}`}
-      className="rounded-2xl transition-all relative hover-glass"
-      style={{
-        // [Refactor] 这里的 color-mix (8%) 对应 --bg-surface-glass-subtle
-        background: "var(--bg-surface-glass-subtle)",
-        // [Refactor] 这里的 color-mix (15%) 对应 --border-glass-subtle
-        border: "1px solid var(--border-glass-subtle)",
-        padding: "0.8rem 1.1rem",
-        cursor: "default",
-      }}
-      onMouseLeave={onMouseLeave}
-      onMouseDown={onMouseDown}
-      onMouseUp={onMouseUp}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchCancel}
-    >
+    <ContextMenu menuItems={menuItems}>
       <div
-        className="absolute top-0 right-0 group/more"
+        data-testid={`page-card-${page.id}`}
+        className="rounded-2xl transition-all relative hover-glass"
         style={{
-          width: "120px",
-          height: "80px",
-          pointerEvents: "none",
+          // [Refactor] 这里的 color-mix (8%) 对应 --bg-surface-glass-subtle
+          background: "var(--bg-surface-glass-subtle)",
+          // [Refactor] 这里的 color-mix (15%) 对应 --border-glass-subtle
+          border: "1px solid var(--border-glass-subtle)",
+          padding: "0.8rem 1.1rem",
+          cursor: "default",
         }}
+        onMouseLeave={onMouseLeave}
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchCancel}
       >
-        <button
-          aria-label="更多操作"
-          ref={(button) => registerMenuButton(page.id, button)}
-          onClick={(e) => onMenuButtonClick(e, page)}
-          className="absolute top-3 right-3 rounded-xl p-2.5 opacity-0
-                     group-hover/more:opacity-100 transition-all
-                     hover-action"
-          style={{
-            // [Refactor] 菜单按钮背景: color-mix 18% -> 接近 --bg-surface-glass-active (20%)
-            background: "var(--bg-surface-glass-active)",
-            backdropFilter: "blur(var(--glass-blur-base))",
-            border: "1.5px solid var(--border-glass-moderate)",
-            color: "var(--color-text-tertiary)",
-            cursor: "pointer",
-            pointerEvents: "auto",
-          }}
-        >
-          <MoreHorizontal className="icon-base" strokeWidth={1.5} />
-        </button>
-      </div>
 
       <div className="space-y-3.5">
         <a
@@ -949,5 +777,6 @@ function PageCard({
         </div>
       </div>
     </div>
+    </ContextMenu>
   );
 }

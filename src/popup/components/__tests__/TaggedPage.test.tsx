@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, within, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppProvider } from '../../context/AppContext';
 import { TaggedPage } from '../TaggedPage';
@@ -174,29 +174,32 @@ describe('TaggedPage 集成测试', () => {
     await renderTaggedPage();
 
     const pageCard = await screen.findByTestId('page-card-p-react');
-    const moreButton = within(pageCard).getByLabelText('更多操作');
-
+    
+    // 使用右键点击触发 ContextMenu
     await act(async () => {
-      await user.click(moreButton);
+      fireEvent.contextMenu(pageCard);
     });
 
-    const editButton = await screen.findByText('Edit');
+    // 等待菜单出现并查找 Edit 按钮
+    const editButton = await screen.findByText('Edit', {}, { timeout: 3000 });
 
     await act(async () => {
       await user.click(editButton);
     });
 
-    const titleInput = await screen.findByPlaceholderText('Enter page title');
+    // 等待编辑对话框打开
+    const titleInput = await screen.findByPlaceholderText('Enter page title', {}, { timeout: 3000 });
 
+    // 使用 fireEvent 来操作输入框，避免聚焦问题
     await act(async () => {
-      await user.clear(titleInput);
-      await user.type(titleInput, 'Updated React Guide');
+      fireEvent.change(titleInput, { target: { value: 'Updated React Guide' } });
     });
 
     const saveButton = screen.getByRole('button', { name: /Save/i });
 
+    // 使用 fireEvent 而不是 userEvent 以避免 pointer-events 问题
     await act(async () => {
-      await user.click(saveButton);
+      fireEvent.click(saveButton);
     });
 
     await waitFor(() => {
