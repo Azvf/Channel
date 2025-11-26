@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { Plus, RefreshCw, Pencil, TrendingUp, Calendar } from "lucide-react";
+import { Plus, RefreshCw, Pencil, TrendingUp, Calendar, Loader2 } from "lucide-react";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
@@ -10,6 +10,14 @@ import { useAppContext } from "../context/AppContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../lib/queryKeys";
 import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";
+
+/**
+ * 检测 title 是否为 URL 样式
+ */
+function isTitleUrl(title: string | undefined): boolean {
+  if (!title) return false;
+  return title.startsWith('http://') || title.startsWith('https://');
+}
 
 interface TaggingPageProps {
   className?: string;
@@ -240,6 +248,46 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     }
   }, [currentPage]);
 
+  // 当 title 是 URL 样式时，定期 refetch 以获取更新后的 title
+  useEffect(() => {
+    if (!currentPage || !currentUrl || !isTitleUrl(currentPage.title)) {
+      return;
+    }
+
+    // 如果 title 是 URL 样式，设置定时器定期 refetch（最多尝试 5 次，每次间隔 1 秒）
+    let attemptCount = 0;
+    const maxAttempts = 5;
+    const interval = 1000; // 1 秒
+
+    const refetchInterval = setInterval(() => {
+      attemptCount++;
+      
+      // 检查当前页面的 title 是否还是 URL
+      const currentPageData = queryClient.getQueryData<TaggedPage>(
+        queryKeys.currentPage(currentUrl)
+      );
+      
+      if (currentPageData && !isTitleUrl(currentPageData.title)) {
+        // title 已经更新，停止定时器
+        clearInterval(refetchInterval);
+        return;
+      }
+
+      // 如果达到最大尝试次数，停止定时器
+      if (attemptCount >= maxAttempts) {
+        clearInterval(refetchInterval);
+        return;
+      }
+
+      // 触发 refetch
+      refreshPage();
+    }, interval);
+
+    return () => {
+      clearInterval(refetchInterval);
+    };
+  }, [currentPage, currentUrl, queryClient, refreshPage]);
+
   // 1. 初始化 Mutation Hooks
   const { mutate: updateTitle } = useUpdatePageTitle(currentPage ?? null, mutatePage);
   const { mutate: updateTags, isPending: isUpdatingTags } = useUpdatePageTags(
@@ -447,11 +495,31 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                     }}
                     title={currentPage ? "点击编辑标题" : undefined}
                   >
-                    {loading
-                      ? "Loading..."
-                      : error
-                        ? `Error: ${error}`
-                        : currentPage?.title || "No page loaded"}
+                    {loading ? (
+                      "Loading..."
+                    ) : error ? (
+                      `Error: ${error}`
+                    ) : currentPage ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>{currentPage.title || "No page loaded"}</span>
+                        {isTitleUrl(currentPage.title) && (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            style={{ display: 'inline-flex' }}
+                          >
+                            <Loader2 
+                              className="icon-xs" 
+                              style={{ 
+                                color: "var(--color-text-tertiary)"
+                              }} 
+                            />
+                          </motion.div>
+                        )}
+                      </span>
+                    ) : (
+                      "No page loaded"
+                    )}
                   </h2>
 
                   {!loading && !error && currentPage && (

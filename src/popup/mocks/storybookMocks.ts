@@ -122,3 +122,9 @@ export function setMockTags(tags: GameplayTag[]) {
   });
 }
 
+export function setMockCurrentPage(page: TaggedPage) {
+  Object.assign(currentPageService, {
+    getCurrentPage: async () => page,
+  });
+}
+

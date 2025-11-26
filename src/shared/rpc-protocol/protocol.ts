@@ -101,6 +101,12 @@ export interface IBackgroundApi {
   // Data 相关
   exportData(): Promise<string>;
   importData(jsonData: string, mergeMode: boolean): Promise<{ tagsCount: number; pagesCount: number }>;
+  importBookmarks(): Promise<{ 
+    pagesProcessed: number; 
+    tagsCreated: number; 
+    tagsAdded: number;
+    errors: Array<{ url: string; error: string }>;
+  }>;
   
   // Tab 相关 (保留用于兼容)
   getTabInfo(tabId: number | undefined): Promise<{ title: string; url: string; id: number | undefined }>;

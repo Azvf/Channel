@@ -129,6 +129,18 @@ class CurrentPageService {
   async getUserStats(): Promise<{ todayCount: number; streak: number }> {
     return backgroundApi.getUserStats();
   }
+
+  /**
+   * 从浏览器书签导入网页并自动添加标签
+   */
+  async importBookmarks(): Promise<{ 
+    pagesProcessed: number; 
+    tagsCreated: number; 
+    tagsAdded: number;
+    errors: Array<{ url: string; error: string }>;
+  }> {
+    return backgroundApi.importBookmarks();
+  }
 }
 
 // 导出单例实例

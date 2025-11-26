@@ -12,7 +12,8 @@
     "scripting",
     "tabs",
     "identity",
-    "alarms"
+    "alarms",
+    "bookmarks"
   ],
   "host_permissions": [
     "https://*.supabase.co/*",

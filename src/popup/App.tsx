@@ -46,6 +46,13 @@ export default function App({ initialState }: AppProps) {
   const [headerHeight, setHeaderHeight] = useState(60); 
   const floatingHeaderRef = useRef<HTMLDivElement>(null);
 
+  // 滚动位置管理：为每个 tab 保存滚动位置
+  const scrollPositionsRef = useRef<Record<'tagging' | 'tagged', number>>({
+    tagging: 0,
+    tagged: 0,
+  });
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   useLayoutEffect(() => {
     if (!floatingHeaderRef.current) return;
 
@@ -61,7 +68,40 @@ export default function App({ initialState }: AppProps) {
     return () => resizeObserver.disconnect();
   }, []);
 
+  // 监听滚动事件，保存当前 tab 的滚动位置
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const handleScroll = () => {
+      scrollPositionsRef.current[activeTab] = scrollContainer.scrollTop;
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, [activeTab]);
+
+  // 恢复滚动位置：在 tab 切换后恢复目标 tab 的滚动位置
+  useLayoutEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) return;
+
+    const savedPosition = scrollPositionsRef.current[activeTab];
+    
+    // 使用 requestAnimationFrame 确保在浏览器重绘前恢复位置
+    requestAnimationFrame(() => {
+      scrollContainer.scrollTop = savedPosition;
+    });
+  }, [activeTab]);
+
   const handleTabChange = async (tab: "tagging" | "tagged") => {
+    // 保存当前 tab 的滚动位置
+    if (scrollContainerRef.current) {
+      scrollPositionsRef.current[activeTab] = scrollContainerRef.current.scrollTop;
+    }
+    
     setActiveTab(tab);
     try {
       await storageService.set(STORAGE_KEYS.ACTIVE_TAB, tab);
@@ -93,6 +133,7 @@ export default function App({ initialState }: AppProps) {
       />
 
       <div
+        ref={scrollContainerRef}
         className="relative flex-1"
         style={{
           minHeight: 0,

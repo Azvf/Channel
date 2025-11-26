@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { AppProvider } from '../../context/AppContext';
 import { TaggedPage } from '../TaggedPage';
 import { currentPageService } from '../../../services/popup/currentPageService';
+import { QueryClientWrapper } from '../../../test/queryClientWrapper';
 
 jest.mock('../TagInput', () => {
   const React = require('react');
@@ -103,9 +104,11 @@ const defaultProps = {
 
 async function renderTaggedPage() {
   render(
-    <AppProvider>
-      <TaggedPage {...defaultProps} />
-    </AppProvider>,
+    <QueryClientWrapper>
+      <AppProvider>
+        <TaggedPage {...defaultProps} />
+      </AppProvider>
+    </QueryClientWrapper>,
   );
 
   await waitFor(() => {
@@ -185,7 +188,10 @@ describe('TaggedPage 集成测试', () => {
     });
 
     await waitFor(() => {
-      expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(2);
+      // 初始挂载：warmupBackground (1次 getAllTags) + loadAllData (1次 getAllTags, 1次 getAllTaggedPages, 1次 getUserStats) = 2次 getAllTags
+      // 保存修改后：refreshAllData -> loadAllData (1次 getAllTags, 1次 getAllTaggedPages, 1次 getUserStats)
+      // 总共：3次 getAllTags, 2次 getAllTaggedPages, 2次 getUserStats
+      expect(mockedPageService.getAllTags).toHaveBeenCalledTimes(3);
       expect(mockedPageService.getAllTaggedPages).toHaveBeenCalledTimes(2);
       expect(mockedPageService.getUserStats).toHaveBeenCalledTimes(2);
     });

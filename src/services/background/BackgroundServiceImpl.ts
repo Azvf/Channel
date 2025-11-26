@@ -8,6 +8,7 @@ import { IBackgroundApi } from '../../shared/rpc-protocol/protocol';
 import { GameplayTag, TaggedPage } from '../../shared/types/gameplayTag';
 import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../../shared/types/pageSettings';
 import { storageService, STORAGE_KEYS } from '../storageService';
+import { titleFetchService } from './TitleFetchService';
 
 const gameplayStore = GameplayStore.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
@@ -46,6 +47,17 @@ function addTimestampToUrl(url: string, timestamp: number): string {
     console.warn('添加时间戳到 URL 失败:', error);
     return url;
   }
+}
+
+/**
+ * 检测 title 是否为 URL 样式
+ * 判断条件：
+ * 1. title 以 http:// 或 https:// 开头
+ * 2. title 等于 url
+ */
+function isTitleUrl(title: string | undefined, url: string): boolean {
+  if (!title) return false;
+  return title.startsWith('http://') || title.startsWith('https://') || title === url;
 }
 
 /**
@@ -132,9 +144,10 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     const pageSettings = await getPageSettings();
     const syncVideoTimestamp = pageSettings.syncVideoTimestamp;
 
-    if (syncVideoTimestamp) {
-      let videoTimestamp = 0;
+    let analyzePageResponse: any = null;
+    let videoTimestamp = 0;
 
+    if (syncVideoTimestamp) {
       // ========== 方式1: 优先使用消息机制（新架构） ==========
       try {
         const response = await Promise.race([
@@ -143,6 +156,8 @@ export class BackgroundServiceImpl implements IBackgroundApi {
             setTimeout(() => reject(new Error('timeout')), 1000)
           ),
         ]) as any;
+
+        analyzePageResponse = response;
 
         if (response?.success && response.data) {
           const { video } = response.data;
@@ -231,8 +246,20 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     
     // 2. 决策标题策略：
     // - 如果页面已存在：使用数据库中的标题
-    // - 如果页面不存在：使用浏览器 Tab 的标题
-    const titleToUse = existingPage ? existingPage.title : (tab.title || '无标题');
+    // - 如果页面不存在：优先使用 ANALYZE_PAGE 响应中的 title，否则使用浏览器 Tab 的标题
+    let titleToUse: string;
+    if (existingPage) {
+      titleToUse = existingPage.title;
+    } else {
+      // 优先使用 ANALYZE_PAGE 响应中的 metadata.title
+      const metadataTitle = analyzePageResponse?.success && analyzePageResponse?.data?.metadata?.title;
+      if (metadataTitle && !isTitleUrl(metadataTitle, tab.url)) {
+        titleToUse = metadataTitle;
+        console.log('[getCurrentPage] 使用 ANALYZE_PAGE 响应中的 title:', titleToUse);
+      } else {
+        titleToUse = tab.title || '无标题';
+      }
+    }
 
     // 3. 调用 createOrUpdatePage
     const page = gameplayStore.createOrUpdatePage(
@@ -249,6 +276,26 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       triggerBackgroundSync(syncService.markPageChange('create', page.id, page));
     } else {
       triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
+    }
+
+    // 4. 如果 title 是 URL 样式，异步获取真实 title（不阻塞返回）
+    // 优化：只在创建新页面或 title 是 URL 时才启动异步任务
+    // 如果 existingPage 存在且 title 不是 URL，说明已经有正确的 title，不需要异步获取
+    if (isTitleUrl(page.title, resolvedUrl)) {
+      // 使用 TitleFetchService 异步获取真实 title，不阻塞当前返回
+      titleFetchService.fetchAndUpdateTitle(
+        tab.id!,
+        resolvedUrl,
+        page.id,
+        // 更新回调
+        async (pageId: string, title: string) => {
+          await this.updatePageTitle(pageId, title);
+        },
+        // 获取当前页面的函数，用于检查 title 是否还是 URL 样式
+        () => gameplayStore.getPageById(page.id) || null
+      ).catch((error) => {
+        console.warn('[getCurrentPage] 异步获取真实 title 失败:', error);
+      });
     }
 
     console.log('[getCurrentPage] 成功获取页面');
@@ -490,6 +537,160 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     return result.imported!;
   }
 
+  async importBookmarks(): Promise<{ 
+    pagesProcessed: number; 
+    tagsCreated: number; 
+    tagsAdded: number;
+    errors: Array<{ url: string; error: string }>;
+  }> {
+    // Runtime Safety: 检查扩展上下文是否有效
+    if (!chrome.runtime?.id) {
+      throw new Error('扩展上下文无效');
+    }
+
+    // 检查bookmarks权限
+    if (!chrome.bookmarks) {
+      throw new Error('书签权限未授予，请在扩展设置中启用书签权限');
+    }
+
+    const stats = {
+      pagesProcessed: 0,
+      tagsCreated: 0,
+      tagsAdded: 0,
+      errors: [] as Array<{ url: string; error: string }>,
+    };
+
+    // 用于跟踪已创建的tag（全局，避免重复计数）
+    const createdTagNames = new Set<string>();
+
+    /**
+     * 检查URL是否有效
+     */
+    const isValidUrl = (url: string | undefined): boolean => {
+      if (!url || typeof url !== 'string') {
+        return false;
+      }
+      const lowerUrl = url.toLowerCase();
+      // 过滤无效协议
+      return !lowerUrl.startsWith('javascript:') &&
+             !lowerUrl.startsWith('chrome:') &&
+             !lowerUrl.startsWith('about:') &&
+             !lowerUrl.startsWith('file:') &&
+             (lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://'));
+    };
+
+    /**
+     * 递归遍历书签树，提取URL和文件夹路径
+     */
+    const traverseBookmarks = (
+      nodes: chrome.bookmarks.BookmarkTreeNode[],
+      folderPath: string[] = []
+    ): void => {
+      for (const node of nodes) {
+        // 跳过根节点（"Bookmarks Bar"和"Other Bookmarks"）
+        if (node.id === '0' || node.id === '1' || node.id === '2') {
+          if (node.children) {
+            traverseBookmarks(node.children, []);
+          }
+          continue;
+        }
+
+        // 如果是文件夹节点
+        if (node.children && !node.url) {
+          const currentFolderName = node.title || '';
+          // 只添加非空的文件夹名
+          const newPath = currentFolderName ? [...folderPath, currentFolderName] : folderPath;
+          traverseBookmarks(node.children, newPath);
+        }
+        // 如果是书签节点（有URL）
+        else if (node.url && isValidUrl(node.url)) {
+          try {
+            const url = node.url;
+            const title = node.title || '无标题';
+            
+            // 提取domain
+            let domain: string;
+            try {
+              domain = new URL(url).hostname;
+            } catch {
+              domain = 'unknown';
+            }
+
+            // 创建或更新页面
+            const page = gameplayStore.createOrUpdatePage(url, title, domain);
+            stats.pagesProcessed++;
+
+            // 记录添加tag之前的页面状态
+            const pageBeforeTags = gameplayStore.getPageById(page.id);
+            const tagsBefore = new Set(pageBeforeTags?.tags || []);
+
+            // 为每个文件夹名创建tag并添加到页面
+            for (const folderName of folderPath) {
+              if (!folderName || folderName.trim() === '') {
+                continue;
+              }
+
+              const trimmedFolderName = folderName.trim();
+              
+              // 检查tag是否已存在（在调用createTagAndAddToPage之前）
+              const existingTagBefore = gameplayStore.findTagByName(trimmedFolderName);
+              
+              // 如果tag不存在，记录为新建tag
+              if (!existingTagBefore && !createdTagNames.has(trimmedFolderName)) {
+                createdTagNames.add(trimmedFolderName);
+                stats.tagsCreated++;
+              }
+
+              // 使用createTagAndAddToPage，它会自动处理tag创建和添加到页面
+              // 这个方法会：
+              // 1. 如果tag不存在，创建新tag
+              // 2. 如果tag已存在，使用现有tag
+              // 3. 将tag添加到页面（如果页面还没有此tag）
+              gameplayStore.createTagAndAddToPage(trimmedFolderName, page.id);
+            }
+
+            // 检查页面是否真的添加了新tag
+            const pageAfterTags = gameplayStore.getPageById(page.id);
+            const tagsAfter = new Set(pageAfterTags?.tags || []);
+            
+            // 计算新增的tag数量
+            const newTagsCount = tagsAfter.size - tagsBefore.size;
+            if (newTagsCount > 0) {
+              stats.tagsAdded += newTagsCount;
+            }
+
+            // 触发同步
+            if (pageAfterTags) {
+              triggerBackgroundSync(syncService.markPageChange('update', pageAfterTags.id, pageAfterTags));
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            stats.errors.push({
+              url: node.url || 'unknown',
+              error: errorMessage,
+            });
+          }
+        }
+      }
+    };
+
+    try {
+      // 获取所有书签树
+      const bookmarkTree = await chrome.bookmarks.getTree();
+      
+      // 遍历书签树
+      traverseBookmarks(bookmarkTree);
+
+      // 触发后台全量同步，确保导入的数据上传到云端
+      triggerBackgroundSync(syncService.syncAll());
+
+      return stats;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`导入书签失败: ${errorMessage}`);
+    }
+  }
+
   // ==================== Tab 相关 (保留用于兼容) ====================
 
   async getTabInfo(tabId: number | undefined): Promise<{ title: string; url: string; id: number | undefined }> {
@@ -504,5 +705,6 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       id: tab.id
     };
   }
+
 }
 

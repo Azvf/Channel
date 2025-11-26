@@ -104,6 +104,16 @@ global.chrome = {
       title: 'Example',
       favIconUrl: 'https://example.com/favicon.ico',
     })),
+    onUpdated: {
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      hasListener: jest.fn(() => false),
+    },
+    onActivated: {
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      hasListener: jest.fn(() => false),
+    },
   },
   runtime: {
     onInstalled: {

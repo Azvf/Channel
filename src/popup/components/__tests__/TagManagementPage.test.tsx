@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { TagManagementPage } from '../TagManagementPage';
 import { currentPageService } from '../../../services/popup/currentPageService';
 import { AppProvider } from '../../context/AppContext';
+import { QueryClientWrapper } from '../../../test/queryClientWrapper';
 
 // 1. Mock 依赖
 jest.mock('../../../services/popup/currentPageService');
@@ -30,9 +31,11 @@ describe('TagManagementPage (Integration)', () => {
 
   const renderComponent = () => {
     return render(
-      <AppProvider>
-        <TagManagementPage isOpen={true} onClose={onClose} />
-      </AppProvider>
+      <QueryClientWrapper>
+        <AppProvider>
+          <TagManagementPage isOpen={true} onClose={onClose} />
+        </AppProvider>
+      </QueryClientWrapper>
     );
   };
 

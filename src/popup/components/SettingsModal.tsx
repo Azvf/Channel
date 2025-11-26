@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  ChevronRight, Download, Upload, Sun, AppWindow, Video, 
+  ChevronRight, Download, Upload, Sun, AppWindow, Video, Bookmark,
 } from 'lucide-react';
 import { FunctionalModal } from './FunctionalModal';
 import { Checkbox } from './ui/checkbox';
@@ -30,6 +30,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   const [selectedAppIcon, setSelectedAppIcon] = useState<string>('default');
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isImportingBookmarks, setIsImportingBookmarks] = useState(false);
   const [alertState, setAlertState] = useState<Omit<AlertModalProps, 'isOpen' | 'onClose'> | null>(null);
   
   // 3. Refs
@@ -127,6 +128,90 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleImportBookmarks = async () => {
+    setIsImportingBookmarks(true);
+    setAlertState(null);
+    
+    try {
+      const result = await currentPageService.importBookmarks();
+      
+      const successMessage = (
+        <div>
+          <p style={{ marginBottom: 'var(--space-2)' }}>
+            书签导入完成
+          </p>
+          <div style={{ 
+            fontSize: 'var(--font-footnote)', 
+            color: 'var(--color-text-secondary)',
+            lineHeight: '1.5'
+          }}>
+            <p>处理的页面: {result.pagesProcessed}</p>
+            <p>创建的标签: {result.tagsCreated}</p>
+            <p>添加的标签: {result.tagsAdded}</p>
+            {result.errors.length > 0 && (
+              <p style={{ color: 'var(--color-text-warning)', marginTop: 'var(--space-2)' }}>
+                错误: {result.errors.length} 个
+              </p>
+            )}
+          </div>
+        </div>
+      );
+
+      setAlertState({
+        title: '导入完成',
+        intent: 'info',
+        children: successMessage,
+        actions: [
+          { 
+            id: 'ok', 
+            label: '好的', 
+            variant: 'primary', 
+            onClick: () => {
+              setAlertState(null);
+              // 刷新页面以显示新导入的数据
+              window.location.reload();
+            } 
+          },
+        ],
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      let solution = '请检查扩展权限设置，确保已授予书签访问权限。';
+      if (errorMessage.includes('权限')) {
+        solution = '请在扩展设置中启用书签权限，然后重试。';
+      } else if (errorMessage.includes('上下文')) {
+        solution = '请刷新扩展或重新加载页面后重试。';
+      }
+
+      setAlertState({
+        title: '导入失败',
+        intent: 'destructive',
+        children: (
+          <div>
+            <p style={{ marginBottom: 'var(--space-2)' }}>{errorMessage}</p>
+            <p style={{ 
+              fontSize: 'var(--font-footnote)', 
+              color: 'var(--color-text-secondary)' 
+            }}>
+              {solution}
+            </p>
+          </div>
+        ),
+        actions: [
+          { 
+            id: 'ok', 
+            label: '好的', 
+            variant: 'primary', 
+            onClick: () => setAlertState(null) 
+          },
+        ],
+      });
+    } finally {
+      setIsImportingBookmarks(false);
+    }
+  };
+
   const appIconOptions = [
     { id: 'default', name: 'Default' },
     { id: 'graphite', name: 'Graphite' },
@@ -195,6 +280,14 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
             disabled={isImporting}
           />
           <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportData} />
+
+          <SettingsRow
+            icon={<Bookmark className="icon-base" strokeWidth={1.5} />}
+            label="Import from Bookmarks..."
+            control={<ChevronRight className="icon-base" strokeWidth={1.5} />}
+            onClick={handleImportBookmarks}
+            disabled={isImportingBookmarks}
+          />
 
           <SettingsRow
             icon={<Download className="icon-base" strokeWidth={1.5} />}
