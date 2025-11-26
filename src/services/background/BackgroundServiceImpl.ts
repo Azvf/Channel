@@ -117,12 +117,19 @@ export class BackgroundServiceImpl implements IBackgroundApi {
   async getCurrentPage(): Promise<TaggedPage> {
     console.log('[getCurrentPage] 开始处理请求 (使用 chrome.tabs.query)');
     
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    if (!tabs || tabs.length === 0) {
-      console.error('[getCurrentPage] 没有找到活动标签页');
-      throw new Error('无法获取当前标签页');
-    }
+      // 检查是否有运行时错误（可能是 popup 关闭导致的）
+      if (chrome.runtime.lastError) {
+        console.warn('[getCurrentPage] Chrome runtime 错误（可能是 popup 已关闭）:', chrome.runtime.lastError.message);
+        throw new Error('Popup 窗口已关闭或无法访问标签页');
+      }
+
+      if (!tabs || tabs.length === 0) {
+        console.error('[getCurrentPage] 没有找到活动标签页');
+        throw new Error('无法获取当前标签页');
+      }
 
     const tab = tabs[0];
     console.log('[getCurrentPage] 活动标签页 URL (来自 query):', tab.url);
@@ -292,6 +299,15 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
     console.log('[getCurrentPage] 成功获取页面');
     return page;
+    } catch (error) {
+      // 如果是已知的错误（popup 关闭等），直接抛出
+      if (error instanceof Error && (error.message.includes('Popup') || error.message.includes('无法获取'))) {
+        throw error;
+      }
+      // 其他错误也记录并抛出
+      console.error('[getCurrentPage] 处理请求时发生错误:', error);
+      throw error;
+    }
   }
 
   async getAllTaggedPages(): Promise<TaggedPage[]> {

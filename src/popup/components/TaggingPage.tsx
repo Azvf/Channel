@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Calendar, Plus, RefreshCw, TrendingUp } from "lucide-react";
 
 import { queryKeys } from "../../lib/queryKeys";
 import type { TaggedPage } from "../../shared/types/gameplayTag";
-import { currentPageService } from "../../services/popup/currentPageService";
 
 import { useAppContext } from "../context/AppContext";
 import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";
@@ -15,7 +14,15 @@ import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
 
 import { isTitleUrl } from '@/shared/utils/titleUtils';
-import { STORAGE_KEYS } from '@/services/storageService';
+import { createLogger } from '@/shared/utils/logger';
+import { useCurrentUrl } from '../hooks/headless/useCurrentUrl';
+
+const logger = createLogger('TaggingPage');
+import { usePageCache } from '../hooks/headless/usePageCache';
+import { useDebouncedRefetch } from '../hooks/headless/useDebouncedRefetch';
+import { useTitleRefetch } from '../hooks/headless/useTitleRefetch';
+import { useStorageSync } from '../hooks/headless/useStorageSync';
+import { useUrlSynchronization } from '../hooks/headless/useUrlSynchronization';
 
 interface TaggingPageProps {
   className?: string;
@@ -30,176 +37,62 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     refreshAllData,
   } = useAppContext();
 
-  const [currentUrl, setCurrentUrl] = useState<string | undefined>(undefined);
   const queryClient = useQueryClient();
-  const currentUrlRef = useRef<string | undefined>(undefined);
   const refreshPageRef = useRef<(() => void) | null>(null);
   const currentPageRef = useRef<TaggedPage | undefined>(undefined);
+  const wasHiddenRef = useRef(false);
+  const isMountedRef = useRef(true); // 跟踪组件是否已挂载
 
+  // 使用 URL 管理 Hook
+  const {
+    currentUrl,
+    currentUrlRef,
+    setCurrentUrl,
+    fetchCurrentUrl,
+    isUrlMatch: isUrlMatchFn,
+  } = useCurrentUrl(isMountedRef, refreshPageRef);
+
+  // 使用页面缓存管理 Hook
+  const { queryFn, mutatePage, getCachedPage } = usePageCache(currentUrlRef);
+
+  // fetchCurrentUrl 已由 useCurrentUrl Hook 提供
+
+  // 使用防抖 Refetch Hook
+  const { debouncedRefetch } = useDebouncedRefetch(refreshPageRef, currentUrlRef, isMountedRef);
+
+  // 初始化：首次获取 URL 和监听 popup 可见性变化
   useEffect(() => {
-    const fetchCurrentUrl = async (forceRefresh = false) => {
-      try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs && tabs.length > 0 && tabs[0].url && !tabs[0].url.startsWith('about:')) {
-          const url = tabs[0].url;
-          const oldUrl = currentUrlRef.current;
-          
-          // 如果URL发生变化，清除旧缓存
-          if (oldUrl && url !== oldUrl) {
-            queryClient.removeQueries({ queryKey: queryKeys.currentPage(oldUrl) });
-          }
-          
-          // 更新URL引用和状态
-          const urlChanged = url !== currentUrlRef.current;
-          currentUrlRef.current = url;
-          
-          // 只有在URL变化或强制刷新时才更新状态
-          if (urlChanged || forceRefresh) {
-            setCurrentUrl(url);
-            
-            // URL变化后立即触发重新获取数据
-            if (urlChanged && refreshPageRef.current) {
-              // 使用 setTimeout 确保 queryKey 已经更新
-              setTimeout(() => {
-                refreshPageRef.current?.();
-              }, 0);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('获取当前标签页URL失败:', error);
+    // 首次获取 URL
+    fetchCurrentUrl(true, false);
+
+    // 监听 popup 可见性变化，只在从隐藏变为可见时刷新（不包括首次打开）
+    const handleVisibilityChange = () => {
+      if (!isMountedRef.current) {
+        return;
       }
-    };
-
-    // 组件挂载时立即获取URL
-    fetchCurrentUrl(true);
-
-    // 监听标签页URL变化
-    const handleTabUpdate = (_tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
-      // 只处理当前活动标签页的URL变化
-      if (changeInfo.url && tab.active && tab.url && !tab.url.startsWith('about:')) {
-        const newUrl = tab.url;
-        const oldUrl = currentUrlRef.current;
-        
-        // 如果URL发生变化，清除旧缓存并更新URL
-        if (oldUrl && newUrl !== oldUrl) {
-          queryClient.removeQueries({ queryKey: queryKeys.currentPage(oldUrl) });
-        }
-        
-        // 更新URL引用和状态
-        const urlChanged = newUrl !== currentUrlRef.current;
-        currentUrlRef.current = newUrl;
-        
-        if (urlChanged) {
-          setCurrentUrl(newUrl);
-          
-          // URL变化后立即触发重新获取数据
-          if (refreshPageRef.current) {
-            // 使用 setTimeout 确保 queryKey 已经更新
-            setTimeout(() => {
-              refreshPageRef.current?.();
-            }, 0);
-          }
-        }
-      }
-    };
-
-    // 监听标签页激活事件（切换标签页时）
-    const handleTabActivated = async (activeInfo: chrome.tabs.TabActiveInfo) => {
-      try {
-        const tab = await chrome.tabs.get(activeInfo.tabId);
-        if (tab.url && !tab.url.startsWith('about:')) {
-          const newUrl = tab.url;
-          const oldUrl = currentUrlRef.current;
-          
-          // 如果URL发生变化，清除旧缓存并更新URL
-          if (oldUrl && newUrl !== oldUrl) {
-            queryClient.removeQueries({ queryKey: queryKeys.currentPage(oldUrl) });
-          }
-          
-          // 更新URL引用和状态
-          const urlChanged = newUrl !== currentUrlRef.current;
-          currentUrlRef.current = newUrl;
-          
-          if (urlChanged) {
-            setCurrentUrl(newUrl);
-            
-            // URL变化后立即触发重新获取数据
-            if (refreshPageRef.current) {
-              // 使用 setTimeout 确保 queryKey 已经更新
-              setTimeout(() => {
-                refreshPageRef.current?.();
-              }, 0);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('获取激活标签页URL失败:', error);
-      }
-    };
-
-    chrome.tabs.onUpdated.addListener(handleTabUpdate);
-    chrome.tabs.onActivated.addListener(handleTabActivated);
-
-    return () => {
-      chrome.tabs.onUpdated.removeListener(handleTabUpdate);
-      chrome.tabs.onActivated.removeListener(handleTabActivated);
-    };
-  }, [queryClient]);
-
-  // 监听 popup 可见性变化，确保 popup 重新打开时刷新数据
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      // 当 popup 变为可见时（重新打开），刷新当前URL和数据
-      if (!document.hidden) {
-        try {
-          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (tabs && tabs.length > 0 && tabs[0].url && !tabs[0].url.startsWith('about:')) {
-            const url = tabs[0].url;
-            const oldUrl = currentUrlRef.current;
-            
-            // 如果URL发生变化，清除旧缓存
-            if (oldUrl && url !== oldUrl) {
-              queryClient.removeQueries({ queryKey: queryKeys.currentPage(oldUrl) });
-            }
-            
-            // 更新URL引用和状态
-            const urlChanged = url !== currentUrlRef.current;
-            currentUrlRef.current = url;
-            
-            if (urlChanged) {
-              setCurrentUrl(url);
-              
-              // 立即触发重新获取数据
-              if (refreshPageRef.current) {
-                setTimeout(() => {
-                  refreshPageRef.current?.();
-                }, 0);
-              }
-            } else if (refreshPageRef.current) {
-              // 即使URL没变，也刷新数据以确保显示最新信息
-              refreshPageRef.current();
-            }
-          }
-        } catch (error) {
-          console.error('刷新当前标签页URL失败:', error);
+      
+      if (document.hidden) {
+        wasHiddenRef.current = true;
+      } else {
+        if (wasHiddenRef.current && isMountedRef.current) {
+          wasHiddenRef.current = false;
+          fetchCurrentUrl(false, true);
         }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // 组件挂载时也执行一次检查（处理首次打开的情况）
-    handleVisibilityChange();
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [queryClient]);
+  }, [fetchCurrentUrl]);
 
   // [核心修改] 使用 TanStack Query 替代 useCachedResource
   // 这里的 queryKey 包含了当前URL，确保不同页面有不同的缓存
   // 切换 Tab 回来时，会立即从内存读取，isPending 保持为 false
+  // [优化] 实现 Stale-While-Revalidate 模式：优先从 Chrome Storage 读取，后台同步
+  // queryFn 由 usePageCache Hook 提供
   const {
     data: currentPage,
     isPending: pageLoading,
@@ -207,154 +100,116 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     refetch: refreshPage,
   } = useQuery<TaggedPage>({
     queryKey: queryKeys.currentPage(currentUrl),
-    queryFn: () => currentPageService.getCurrentPage(),
-    enabled: !!currentUrl, // 只有在获取到URL后才执行查询
-    staleTime: 0, // 设置为0，确保每次URL变化时都重新获取最新数据
+    queryFn, // 使用 usePageCache 提供的 queryFn
+    enabled: !!currentUrl && isMountedRef.current, // 只有在获取到URL且组件已挂载时才执行查询
+    staleTime: 30 * 1000, // 30秒内认为数据是新鲜的，直接从缓存读取，不触发网络请求
     gcTime: 5 * 60 * 1000, // 5分钟垃圾回收时间，保持缓存但允许立即刷新
+    retry: (failureCount, error) => {
+      // 如果是 popup 关闭导致的错误，不重试
+      if (error instanceof Error && error.message.includes('Popup')) {
+        return false;
+      }
+      // 其他错误最多重试 1 次
+      return failureCount < 1;
+    },
+    retryOnMount: false, // 组件挂载时不自动重试
+    // [SSOT] 使用 placeholderData 从缓存中读取初始数据，提升用户体验
+    // 修复：验证 URL 是否匹配，避免显示错误页面的数据
+    placeholderData: (previousData) => {
+      // [SSOT] 如果 currentUrl 为 undefined（初始状态），不返回任何缓存数据
+      // 确保只有在 URL 确定后才使用缓存
+      if (!currentUrl) {
+        return undefined;
+      }
+
+      // 如果缓存中有数据，验证 URL 是否匹配
+      if (previousData) {
+        if (isUrlMatchFn(previousData.url, currentUrl)) {
+          return previousData;
+        }
+        // URL 不匹配，返回 undefined，显示加载状态
+        logger.debug('[SSOT] placeholderData: URL 不匹配，返回 undefined', {
+          cachedUrl: previousData.url,
+          currentUrl,
+        });
+        return undefined;
+      }
+      // 尝试从 queryClient 中获取缓存数据
+      const cachedData = getCachedPage(currentUrl);
+      // 验证 URL 是否匹配
+      if (cachedData && isUrlMatchFn(cachedData.url, currentUrl)) {
+        return cachedData;
+      }
+      // URL 不匹配或缓存不存在，返回 undefined
+      if (cachedData) {
+        logger.debug('[SSOT] placeholderData: 缓存数据 URL 不匹配，返回 undefined', {
+          cachedUrl: cachedData.url,
+          currentUrl,
+        });
+      }
+      return undefined;
+    },
   });
 
-  // 保存 refetch 函数引用，供 URL 变化时使用
-  useEffect(() => {
+  // 保存 refs，避免在监听器的依赖项中包含它们
+  // 使用 useMemo 而不是 useEffect，减少不必要的副作用
+  useMemo(() => {
     refreshPageRef.current = refreshPage;
   }, [refreshPage]);
-
-  // 保存 currentPage 引用，避免在 storage 监听器的依赖项中包含它
-  useEffect(() => {
+  
+  useMemo(() => {
     currentPageRef.current = currentPage;
   }, [currentPage]);
 
-  // 当 currentUrl 变化时，确保立即重新获取数据
+  // 使用 URL 同步 Hook
+  useUrlSynchronization({
+    currentPage,
+    currentUrlRef,
+    setCurrentUrl,
+    isMountedRef,
+  });
+
+  // debouncedRefetch 已由 useDebouncedRefetch Hook 提供
+
+  // 当 currentUrl 变化时，使用防抖函数触发 refetch
+  // 优化：useQuery 会根据 staleTime 自动处理缓存，这里只在必要时触发
   useEffect(() => {
-    if (currentUrl && refreshPageRef.current) {
-      // 使用 setTimeout 确保 queryKey 已经更新到新的 URL
-      const timeoutId = setTimeout(() => {
-        refreshPageRef.current?.();
-      }, 0);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [currentUrl]);
-
-  // 兼容性：提供 mutate 方法用于乐观更新
-  const mutatePage = (newPage: TaggedPage) => {
-    queryClient.setQueryData(queryKeys.currentPage(currentUrl), newPage);
-  };
-
-  // 监听 storage 变化，实现跨上下文的乐观更新
-  // 当 background 自动更新 title 时，立即更新 React Query 缓存
-  useEffect(() => {
-    if (!currentUrl) {
-      return;
-    }
-
-    const handleStorageChange = (
-      changes: { [key: string]: chrome.storage.StorageChange },
-      areaName: chrome.storage.AreaName
-    ) => {
-      // 只处理 local storage 的变化
-      if (areaName !== 'local') {
-        return;
-      }
-
-      // 检查 PAGES 是否发生变化
-      const pagesChange = changes[STORAGE_KEYS.PAGES];
-      if (!pagesChange || !pagesChange.newValue) {
-        return;
-      }
-
-      // 从新的 pages 数据中查找当前页面
-      const allPages = pagesChange.newValue as Record<string, TaggedPage>;
-      // 使用 ref 获取最新的 currentPage，避免闭包问题
-      const currentPageId = currentPageRef.current?.id;
-      const currentPageTitle = currentPageRef.current?.title;
-      const currentUrlValue = currentUrlRef.current;
-      
-      if (currentPageId && allPages[currentPageId] && currentUrlValue) {
-        const updatedPage = allPages[currentPageId];
-        
-        // 如果 title 发生了变化，乐观更新缓存
-        if (updatedPage.title !== currentPageTitle) {
-          queryClient.setQueryData(queryKeys.currentPage(currentUrlValue), updatedPage);
-          console.log('[TaggingPage] 检测到 title 自动更新，已乐观更新缓存:', updatedPage.title);
-        }
-      }
-    };
-
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
-      chrome.storage.onChanged.addListener(handleStorageChange);
-      return () => {
-        chrome.storage.onChanged.removeListener(handleStorageChange);
-      };
-    }
-    // 移除 currentPage 从依赖项中，使用 ref 来获取最新值，避免频繁重新注册监听器
-  }, [currentUrl, queryClient]);
-
-  // 当 title 是 URL 样式时，定期 refetch 以获取更新后的 title
-  useEffect(() => {
-    // 优化条件判断：确保有 currentUrl 且 currentPage 存在
-    // 如果 currentPage 不存在但 currentUrl 存在，说明正在加载，也应该等待
-    if (!currentUrl) {
-      return;
-    }
-
-    // 如果 currentPage 不存在，等待它加载完成
-    if (!currentPage) {
-      return;
-    }
-
-    // 如果 title 不是 URL 样式，不需要 refetch
-    if (!isTitleUrl(currentPage.title, currentPage.url)) {
-      return;
-    }
-
-    // 如果 title 是 URL 样式，设置定时器定期 refetch（最多尝试 3 次，每次间隔 1.5 秒）
-    // 增加尝试次数和间隔，给页面更多加载时间
-    let attemptCount = 0;
-    const maxAttempts = 3; // 最多尝试 3 次
-    const interval = 1500; // 从 1 秒增加到 1.5 秒
-
-    const refetchInterval = setInterval(() => {
-      attemptCount++;
-      
-      // 检查当前页面的 title 是否还是 URL
-      const currentPageData = queryClient.getQueryData<TaggedPage>(
+    if (currentUrl && isMountedRef.current) {
+      // 检查缓存是否存在
+      const cachedData = queryClient.getQueryData<TaggedPage>(
         queryKeys.currentPage(currentUrl)
       );
       
-      // 如果页面数据不存在，说明可能正在重新加载，继续等待
-      if (!currentPageData) {
-        // 如果达到最大尝试次数，停止定时器
-        if (attemptCount >= maxAttempts) {
-          clearInterval(refetchInterval);
-          return;
-        }
-        // 继续等待，不触发 refetch（避免在加载过程中重复请求）
-        return;
+      // 如果缓存不存在，使用防抖函数触发 refetch
+      // 如果缓存存在，useQuery 会自动使用缓存（根据 staleTime）
+      if (!cachedData) {
+        debouncedRefetch();
+      } else {
+        logger.debug('currentUrl 变化: 缓存已存在，跳过 refetch，使用缓存数据');
       }
-      
-      // 如果 title 已经更新为非 URL，停止定时器
-      if (!isTitleUrl(currentPageData.title, currentPageData.url)) {
-        console.log('[TaggingPage] Title 已更新为非 URL，停止 refetch:', currentPageData.title);
-        clearInterval(refetchInterval);
-        return;
-      }
-
-      // 如果达到最大尝试次数，停止定时器
-      if (attemptCount >= maxAttempts) {
-        console.log('[TaggingPage] 达到最大尝试次数，停止 refetch');
-        clearInterval(refetchInterval);
-        return;
-      }
-
-      // 触发 refetch
-      console.log(`[TaggingPage] 触发 refetch 以获取真实 title (尝试 ${attemptCount}/${maxAttempts})`);
-      refreshPage();
-    }, interval);
-
+    }
+    
     return () => {
-      clearInterval(refetchInterval);
+      // 清理函数中不需要做任何事情，防抖函数内部会处理清理
     };
-  }, [currentPage, currentUrl, queryClient, refreshPage]);
+  }, [currentUrl, debouncedRefetch, queryClient]);
+
+  // 组件卸载时清理所有异步操作
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      // 清理所有 refs，避免内存泄漏
+      refreshPageRef.current = null;
+    };
+  }, []);
+
+  // currentPageRef 的更新已合并到上面的 useMemo 中
+
+  // 使用 Storage 同步 Hook
+  useStorageSync(currentUrl, currentPageRef, currentUrlRef, setCurrentUrl, isMountedRef);
+
+  // 使用 Title Refetch Hook
+  useTitleRefetch(currentPage, currentUrl, refreshPage, isMountedRef);
 
   // 1. 初始化 Mutation Hooks
   const { mutate: updateTitle } = useUpdatePageTitle(currentPage ?? null, mutatePage);

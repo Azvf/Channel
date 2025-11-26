@@ -7,6 +7,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { currentPageService, backgroundApi } from '../../../services/popup/currentPageService';
 import { TaggedPage } from '../../../shared/types/gameplayTag';
 import { queryKeys } from '../../../lib/queryKeys';
+import { createOptimisticUpdate, updatePageInCollection } from '../../utils/optimisticUpdate';
+import { STORAGE_KEYS } from '../../../services/storageService';
 
 /**
  * 页面标题更新 Hook
@@ -17,67 +19,65 @@ export function useUpdatePageTitle(
 ) {
   const queryClient = useQueryClient();
 
+  if (!page) {
+    // 如果页面未加载，返回一个不会执行的 mutation
+    return useMutation<string, Error, string>({
+      mutationFn: () => Promise.reject(new Error('Page not loaded')),
+    });
+  }
+
+  const optimisticHooks = createOptimisticUpdate<TaggedPage, string>(
+    queryClient,
+    {
+      queryKey: queryKeys.currentPage(page.url),
+      storageKey: STORAGE_KEYS.PAGES,
+      transform: (newTitle, previous) => {
+        const updated = previous || page;
+        return { ...updated, title: newTitle };
+      },
+      syncFn: async (newTitle) => {
+        // 用户手动编辑时，传递 isManualEdit: true
+        await backgroundApi.updatePageTitle(page.id, newTitle, true);
+      },
+      onError: (error, context) => {
+        console.error('[useUpdatePageTitle] 更新失败:', error);
+        // 回滚本地状态
+        if (context.previous) {
+          setPage(context.previous);
+        }
+      },
+    }
+  );
+
   return useMutation({
-    // 1. RPC 远程调用
+    // RPC 远程调用
     mutationFn: (newTitle: string) => {
-      if (!page) throw new Error('Page not loaded');
-      // 用户手动编辑时，传递 isManualEdit: true
       return backgroundApi.updatePageTitle(page.id, newTitle, true);
     },
-
-    // 2. 乐观更新（立即执行）
+    // 使用框架提供的乐观更新钩子
     onMutate: async (newTitle) => {
-      if (!page) return {};
-
-      const pageUrl = page.url;
-      const currentPageKey = queryKeys.currentPage(pageUrl);
-
-      // A. 取消正在进行的针对该 Key 的查询，防止旧数据覆盖新数据
-      await queryClient.cancelQueries({ queryKey: currentPageKey });
-
-      // B. 获取旧数据快照
-      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey);
-      const oldTitle = page.title;
-
-      // C. 乐观地更新缓存
-      queryClient.setQueryData<TaggedPage>(currentPageKey, (old) => {
-        if (!old) return old;
-        return { ...old, title: newTitle };
-      });
-
-      // 同时更新本地状态（保持兼容性）
-      setPage({ ...page, title: newTitle });
-
-      // D. 返回上下文供回滚使用
-      return { oldTitle, previousPage, pageUrl };
+      // 更新 Storage 中的页面集合（先于框架的乐观更新）
+      const updatedPage = { ...page, title: newTitle };
+      await updatePageInCollection(page.id, () => updatedPage);
+      
+      // 调用框架的乐观更新
+      const context = await optimisticHooks.onMutate(newTitle);
+      
+      // 更新本地状态（保持兼容性）
+      setPage(updatedPage);
+      
+      return { ...context, oldTitle: page.title, previousPage: context.previous };
     },
-
-    // 3. 错误回滚
-    onError: (_err, _newTitle, context) => {
-      if (!context?.pageUrl) return;
-      const currentPageKey = queryKeys.currentPage(context.pageUrl);
-
-      if (context?.previousPage) {
-        queryClient.setQueryData(currentPageKey, context.previousPage);
-        setPage(context.previousPage);
-      } else if (page && context?.oldTitle) {
-        const revertedPage = { ...page, title: context.oldTitle };
-        queryClient.setQueryData(currentPageKey, revertedPage);
-        setPage(revertedPage);
+    onError: (error, newTitle, context) => {
+      optimisticHooks.onError(error, newTitle, context);
+    },
+    onSettled: (_data, error, variables, context) => {
+      // mutationFn 返回 void，所以 data 是 undefined
+      // 框架已经在 onMutate 中更新了缓存，这里不需要额外操作
+      if (context) {
+        optimisticHooks.onSettled(undefined, error, variables, context);
       }
     },
-
-    // 4. 最终结算
-    onSettled: (_data, _error, _variables, context) => {
-      // 无论成功失败，都标记数据"脏"了，触发后台重新拉取最新数据
-      if (context?.pageUrl) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
-      } else if (page?.url) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(page.url) });
-      }
-    },
-
-    // 5. 重试配置
     retry: 2,
   });
 }
@@ -91,79 +91,78 @@ export function usePageTagsMutation(
 ) {
   const queryClient = useQueryClient();
 
+  if (!page) {
+    return useMutation<void, Error, { action: 'add' | 'remove'; tagId: string }>({
+      mutationFn: () => Promise.reject(new Error('Page not loaded')),
+    });
+  }
+
+  const transformPage = (
+    params: { action: 'add' | 'remove'; tagId: string },
+    previous: TaggedPage | undefined
+  ): TaggedPage => {
+    const current = previous || page;
+    let newTags = [...current.tags];
+    
+    if (params.action === 'add' && !newTags.includes(params.tagId)) {
+      newTags.push(params.tagId);
+    } else if (params.action === 'remove') {
+      newTags = newTags.filter((t) => t !== params.tagId);
+    }
+    
+    return { ...current, tags: newTags };
+  };
+
+  const optimisticHooks = createOptimisticUpdate<TaggedPage, { action: 'add' | 'remove'; tagId: string }>(
+    queryClient,
+    {
+      queryKey: queryKeys.currentPage(page.url),
+      storageKey: STORAGE_KEYS.PAGES,
+      transform: transformPage,
+      syncFn: async (params) => {
+        if (params.action === 'add') {
+          await backgroundApi.addTagToPage(page.id, params.tagId);
+        } else {
+          await backgroundApi.removeTagFromPage(page.id, params.tagId);
+        }
+      },
+      onError: (error, context) => {
+        console.error('[usePageTagsMutation] 更新失败:', error);
+        if (context.previous) {
+          setPage(context.previous);
+        }
+      },
+    }
+  );
+
   return useMutation({
-    mutationFn: async ({
-      action,
-      tagId,
-    }: {
-      action: 'add' | 'remove';
-      tagId: string;
-    }) => {
-      if (!page) throw new Error('Page not loaded');
-
-      if (action === 'add') {
-        return backgroundApi.addTagToPage(page.id, tagId);
+    mutationFn: async (params: { action: 'add' | 'remove'; tagId: string }) => {
+      if (params.action === 'add') {
+        return backgroundApi.addTagToPage(page.id, params.tagId);
       } else {
-        return backgroundApi.removeTagFromPage(page.id, tagId);
+        return backgroundApi.removeTagFromPage(page.id, params.tagId);
       }
     },
-
-    onMutate: async ({ action, tagId }) => {
-      if (!page) return { oldTags: [] };
-
-      const pageUrl = page.url;
-      const currentPageKey = queryKeys.currentPage(pageUrl);
-
-      // A. 取消正在进行的查询
-      await queryClient.cancelQueries({ queryKey: currentPageKey });
-
-      // B. 获取旧数据快照
-      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey);
-      const oldTags = [...page.tags];
-
-      // C. 计算新标签列表
-      let newTags = [...page.tags];
-      if (action === 'add' && !newTags.includes(tagId)) {
-        newTags.push(tagId);
-      } else if (action === 'remove') {
-        newTags = newTags.filter((t) => t !== tagId);
-      }
-
-      // D. 乐观地更新缓存
-      queryClient.setQueryData<TaggedPage>(currentPageKey, (old) => {
-        if (!old) return old;
-        return { ...old, tags: newTags };
-      });
-
-      // 同时更新本地状态（保持兼容性）
-      setPage({ ...page, tags: newTags });
-
-      return { oldTags, previousPage, pageUrl };
+    onMutate: async (params) => {
+      // 更新 Storage 中的页面集合
+      await updatePageInCollection(page.id, (current) => transformPage(params, current));
+      
+      const context = await optimisticHooks.onMutate(params);
+      
+      // 更新本地状态
+      const updatedPage = transformPage(params, context.previous);
+      setPage(updatedPage);
+      
+      return { ...context, oldTags: page.tags, previousPage: context.previous, pageUrl: page.url };
     },
-
-    onError: (_err, _vars, context) => {
-      if (!context?.pageUrl) return;
-      const currentPageKey = queryKeys.currentPage(context.pageUrl);
-
-      if (context?.previousPage) {
-        queryClient.setQueryData(currentPageKey, context.previousPage);
-        setPage(context.previousPage);
-      } else if (page && context?.oldTags) {
-        const revertedPage = { ...page, tags: context.oldTags };
-        queryClient.setQueryData(currentPageKey, revertedPage);
-        setPage(revertedPage);
+    onError: (error, params, context) => {
+      optimisticHooks.onError(error, params, context);
+    },
+    onSettled: (_data, error, variables, context) => {
+      if (context) {
+        optimisticHooks.onSettled(undefined, error, variables, context);
       }
     },
-
-    onSettled: (_data, _error, _variables, context) => {
-      if (context?.pageUrl) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
-      } else if (page?.url) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(page.url) });
-      }
-    },
-
-    // 重试配置
     retry: 2,
   });
 }
@@ -178,57 +177,91 @@ export function useUpdatePageTags(
 ) {
   const queryClient = useQueryClient();
 
+  if (!page) {
+    return useMutation<TaggedPage, Error, { tagsToAdd: string[]; tagsToRemove: string[] }>({
+      mutationFn: () => Promise.reject(new Error('Page not loaded')),
+    });
+  }
+
+  // 定义 transform 函数，用于计算更新后的页面
+  const transformPage = (params: { tagsToAdd: string[]; tagsToRemove: string[] }, previous: TaggedPage | undefined): TaggedPage => {
+    const current = previous || page;
+    const newTags = [...current.tags];
+    
+    // 添加新标签
+    params.tagsToAdd.forEach(tagId => {
+      if (!newTags.includes(tagId)) {
+        newTags.push(tagId);
+      }
+    });
+    
+    // 移除标签
+    params.tagsToRemove.forEach(tagId => {
+      const index = newTags.indexOf(tagId);
+      if (index > -1) {
+        newTags.splice(index, 1);
+      }
+    });
+    
+    return { ...current, tags: newTags };
+  };
+
+  const optimisticHooks = createOptimisticUpdate<TaggedPage, { tagsToAdd: string[]; tagsToRemove: string[] }>(
+    queryClient,
+    {
+      queryKey: queryKeys.currentPage(page.url),
+      storageKey: STORAGE_KEYS.PAGES,
+      transform: transformPage,
+      syncFn: async (params) => {
+        await currentPageService.updatePageTags(page.id, params);
+      },
+      onError: (error, context) => {
+        console.error('[useUpdatePageTags] 更新失败:', error);
+        if (context.previous) {
+          setPage(context.previous);
+        }
+      },
+    }
+  );
+
   return useMutation({
     mutationFn: async (params: { tagsToAdd: string[]; tagsToRemove: string[] }) => {
-      if (!page) throw new Error('Page not loaded');
       const result = await currentPageService.updatePageTags(page.id, params);
       return result.newPage;
     },
-
-    onMutate: async (_params) => {
-      if (!page) return { previousPage: null };
-
-      const pageUrl = page.url;
-      const currentPageKey = queryKeys.currentPage(pageUrl);
-
-      // A. 取消正在进行的查询
-      await queryClient.cancelQueries({ queryKey: currentPageKey });
-
-      // B. 获取旧数据快照
-      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey) || page;
-
-      // C. 保存当前页面状态用于回滚（保持兼容性）
-      return { previousPage, pageUrl };
+    onMutate: async (params) => {
+      // 更新 Storage 中的页面集合
+      await updatePageInCollection(page.id, (current) => transformPage(params, current));
+      
+      const context = await optimisticHooks.onMutate(params);
+      
+      // 更新本地状态
+      const updatedPage = transformPage(params, context.previous);
+      setPage(updatedPage);
+      
+      return { ...context, previousPage: context.previous, pageUrl: page.url };
     },
-
-    onSuccess: (newPage) => {
+    onSuccess: (newPage, _params) => {
       // 更新缓存（使用新页面的URL，因为URL可能包含时间戳变化）
       const pageUrl = newPage.url;
       const currentPageKey = queryKeys.currentPage(pageUrl);
       queryClient.setQueryData(currentPageKey, newPage);
       setPage(newPage);
+      
+      // 更新 Storage
+      updatePageInCollection(page.id, () => newPage).catch(console.error);
+      
       // 调用成功回调
       onSuccess?.(newPage);
     },
-
-    onError: (error, _params, context) => {
-      console.error('更新标签失败:', error);
-      // 回滚到之前的页面状态
-      if (context?.previousPage && context?.pageUrl) {
-        const currentPageKey = queryKeys.currentPage(context.pageUrl);
-        queryClient.setQueryData(currentPageKey, context.previousPage);
-        setPage(context.previousPage);
+    onError: (error, params, context) => {
+      optimisticHooks.onError(error, params, context);
+    },
+    onSettled: (data, error, variables, context) => {
+      if (data && context) {
+        optimisticHooks.onSettled(data, error, variables, context);
       }
     },
-
-    onSettled: (_data, _error, _variables, context) => {
-      if (context?.pageUrl) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
-      } else if (page?.url) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(page.url) });
-      }
-    },
-
     retry: 2,
   });
 }
@@ -248,75 +281,79 @@ export function useUpdatePageDetails(
 ) {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (params: {
-      title: string;
-      tagsToAdd: string[];
-      tagsToRemove: string[];
-    }) => {
-      if (!page) throw new Error('Page not loaded');
-      return currentPageService.updatePageDetails(page.id, params);
-    },
+  if (!page) {
+    return useMutation<TaggedPage, Error, { title: string; tagsToAdd: string[]; tagsToRemove: string[] }>({
+      mutationFn: () => Promise.reject(new Error('Page not loaded')),
+    });
+  }
 
+  const transformPage = (
+    params: { title: string; tagsToAdd: string[]; tagsToRemove: string[] },
+    previous: TaggedPage | undefined
+  ): TaggedPage => {
+    const current = previous || page;
+    // 注意：这里我们只更新标题，标签更新需要调用方在 onOptimisticUpdate 中处理
+    // 因为需要 tagName 到 tagId 的映射
+    return { ...current, title: params.title };
+  };
+
+  const optimisticHooks = createOptimisticUpdate<TaggedPage, { title: string; tagsToAdd: string[]; tagsToRemove: string[] }>(
+    queryClient,
+    {
+      queryKey: queryKeys.currentPage(page.url),
+      storageKey: STORAGE_KEYS.PAGES,
+      transform: transformPage,
+      syncFn: async (params) => {
+        await currentPageService.updatePageDetails(page.id, params);
+      },
+      onError: (error, context) => {
+        console.error('[useUpdatePageDetails] 更新失败:', error);
+        if (context.previous && onRollback) {
+          onRollback(context.previous);
+        }
+      },
+    }
+  );
+
+  return useMutation<TaggedPage, Error, { title: string; tagsToAdd: string[]; tagsToRemove: string[] }>({
+    mutationFn: async (params: { title: string; tagsToAdd: string[]; tagsToRemove: string[] }) => {
+      await currentPageService.updatePageDetails(page.id, params);
+      // 更新后重新获取页面数据
+      return currentPageService.getCurrentPage();
+    },
     onMutate: async (params) => {
-      if (!page) return { previousPage: null };
-
-      const pageUrl = page.url;
-      const currentPageKey = queryKeys.currentPage(pageUrl);
-
-      // A. 取消正在进行的查询
-      await queryClient.cancelQueries({ queryKey: currentPageKey });
-
-      // B. 获取旧数据快照
-      const previousPage = queryClient.getQueryData<TaggedPage>(currentPageKey) || page;
-
-      // C. 乐观更新当前页面缓存
-      // 注意：这里我们只更新标题，标签更新需要调用方在 onOptimisticUpdate 中处理
-      // 因为需要 tagName 到 tagId 的映射
-      const updatedPage: TaggedPage = {
-        ...page,
-        title: params.title,
-      };
-
-      queryClient.setQueryData<TaggedPage>(currentPageKey, updatedPage);
-
-      // D. 调用乐观更新回调（调用方会处理标签更新和 allPages 更新）
+      // 更新 Storage 中的页面集合（只更新标题）
+      await updatePageInCollection(page.id, (current) => transformPage(params, current));
+      
+      const context = await optimisticHooks.onMutate(params);
+      
+      // 调用乐观更新回调（调用方会处理标签更新和 allPages 更新）
+      const updatedPage = transformPage(params, context.previous);
       onOptimisticUpdate?.(updatedPage);
-
-      return { previousPage, pageUrl, pageId: page.id };
+      
+      return { ...context, previousPage: context.previous, pageUrl: page.url, pageId: page.id };
     },
-
-    onSuccess: (_data, _params, context) => {
-      if (!context?.pageUrl) return;
-
-      const currentPageKey = queryKeys.currentPage(context.pageUrl);
-
-      // 成功时，标记缓存为脏，让后台重新获取最新数据
-      queryClient.invalidateQueries({ queryKey: currentPageKey });
-    },
-
-    onError: (error, _params, context) => {
-      console.error('更新页面详情失败:', error);
-
-      // 回滚当前页面缓存
-      if (context?.previousPage && context?.pageUrl) {
-        const currentPageKey = queryKeys.currentPage(context.pageUrl);
-        queryClient.setQueryData(currentPageKey, context.previousPage);
-      }
-
-      // 回滚 allPages（通过回调）
-      if (context?.previousPage && onRollback) {
-        onRollback(context.previousPage);
+    onSuccess: (data, _params, context) => {
+      if (context) {
+        // 使用 setQueryData 而非 invalidateQueries
+        const pageUrl = data.url;
+        const currentPageKey = queryKeys.currentPage(pageUrl);
+        queryClient.setQueryData(currentPageKey, data);
+        
+      // 更新 Storage
+      updatePageInCollection(page.id, () => data).catch(console.error);
       }
     },
-
-    onSettled: (_data, _error, _variables, context) => {
-      // 最终结算：标记数据为脏，触发后台重新拉取
-      if (context?.pageUrl) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.currentPage(context.pageUrl) });
+    onError: (error, params, context) => {
+      if (context && typeof context === 'object' && 'previous' in context && 'queryKey' in context && 'storageKey' in context) {
+        optimisticHooks.onError(error, params, context as any);
       }
     },
-
+    onSettled: (data, error, variables, context) => {
+      if (data && context && typeof context === 'object' && 'previous' in context && 'queryKey' in context && 'storageKey' in context) {
+        optimisticHooks.onSettled(data, error, variables, context as any);
+      }
+    },
     retry: 2,
   });
 }
