@@ -96,6 +96,38 @@ export default function App({ initialState }: AppProps) {
     });
   }, [activeTab]);
 
+  // 确保在浮动 header 区域也能滚动：将 wheel 事件转发到滚动容器
+  useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    const floatingHeader = floatingHeaderRef.current;
+    
+    if (!scrollContainer || !floatingHeader) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // 检查事件是否发生在浮动 header 或其子元素上
+      const target = e.target as HTMLElement;
+      if (floatingHeader.contains(target) || floatingHeader === target) {
+        // 如果滚动容器可以滚动，将 wheel 事件转发到滚动容器
+        const canScroll = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+        if (canScroll) {
+          // 阻止默认行为，手动滚动
+          e.preventDefault();
+          scrollContainer.scrollBy({
+            top: e.deltaY,
+            behavior: 'auto',
+          });
+        }
+      }
+    };
+
+    // 在捕获阶段监听，确保可以拦截事件
+    document.addEventListener('wheel', handleWheel, { capture: true, passive: false });
+    
+    return () => {
+      document.removeEventListener('wheel', handleWheel, { capture: true } as any);
+    };
+  }, [activeTab]);
+
   const handleTabChange = async (tab: "tagging" | "tagged") => {
     // 保存当前 tab 的滚动位置
     if (scrollContainerRef.current) {
@@ -139,7 +171,9 @@ export default function App({ initialState }: AppProps) {
           minHeight: 0,
           overflowY: "auto",
           // [Refactor] 使用标准内边距
-          padding: "var(--container-padding)", 
+          padding: "var(--container-padding)",
+          // 确保 scrollbar 区域始终可交互，不受浮动 header 影响
+          pointerEvents: "auto",
         }}
       >
         {/* Spacer for Floating Header */}
@@ -162,17 +196,22 @@ export default function App({ initialState }: AppProps) {
         style={{
           pointerEvents: "none",
           zIndex: "var(--z-app-header)",
+          // 确保不覆盖 scrollbar 区域：虽然设置了 pointerEvents: "none"，
+          // 但为了更好的兼容性，限制内容区域不延伸到 scrollbar
+          // 内部元素已有 max-w-md 类，确保内容居中且不覆盖 scrollbar
         }}
       >
         <div
-          className="relative w-full max-w-md flex justify-center items-center"
+          className="relative max-w-md flex justify-center items-center"
           style={{ 
             pointerEvents: "auto",
-
-            height: "var(--row-min-height)", // 44px
-
-            marginTop: "var(--space-3)" // 12px top margin
-
+            // 限制宽度，不覆盖 scrollbar 区域：使用 calc 减去 container padding 和 scrollbar 空间
+            // 使用 --sb-width token 加上安全边距（--space-2）确保不覆盖 scrollbar
+            width: "calc(100% - var(--container-padding) - var(--sb-width) - var(--space-2))",
+            maxWidth: "var(--modal-max-width)",
+            marginLeft: "var(--container-padding)",
+            marginTop: "var(--space-3)",
+            height: "var(--row-min-height)",
           }}
         >
           <div
@@ -194,9 +233,7 @@ export default function App({ initialState }: AppProps) {
           className="w-full max-w-md flex justify-center"
           style={{ 
             pointerEvents: "auto",
-
             padding: "var(--space-2) var(--container-padding) 0" 
-
           }}
         >
           <TabSwitcher activeTab={activeTab} onTabChange={handleTabChange} />
