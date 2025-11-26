@@ -229,25 +229,6 @@ export function EditPageDialog({
       }}
     >
       <div className="space-y-4">
-        {/* URL Display */}
-        <div>
-          <label style={labelStyle}>URL</label>
-          <div
-            className="px-2.5 py-1.5 rounded-lg"
-            style={{
-              background: 'var(--bg-surface-glass-subtle)',
-              border: '1px solid var(--border-glass-subtle)',
-              font: 'var(--font-small)',
-              color: 'var(--color-text-tertiary)',
-              fontWeight: 500,
-              wordBreak: 'break-all',
-              lineHeight: 1.4
-            }}
-          >
-            {page.url}
-          </div>
-        </div>
-
         {/* Title Input */}
         <div>
           <label style={labelStyle}>Title</label>
@@ -272,6 +253,25 @@ export function EditPageDialog({
             allowCreation={true}
             dropdownZIndex="var(--z-tooltip)"
           />
+        </div>
+
+        {/* URL Display */}
+        <div>
+          <label style={labelStyle}>URL</label>
+          <div
+            className="px-2.5 py-1.5 rounded-lg"
+            style={{
+              background: 'var(--bg-surface-glass-subtle)',
+              border: '1px solid var(--border-glass-subtle)',
+              font: 'var(--font-small)',
+              color: 'var(--color-text-tertiary)',
+              fontWeight: 500,
+              wordBreak: 'break-all',
+              lineHeight: 1.4
+            }}
+          >
+            {page.url}
+          </div>
         </div>
       </div>
     </FunctionalModal>
