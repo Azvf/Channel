@@ -7,6 +7,24 @@ import { QueryClientWrapper } from '../../../test/queryClientWrapper';
 
 // 1. Mock 依赖
 jest.mock('../../../services/popup/currentPageService');
+
+// Mock framer-motion 以避免动画导致的 pointer-events 问题
+jest.mock('framer-motion', () => {
+  const React = require('react');
+  return {
+    motion: {
+      div: React.forwardRef((props: any, ref: any) => {
+        const { children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } = props;
+        return React.createElement('div', { ref, ...rest }, children);
+      }),
+      button: React.forwardRef((props: any, ref: any) => {
+        const { children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } = props;
+        return React.createElement('button', { ref, ...rest }, children);
+      }),
+    },
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+  };
+});
 const mockedPageService = currentPageService as jest.Mocked<typeof currentPageService>;
 
 // 2. Mock 数据
@@ -103,14 +121,19 @@ describe('TagManagementPage (Integration)', () => {
     expect(deleteOption).toBeInTheDocument();
 
     // 3. 点击删除 -> 应该弹出确认框
-    await user.click(deleteOption);
+    // 使用 fireEvent 而不是 userEvent 以避免 pointer-events 问题
+    fireEvent.click(deleteOption);
     const confirmBtn = await screen.findByRole('button', { name: '删除' }); // AlertModal 中的确认按钮
     
     // 4. 确认删除
     mockedPageService.deleteTag.mockResolvedValue(undefined);
-    await user.click(confirmBtn);
+    // 使用 fireEvent 而不是 userEvent 以避免 pointer-events 问题
+    fireEvent.click(confirmBtn);
 
-    expect(mockedPageService.deleteTag).toHaveBeenCalledWith('t2');
+    // 等待异步操作完成
+    await waitFor(() => {
+      expect(mockedPageService.deleteTag).toHaveBeenCalledWith('t2');
+    });
     // 删除后应该重新加载列表（可能被调用多次，因为 AppContext 也会刷新）
     expect(mockedPageService.getAllTags).toHaveBeenCalled();
   });

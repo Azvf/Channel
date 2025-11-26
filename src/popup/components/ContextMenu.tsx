@@ -1,6 +1,6 @@
-import React, { useState, MouseEvent, ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { ReactNode } from 'react';
+import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';
+import { motion } from 'framer-motion';
 import { SMOOTH_TRANSITION } from '../utils/motion'; // [Refactor] 使用统一的动画系统
 
 export interface ContextMenuItem {
@@ -17,93 +17,71 @@ interface ContextMenuProps {
 }
 
 export function ContextMenu({ children, menuItems, className }: ContextMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-
-  const handleContextMenu = (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Get position relative to the viewport
-    setPosition({ x: e.clientX, y: e.clientY });
-    setIsOpen(true);
-  };
-
-  const closeMenu = () => {
-    setIsOpen(false);
-  };
-
-  const handleItemClick = (onClick: () => void) => {
-    onClick();
-    closeMenu();
-  };
-
-  const menuElement = (
-    <div
-      className="fixed inset-0"
-      // [Refactor] 使用明确的 Backdrop 层级
-      style={{ zIndex: 'var(--z-context-menu-backdrop)' }}
-      onClick={closeMenu}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        closeMenu();
-      }}
-    >
-      <AnimatePresence>
-        {isOpen && (
+  return (
+    <ContextMenuPrimitive.Root>
+      <ContextMenuPrimitive.Trigger asChild className={className}>
+        {children}
+      </ContextMenuPrimitive.Trigger>
+      <ContextMenuPrimitive.Portal>
+        <ContextMenuPrimitive.Content
+          asChild
+          // [Refactor] 使用明确的 Body 层级
+          style={{ zIndex: 'var(--z-context-menu-body)' }}
+          // 防止关闭时自动聚焦到触发器（由 Radix UI 自动处理）
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             // [Refactor] 使用统一的动画系统
             transition={SMOOTH_TRANSITION}
-            className="fixed liquidGlass-wrapper"
+            className="liquidGlass-wrapper"
             style={{
-              // [Refactor] 使用明确的 Body 层级，替代 calc(+1)
-              zIndex: 'var(--z-context-menu-body)',
-              top: position.y,
-              left: position.x,
+              // [Refactor] Tokenized Radius
+              borderRadius: 'var(--radius-lg)',
               // [Refactor] 使用标准菜单宽度 Token
               minWidth: 'var(--menu-min-width)',
-              // [Refactor] Tokenized Radius
-              borderRadius: 'var(--radius-lg)', 
             }}
           >
             <div className="liquidGlass-content p-1">
               <ul className="list-none m-0 p-0">
                 {menuItems.map((item, index) => (
                   <li key={index}>
-                    <button
-                      onClick={() => handleItemClick(item.onClick)}
-                      className={`flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all ${item.variant === 'destructive' ? 'hover-destructive' : 'hover-action'}`}
-                      style={{
-                        // [Refactor] Tokenized Colors
-                        color: item.variant === 'destructive'
-                          ? 'var(--color-text-secondary)'
-                          : 'var(--color-text-primary)',
-                        background: 'transparent',
-                        font: 'var(--font-caption)',
-                        letterSpacing: 'var(--letter-spacing-caption)',
-                        fontWeight: 500,
+                    <ContextMenuPrimitive.Item
+                      asChild
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        item.onClick();
                       }}
                     >
-                      {item.icon && React.cloneElement(item.icon as any, { className: 'icon-sm' })}
-                      <span>{item.label}</span>
-                    </button>
+                      <button
+                        className={`flex items-center gap-2 w-full text-left px-3 py-1.5 rounded-md transition-all ${
+                          item.variant === 'destructive' ? 'hover-destructive' : 'hover-action'
+                        }`}
+                        style={{
+                          // [Refactor] Tokenized Colors
+                          color: item.variant === 'destructive'
+                            ? 'var(--color-text-secondary)'
+                            : 'var(--color-text-primary)',
+                          background: 'transparent',
+                          font: 'var(--font-caption)',
+                          letterSpacing: 'var(--letter-spacing-caption)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.icon && React.cloneElement(item.icon as any, { className: 'icon-sm' })}
+                        <span>{item.label}</span>
+                      </button>
+                    </ContextMenuPrimitive.Item>
                   </li>
                 ))}
               </ul>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-
-  return (
-    <div onContextMenu={handleContextMenu} className={className}>
-      {children}
-      {isOpen && createPortal(menuElement, document.body)}
-    </div>
+        </ContextMenuPrimitive.Content>
+      </ContextMenuPrimitive.Portal>
+    </ContextMenuPrimitive.Root>
   );
 }
 

@@ -211,6 +211,131 @@ global.ResizeObserver = class ResizeObserver {
   }
 } as any;
 
+// ✅ 修复：Mock IntersectionObserver（JSDOM 不支持 IntersectionObserver）
+global.IntersectionObserver = class IntersectionObserver {
+  private callback: (entries: IntersectionObserverEntry[], observer: IntersectionObserver) => void;
+
+  constructor(
+    callback: (entries: IntersectionObserverEntry[], observer: IntersectionObserver) => void,
+    _options?: { root?: Element | null; rootMargin?: string; threshold?: number | number[] }
+  ) {
+    this.callback = callback;
+  }
+
+  observe(target: Element) {
+    // 在测试环境中，立即触发回调，模拟元素已进入视口
+    // 使用 setTimeout 确保在下一个事件循环中执行，避免同步问题
+    setTimeout(() => {
+      const entry: IntersectionObserverEntry = {
+        target,
+        isIntersecting: true,
+        intersectionRatio: 1,
+        boundingClientRect: target.getBoundingClientRect(),
+        rootBounds: null,
+        intersectionRect: target.getBoundingClientRect(),
+        time: Date.now(),
+      } as IntersectionObserverEntry;
+      this.callback([entry], this as any);
+    }, 0);
+  }
+
+  unobserve() {
+    // no-op
+  }
+
+  disconnect() {
+    // no-op
+  }
+
+  takeRecords() {
+    return [];
+  }
+} as any;
+
+// ✅ 修复：Mock DOMRect（JSDOM 不支持 DOMRect）
+// 为 Element.prototype.getBoundingClientRect 提供 mock
+if (!global.DOMRect) {
+  global.DOMRect = class DOMRect {
+    x = 0;
+    y = 0;
+    width = 0;
+    height = 0;
+    top = 0;
+    right = 0;
+    bottom = 0;
+    left = 0;
+    constructor(x = 0, y = 0, width = 0, height = 0) {
+      this.x = x;
+      this.y = y;
+      this.width = width;
+      this.height = height;
+      this.top = y;
+      this.left = x;
+      this.right = x + width;
+      this.bottom = y + height;
+    }
+    static fromRect(other?: { x?: number; y?: number; width?: number; height?: number }) {
+      return new DOMRect(other?.x, other?.y, other?.width, other?.height);
+    }
+    toJSON() {
+      return JSON.stringify(this);
+    }
+  } as any;
+}
+
+// ✅ 修复：Mock window.scrollTo（JSDOM 不支持 scrollTo）
+if (!window.scrollTo) {
+  window.scrollTo = jest.fn();
+}
+
+// ✅ 修复：为 Element.prototype.getBoundingClientRect 提供 mock
+// 确保返回有效的 DOMRect 对象
+const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+Element.prototype.getBoundingClientRect = function () {
+  const rect = originalGetBoundingClientRect.call(this);
+  // 如果原始方法返回无效值，返回默认的 DOMRect
+  if (!rect || rect.width === undefined) {
+    return new DOMRect(0, 0, 0, 0);
+  }
+  return rect;
+};
+
+// ✅ 修复：Mock framer-motion 以避免测试中的动画问题
+// 在测试环境中，动画会立即完成，避免 pointer-events 等问题
+// 注意：这个 mock 需要在模块加载之前执行，所以放在 setup.ts 中
+// 如果测试文件中需要更具体的 mock，可以在测试文件中覆盖
+jest.mock('framer-motion', () => {
+  const React = require('react');
+  return {
+    motion: {
+      div: React.forwardRef((props: any, ref: any) => {
+        const { children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } = props;
+        return React.createElement('div', { ref, ...rest }, children);
+      }),
+      button: React.forwardRef((props: any, ref: any) => {
+        const { children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } = props;
+        return React.createElement('button', { ref, ...rest }, children);
+      }),
+      ul: React.forwardRef((props: any, ref: any) => {
+        const { children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } = props;
+        return React.createElement('ul', { ref, ...rest }, children);
+      }),
+      li: React.forwardRef((props: any, ref: any) => {
+        const { children, initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } = props;
+        return React.createElement('li', { ref, ...rest }, children);
+      }),
+    },
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+    useAnimation: () => ({
+      start: jest.fn(),
+      stop: jest.fn(),
+      set: jest.fn(),
+    }),
+    useMotionValue: (initial: any) => ({ get: () => initial, set: jest.fn() }),
+    useTransform: (value: any, transform: any) => ({ get: () => transform(value?.get?.() || value) }),
+  };
+});
+
 // ✅ 修复：全局 Mock TimeService，避免测试中调用真实的 Supabase RPC
 // 测试环境不需要真正的时间校准，直接使用本地时间
 jest.mock('../services/timeService', () => {

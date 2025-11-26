@@ -163,6 +163,62 @@ export function TaggedPage({
     );
   }, [visiblePages, searchTags, tagNameToId]);
 
+  // [Performance] 懒加载配置：初始只渲染前 50 个卡片，滚动时自动加载更多
+  // 策略：使用 Intersection Observer 监听底部哨兵元素，提前 200px 开始加载
+  const INITIAL_LOAD_COUNT = 50;
+  const LOAD_MORE_BATCH_SIZE = 50;
+  const LOAD_MORE_THRESHOLD = 200;
+
+  const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD_COUNT);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // 计算要显示的项目（只包含前 visibleCount 个）
+  const displayedPages = useMemo(() => {
+    return filteredPages.slice(0, visibleCount);
+  }, [filteredPages, visibleCount]);
+
+  // 搜索时重置懒加载状态
+  useEffect(() => {
+    setVisibleCount(INITIAL_LOAD_COUNT);
+  }, [searchTags]);
+
+  // 数据变化时自动调整（如果总数减少，确保 visibleCount 不超过总数）
+  useEffect(() => {
+    if (filteredPages.length < visibleCount) {
+      setVisibleCount(Math.min(INITIAL_LOAD_COUNT, filteredPages.length));
+    }
+  }, [filteredPages.length, visibleCount]);
+
+  // Intersection Observer：监听底部哨兵元素，自动加载更多
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || displayedPages.length >= filteredPages.length) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && !appLoading) {
+          setVisibleCount((prev) => {
+            const next = prev + LOAD_MORE_BATCH_SIZE;
+            return Math.min(next, filteredPages.length);
+          });
+        }
+      },
+      {
+        root: null,
+        rootMargin: `${LOAD_MORE_THRESHOLD}px`,
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+  }, [displayedPages.length, filteredPages.length, appLoading]);
+
   const loading = appLoading;
   const error = appError || actionError;
 
@@ -558,22 +614,35 @@ export function TaggedPage({
                   <p style={{ margin: 0 }}>加载失败：{error}</p>
                 </div>
               ) : filteredPages.length > 0 ? (
-                <AnimatedFlipList
-                  items={filteredPages}
-                  as="div"
-                  className="space-y-3"
-                  renderItem={(page) => (
-                    <PageCard
-                      key={page.id}
-                      page={page}
-                      searchTags={searchTags}
-                      onMenuButtonClick={handleOpenMenu}
-                      registerMenuButton={registerMenuButton}
-                      openMenuFromButtonRef={openMenuFromButtonRef}
-                      tagIdToName={tagIdToName}
+                <>
+                  <AnimatedFlipList
+                    items={displayedPages}
+                    as="div"
+                    className="space-y-3"
+                    renderItem={(page) => (
+                      <PageCard
+                        key={page.id}
+                        page={page}
+                        searchTags={searchTags}
+                        onMenuButtonClick={handleOpenMenu}
+                        registerMenuButton={registerMenuButton}
+                        openMenuFromButtonRef={openMenuFromButtonRef}
+                        tagIdToName={tagIdToName}
+                      />
+                    )}
+                  />
+                  {/* 底部哨兵元素：用于触发懒加载 */}
+                  {displayedPages.length < filteredPages.length && (
+                    <div
+                      ref={loadMoreRef}
+                      style={{
+                        height: "1px",
+                        width: "100%",
+                      }}
+                      aria-hidden="true"
                     />
                   )}
-                />
+                </>
               ) : (
                 <div
                   className="text-center py-12 rounded-3xl border-2 border-dashed"

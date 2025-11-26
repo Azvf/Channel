@@ -1,8 +1,8 @@
 import { memo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { useLongPress } from "../../utils/useLongPress";
 import type { GameplayTag } from "../../../shared/types/gameplayTag";
-import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
+import { ContextMenu, type ContextMenuItem } from "../ContextMenu";
 
 interface TagRowProps {
   tag: GameplayTag;
@@ -14,9 +14,7 @@ interface TagRowProps {
   onCancelEdit: () => void;
   onEditTag: (tag: GameplayTag) => void;
   onDeleteTag: (tagId: string) => void;
-  onOpenMenu: (e: ReactMouseEvent | ReactTouchEvent, tagId: string) => void;
-  // 用于定位菜单的 ref callback
-  setMenuButtonRef: (id: string, el: HTMLElement | null) => void;
+  // 移除 onOpenMenu 和 setMenuButtonRef，改用 ContextMenu
 }
 
 // 使用 memo 优化渲染性能，只有 props 变化时才重绘
@@ -30,11 +28,26 @@ export const TagRow = memo(function TagRow({
   onCancelEdit,
   onEditTag,
   onDeleteTag,
-  onOpenMenu,
-  setMenuButtonRef
 }: TagRowProps) {
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: '编辑',
+      onClick: () => onEditTag(tag),
+      icon: <Pencil />,
+    },
+    {
+      label: '删除',
+      onClick: () => onDeleteTag(tag.id),
+      icon: <Trash2 />,
+      variant: 'destructive',
+    },
+  ];
+
   const longPressHandlers = useLongPress({
-    onLongPress: (e) => onOpenMenu(e, tag.id),
+    onLongPress: () => {
+      // 长按触发编辑（与右键菜单的编辑功能一致）
+      onEditTag(tag);
+    },
     delay: 500
   });
 
@@ -96,17 +109,16 @@ export const TagRow = memo(function TagRow({
   }
 
   return (
-    <div
-      ref={(el) => setMenuButtonRef(tag.id, el)}
-      {...longPressHandlers}
-      className="group relative flex items-center justify-between gap-3 p-3 rounded-lg cursor-pointer transition-all hover-glass"
-      style={{
-        background: 'transparent',
-        border: '1px solid transparent'
-      }}
-      onContextMenu={(e) => onOpenMenu(e, tag.id)}
-      onClick={() => onEditTag(tag)}
-    >
+    <ContextMenu menuItems={menuItems}>
+      <div
+        {...longPressHandlers}
+        className="group relative flex items-center justify-between gap-3 p-3 rounded-lg cursor-pointer transition-all hover-glass"
+        style={{
+          background: 'transparent',
+          border: '1px solid transparent'
+        }}
+        onClick={() => onEditTag(tag)}
+      >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div
           className="w-3 h-3 rounded-full flex-shrink-0"
@@ -151,6 +163,7 @@ export const TagRow = memo(function TagRow({
         </div>
       </div>
     </div>
+    </ContextMenu>
   );
 });
 

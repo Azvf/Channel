@@ -123,6 +123,30 @@ Before editing code, verify:
 
 - Reference: `docs/reference/engineering/工程化与构建指南.md` Section 3.4 for visual regression details
 
+### Test Debugging & Fixing Principles
+
+- **禁止取巧修复**: 严禁通过延长 `timeout`、增加 `waitFor` 延迟、添加 `setTimeout` 等方式绕过测试失败
+
+- **Root Cause 调试**: 测试失败时必须深入调试，找出根本原因（异步逻辑错误、状态更新时机问题、Mock 配置不当等），而非症状修复
+
+- **修复策略**: 
+  - 异步逻辑问题 → 修复代码逻辑，而非增加等待时间
+  - Mock 配置问题 → 正确配置 Mock，而非增加超时
+  - 状态更新时机问题 → 使用正确的 React Testing Library API（`waitFor`、`findBy*`），而非手动延迟
+
+- **Timeout 使用规范**: 
+  - 全局 `testTimeout`（参考 `config/test/jest.config.js`）仅用于设置合理的测试上限
+  - 单个测试的 `timeout` 选项仅用于真正需要长时间等待的场景（网络请求、文件操作），且必须添加注释说明原因
+  - 禁止在 `waitFor` 中随意增加 `timeout` 来"修复"测试
+
+- **测试严苛度判定**:
+  - 谨慎判定测试用例是否过于严苛
+  - 如果测试失败源于架构设计缺陷或功能开发 bug，必须明确指出并修复，而非降低测试要求
+  - 只有在测试用例本身不合理时（测试实现细节而非行为、测试了不应测试的内容），才应调整测试用例
+  - 测试用例应反映真实的用户场景和业务需求，不应随意降低标准
+
+- Reference: `docs/reference/engineering/工程化与构建指南.md` Section 7 for detailed debugging workflow
+
 ## 6. Code Generation
 
 ### Design Tokens

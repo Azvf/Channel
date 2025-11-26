@@ -118,6 +118,26 @@ async function renderTaggedPage() {
 
 beforeAll(() => {
   window.HTMLElement.prototype.scrollIntoView = jest.fn();
+  // 确保 IntersectionObserver 在测试中可用
+  if (!global.IntersectionObserver) {
+    global.IntersectionObserver = class IntersectionObserver {
+      constructor() {
+        // no-op
+      }
+      observe() {
+        // no-op
+      }
+      unobserve() {
+        // no-op
+      }
+      disconnect() {
+        // no-op
+      }
+      takeRecords() {
+        return [];
+      }
+    } as any;
+  }
 });
 
 beforeEach(() => {

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent, KeyboardEvent } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import type { KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FunctionalModal } from "./FunctionalModal";
 import { GlassCard } from "./GlassCard";
@@ -11,8 +11,6 @@ import { useUpdateTag, useDeleteTag, useCreateTag } from "../hooks/mutations/use
 
 // 引入模块化组件
 import { TagRow } from "./tag-library/TagRow";
-import { TagContextMenu } from "./tag-library/TagContextMenu";
-import { LAYOUT, POSITIONING } from "../utils/layoutConstants";
 
 interface TagManagementPageProps {
   isOpen: boolean;
@@ -37,10 +35,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [alertState, setAlertState] = useState<AlertState | null>(null);
 
-  // Menu State
-  const [menuTargetId, setMenuTargetId] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const menuButtonRefs = useRef<Map<string, HTMLElement>>(new Map());
+  // Menu State - 已移除，改用 ContextMenu 组件内部管理
 
   // --- Data Fetching ---
   const loadTags = useCallback(async () => {
@@ -72,7 +67,6 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
       setSearchQuery("");
       setEditingTag(null);
       setEditValue("");
-      setMenuTargetId(null);
       setLoading(true);
       return;
     }
@@ -129,7 +123,6 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   const handleEditTag = (tag: GameplayTag) => {
     setEditingTag(tag);
     setEditValue(tag.name);
-    setMenuTargetId(null); // Close menu if open
   };
 
   const handleSaveEdit = () => {
@@ -194,7 +187,6 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   };
 
   const handleDeleteTag = (tagId: string) => {
-    setMenuTargetId(null);
     const tag = tags.find((t) => t.id === tagId);
     if (!tag) return;
 
@@ -216,20 +208,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
     });
   };
 
-  const handleOpenMenu = useCallback((e: ReactMouseEvent | ReactTouchEvent, tagId: string) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    // [Refactor] 使用标准布局常量
-    setMenuPosition({ x: rect.right - LAYOUT.MENU_MIN_WIDTH, y: rect.bottom + POSITIONING.DROPDOWN_OFFSET });
-    setMenuTargetId(tagId);
-  }, []);
-
-  // 注册 ref 的回调
-  const setMenuButtonRef = useCallback((id: string, el: HTMLElement | null) => {
-    if (el) menuButtonRefs.current.set(id, el);
-    else menuButtonRefs.current.delete(id);
-  }, []);
+  // handleOpenMenu 和 setMenuButtonRef 已移除，改用 ContextMenu 组件内部管理
 
   // --- Filtering & Search ---
   const filteredTags = useMemo(() => {
@@ -291,10 +270,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
         isOpen={isOpen}
         onClose={onClose}
         title="Tag Library"
-        onBackdropClick={() => {
-          setMenuTargetId(null);
-          onClose();
-        }}
+        onBackdropClick={onClose}
         glassCardStyle={{
           padding: "var(--space-5)",
         }}
@@ -372,27 +348,11 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
                 onCancelEdit={() => { setEditingTag(null); setEditValue(""); }}
                 onEditTag={handleEditTag}
                 onDeleteTag={() => handleDeleteTag(tag.id)}
-                onOpenMenu={handleOpenMenu}
-                setMenuButtonRef={setMenuButtonRef}
               />
             ))
           )}
         </div>
       </FunctionalModal>
-
-      <TagContextMenu
-        isOpen={menuTargetId !== null}
-        tag={tags.find(t => t.id === menuTargetId) || null}
-        position={menuPosition}
-        onClose={() => setMenuTargetId(null)}
-        onEdit={() => {
-            const tag = tags.find(t => t.id === menuTargetId);
-            if (tag) handleEditTag(tag);
-        }}
-        onDelete={() => {
-            if (menuTargetId) handleDeleteTag(menuTargetId);
-        }}
-      />
 
       <AlertModal
         isOpen={!!alertState?.isOpen}
