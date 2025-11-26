@@ -9,6 +9,8 @@ import { GameplayTag, TaggedPage } from '../../shared/types/gameplayTag';
 import { PageSettings, DEFAULT_PAGE_SETTINGS } from '../../shared/types/pageSettings';
 import { storageService, STORAGE_KEYS } from '../storageService';
 import { titleFetchService } from './TitleFetchService';
+import { tabTitleMonitor } from './TabTitleMonitor';
+import { isTitleUrl } from '@/shared/utils/titleUtils';
 
 const gameplayStore = GameplayStore.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
@@ -49,16 +51,6 @@ function addTimestampToUrl(url: string, timestamp: number): string {
   }
 }
 
-/**
- * 检测 title 是否为 URL 样式
- * 判断条件：
- * 1. title 以 http:// 或 https:// 开头
- * 2. title 等于 url
- */
-function isTitleUrl(title: string | undefined, url: string): boolean {
-  if (!title) return false;
-  return title.startsWith('http://') || title.startsWith('https://') || title === url;
-}
 
 /**
  * 背景服务实现
@@ -287,11 +279,11 @@ export class BackgroundServiceImpl implements IBackgroundApi {
         tab.id!,
         resolvedUrl,
         page.id,
-        // 更新回调
+        // 更新回调（自动更新，不设置手动编辑标记）
         async (pageId: string, title: string) => {
-          await this.updatePageTitle(pageId, title);
+          await this.updatePageTitle(pageId, title, false);
         },
-        // 获取当前页面的函数，用于检查 title 是否还是 URL 样式
+        // 获取当前页面的函数，用于检查 title 是否还是 URL 样式和是否被手动编辑
         () => gameplayStore.getPageById(page.id) || null
       ).catch((error) => {
         console.warn('[getCurrentPage] 异步获取真实 title 失败:', error);
@@ -306,12 +298,12 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     return gameplayStore.getTaggedPages();
   }
 
-  async updatePageTitle(pageId: string, title: string): Promise<void> {
+  async updatePageTitle(pageId: string, title: string, isManualEdit = false): Promise<void> {
     if (!pageId || !title) {
       throw new Error('页面ID和标题不能为空');
     }
 
-    const success = gameplayStore.updatePageTitle(pageId, title);
+    const success = gameplayStore.updatePageTitle(pageId, title, isManualEdit);
     if (!success) {
       throw new Error('更新页面标题失败');
     }
@@ -406,7 +398,8 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
     const normalizedTitle = typeof title === 'string' ? title.trim() : '';
     if (normalizedTitle && normalizedTitle !== page.title) {
-      const success = gameplayStore.updatePageTitle(pageId, normalizedTitle);
+      // 通过 updatePageDetails 更新的是用户手动编辑的，设置 isManualEdit: true
+      const success = gameplayStore.updatePageTitle(pageId, normalizedTitle, true);
       if (success) {
         titleUpdated = true;
       }
@@ -704,6 +697,16 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       url: tab.url || '',
       id: tab.id
     };
+  }
+
+  /**
+   * 初始化 Tab Title 监听器
+   * 应该在 BackgroundServiceImpl 实例创建后调用
+   */
+  initializeTabTitleMonitor(): void {
+    tabTitleMonitor.start(async (pageId: string, title: string) => {
+      await this.updatePageTitle(pageId, title);
+    });
   }
 
 }

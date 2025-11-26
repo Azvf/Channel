@@ -81,7 +81,7 @@ export interface IBackgroundApi {
   // Page 相关
   getCurrentPage(): Promise<TaggedPage>;
   getAllTaggedPages(): Promise<TaggedPage[]>;
-  updatePageTitle(pageId: string, title: string): Promise<void>;
+  updatePageTitle(pageId: string, title: string, isManualEdit?: boolean): Promise<void>;
   updatePageTags(pageId: string, payload: { 
     tagsToAdd: string[]; 
     tagsToRemove: string[] 

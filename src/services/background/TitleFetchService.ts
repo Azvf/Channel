@@ -1,6 +1,8 @@
 // src/services/background/TitleFetchService.ts
 // 页面标题获取服务 - 专门处理从 content script 获取真实页面标题的逻辑
 
+import { isTitleUrl } from '@/shared/utils/titleUtils';
+
 /**
  * TitleFetchService - 页面标题获取服务
  * 
@@ -26,9 +28,9 @@ class TitleFetchService {
    * 配置选项
    */
   private readonly config = {
-    timeout: 2000, // 超时时间（毫秒）
-    maxRetries: 2, // 最大重试次数
-    retryDelays: [500, 1000], // 重试延迟（毫秒），指数退避
+    timeout: 3000, // 超时时间（毫秒）- 增加到3秒，给页面更多加载时间
+    maxRetries: 5, // 最大重试次数 - 从2次增加到5次
+    retryDelays: [1000, 2000, 3000, 5000, 8000], // 重试延迟（毫秒），指数退避，总时长约30秒
   };
 
   private constructor() {}
@@ -50,7 +52,7 @@ class TitleFetchService {
    * @param url - 页面 URL
    * @param pageId - 页面 ID（用于更新）
    * @param updateCallback - 更新回调函数 (pageId, title) => Promise<void>
-   * @param getCurrentPage - 获取当前页面的函数，用于检查 title 是否还是 URL 样式
+   * @param getCurrentPage - 获取当前页面的函数，用于检查 title 是否还是 URL 样式和是否被手动编辑
    * @returns Promise<void>
    */
   async fetchAndUpdateTitle(
@@ -58,7 +60,7 @@ class TitleFetchService {
     url: string,
     pageId: string,
     updateCallback: (pageId: string, title: string) => Promise<void>,
-    getCurrentPage: () => { title: string } | null
+    getCurrentPage: () => { title: string; titleManuallyEdited?: boolean } | null
   ): Promise<void> {
     const cacheKey = this.getCacheKey(tabId, url);
     
@@ -117,7 +119,7 @@ class TitleFetchService {
           const title = response.data.title;
           
           // 检查 title 是否有效（不是 URL 样式）
-          if (title && !this.isTitleUrl(title, url)) {
+          if (title && !isTitleUrl(title, url)) {
             return title;
           }
         }
@@ -171,17 +173,23 @@ class TitleFetchService {
     url: string,
     realTitle: string,
     updateCallback: (pageId: string, title: string) => Promise<void>,
-    getCurrentPage: () => { title: string } | null
+    getCurrentPage: () => { title: string; titleManuallyEdited?: boolean } | null
   ): Promise<void> {
     // 再次检查当前页面的 title 是否还是 URL 样式
     // 如果用户已经手动编辑了 title，则不更新
     const currentPage = getCurrentPage();
-    if (currentPage && this.isTitleUrl(currentPage.title, url)) {
-      // 当前 title 仍然是 URL 样式，可以安全更新
+    const isManuallyEdited = currentPage?.titleManuallyEdited === true;
+    
+    if (currentPage && isTitleUrl(currentPage.title, url) && !isManuallyEdited) {
+      // 当前 title 仍然是 URL 样式且未被手动编辑，可以安全更新
       await updateCallback(pageId, realTitle);
       console.log('[TitleFetchService] 成功更新 title:', realTitle);
     } else {
-      console.log('[TitleFetchService] 跳过更新，title 可能已被用户编辑');
+      console.log('[TitleFetchService] 跳过更新:', {
+        reason: isManuallyEdited ? 'title 已被用户手动编辑' : 'title 不是 URL 样式',
+        title: currentPage?.title,
+        titleManuallyEdited: currentPage?.titleManuallyEdited,
+      });
     }
   }
 
@@ -201,13 +209,6 @@ class TitleFetchService {
     );
   }
 
-  /**
-   * 检测 title 是否为 URL 样式
-   */
-  private isTitleUrl(title: string | undefined, url: string): boolean {
-    if (!title) return false;
-    return title.startsWith('http://') || title.startsWith('https://') || title === url;
-  }
 
   /**
    * 从 URL 提取域名
@@ -271,10 +272,10 @@ class TitleFetchService {
         return null;
       }
 
-      // 计算延迟时间（使用指数退避）
+      // 计算延迟时间（使用配置的延迟数组）
       const delayIndex = this.config.maxRetries - retries;
       const delay = this.config.retryDelays[delayIndex] || 
-                    (this.config.retryDelays[this.config.retryDelays.length - 1] || 1000) * 2;
+                    this.config.retryDelays[this.config.retryDelays.length - 1] || 1000;
 
       console.log(`[TitleFetchService] 重试获取 title (剩余 ${retries} 次，延迟 ${delay}ms)`);
       

@@ -1,24 +1,21 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Plus, RefreshCw, TrendingUp, Calendar } from "lucide-react";
+import { Calendar, Plus, RefreshCw, TrendingUp } from "lucide-react";
+
+import { queryKeys } from "../../lib/queryKeys";
+import type { TaggedPage } from "../../shared/types/gameplayTag";
+import { currentPageService } from "../../services/popup/currentPageService";
+
+import { useAppContext } from "../context/AppContext";
+import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";
 import { LAYOUT_TRANSITION } from "../utils/motion";
+import { EditableTitle } from "./TaggingPage/EditableTitle";
 import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
-import { EditableTitle } from "./TaggingPage/EditableTitle";
-import { currentPageService } from "../../services/popup/currentPageService";
-import type { TaggedPage } from "../../shared/types/gameplayTag";
-import { useAppContext } from "../context/AppContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../../lib/queryKeys";
-import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";
 
-/**
- * 检测 title 是否为 URL 样式
- */
-function isTitleUrl(title: string | undefined): boolean {
-  if (!title) return false;
-  return title.startsWith('http://') || title.startsWith('https://');
-}
+import { isTitleUrl } from '@/shared/utils/titleUtils';
+import { STORAGE_KEYS } from '@/services/storageService';
 
 interface TaggingPageProps {
   className?: string;
@@ -28,18 +25,17 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   const {
     allTags,
     stats,
-    loading: appLoading, // 全局 loading (通常只在 App 启动时为 true)
+    loading: appLoading,
     error: appError,
-    refreshAllData, // 添加刷新函数
+    refreshAllData,
   } = useAppContext();
 
-  // [修复] 获取当前活动标签页的URL，用于区分不同页面的缓存
   const [currentUrl, setCurrentUrl] = useState<string | undefined>(undefined);
   const queryClient = useQueryClient();
   const currentUrlRef = useRef<string | undefined>(undefined);
   const refreshPageRef = useRef<(() => void) | null>(null);
+  const currentPageRef = useRef<TaggedPage | undefined>(undefined);
 
-  // 获取当前活动标签页的URL（优化：确保获取最新URL）
   useEffect(() => {
     const fetchCurrentUrl = async (forceRefresh = false) => {
       try {
@@ -222,6 +218,11 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     refreshPageRef.current = refreshPage;
   }, [refreshPage]);
 
+  // 保存 currentPage 引用，避免在 storage 监听器的依赖项中包含它
+  useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
   // 当 currentUrl 变化时，确保立即重新获取数据
   useEffect(() => {
     if (currentUrl && refreshPageRef.current) {
@@ -239,16 +240,78 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     queryClient.setQueryData(queryKeys.currentPage(currentUrl), newPage);
   };
 
-  // 当 title 是 URL 样式时，定期 refetch 以获取更新后的 title
+  // 监听 storage 变化，实现跨上下文的乐观更新
+  // 当 background 自动更新 title 时，立即更新 React Query 缓存
   useEffect(() => {
-    if (!currentPage || !currentUrl || !isTitleUrl(currentPage.title)) {
+    if (!currentUrl) {
       return;
     }
 
-    // 如果 title 是 URL 样式，设置定时器定期 refetch（最多尝试 5 次，每次间隔 1 秒）
+    const handleStorageChange = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: chrome.storage.AreaName
+    ) => {
+      // 只处理 local storage 的变化
+      if (areaName !== 'local') {
+        return;
+      }
+
+      // 检查 PAGES 是否发生变化
+      const pagesChange = changes[STORAGE_KEYS.PAGES];
+      if (!pagesChange || !pagesChange.newValue) {
+        return;
+      }
+
+      // 从新的 pages 数据中查找当前页面
+      const allPages = pagesChange.newValue as Record<string, TaggedPage>;
+      // 使用 ref 获取最新的 currentPage，避免闭包问题
+      const currentPageId = currentPageRef.current?.id;
+      const currentPageTitle = currentPageRef.current?.title;
+      const currentUrlValue = currentUrlRef.current;
+      
+      if (currentPageId && allPages[currentPageId] && currentUrlValue) {
+        const updatedPage = allPages[currentPageId];
+        
+        // 如果 title 发生了变化，乐观更新缓存
+        if (updatedPage.title !== currentPageTitle) {
+          queryClient.setQueryData(queryKeys.currentPage(currentUrlValue), updatedPage);
+          console.log('[TaggingPage] 检测到 title 自动更新，已乐观更新缓存:', updatedPage.title);
+        }
+      }
+    };
+
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    }
+    // 移除 currentPage 从依赖项中，使用 ref 来获取最新值，避免频繁重新注册监听器
+  }, [currentUrl, queryClient]);
+
+  // 当 title 是 URL 样式时，定期 refetch 以获取更新后的 title
+  useEffect(() => {
+    // 优化条件判断：确保有 currentUrl 且 currentPage 存在
+    // 如果 currentPage 不存在但 currentUrl 存在，说明正在加载，也应该等待
+    if (!currentUrl) {
+      return;
+    }
+
+    // 如果 currentPage 不存在，等待它加载完成
+    if (!currentPage) {
+      return;
+    }
+
+    // 如果 title 不是 URL 样式，不需要 refetch
+    if (!isTitleUrl(currentPage.title, currentPage.url)) {
+      return;
+    }
+
+    // 如果 title 是 URL 样式，设置定时器定期 refetch（最多尝试 3 次，每次间隔 1.5 秒）
+    // 增加尝试次数和间隔，给页面更多加载时间
     let attemptCount = 0;
-    const maxAttempts = 5;
-    const interval = 1000; // 1 秒
+    const maxAttempts = 3; // 最多尝试 3 次
+    const interval = 1500; // 从 1 秒增加到 1.5 秒
 
     const refetchInterval = setInterval(() => {
       attemptCount++;
@@ -258,19 +321,33 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
         queryKeys.currentPage(currentUrl)
       );
       
-      if (currentPageData && !isTitleUrl(currentPageData.title)) {
-        // title 已经更新，停止定时器
+      // 如果页面数据不存在，说明可能正在重新加载，继续等待
+      if (!currentPageData) {
+        // 如果达到最大尝试次数，停止定时器
+        if (attemptCount >= maxAttempts) {
+          clearInterval(refetchInterval);
+          return;
+        }
+        // 继续等待，不触发 refetch（避免在加载过程中重复请求）
+        return;
+      }
+      
+      // 如果 title 已经更新为非 URL，停止定时器
+      if (!isTitleUrl(currentPageData.title, currentPageData.url)) {
+        console.log('[TaggingPage] Title 已更新为非 URL，停止 refetch:', currentPageData.title);
         clearInterval(refetchInterval);
         return;
       }
 
       // 如果达到最大尝试次数，停止定时器
       if (attemptCount >= maxAttempts) {
+        console.log('[TaggingPage] 达到最大尝试次数，停止 refetch');
         clearInterval(refetchInterval);
         return;
       }
 
       // 触发 refetch
+      console.log(`[TaggingPage] 触发 refetch 以获取真实 title (尝试 ${attemptCount}/${maxAttempts})`);
       refreshPage();
     }, interval);
 
@@ -330,7 +407,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   // 只有在没有任何数据（首次加载）时才显示 loading
   const loading = (appLoading || pageLoading) && !currentPage;
   const error = appError || (pageError ? String(pageError) : null);
-  const isUrlTitle = useMemo(() => isTitleUrl(currentPage?.title), [currentPage?.title]);
+  const isUrlTitle = useMemo(() => isTitleUrl(currentPage?.title, currentPage?.url), [currentPage?.title, currentPage?.url]);
 
   return (
     <div className={className}>

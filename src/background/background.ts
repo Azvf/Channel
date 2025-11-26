@@ -29,17 +29,22 @@ try {
 try {
   const backgroundService = new BackgroundServiceImpl();
   registerRpcHandler(backgroundService);
-  console.log('[Background] Service Worker 启动成功，RPC 处理器已注册');
+  
+  // 初始化 Tab Title 监听器
+  backgroundService.initializeTabTitleMonitor();
+  
+  console.log('[Background] Service Worker 启动成功，RPC 处理器已注册，Tab Title 监听器已启动');
 } catch (error) {
   console.error('[Background] Service Worker 启动错误:', error);
   // 即使 RPC 注册失败，也不要让整个 Service Worker 崩溃
 }
 
-// 监听标签页更新
+// 监听标签页更新（保留用于其他用途，Tab Title 监听由 TabTitleMonitor 处理）
 try {
   chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
-      // TODO: 处理标签页更新逻辑
+      // Tab Title 更新由 TabTitleMonitor 处理
+      // 这里可以添加其他标签页更新逻辑
     }
   });
 } catch (error) {

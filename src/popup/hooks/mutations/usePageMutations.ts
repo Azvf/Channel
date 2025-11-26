@@ -21,7 +21,8 @@ export function useUpdatePageTitle(
     // 1. RPC 远程调用
     mutationFn: (newTitle: string) => {
       if (!page) throw new Error('Page not loaded');
-      return backgroundApi.updatePageTitle(page.id, newTitle);
+      // 用户手动编辑时，传递 isManualEdit: true
+      return backgroundApi.updatePageTitle(page.id, newTitle, true);
     },
 
     // 2. 乐观更新（立即执行）

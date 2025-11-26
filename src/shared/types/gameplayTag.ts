@@ -22,6 +22,7 @@ export interface TaggedPage {
   favicon?: string;
   description?: string;
   deleted?: boolean; // 标记是否已删除（用于同步）
+  titleManuallyEdited?: boolean; // 标记标题是否被用户手动编辑过
 }
 
 export interface TagsCollection {

@@ -357,17 +357,19 @@ export class GameplayStore {
     const pageId = this.generatePageId(url);
     
     if (this.pages[pageId]) {
-      // 更新现有页面，保持原有的标签数据
+      // 更新现有页面，保持原有的标签数据和手动编辑标记
       const existingTags = this.pages[pageId].tags; // 保存现有标签
+      const existingTitleManuallyEdited = this.pages[pageId].titleManuallyEdited; // 保存手动编辑标记
       this.pages[pageId] = {
         ...this.pages[pageId], // 保持所有现有属性
         title,
         updatedAt: timeService.now(),
         tags: existingTags, // 确保标签不被覆盖
+        titleManuallyEdited: existingTitleManuallyEdited, // 保持手动编辑标记
         ...(favicon && { favicon })
       };
     } else {
-      // 创建新页面
+      // 创建新页面（默认 titleManuallyEdited 为 undefined/false）
       this.pages[pageId] = {
         id: pageId,
         url,
@@ -376,7 +378,8 @@ export class GameplayStore {
         tags: [],
         createdAt: timeService.now(),
         updatedAt: timeService.now(),
-        favicon
+        favicon,
+        titleManuallyEdited: false // 新创建的页面默认未手动编辑
       };
     }
 
@@ -453,8 +456,11 @@ export class GameplayStore {
 
   /**
    * 更新页面标题
+   * @param pageId - 页面ID
+   * @param title - 新标题
+   * @param isManualEdit - 是否是用户手动编辑（默认为 false）
    */
-  public updatePageTitle(pageId: string, title: string): boolean {
+  public updatePageTitle(pageId: string, title: string, isManualEdit = false): boolean {
     const page = this.pages[pageId];
     if (!page) {
       return false;
@@ -468,6 +474,8 @@ export class GameplayStore {
     this.pages[pageId] = {
       ...page,
       title: trimmedTitle,
+      // 如果是手动编辑则设置为 true，如果是自动更新则设置为 false（清除标记）
+      titleManuallyEdited: isManualEdit ? true : false,
       updatedAt: timeService.now()
     };
     this.markDirty();
