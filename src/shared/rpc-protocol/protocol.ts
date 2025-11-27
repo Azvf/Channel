@@ -79,7 +79,8 @@ export interface IBackgroundApi {
   getAllTagUsageCounts(): Promise<Record<string, number>>;
   
   // Page 相关
-  getCurrentPage(): Promise<TaggedPage>;
+  getCurrentPage(url?: string): Promise<TaggedPage>;
+  analyzePageByUrl(url: string, tabId?: number): Promise<void>;
   getAllTaggedPages(): Promise<TaggedPage[]>;
   updatePageTitle(pageId: string, title: string, isManualEdit?: boolean): Promise<void>;
   updatePageTags(pageId: string, payload: { 

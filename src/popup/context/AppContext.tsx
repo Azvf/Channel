@@ -49,6 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         currentPageService.getAllTaggedPages(),
         currentPageService.getUserStats(),
       ]);
+      
       setAllTags(tagsData);
       setAllPages(pagesData);
       setStats(statsData);
@@ -80,7 +81,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         // 设置新的定时器
         timeoutId = setTimeout(() => {
-          console.log('[AppContext] 执行防抖后的静默刷新');
           loadAllData(true).catch((err) => {
             console.error("Failed to refresh app context data:", err);
           });
@@ -104,10 +104,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // 发送一个轻量级请求来预热 background service worker
         // 这会触发 getInitializationPromise()，让初始化提前完成
         await currentPageService.getAllTags();
-        console.log('[AppContext] Background service worker 预热完成');
-      } catch (error) {
-        // 预热失败不影响应用启动，只记录日志
-        console.warn('[AppContext] Background 预热失败（不影响功能）:', error);
+      } catch (_error) {
+        // 预热失败不影响应用启动，静默处理
       }
     };
 

@@ -36,6 +36,7 @@ export function EditPageDialog({
 }: EditPageDialogProps) {
   const [editedTitle, setEditedTitle] = useState(page.title);
   const [editedTags, setEditedTags] = useState<string[]>(initialTagNames);
+  const [backgroundImageLoaded, setBackgroundImageLoaded] = useState(false);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +45,28 @@ export function EditPageDialog({
     setEditedTitle(page.title);
     setEditedTags(initialTagNames);
   }, [page, initialTagNames, isOpen]);
+
+  // 预加载背景图片，避免闪烁
+  useEffect(() => {
+    if (!isOpen || !page.coverImage) {
+      setBackgroundImageLoaded(false);
+      return;
+    }
+
+    setBackgroundImageLoaded(false);
+    const img = new Image();
+    
+    img.onload = () => {
+      setBackgroundImageLoaded(true);
+    };
+    
+    img.onerror = () => {
+      // 图片加载失败，降级到默认背景
+      setBackgroundImageLoaded(false);
+    };
+    
+    img.src = page.coverImage;
+  }, [isOpen, page.coverImage, page.id]);
 
   // 彻底防止底层页面滚动：在document级别拦截所有滚动事件
   useEffect(() => {
@@ -227,6 +250,7 @@ export function EditPageDialog({
       contentStyle={{
         padding: 'var(--space-3) var(--space-3) var(--space-2)',
       }}
+      backgroundImage={backgroundImageLoaded ? page.coverImage : undefined}
     >
       <div className="space-y-4">
         {/* Title Input */}

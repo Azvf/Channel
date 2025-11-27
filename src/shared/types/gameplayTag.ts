@@ -21,6 +21,7 @@ export interface TaggedPage {
   updatedAt: number;
   favicon?: string;
   description?: string;
+  coverImage?: string; // Hero image URL from MetaDataDetector
   deleted?: boolean; // 标记是否已删除（用于同步）
   titleManuallyEdited?: boolean; // 标记标题是否被用户手动编辑过
 }

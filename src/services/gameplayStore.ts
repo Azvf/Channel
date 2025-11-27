@@ -353,7 +353,7 @@ export class GameplayStore {
     }
   }
 
-  public createOrUpdatePage(url: string, title: string, domain: string, favicon?: string): TaggedPage {
+  public createOrUpdatePage(url: string, title: string, domain: string, favicon?: string, coverImage?: string): TaggedPage {
     const pageId = this.generatePageId(url);
     
     if (this.pages[pageId]) {
@@ -366,7 +366,8 @@ export class GameplayStore {
         updatedAt: timeService.now(),
         tags: existingTags, // 确保标签不被覆盖
         titleManuallyEdited: existingTitleManuallyEdited, // 保持手动编辑标记
-        ...(favicon && { favicon })
+        ...(favicon && { favicon }),
+        ...(coverImage && { coverImage })
       };
     } else {
       // 创建新页面（默认 titleManuallyEdited 为 undefined/false）
@@ -379,6 +380,7 @@ export class GameplayStore {
         createdAt: timeService.now(),
         updatedAt: timeService.now(),
         favicon,
+        coverImage,
         titleManuallyEdited: false // 新创建的页面默认未手动编辑
       };
     }
@@ -386,6 +388,40 @@ export class GameplayStore {
     this.markDirty();
     this.notifyListeners(); // 通知 UI
     return this.pages[pageId];
+  }
+
+  /**
+   * 更新页面的 coverImage
+   * 只在创建新页面或现有页面没有 coverImage 时更新（避免覆盖已有值）
+   */
+  public updatePageCoverImage(pageId: string, coverImage: string): boolean {
+    if (!pageId || !coverImage) {
+      return false;
+    }
+
+    const page = this.pages[pageId];
+    if (!page) {
+      return false;
+    }
+
+    // ✅ 关键改进：校验数据一致性
+    // 策略：
+    // 1. 如果页面没有 coverImage，直接更新
+    // 2. 如果页面已有 coverImage，但新的 coverImage 不同，也更新（确保数据一致性）
+    // 3. 如果 coverImage 相同，跳过更新（避免不必要的写入）
+    if (!page.coverImage || page.coverImage !== coverImage) {
+      this.pages[pageId] = {
+        ...page,
+        coverImage,
+        updatedAt: timeService.now(),
+      };
+
+      this.markDirty();
+      this.notifyListeners(); // 通知 UI
+      return true;
+    }
+
+    return false; // coverImage 未变化，不更新
   }
 
   /**

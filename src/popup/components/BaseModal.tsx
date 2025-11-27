@@ -19,6 +19,7 @@ export interface BaseModalProps {
   modalRef?: React.Ref<HTMLDivElement>;
   backdropStyle?: React.CSSProperties;
   backdropClassName?: string;
+  backgroundImage?: string; // Hero image URL for glassmorphism background
 }
 
 const backdropVariants = {
@@ -46,6 +47,7 @@ export function BaseModal({
   modalRef,
   backdropStyle,
   backdropClassName,
+  backgroundImage,
 }: BaseModalProps) {
   if (typeof document === 'undefined') {
     return null;
@@ -59,6 +61,10 @@ export function BaseModal({
     background: 'var(--bg-surface-glass-active)',
     backdropFilter: 'blur(var(--glass-blur-base))',
   };
+
+  // 背景图片通过独立层承载，支持预留的模糊效果功能
+  // 当前实现：直接显示背景图片（无模糊）
+  // 预留功能：可通过 filter: blur() 实现背景图片模糊（已禁用）
 
   const modalContent = (
     <motion.div
@@ -95,14 +101,63 @@ export function BaseModal({
             height: 'auto',
             maxHeight: '100%',
             borderRadius: 'var(--radius-2xl)',
-            // 默认样式（参考 StatsWallModal 的 .stats-wall-container）
-            backgroundColor: 'var(--bg-surface-solid-ish)',
-            backdropFilter: 'blur(var(--glass-blur-heavy)) saturate(180%)',
+            position: 'relative',
+            backgroundColor: backgroundImage 
+              ? 'var(--bg-surface-glass-active)' // 使用标准玻璃背景 token，与背景图片层叠加
+              : 'var(--bg-surface-solid-ish)',
+            backdropFilter: backgroundImage
+              ? 'blur(var(--glass-blur-base)) saturate(var(--saturation))'
+              : 'blur(calc(var(--glass-blur-base) * 1.5)) saturate(var(--saturation))', // 使用 calc() 基于 token 计算，避免硬编码
             border: '1px solid var(--border-glass-strong)',
             boxShadow: 'var(--shadow-xl)',
             ...glassCardStyle,
           }}
         >
+          {/* 
+            [预留功能] 背景图片模糊效果
+            当前已禁用（通过 false && 条件），如需启用：
+            1. 将 false && 改为 true && 或移除条件
+            2. 调整 filter 和 opacity 值以优化视觉效果
+            实现原理：backdrop-filter 只能模糊元素后面的内容，无法模糊元素自身的背景图片。
+            因此需要使用 filter: blur() 对背景图片层本身进行模糊，配合半透明背景实现毛玻璃效果。
+          */}
+          {backgroundImage && false && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                filter: `blur(calc(var(--glass-blur-base) * 1.5))`, // 使用设计 token 计算模糊值
+                opacity: 'var(--opacity-hover)', // 使用设计 token
+                zIndex: -1,
+                borderRadius: 'var(--radius-2xl)',
+                overflow: 'hidden',
+              }}
+            />
+          )}
+          {/* 
+            [当前实现] 背景图片直接显示（无模糊）
+            背景图片保持原始清晰度，通过降低 opacity 确保内容可读性
+          */}
+          {backgroundImage && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundImage: `url(${backgroundImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: 'var(--opacity-disabled)', // 使用设计 token，确保内容可读性
+                zIndex: -1,
+                borderRadius: 'var(--radius-2xl)',
+                overflow: 'hidden',
+              }}
+            />
+          )}
           {children}
         </GlassCard>
       </motion.div>

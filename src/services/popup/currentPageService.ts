@@ -18,9 +18,19 @@ const backgroundApi = createRpcClient<IBackgroundApi>();
 class CurrentPageService {
   /**
    * 获取当前页面信息（会自动注册页面）
+   * @param url - 可选的 URL 参数，如果提供则使用该 URL，否则尝试获取活动标签页
    */
-  async getCurrentPage() {
-    return backgroundApi.getCurrentPage();
+  async getCurrentPage(url?: string) {
+    return backgroundApi.getCurrentPage(url);
+  }
+
+  /**
+   * ✅ 方案3：独立的页面分析方法
+   * 通过 URL 分析页面，不依赖 popup 状态
+   * @param url - 页面 URL
+   */
+  async analyzePageByUrl(url: string): Promise<void> {
+    return backgroundApi.analyzePageByUrl(url);
   }
 
   /**

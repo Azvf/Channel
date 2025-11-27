@@ -268,7 +268,24 @@ export function TaggedPage({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [allPages, isUpdatingPage]);
+  }, [allPages, isUpdatingPage, editingPage?.id, editingPage?.coverImage]);
+
+  // ✅ 新增：当 allPages 更新时，同步更新 editingPage（用于 coverImage 等异步更新的字段）
+  useEffect(() => {
+    if (editingPage && isEditDialogOpen) {
+      const updatedPage = allPages.find((p) => p.id === editingPage.id);
+      if (updatedPage) {
+        // 如果 coverImage 或其他关键字段有更新，同步更新 editingPage
+        const hasChanges = 
+          updatedPage.coverImage !== editingPage.coverImage ||
+          updatedPage.title !== editingPage.title;
+        
+        if (hasChanges) {
+          setEditingPage(updatedPage);
+        }
+      }
+    }
+  }, [allPages, editingPage?.id, isEditDialogOpen]); // 使用 editingPage?.id 避免循环依赖
 
   const handleSavePage = useCallback(
     ({ title, tagNames }: { title: string; tagNames: string[] }) => {

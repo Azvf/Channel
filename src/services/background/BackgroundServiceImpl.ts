@@ -11,6 +11,7 @@ import { storageService, STORAGE_KEYS } from '../storageService';
 import { titleFetchService } from './TitleFetchService';
 import { tabTitleMonitor } from './TabTitleMonitor';
 import { isTitleUrl } from '@/shared/utils/titleUtils';
+import { TIMEOUTS } from '@/shared/constants/timeouts';
 
 const gameplayStore = GameplayStore.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
@@ -114,122 +115,50 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
   // ==================== Page 相关 ====================
 
-  async getCurrentPage(): Promise<TaggedPage> {
-    console.log('[getCurrentPage] 开始处理请求 (使用 chrome.tabs.query)');
-    
+  /**
+   * 获取当前页面信息
+   * @param url - 可选的 URL 参数，如果提供则使用该 URL，否则尝试获取活动标签页
+   * @returns 页面信息
+   */
+  async getCurrentPage(url?: string): Promise<TaggedPage> {
     try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      let resolvedUrl: string;
+      let tab: chrome.tabs.Tab | undefined;
+      let tabId: number | undefined;
 
-      // 检查是否有运行时错误（可能是 popup 关闭导致的）
-      if (chrome.runtime.lastError) {
-        console.warn('[getCurrentPage] Chrome runtime 错误（可能是 popup 已关闭）:', chrome.runtime.lastError.message);
-        throw new Error('Popup 窗口已关闭或无法访问标签页');
-      }
+      if (url) {
+        // 使用提供的 URL，不依赖 active tab，支持后台异步调用
+        resolvedUrl = url;
+        // 尝试通过 URL 查找对应的 tabId（用于后续 ANALYZE_PAGE 分析）
+        const tabs = await chrome.tabs.query({ url: url });
+        tab = tabs[0];
+        tabId = tab?.id;
+      } else {
+        // 降级到查询 active tab（用于 popup 打开时的同步调用）
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
-      if (!tabs || tabs.length === 0) {
-        console.error('[getCurrentPage] 没有找到活动标签页');
-        throw new Error('无法获取当前标签页');
-      }
-
-    const tab = tabs[0];
-    console.log('[getCurrentPage] 活动标签页 URL (来自 query):', tab.url);
-
-    if (!tab || !tab.id || !tab.url || tab.url.startsWith('about:')) {
-      console.error('[getCurrentPage] 无效的标签页信息 (URL 为空或 about:blank)');
-      throw new Error('无法在当前页面上操作 (页面尚未加载完成)');
-    }
-
-    let resolvedUrl = tab.url;
-    const pageSettings = await getPageSettings();
-    const syncVideoTimestamp = pageSettings.syncVideoTimestamp;
-
-    let analyzePageResponse: any = null;
-    let videoTimestamp = 0;
-
-    if (syncVideoTimestamp) {
-      // ========== 方式1: 优先使用消息机制（新架构） ==========
-      try {
-        const response = await Promise.race([
-          chrome.tabs.sendMessage(tab.id!, { action: 'ANALYZE_PAGE' }),
-          new Promise<null>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), 1000)
-          ),
-        ]) as any;
-
-        analyzePageResponse = response;
-
-        if (response?.success && response.data) {
-          const { video } = response.data;
-          if (video && video.timestamp > 0) {
-            videoTimestamp = video.timestamp;
-            console.log('[getCurrentPage] 通过消息机制获取视频时间戳:', videoTimestamp);
-          }
+        // 检查运行时错误（popup 关闭时 chrome.tabs.query 会失败）
+        if (chrome.runtime.lastError) {
+          console.warn('[getCurrentPage] Chrome runtime 错误（可能是 popup 已关闭）:', chrome.runtime.lastError.message);
+          throw new Error('Popup 窗口已关闭或无法访问标签页');
         }
-      } catch (error) {
-        console.warn('[getCurrentPage] 消息机制失败，回退到 executeScript:', error);
-        
-        // ========== 方式2: 兜底使用 executeScript（兼容未加载的情况） ==========
-        try {
-          // 向所有 Frame 广播检测请求，使用 allFrames: true 遍历所有 frame
-          const results = await chrome.scripting.executeScript({
-            target: { tabId: tab.id, allFrames: true },
-            func: () => {
-              // 执行简单检测（与旧逻辑保持一致，作为兜底方案）
-              const videos = document.querySelectorAll('video');
-              let bestVideo: HTMLVideoElement | null = null;
-              let maxScore = -1;
 
-              videos.forEach((video) => {
-                const rect = video.getBoundingClientRect();
-                const area = rect.width * rect.height;
-                
-                // 排除不可见视频
-                if (area < 100) return;
-
-                let score = area;
-                if (!video.paused) score *= 2; // 正在播放的优先级最高
-                if (video.currentTime > 0) score *= 1.5; // 有进度的优先级高
-
-                if (score > maxScore) {
-                  maxScore = score;
-                  bestVideo = video;
-                }
-              });
-
-              // 如果找到最佳视频，返回其时间戳
-              if (bestVideo !== null) {
-                const video = bestVideo as HTMLVideoElement;
-                if (video.currentTime > 0) {
-                  return Math.floor(video.currentTime);
-                }
-              }
-              return 0;
-            },
-          });
-
-          // results 是一个数组，包含所有 Frame 的执行结果
-          // executeScript 中的函数返回数字时间戳
-          const validTimestamps = results
-            .map(r => r.result as number)
-            .filter(timestamp => typeof timestamp === 'number' && timestamp > 0);
-          
-          if (validTimestamps.length > 0) {
-            // 取最大的时间戳（通常表示最活跃的视频）
-            videoTimestamp = Math.max(...validTimestamps);
-            console.log('[getCurrentPage] 通过 executeScript 获取视频时间戳:', videoTimestamp);
-          }
-        } catch (fallbackError) {
-          console.warn('[getCurrentPage] executeScript 也失败，跳过检测:', fallbackError);
+        if (!tabs || tabs.length === 0) {
+          const errorMessage = '无法获取当前标签页';
+          console.warn('[getCurrentPage] 没有找到活动标签页（可能是 popup 已关闭）');
+          throw new Error(errorMessage);
         }
-      }
 
-      // 如果检测到视频时间戳，添加到 URL
-      if (videoTimestamp > 0) {
-        resolvedUrl = addTimestampToUrl(tab.url, videoTimestamp);
-      }
-    }
+        tab = tabs[0];
 
-    console.log('[getCurrentPage] 准备更新页面数据');
+        if (!tab || !tab.id || !tab.url || tab.url.startsWith('about:')) {
+          console.error('[getCurrentPage] 无效的标签页信息 (URL 为空或 about:blank)');
+          throw new Error('无法在当前页面上操作 (页面尚未加载完成)');
+        }
+
+        resolvedUrl = tab.url;
+        tabId = tab.id;
+      }
 
     let domain: string;
     try {
@@ -239,51 +168,47 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       domain = protocolMatch ? `${protocolMatch[1]}-page` : 'internal-page';
     }
 
-    // [架构修复核心点]
-    // 1. 先尝试通过 URL 获取已存在的页面数据
+    // 优先使用已存在的页面数据，避免重复创建，同时确保标题策略正确
     const existingPage = gameplayStore.getPageByUrl(resolvedUrl);
     
-    // 2. 决策标题策略：
-    // - 如果页面已存在：使用数据库中的标题
-    // - 如果页面不存在：优先使用 ANALYZE_PAGE 响应中的 title，否则使用浏览器 Tab 的标题
+    // 标题策略：已存在页面使用数据库标题（用户可能已编辑），新页面使用 Tab 标题
+    // metadata.title 将在后台异步更新，不阻塞当前返回
     let titleToUse: string;
     if (existingPage) {
       titleToUse = existingPage.title;
     } else {
-      // 优先使用 ANALYZE_PAGE 响应中的 metadata.title
-      const metadataTitle = analyzePageResponse?.success && analyzePageResponse?.data?.metadata?.title;
-      if (metadataTitle && !isTitleUrl(metadataTitle, tab.url)) {
-        titleToUse = metadataTitle;
-        console.log('[getCurrentPage] 使用 ANALYZE_PAGE 响应中的 title:', titleToUse);
-      } else {
-        titleToUse = tab.title || '无标题';
-      }
+      titleToUse = tab?.title || '无标题';
     }
 
-    // 3. 调用 createOrUpdatePage
+    // 立即创建/更新页面，不等待 ANALYZE_PAGE，确保快速响应
     const page = gameplayStore.createOrUpdatePage(
       resolvedUrl,
       titleToUse, 
       domain,
-      tab.favIconUrl,
+      tab?.favIconUrl,
     );
 
-    // 注意：不需要手动调用 commit()，RPC Server 层会统一处理事务
+    // RPC Server 层会统一处理事务，不需要手动调用 commit()
 
-    // [修改] 异步触发同步，不等待
+    // 异步触发同步，不阻塞返回（使用 triggerBackgroundSync 确保不阻塞 UI）
     if (page.createdAt === page.updatedAt) {
       triggerBackgroundSync(syncService.markPageChange('create', page.id, page));
     } else {
       triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
     }
 
-    // 4. 如果 title 是 URL 样式，异步获取真实 title（不阻塞返回）
-    // 优化：只在创建新页面或 title 是 URL 时才启动异步任务
-    // 如果 existingPage 存在且 title 不是 URL，说明已经有正确的 title，不需要异步获取
-    if (isTitleUrl(page.title, resolvedUrl)) {
-      // 使用 TitleFetchService 异步获取真实 title，不阻塞当前返回
+    // 后台异步执行 ANALYZE_PAGE，不阻塞返回（分析逻辑已分离到独立方法）
+    if (tabId) {
+      this.analyzePageByUrl(resolvedUrl, tabId).catch(() => {
+        // 静默失败，不影响基本功能（页面可能已关闭）
+      });
+    }
+
+    // 如果 title 是 URL 样式，异步获取真实 title（不阻塞返回）
+    // 只在 title 是 URL 时才启动，避免不必要的网络请求
+    if (tabId && isTitleUrl(page.title, resolvedUrl)) {
       titleFetchService.fetchAndUpdateTitle(
-        tab.id!,
+        tabId,
         resolvedUrl,
         page.id,
         // 更新回调（自动更新，不设置手动编辑标记）
@@ -292,12 +217,11 @@ export class BackgroundServiceImpl implements IBackgroundApi {
         },
         // 获取当前页面的函数，用于检查 title 是否还是 URL 样式和是否被手动编辑
         () => gameplayStore.getPageById(page.id) || null
-      ).catch((error) => {
-        console.warn('[getCurrentPage] 异步获取真实 title 失败:', error);
+      ).catch(() => {
+        // 静默失败，不影响基本功能
       });
     }
 
-    console.log('[getCurrentPage] 成功获取页面');
     return page;
     } catch (error) {
       // 如果是已知的错误（popup 关闭等），直接抛出
@@ -329,6 +253,103 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
     }
   }
+
+  /**
+   * 异步更新页面的 coverImage
+   * 只在创建新页面或现有页面没有 coverImage 时更新（避免覆盖已有值）
+   */
+  /**
+   * 独立的页面分析方法，通过 URL 分析页面，不依赖 popup 状态
+   * 设计原因：解耦页面分析与 popup 生命周期，支持后台异步调用
+   * @param url - 页面 URL
+   * @param tabId - 可选的标签页 ID，如果提供则直接使用，否则通过 URL 查找
+   * @returns Promise<void> 静默失败，不影响主流程
+   */
+  async analyzePageByUrl(url: string, tabId?: number): Promise<void> {
+    try {
+      // 如果没有提供 tabId，尝试通过 URL 查找（支持后台调用场景）
+      let targetTabId = tabId;
+      if (!targetTabId) {
+        const tabs = await chrome.tabs.query({ url: url });
+        if (!tabs || tabs.length === 0) {
+          // 静默失败：标签页可能已关闭，这是预期的（后台调用时常见）
+          return;
+        }
+        targetTabId = tabs[0].id;
+      }
+
+      if (!targetTabId) {
+        return;
+      }
+
+      // 确保页面已存在（必须先通过 getCurrentPage 创建）
+      const existingPage = gameplayStore.getPageByUrl(url);
+      if (!existingPage) {
+        return;
+      }
+
+      const pageId = existingPage.id;
+      const pageTitle = existingPage.title;
+      const pageSettings = await getPageSettings();
+      const syncVideoTimestamp = pageSettings.syncVideoTimestamp;
+
+      // 使用 Promise.race 防止 chrome.tabs.sendMessage 无限等待
+      // 超时后静默失败，不影响主流程（页面可能已关闭或加载缓慢）
+      const analyzePageResponse = await Promise.race([
+        chrome.tabs.sendMessage(targetTabId, { action: 'ANALYZE_PAGE' }),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), TIMEOUTS.ANALYZE_PAGE_MESSAGE)
+        ),
+      ]) as any;
+
+      if (!analyzePageResponse?.success) {
+        return;
+      }
+
+      const data = analyzePageResponse.data;
+      
+      // 提取并更新 metadata（coverImage 和 title）
+      const metadata = data?.metadata;
+      const coverImage = metadata?.coverImage;
+      const metadataTitle = metadata?.title;
+
+      // 更新 coverImage（GameplayStore 内部会校验是否变化，避免不必要的更新）
+      if (coverImage) {
+        await this.updatePageCoverImage(pageId, coverImage);
+      }
+
+      // 仅在 title 是 URL 样式时使用 metadata.title 更新（避免覆盖用户手动编辑的标题）
+      if (metadataTitle && isTitleUrl(pageTitle, url) && !isTitleUrl(metadataTitle, url)) {
+        await this.updatePageTitle(pageId, metadataTitle, false);
+      }
+
+      // 条件执行 video 相关逻辑（仅当用户启用 syncVideoTimestamp 时）
+      if (syncVideoTimestamp) {
+        const video = data?.video;
+        if (video && video.timestamp > 0) {
+          addTimestampToUrl(url, video.timestamp);
+        }
+      }
+    } catch (_error) {
+      // 静默失败，不影响基本功能
+    }
+  }
+
+  async updatePageCoverImage(pageId: string, coverImage: string): Promise<void> {
+    if (!pageId || !coverImage) {
+      return; // 静默失败，不抛出错误
+    }
+
+    const success = gameplayStore.updatePageCoverImage(pageId, coverImage);
+    
+    if (success) {
+      const page = gameplayStore.getPageById(pageId);
+      if (page) {
+        triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
+      }
+    }
+  }
+
 
   async updatePageTags(
     pageId: string, 

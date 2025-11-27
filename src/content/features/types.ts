@@ -65,6 +65,11 @@ export interface VideoFeatureData {
 }
 
 /**
+ * Hero Image 图片来源类型
+ */
+export type HeroImageSource = 'meta' | 'semantic' | 'heuristic';
+
+/**
  * 元数据检测结果数据
  */
 export interface MetaDataFeatureData {
@@ -76,5 +81,8 @@ export interface MetaDataFeatureData {
   
   /** 页面标题 */
   title?: string;
+  
+  /** Hero Image 图片来源（用于调试和日志） */
+  heroImageSource?: HeroImageSource;
 }
 
