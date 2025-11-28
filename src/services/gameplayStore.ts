@@ -696,13 +696,32 @@ export class GameplayStore {
         await this.tagRepo.saveBatch(Object.values(this.tags));
         await this.pageRepo.saveBatch(Object.values(this.pages));
       } else {
-        // 否则使用传统的存储方式（向后兼容）
-        const dataToSave = {
-          [STORAGE_KEYS.TAGS]: this.tags,
-          [STORAGE_KEYS.PAGES]: this.pages
-        };
+        // 原子化存储模式：分片存储，每个页面独立 key
+        // 这样可以避免 8MB 配额限制，并且单页更新从 O(N) 降低到 O(1)
+        const useAtomicStorage = true; // 启用原子化存储
         
-        await storageService.setMultiple(dataToSave);
+        if (useAtomicStorage) {
+          // 1. 保存标签（保持传统方式，因为标签数量通常较少）
+          await storageService.set(STORAGE_KEYS.TAGS, this.tags);
+          
+          // 2. 分片存储页面：每个页面独立 key (page::${url_hash})
+          const pagePromises = Object.values(this.pages).map(page => {
+            const urlHash = this.generatePageId(page.url);
+            return storageService.set(`page::${urlHash}`, page);
+          });
+          await Promise.all(pagePromises);
+          
+          // 3. 保存索引：存储所有 page_id 列表
+          const pageIndex = Object.keys(this.pages);
+          await storageService.set('page_index', pageIndex);
+        } else {
+          // 传统存储方式（向后兼容）
+          const dataToSave = {
+            [STORAGE_KEYS.TAGS]: this.tags,
+            [STORAGE_KEYS.PAGES]: this.pages
+          };
+          await storageService.setMultiple(dataToSave);
+        }
       }
     } catch (error) {
       console.error('保存存储数据失败:', error);
@@ -739,17 +758,50 @@ export class GameplayStore {
           pages: pagesCollection
         });
       } else {
-        // 否则使用传统的存储方式（向后兼容）
-        const storageData = await storageService.getMultiple([
-          STORAGE_KEYS.TAGS,
-          STORAGE_KEYS.PAGES
-        ]);
-        this._isInitialized = false; // 强制重新初始化
-        // initialize 内部会调用 notifyListeners，这里不需要重复调用
-        this.initialize({
-          tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,
-          pages: storageData[STORAGE_KEYS.PAGES] as PageCollection | null
-        });
+        // 原子化存储模式：从分片存储读取
+        const useAtomicStorage = true; // 启用原子化存储
+        
+        if (useAtomicStorage) {
+          // 1. 读取标签（保持传统方式）
+          const tags = await storageService.get<TagsCollection>(STORAGE_KEYS.TAGS);
+          
+          // 2. 读取索引，然后批量读取所有页面
+          const pageIndex = await storageService.get<string[]>('page_index') || [];
+          
+          // 3. 批量读取所有页面数据（page_id 就是 url_hash）
+          const pagePromises = pageIndex.map(async (pageId) => {
+            // page_id 就是通过 generatePageId(url) 生成的，与原子化存储的 key 一致
+            const atomicKey = `page::${pageId}`;
+            const page = await storageService.get<TaggedPage>(atomicKey);
+            return page;
+          });
+          
+          const pages = (await Promise.all(pagePromises)).filter((page): page is TaggedPage => page !== null);
+          
+          // 转换为 Collection 格式
+          const pagesCollection: PageCollection = {};
+          pages.forEach((page: TaggedPage) => {
+            pagesCollection[page.id] = page;
+          });
+          
+          this._isInitialized = false; // 强制重新初始化
+          this.initialize({
+            tags: tags || {},
+            pages: pagesCollection
+          });
+        } else {
+          // 传统存储方式（向后兼容）
+          const storageData = await storageService.getMultiple([
+            STORAGE_KEYS.TAGS,
+            STORAGE_KEYS.PAGES
+          ]);
+          this._isInitialized = false; // 强制重新初始化
+          // initialize 内部会调用 notifyListeners，这里不需要重复调用
+          this.initialize({
+            tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,
+            pages: storageData[STORAGE_KEYS.PAGES] as PageCollection | null
+          });
+        }
       }
     } catch (error) {
       console.error('重新加载存储数据失败:', error);

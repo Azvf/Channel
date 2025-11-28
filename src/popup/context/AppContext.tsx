@@ -7,9 +7,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { currentPageService } from "../../services/popup/currentPageService";
-import type { TaggedPage, GameplayTag } from "../../shared/types/gameplayTag";
+import type { TaggedPage, GameplayTag, PageCollection, TagsCollection } from "../../shared/types/gameplayTag";
 import { STORAGE_KEYS } from "../../services/storageService";
+import { queryKeys } from "../../lib/queryKeys";
 
 interface UserStats {
   todayCount: number;
@@ -28,14 +30,42 @@ interface AppState {
 
 const AppContext = createContext<AppState | undefined>(undefined);
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [allTags, setAllTags] = useState<GameplayTag[]>([]);
-  const [allPages, setAllPages] = useState<TaggedPage[]>([]);
+interface AppProviderProps {
+  children: ReactNode;
+  /**
+   * 预加载的页面数据（从 Storage 读取，用于实现 < 100ms 首屏）
+   */
+  initialPages?: PageCollection;
+  /**
+   * 预加载的标签数据（从 Storage 读取，用于实现 < 100ms 首屏）
+   */
+  initialTags?: TagsCollection;
+}
+
+export function AppProvider({ 
+  children, 
+  initialPages = {},
+  initialTags = {}
+}: AppProviderProps) {
+  const queryClient = useQueryClient();
+  
+  // 使用预加载数据作为初始状态，避免首次渲染时的 Loading
+  const [allTags, setAllTags] = useState<GameplayTag[]>(() => 
+    Object.values(initialTags)
+  );
+  const [allPages, setAllPages] = useState<TaggedPage[]>(() => 
+    Object.values(initialPages)
+  );
   const [stats, setStats] = useState<UserStats>({ todayCount: 0, streak: 0 });
-  const [loading, setLoading] = useState(true);
+  // 如果有预加载数据，初始状态不是 loading
+  const [loading, setLoading] = useState(() => 
+    Object.keys(initialPages).length === 0 && Object.keys(initialTags).length === 0
+  );
   const [error, setError] = useState<string | null>(null);
   // 新增：区分初始加载和后台刷新
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(() =>
+    Object.keys(initialPages).length === 0 && Object.keys(initialTags).length === 0
+  );
 
   const loadAllData = useCallback(async (isSilent = false) => {
     // 如果是静默刷新，不要设置全局 loading，避免 UI 闪烁
@@ -129,7 +159,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // 检查 TAGS 或 PAGES 是否发生变化
+      // 优化：检查是否使用原子化存储（page:: 前缀）
+      const changedPageKeys = Object.keys(changes).filter(k => k.startsWith('page::'));
+      
+      if (changedPageKeys.length > 0) {
+        // 原子化存储模式：O(1) 直接更新特定 Query
+        const scheduleUpdate = window.requestIdleCallback || 
+          ((cb: (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void) => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 0 }), 0));
+        
+        scheduleUpdate(() => {
+          changedPageKeys.forEach(key => {
+            const newPageData = changes[key].newValue as TaggedPage | undefined;
+            
+            if (newPageData) {
+              // 直接更新特定 Query，无需遍历
+              queryClient.setQueryData(queryKeys.currentPage(newPageData.url), newPageData);
+            }
+          });
+          
+          // 触发 AppContext 刷新（更新 allPages 状态）
+          debouncedRefresh.call();
+        }, { timeout: 1000 });
+        return;
+      }
+
+      // 传统存储模式：检查 TAGS 或 PAGES 是否发生变化
       const tagsChanged = changes[STORAGE_KEYS.TAGS] !== undefined;
       const pagesChanged = changes[STORAGE_KEYS.PAGES] !== undefined;
 
@@ -150,7 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         debouncedRefresh.cancel();
       };
     }
-  }, [loadAllData, debouncedRefresh]);
+  }, [loadAllData, debouncedRefresh, queryClient]);
 
   const contextValue = useMemo<AppState>(
     () => ({
