@@ -9,6 +9,8 @@ import { storageService, STORAGE_KEYS } from "../services/storageService";
 import { usePageSettings } from "./utils/usePageSettings";
 import type { AppInitialState } from "../services/appInitService";
 import { DURATION, EASE, DELAY, getDurationMs, getEaseString } from "../design-tokens/animation"; // [Refactor] 引入物理引擎
+import { useProgressiveEscape } from "../hooks/useProgressiveEscape";
+import { useModalStack } from "./context/ModalRegistryContext";
 
 interface AppProps {
   initialState: AppInitialState;
@@ -141,6 +143,26 @@ export default function App({ initialState }: AppProps) {
       console.error("保存标签页状态失败", error);
     }
   };
+
+  // 窗口层级 ESC 键处理（Level 3: 关闭 Modal, Level 4: 关闭 Popup）
+  // 使用 Modal Registry 获取当前打开的 Modal 栈
+  const modalStack = useModalStack();
+
+  // 使用渐进式 ESC 处理窗口层级
+  useProgressiveEscape(
+    [
+      {
+        id: 'close-modal',
+        predicate: modalStack.hasAnyOpen,
+        action: modalStack.closeTopmost,
+      },
+      // Level 4: 关闭 Popup（最底层）
+      // 注意：Chrome Extension 会自动处理 ESC 键关闭 popup
+      // 我们不需要显式实现，只需要确保在有 Modal 时阻止默认行为即可
+      // 如果没有 Modal 打开，ESC 键会自然冒泡到 Chrome，由 Chrome 关闭 popup
+    ],
+    { global: true }
+  );
 
   return (
     <div

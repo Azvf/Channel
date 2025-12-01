@@ -1,10 +1,11 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { GlassCard } from './GlassCard';
 import { ModalHeader } from './ModalHeader';
 import { Tooltip } from './Tooltip';
 import { useStatsWall, DayData } from '../hooks/headless/useStatsWall';
 import { DELAY } from '../../design-tokens/animation'; // [Refactor] 使用统一的延迟常量
+import { useModalRegistry } from '../context/ModalRegistryContext';
 
 interface StatsWallModalProps {
   isOpen: boolean;
@@ -39,6 +40,25 @@ const ActivityDaySquare: React.FC<{ day: DayData }> = memo(({ day }) => {
 export function StatsWallModal({ isOpen, onClose }: StatsWallModalProps) {
   // 一行代码接管所有复杂性
   const { layout, days, monthLabels, totalWeeks, scrollContainerRef } = useStatsWall(isOpen);
+  
+  // Modal Registry 集成：手动注册/注销（因为 StatsWallModal 不使用 BaseModal）
+  const modalRegistry = useModalRegistry();
+  const modalId = useId();
+  
+  useEffect(() => {
+    if (isOpen) {
+      // 注册 Modal
+      modalRegistry.register({
+        id: modalId,
+        onClose,
+      });
+      
+      // 清理函数：注销 Modal
+      return () => {
+        modalRegistry.unregister(modalId);
+      };
+    }
+  }, [isOpen, modalId, onClose, modalRegistry]);
 
   if (!isOpen || !layout) return null;
 

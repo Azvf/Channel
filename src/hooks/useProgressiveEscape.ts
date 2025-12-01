@@ -1,4 +1,4 @@
-import { useCallback, KeyboardEvent } from 'react';
+import { useCallback, useEffect, KeyboardEvent } from 'react';
 
 export interface EscapeLayer {
   /** 用于调试的唯一标识 */
@@ -18,9 +18,14 @@ export interface EscapeLayer {
 /**
  * 渐进式 ESC 退出处理 Hook
  * @param layers 按优先级排序的层级数组
- * @returns onKeyDown 键盘事件处理函数
+ * @param options 配置选项
+ * @param options.global 是否在全局 document 上监听事件（默认 false，返回 onKeyDown 处理函数）
+ * @returns onKeyDown 键盘事件处理函数（当 global=false）或 void（当 global=true）
  */
-export function useProgressiveEscape(layers: EscapeLayer[]) {
+export function useProgressiveEscape(
+  layers: EscapeLayer[],
+  options?: { global?: boolean }
+) {
   const handleKeyDown = useCallback((e: KeyboardEvent | globalThis.KeyboardEvent) => {
     if (e.key !== 'Escape') return;
 
@@ -41,6 +46,28 @@ export function useProgressiveEscape(layers: EscapeLayer[]) {
     // 这对应了 Level 3 (默认行为)
   }, [layers]);
 
+  // 如果启用全局监听，在 document 上添加事件监听器
+  useEffect(() => {
+    if (!options?.global) return;
+
+    const handleDocumentKeyDown = (e: globalThis.KeyboardEvent) => {
+      handleKeyDown(e);
+    };
+
+    // 在捕获阶段监听，确保可以拦截事件
+    document.addEventListener('keydown', handleDocumentKeyDown, { capture: true });
+
+    return () => {
+      document.removeEventListener('keydown', handleDocumentKeyDown, { capture: true });
+    };
+  }, [handleKeyDown, options?.global]);
+
+  // 如果启用全局监听，不返回处理函数
+  if (options?.global) {
+    return;
+  }
+
+  // 否则返回处理函数供组件使用
   return handleKeyDown;
 }
 

@@ -310,16 +310,6 @@ export function useUpdatePageTags(
       }
     },
     onSuccess: (newPage, _params, context) => {
-      console.log('[useUpdatePageTags] onSuccess - Title变化追踪:', {
-        oldPageId: page.id,
-        oldPageTitle: page.title,
-        newPageId: newPage?.id,
-        newPageTitle: newPage?.title,
-        titleChanged: newPage ? page.title !== newPage.title : false,
-        wasTemporary: page.id.startsWith('temp_'),
-        isNowPersistent: newPage ? !newPage.id.startsWith('temp_') : false,
-      });
-
       if (newPage === null) {
         // 页面已删除（用户不在当前页面）
         // 从 React Query 缓存中移除页面
@@ -350,15 +340,6 @@ export function useUpdatePageTags(
         const isNowPersistent = !newPage.id.startsWith('temp_');
         
         if (wasTemporary && isNowPersistent) {
-          // 临时页面转换为持久化页面
-          console.log('[useUpdatePageTags] 临时页面转持久化页面 - 更新状态:', {
-            oldPageId: page.id,
-            oldPageTitle: page.title,
-            newPageId: newPage.id,
-            newPageTitle: newPage.title,
-            titleChanged: page.title !== newPage.title,
-          });
-          
           // 清除旧临时页面的缓存
           queryClient.removeQueries({ queryKey: queryKeys.currentPage(page.url) });
           // 设置新持久化页面的缓存
@@ -389,14 +370,6 @@ export function useUpdatePageTags(
           
           // 临时页面不写入Storage（不持久化）
         } else {
-          // 持久化页面的正常更新
-          console.log('[useUpdatePageTags] 持久化页面更新 - 更新状态:', {
-            pageId: newPage.id,
-            oldTitle: page.title,
-            newTitle: newPage.title,
-            titleChanged: page.title !== newPage.title,
-          });
-          
           // 更新缓存（使用新页面的URL，因为URL可能包含时间戳变化）
           const pageUrl = newPage.url;
           const currentPageKey = queryKeys.currentPage(pageUrl);

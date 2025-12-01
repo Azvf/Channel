@@ -36,7 +36,7 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
         setIsOpen(false);
       },
     },
-  ]);
+  ], { global: false });
 
   return (
     <ContextMenuPrimitive.Root onOpenChange={setIsOpen}>
@@ -52,7 +52,7 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
           onCloseAutoFocus={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => {
             // 与 Progressive Escape 集成：如果菜单打开，拦截 ESC 事件
-            if (isOpen) {
+            if (isOpen && handleEscape) {
               handleEscape(e as any);
             }
           }}

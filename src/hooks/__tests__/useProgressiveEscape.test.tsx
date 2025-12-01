@@ -13,7 +13,7 @@ describe('useProgressiveEscape', () => {
       const handler = useProgressiveEscape([
         { id: 'l1', predicate: () => level1Active, action: action1 },
         { id: 'l2', predicate: () => true, action: action2 },
-      ]);
+      ], { global: false });
       
       return { handler, setLevel1Active };
     });
@@ -22,7 +22,9 @@ describe('useProgressiveEscape', () => {
     const escEvent = { key: 'Escape', preventDefault: jest.fn(), stopPropagation: jest.fn() } as any;
     
     act(() => {
-      result.current.handler(escEvent);
+      if (result.current.handler) {
+        result.current.handler(escEvent);
+      }
     });
     
     expect(action1).toHaveBeenCalled();
@@ -39,7 +41,9 @@ describe('useProgressiveEscape', () => {
     
     // 第二次按 ESC：Level 1 不激活，应触发 action2
     act(() => {
-      result.current.handler(escEvent);
+      if (result.current.handler) {
+        result.current.handler(escEvent);
+      }
     });
     
     expect(action1).not.toHaveBeenCalled();

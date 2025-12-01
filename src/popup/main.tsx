@@ -5,6 +5,7 @@ import App from './App';
 import { loadAppInitialState, loadAppInitialStateSync } from '../services/appInitService';
 import { applyThemeToBody } from './utils/theme';
 import { AppProvider } from './context/AppContext';
+import { ModalRegistryProvider } from './context/ModalRegistryContext';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, chromeStoragePersister } from '../lib/queryClient';
 import { storageService, STORAGE_KEYS } from '../services/storageService';
@@ -117,12 +118,14 @@ initializeApp().then((initialState) => {
           console.log('Query cache restored from Chrome Storage');
         }}
       >
-        <AppProvider 
-          initialPages={preloadedPages || {}}
-          initialTags={preloadedTags || {}}
-        >
-          <App initialState={appState} />
-        </AppProvider>
+        <ModalRegistryProvider>
+          <AppProvider 
+            initialPages={preloadedPages || {}}
+            initialTags={preloadedTags || {}}
+          >
+            <App initialState={appState} />
+          </AppProvider>
+        </ModalRegistryProvider>
         {/* 仅在开发环境显示 DevTools */}
         {isDev && (
           <Suspense fallback={null}>

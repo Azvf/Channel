@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from './GlassCard';
 import { DIALOG_TRANSITION, SMOOTH_TRANSITION } from '../utils/motion';
+import { useModalRegistry } from '../context/ModalRegistryContext';
 
 export interface BaseModalProps {
   isOpen: boolean;
@@ -54,6 +55,25 @@ export function BaseModal({
   }
 
   const handleBackdropClick = onBackdropClick || onClose;
+  
+  // Modal Registry 集成：自动注册/注销
+  const modalRegistry = useModalRegistry();
+  const modalId = useId();
+  
+  useEffect(() => {
+    if (isOpen) {
+      // 注册 Modal
+      modalRegistry.register({
+        id: modalId,
+        onClose,
+      });
+      
+      // 清理函数：注销 Modal
+      return () => {
+        modalRegistry.unregister(modalId);
+      };
+    }
+  }, [isOpen, modalId, onClose, modalRegistry]);
 
   // 默认 backdrop 样式（参考 StatsWallModal）
   const defaultBackdropStyle: React.CSSProperties = {

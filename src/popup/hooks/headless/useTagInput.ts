@@ -228,7 +228,7 @@ export function useTagInput({
       },
       onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => {
         // 1. 先让 ESC 钩子处理
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' && handleEscape) {
           handleEscape(e);
           userOnKeyDown?.(e);
           return;
