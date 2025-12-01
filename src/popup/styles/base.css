@@ -18,6 +18,15 @@
       color: var(--color-text-primary);
     }
   }
+
+  /* ========================================
+     FOCUS VISIBLE RESET
+     移除所有交互元素的默认 focus-visible outline
+     使用 :where() 降低特异性，便于覆盖
+     ======================================== */
+  :where(button, input, select, textarea, a[href], [role="button"], [tabindex]):focus-visible {
+    outline: none;
+  }
 }
 
 html {
