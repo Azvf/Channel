@@ -549,9 +549,6 @@ export function useDeletePage(
         console.error('[useDeletePage] 从 Storage 移除页面失败:', error);
       }
 
-      // 触发远端同步（fire-and-forget）
-      backgroundApi.deletePage(page.id).catch(console.error);
-
       // 乐观更新：调用回调
       onOptimisticUpdate?.();
 
@@ -579,7 +576,8 @@ export function useDeletePage(
     onSettled: () => {
       // 删除操作不需要额外的 settled 处理
     },
-    retry: 2,
+    // 删除操作不应该重试：如果失败，应该立即回滚而不是重试
+    retry: 0,
   });
 }
 

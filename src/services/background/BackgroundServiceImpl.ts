@@ -828,8 +828,9 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     }
 
     const pageToDelete = gameplayStore.getPageById(pageId);
+    // 删除操作应该是幂等的：如果页面不存在，静默成功
     if (!pageToDelete) {
-      throw new Error('页面不存在');
+      return;
     }
 
     const success = gameplayStore.deletePage(pageId);

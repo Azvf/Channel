@@ -19,11 +19,12 @@ import {
 import { AnimatedFlipList } from "./AnimatedFlipList";
 import { useLongPress } from "../utils/useLongPress";
 import { TaggedPage as TaggedPageType } from "../../shared/types/gameplayTag";
-import { useUpdatePageDetails } from "../hooks/mutations/usePageMutations";
+import { useUpdatePageDetails, useDeletePage } from "../hooks/mutations/usePageMutations";
 import { useAppContext } from "../context/AppContext";
 import { getTransition, DURATION } from "../../design-tokens/animation"; // [Refactor] 引入物理引擎
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { normalizeTaggedPagePartial } from "../../shared/utils/dataNormalizer";
+import { AlertModal, type AlertAction } from "./AlertModal";
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
 // 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
@@ -73,8 +74,16 @@ interface PageCardProps {
   searchTags: string[];
   onEditPage: (page: TaggedPageType) => void;
   onCopyUrl: (url: string) => void;
-  onRemovePage: (pageId: string) => void;
+  onDeletePage: (page: TaggedPageType) => void;
   tagIdToName: Map<string, string>;
+}
+
+interface AlertState {
+  isOpen: boolean;
+  title: string;
+  intent: 'info' | 'warning' | 'destructive';
+  children: React.ReactNode;
+  actions: AlertAction[];
 }
 
 export function TaggedPage({
@@ -99,17 +108,31 @@ export function TaggedPage({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const [removedPageIds, setRemovedPageIds] = useState<Set<string>>(new Set<string>());
+  const [alertState, setAlertState] = useState<AlertState | null>(null);
+  const [pageToDelete, setPageToDelete] = useState<TaggedPageType | null>(null);
 
-  const removePageFromView = useCallback((pageId: string) => {
-    setRemovedPageIds((prev) => {
-      if (prev.has(pageId)) {
-        return prev;
+  // 使用乐观更新策略：立即更新UI以提供即时反馈，如果操作失败则回滚
+  const { mutate: deletePage } = useDeletePage(
+    pageToDelete,
+    // 乐观更新：提供即时反馈，避免等待网络请求
+    useCallback(() => {
+      if (pageToDelete) {
+        setRemovedPageIds((prev) => {
+          const next = new Set(prev);
+          next.add(pageToDelete.id);
+          return next;
+        });
       }
-      const next = new Set(prev);
-      next.add(pageId);
-      return next;
-    });
-  }, []);
+    }, [pageToDelete]),
+    // 回滚：操作失败时恢复UI状态，确保数据一致性
+    useCallback((page: TaggedPageType) => {
+      setRemovedPageIds((prev) => {
+        const next = new Set(prev);
+        next.delete(page.id);
+        return next;
+      });
+    }, [])
+  );
 
   useEffect(() => {
     setRemovedPageIds(new Set<string>());
@@ -157,8 +180,8 @@ export function TaggedPage({
     );
   }, [visiblePages, searchTags, tagNameToId]);
 
-  // [Performance] 懒加载配置：初始只渲染前 50 个卡片，滚动时自动加载更多
-  // 策略：使用 Intersection Observer 监听底部哨兵元素，提前 200px 开始加载
+  // [Performance] 懒加载配置：初始只渲染前 INITIAL_LOAD_COUNT 个卡片，滚动时自动加载更多
+  // 策略：使用 Intersection Observer 监听底部哨兵元素，提前 LOAD_MORE_THRESHOLD 像素开始加载
   const INITIAL_LOAD_COUNT = 50;
   const LOAD_MORE_BATCH_SIZE = 50;
   const LOAD_MORE_THRESHOLD = 200;
@@ -375,6 +398,55 @@ export function TaggedPage({
 
   // 菜单管理已移除，改用 ContextMenu 组件内部管理
 
+  // 执行删除操作：用户确认后调用mutation，使用乐观更新提供即时反馈
+  const confirmDeletePage = useCallback((pageId: string) => {
+    setAlertState(null);
+    
+    const page = allPages.find((p) => p.id === pageId);
+    if (!page) return;
+
+    setPageToDelete(page);
+    
+    deletePage(undefined, {
+      onSuccess: () => {
+        // 静默刷新以确保数据同步，避免显示loading状态影响用户体验
+        refreshAllData().catch(console.error);
+      },
+      onError: (error) => {
+        setAlertState({
+          isOpen: true,
+          title: "删除失败",
+          intent: "destructive",
+          children: error instanceof Error ? error.message : "未知错误",
+          actions: [{ id: "ok", label: "好的", variant: "primary", onClick: () => setAlertState(null) }],
+        });
+        // 错误时刷新数据以恢复正确状态，确保UI与后端数据一致
+        refreshAllData().catch(console.error);
+      },
+    });
+  }, [allPages, deletePage, refreshAllData]);
+
+  // 显示删除确认对话框：防止误操作，符合破坏性操作的最佳实践
+  const handleDeletePage = useCallback((page: TaggedPageType) => {
+    setPageToDelete(page);
+    setAlertState({
+      isOpen: true,
+      title: "确认删除页面",
+      intent: "destructive",
+      children: (
+        <span>
+          你确定要删除页面 "<b>{page.title}</b>" 吗？
+          <br />
+          此操作<strong>无法撤销</strong>。
+        </span>
+      ),
+      actions: [
+        { id: "cancel", label: "取消", variant: "default", onClick: () => setAlertState(null) },
+        { id: "delete", label: "删除", variant: "destructive", onClick: () => confirmDeletePage(page.id), autoFocus: true },
+      ],
+    });
+  }, [confirmDeletePage]);
+
   const editingPageTagNames = useMemo(() => {
     if (!editingPage) return [];
     return (editingPage.tags || [])
@@ -584,7 +656,7 @@ export function TaggedPage({
                         searchTags={searchTags}
                         onEditPage={handleEditPage}
                         onCopyUrl={(url) => navigator.clipboard.writeText(url).catch(console.error)}
-                        onRemovePage={removePageFromView}
+                        onDeletePage={handleDeletePage}
                         tagIdToName={tagIdToName}
                       />
                     )}
@@ -662,6 +734,16 @@ export function TaggedPage({
         />
       )}
 
+      <AlertModal
+        isOpen={!!alertState?.isOpen}
+        onClose={() => setAlertState(null)}
+        title={alertState?.title || "提示"}
+        intent={alertState?.intent || "info"}
+        actions={alertState?.actions || []}
+      >
+        {alertState?.children}
+      </AlertModal>
+
     </div>
   );
 }
@@ -671,7 +753,7 @@ function PageCard({
   searchTags,
   onEditPage,
   onCopyUrl,
-  onRemovePage,
+  onDeletePage,
   tagIdToName,
 }: PageCardProps) {
   const menuItems: ContextMenuItem[] = [
@@ -687,7 +769,7 @@ function PageCard({
     },
     {
       label: 'Delete',
-      onClick: () => onRemovePage(page.id),
+      onClick: () => onDeletePage(page),
       icon: <Trash2 />,
       variant: 'destructive',
     },
