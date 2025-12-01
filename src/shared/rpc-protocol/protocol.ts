@@ -86,7 +86,7 @@ export interface IBackgroundApi {
   updatePageTags(pageId: string, payload: { 
     tagsToAdd: string[]; 
     tagsToRemove: string[] 
-  }): Promise<{ newPage: TaggedPage; newStats: { todayCount: number; streak: number } }>;
+  }): Promise<{ newPage: TaggedPage | null; newStats: { todayCount: number; streak: number } }>;
   updatePageDetails(pageId: string, payload: {
     title: string;
     tagsToAdd: string[];
@@ -95,6 +95,7 @@ export interface IBackgroundApi {
   addTagToPage(pageId: string, tagId: string): Promise<void>;
   removeTagFromPage(pageId: string, tagId: string): Promise<void>;
   createTagAndAddToPage(tagName: string, pageId: string): Promise<GameplayTag>;
+  deletePage(pageId: string): Promise<void>;
   
   // Stats 相关
   getUserStats(): Promise<{ todayCount: number; streak: number }>;

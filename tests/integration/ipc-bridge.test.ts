@@ -334,7 +334,8 @@ describe('IPC 桥集成测试 (RPC 架构)', () => {
       tagsToRemove: [],
     });
 
-    expect(updateResult.newPage.tags).toHaveLength(2);
+    expect(updateResult.newPage).not.toBeNull();
+    expect(updateResult.newPage!.tags).toHaveLength(2);
 
     const storedPageAfterAdd = memoryStorage[STORAGE_KEYS.PAGES][page.id];
     expect(storedPageAfterAdd.tags).toHaveLength(2);
@@ -351,7 +352,8 @@ describe('IPC 桥集成测试 (RPC 架构)', () => {
       tagsToRemove: ['Bulk Tag 1'],
     });
 
-    expect(removeResult.newPage.tags).toHaveLength(1);
+    expect(removeResult.newPage).not.toBeNull();
+    expect(removeResult.newPage!.tags).toHaveLength(1);
     expect(memoryStorage[STORAGE_KEYS.PAGES][page.id].tags).not.toContain(tagToRemove.id);
   });
 

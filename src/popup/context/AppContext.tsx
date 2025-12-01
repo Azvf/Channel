@@ -98,12 +98,51 @@ export function AppProvider({
     }
   }, []);
 
+  // ✅ 性能优化：增量更新函数，只更新特定类型的数据
+  const loadTagsOnly = useCallback(async () => {
+    try {
+      const tagsData = await currentPageService.getAllTags();
+      setAllTags(tagsData);
+      // 同时更新 React Query 缓存
+      queryClient.setQueryData(queryKeys.allTags, tagsData);
+    } catch (err) {
+      console.error("Failed to refresh tags:", err);
+    }
+  }, [queryClient]);
+
+  const loadPagesOnly = useCallback(async () => {
+    try {
+      const [pagesData, statsData] = await Promise.all([
+        currentPageService.getAllTaggedPages(),
+        currentPageService.getUserStats(),
+      ]);
+      setAllPages(pagesData);
+      setStats(statsData);
+    } catch (err) {
+      console.error("Failed to refresh pages:", err);
+    }
+  }, []);
+
   // ✅ 修复：创建防抖的刷新函数，防止惊群效应
+  // 支持增量更新：可以指定只刷新 tags 或 pages
   const debouncedRefresh = useMemo(() => {
     let timeoutId: NodeJS.Timeout | null = null;
+    let pendingRefreshType: 'all' | 'tags' | 'pages' = 'all';
     
     return {
-      call: () => {
+      call: (type: 'all' | 'tags' | 'pages' = 'all') => {
+        // 记录待刷新的类型（如果已经有待处理的刷新，合并类型）
+        if (type === 'all') {
+          pendingRefreshType = 'all';
+        } else if (pendingRefreshType !== 'all') {
+          // 如果之前是 'tags' 或 'pages'，现在要刷新另一个，则升级为 'all'
+          if (pendingRefreshType !== type) {
+            pendingRefreshType = 'all';
+          }
+        } else {
+          pendingRefreshType = type;
+        }
+
         // 清除之前的定时器
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -111,10 +150,23 @@ export function AppProvider({
         
         // 设置新的定时器
         timeoutId = setTimeout(() => {
-          loadAllData(true).catch((err) => {
-            console.error("Failed to refresh app context data:", err);
-          });
+          const refreshType = pendingRefreshType;
+          pendingRefreshType = 'all';
           timeoutId = null;
+
+          if (refreshType === 'tags') {
+            loadTagsOnly().catch((err) => {
+              console.error("Failed to refresh tags:", err);
+            });
+          } else if (refreshType === 'pages') {
+            loadPagesOnly().catch((err) => {
+              console.error("Failed to refresh pages:", err);
+            });
+          } else {
+            loadAllData(true).catch((err) => {
+              console.error("Failed to refresh app context data:", err);
+            });
+          }
         }, 300); // 300ms 延迟，合并短时间内的多次变更
       },
       cancel: () => {
@@ -122,9 +174,10 @@ export function AppProvider({
           clearTimeout(timeoutId);
           timeoutId = null;
         }
+        pendingRefreshType = 'all';
       }
     };
-  }, [loadAllData]);
+  }, [loadAllData, loadTagsOnly, loadPagesOnly]);
 
   useEffect(() => {
     // ✅ 性能优化：预热 background service worker
@@ -187,9 +240,15 @@ export function AppProvider({
       const tagsChanged = changes[STORAGE_KEYS.TAGS] !== undefined;
       const pagesChanged = changes[STORAGE_KEYS.PAGES] !== undefined;
 
-      if (tagsChanged || pagesChanged) {
-        // ✅ 修复：使用防抖函数触发刷新，防止惊群效应
-        debouncedRefresh.call();
+      if (tagsChanged && pagesChanged) {
+        // 如果两者都变化，刷新所有数据
+        debouncedRefresh.call('all');
+      } else if (tagsChanged) {
+        // ✅ 性能优化：只刷新 tags，不重新获取 pages 和 stats
+        debouncedRefresh.call('tags');
+      } else if (pagesChanged) {
+        // ✅ 性能优化：只刷新 pages，不重新获取 tags 和 stats
+        debouncedRefresh.call('pages');
       }
     };
 

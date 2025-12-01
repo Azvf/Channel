@@ -216,9 +216,20 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   const { mutate: updateTags, isPending: isUpdatingTags } = useUpdatePageTags(
     currentPage ?? null,
     mutatePage,
-    () => {
+    (newPage) => {
       // 刷新全局数据
       refreshAllData();
+      // 如果页面被删除（newPage 为 null），清空当前页面状态
+      if (newPage === null) {
+        mutatePage(null);
+        // 重新获取当前 URL，可能会获取到新的页面或返回 undefined
+        fetchCurrentUrl(false, false).catch(console.error);
+      }
+    },
+    () => {
+      // 页面被删除时的乐观更新回调
+      // 立即清空当前页面状态
+      mutatePage(null);
     }
   );
 

@@ -121,7 +121,8 @@ export function isValidPageCollection(collection: unknown): collection is PageCo
  */
 export function normalizeTaggedPage(page: unknown): TaggedPage | null {
   if (!page || typeof page !== 'object') {
-    logger.warn('normalizeTaggedPage: page is not an object', { page });
+    // 降级为 debug 级别，因为数据已自动修复（返回 null）
+    logger.debug('normalizeTaggedPage: page is not an object', { pageType: typeof page });
     return null;
   }
 
@@ -137,7 +138,8 @@ export function normalizeTaggedPage(page: unknown): TaggedPage | null {
   
   // 如果缺少必需字段，返回 null
   if (!id || !url) {
-    logger.warn('normalizeTaggedPage: missing required fields', { id, url, page });
+    // 降级为 debug 级别，因为数据已自动修复（返回 null）
+    logger.debug('normalizeTaggedPage: missing required fields', { hasId: !!id, hasUrl: !!url });
     return null;
   }
   
@@ -304,20 +306,48 @@ export function normalizePageCollection(collection: unknown): PageCollection {
   const normalized: PageCollection = {};
   
   if (!collection || typeof collection !== 'object' || Array.isArray(collection)) {
-    logger.warn('normalizePageCollection: invalid collection type', { collection });
+    // 降级为 debug 级别，因为可能是正常的空数据或原子化存储场景
+    logger.debug('normalizePageCollection: invalid collection type (may be empty or atomic storage)', { 
+      collectionType: Array.isArray(collection) ? 'array' : typeof collection 
+    });
     return normalized;
   }
 
   const coll = collection as Record<string, unknown>;
   
+  // 收集所有无效页面的信息，批量报告
+  const invalidPages: Array<{ key: string; reason: string }> = [];
+  
   // 规范化每个页面
   for (const key in coll) {
-    const normalizedPage = normalizeTaggedPage(coll[key]);
+    const pageValue = coll[key];
+    
+    // 跳过明显无效的值（null, undefined, 非对象）
+    if (!pageValue || typeof pageValue !== 'object') {
+      invalidPages.push({ key, reason: 'not an object' });
+      continue;
+    }
+    
+    const normalizedPage = normalizeTaggedPage(pageValue);
     if (normalizedPage) {
       normalized[key] = normalizedPage;
     } else {
-      logger.warn('normalizePageCollection: skipping invalid page', { key, page: coll[key] });
+      // 检查是否是缺少必需字段
+      const p = pageValue as Record<string, unknown>;
+      const hasId = typeof p.id === 'string' && p.id;
+      const hasUrl = typeof p.url === 'string' && p.url;
+      const reason = !hasId || !hasUrl ? 'missing required fields' : 'invalid format';
+      invalidPages.push({ key, reason });
     }
+  }
+  
+  // 批量报告无效页面（只在有无效页面时报告）
+  if (invalidPages.length > 0) {
+    // 降级为 debug 级别，因为数据已自动修复（无效页面被跳过）
+    logger.debug('normalizePageCollection: skipped invalid pages', { 
+      count: invalidPages.length,
+      invalidPages: invalidPages.slice(0, 10) // 只报告前 10 个，避免日志过长
+    });
   }
   
   return normalized;

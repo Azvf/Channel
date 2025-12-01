@@ -42,6 +42,10 @@ export class GameplayStore {
   private _tagToPages: Map<string, Set<string>> = new Map(); // tagId -> Set<pageId>
   private _tagNameToId: Map<string, string> = new Map(); // tagName (lowercase) -> tagId
   
+  // page_index 内存缓存：避免每次写入都读取 storage
+  private _pageIndexCache: string[] | null = null;
+  private _deletedPageIds: Set<string> = new Set(); // 跟踪已删除的页面 ID，用于更新 page_index
+  
   public get isInitialized(): boolean {
     return this._isInitialized;
   }
@@ -116,12 +120,40 @@ export class GameplayStore {
       // 构建内存索引
       this.rebuildIndices();
       
+      // 初始化 page_index 缓存（异步加载，不阻塞初始化）
+      this.loadPageIndexCache().catch((error) => {
+        console.warn('[GameplayStore] 加载 page_index 缓存失败（不影响初始化）:', error);
+      });
+      
       this._isInitialized = true; // 标记为已初始化
       this.notifyListeners(); // 通知 UI
     } catch (error) {
       console.error('GameplayStore 初始化失败:', error);
       this._isInitialized = false; // 失败时重置
       throw error;
+    }
+  }
+  
+  /**
+   * 加载 page_index 到内存缓存
+   * 如果 page_index 不存在，从现有页面数据重建
+   */
+  private async loadPageIndexCache(): Promise<void> {
+    try {
+      const pageIndex = await storageService.get<string[]>('page_index');
+      if (pageIndex && pageIndex.length > 0) {
+        this._pageIndexCache = pageIndex;
+      } else {
+        // 如果 page_index 不存在，从现有页面数据重建
+        this._pageIndexCache = Object.keys(this.pages);
+        // 异步保存重建的索引（不阻塞）
+        storageService.set('page_index', this._pageIndexCache).catch((error) => {
+          console.warn('[GameplayStore] 保存重建的 page_index 失败:', error);
+        });
+      }
+    } catch (error) {
+      // 如果读取失败，从现有页面数据重建
+      this._pageIndexCache = Object.keys(this.pages);
     }
   }
   
@@ -952,11 +984,36 @@ export class GameplayStore {
               await storageService.setMultiple(batchData);
             }
             
-            // 3. 更新索引：存储所有 page_id 列表（需要读取现有索引并合并）
-            const existingIndex = await storageService.get<string[]>('page_index') || [];
-            const pageIndexSet = new Set([...existingIndex, ...changedPageIds]);
-            const pageIndex = Array.from(pageIndexSet);
-            await storageService.set('page_index', pageIndex);
+            // 3. 更新索引：使用内存缓存，避免每次读取 storage
+            // 如果缓存未初始化，从 storage 加载（仅首次）
+            if (this._pageIndexCache === null) {
+              this._pageIndexCache = await storageService.get<string[]>('page_index') || [];
+            }
+            
+            // 更新内存缓存：添加新页面，移除已删除页面
+            const pageIndexSet = new Set(this._pageIndexCache);
+            
+            // 添加新页面
+            changedPageIds.forEach(id => {
+              if (this.pages[id]) {
+                pageIndexSet.add(id);
+              }
+            });
+            
+            // 移除已删除页面
+            this._deletedPageIds.forEach(id => {
+              pageIndexSet.delete(id);
+            });
+            
+            this._pageIndexCache = Array.from(pageIndexSet);
+            
+            // 异步写入 storage（不阻塞）
+            storageService.set('page_index', this._pageIndexCache).catch((error) => {
+              console.error('[GameplayStore] 更新 page_index 失败:', error);
+            });
+            
+            // 清空已删除页面集合
+            this._deletedPageIds.clear();
           }
           // 如果没有页面变化（_changedPageIds 为空），不保存页面（增量存储优化）
         } else {
@@ -1181,14 +1238,22 @@ export class GameplayStore {
    * @returns 成功或失败
    */
   public deleteTag(tagId: string): boolean {
+    const startTime = performance.now();
     const tagToDelete = this.tags[tagId];
     if (!tagToDelete) {
       return false; // 标签不存在
     }
 
-    // 1. 使用索引优化：从 O(N×M) 降到 O(M)，M 是使用该标签的页面数
+    // 性能监控：收集受影响的页面数量
     const pageIds = this._tagToPages.get(tagId);
+    const affectedPageCount = pageIds ? pageIds.size : 0;
+    const bindingsCount = Array.isArray(tagToDelete.bindings) ? tagToDelete.bindings.length : 0;
+
+    // 1. 批量处理页面更新：先收集所有需要更新的页面，然后批量更新
+    // 优化：减少 markDirty 调用次数，批量处理页面更新
+    const affectedPageIds: string[] = [];
     if (pageIds) {
+      const now = timeService.now();
       for (const pageId of pageIds) {
         const page = this.pages[pageId];
         if (page) {
@@ -1199,11 +1264,15 @@ export class GameplayStore {
           const index = page.tags.indexOf(tagId);
           if (index > -1) {
             page.tags.splice(index, 1);
-            page.updatedAt = timeService.now();
-            this.markDirty(pageId);
+            page.updatedAt = now; // 使用统一的时间戳
+            affectedPageIds.push(pageId);
           }
         }
       }
+      // 批量标记所有受影响的页面为 dirty
+      affectedPageIds.forEach(pageId => {
+        this.markDirty(pageId);
+      });
       // 清理索引
       this._tagToPages.delete(tagId);
     }
@@ -1211,6 +1280,7 @@ export class GameplayStore {
     // 2. 清理与其他标签的绑定关系
     const bindings = Array.isArray(tagToDelete.bindings) ? tagToDelete.bindings : [];
     if (bindings.length > 0) {
+      const now = timeService.now();
       bindings.forEach(otherId => {
         const otherTag = this.tags[otherId];
         if (otherTag) {
@@ -1219,7 +1289,7 @@ export class GameplayStore {
             otherTag.bindings = [];
           }
           otherTag.bindings = otherTag.bindings.filter(id => id !== tagId);
-          otherTag.updatedAt = timeService.now();
+          otherTag.updatedAt = now; // 使用统一的时间戳
           this.markDirty(undefined, otherId);
         }
       });
@@ -1232,7 +1302,58 @@ export class GameplayStore {
     this._tagNameToId.delete(tagToDelete.name.toLowerCase());
     
     this.markDirty(undefined, tagId);
+    
+    // 性能监控：记录删除操作耗时
+    const duration = performance.now() - startTime;
+    if (duration > 10 || affectedPageCount > 10) {
+      console.log(`[GameplayStore] deleteTag 性能监控:`, {
+        tagId,
+        duration: `${duration.toFixed(2)}ms`,
+        affectedPages: affectedPageCount,
+        affectedBindings: bindingsCount,
+      });
+    }
+    
+    // 只在最后调用一次 notifyListeners，减少 UI 重渲染次数
     this.notifyListeners(); // 通知 UI
+    return true;
+  }
+
+  /**
+   * 删除页面
+   * 会清理页面与标签的关联关系
+   */
+  public deletePage(pageId: string): boolean {
+    const pageToDelete = this.pages[pageId];
+    if (!pageToDelete) {
+      return false; // 页面不存在
+    }
+
+    const log = logger('GameplayStore');
+
+    // 1. 清理页面与标签的关联关系（从索引中移除）
+    const tags = Array.isArray(pageToDelete.tags) ? pageToDelete.tags : [];
+    for (const tagId of tags) {
+      const pageSet = this._tagToPages.get(tagId);
+      if (pageSet) {
+        pageSet.delete(pageId);
+        // 如果该标签没有关联任何页面，清理索引条目
+        if (pageSet.size === 0) {
+          this._tagToPages.delete(tagId);
+        }
+      }
+    }
+
+    // 2. 删除页面本身
+    delete this.pages[pageId];
+    
+    // 3. 标记为已删除，用于在 saveToStorage 时从 page_index 移除
+    this._deletedPageIds.add(pageId);
+    
+    this.markDirty(pageId);
+    this.notifyListeners(); // 通知 UI
+    
+    log.debug('deletePage: removed', { pageId, hadTags: tags.length });
     return true;
   }
 

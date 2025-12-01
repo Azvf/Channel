@@ -8,7 +8,7 @@ import { currentPageService, backgroundApi } from '../../../services/popup/curre
 import { TaggedPage } from '../../../shared/types/gameplayTag';
 import { queryKeys } from '../../../lib/queryKeys';
 import { createOptimisticUpdate, updatePageInCollection } from '../../utils/optimisticUpdate';
-import { STORAGE_KEYS } from '../../../services/storageService';
+import { STORAGE_KEYS, storageService } from '../../../services/storageService';
 
 /**
  * 页面标题更新 Hook
@@ -172,19 +172,21 @@ export function usePageTagsMutation(
  */
 export function useUpdatePageTags(
   page: TaggedPage | null,
-  setPage: (p: TaggedPage) => void,
-  onSuccess?: (newPage: TaggedPage) => void
+  setPage: (p: TaggedPage | null) => void,
+  onSuccess?: (newPage: TaggedPage | null) => void,
+  onPageDeleted?: () => void
 ) {
   const queryClient = useQueryClient();
 
   if (!page) {
-    return useMutation<TaggedPage, Error, { tagsToAdd: string[]; tagsToRemove: string[] }>({
+    return useMutation<TaggedPage | null, Error, { tagsToAdd: string[]; tagsToRemove: string[] }>({
       mutationFn: () => Promise.reject(new Error('Page not loaded')),
     });
   }
 
   // 定义 transform 函数，用于计算更新后的页面
-  const transformPage = (params: { tagsToAdd: string[]; tagsToRemove: string[] }, previous: TaggedPage | undefined): TaggedPage => {
+  // 注意：如果页面没有 tag 了，但在当前页面，不会删除页面（由后端逻辑处理）
+  const transformPage = (params: { tagsToAdd: string[]; tagsToRemove: string[] }, previous: TaggedPage | undefined): TaggedPage | null => {
     const current = previous || page;
     const newTags = [...current.tags];
     
@@ -203,64 +205,188 @@ export function useUpdatePageTags(
       }
     });
     
+    // 如果页面没有 tag 了，返回 null 表示可能删除页面
+    // 但后端会检查是否在当前页面，如果在当前页面则保留页面
+    if (newTags.length === 0) {
+      return null;
+    }
+    
     return { ...current, tags: newTags };
   };
 
-  const optimisticHooks = createOptimisticUpdate<TaggedPage, { tagsToAdd: string[]; tagsToRemove: string[] }>(
-    queryClient,
-    {
-      queryKey: queryKeys.currentPage(page.url),
-      storageKey: STORAGE_KEYS.PAGES,
-      transform: transformPage,
-      syncFn: async (params) => {
-        await currentPageService.updatePageTags(page.id, params);
-      },
-      onError: (error, context) => {
-        console.error('[useUpdatePageTags] 更新失败:', error);
-        if (context.previous) {
-          setPage(context.previous);
-        }
-      },
-    }
-  );
-
   return useMutation({
     mutationFn: async (params: { tagsToAdd: string[]; tagsToRemove: string[] }) => {
+      // 调用后端更新标签
+      // 后端会检查：如果页面没有 tag 了，检查是否在当前页面
+      // - 如果在当前页面，保留页面（只是没有 tag）
+      // - 如果不在当前页面，删除页面
       const result = await currentPageService.updatePageTags(page.id, params);
+      // result.newPage 可能是 null（如果页面被删除），也可能是页面对象（如果保留页面）
       return result.newPage;
     },
     onMutate: async (params) => {
-      // 更新 Storage 中的页面集合
-      await updatePageInCollection(page.id, (current) => transformPage(params, current));
+      // 取消正在进行的查询
+      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage(page.url) });
+
+      // 获取旧数据快照
+      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage(page.url)) || page;
+
+      // 计算更新后的页面
+      const updatedPage = transformPage(params, previousPage);
+
+      // 检查是否是临时页面
+      const isTemporaryPage = page.id.startsWith('temp_');
       
-      const context = await optimisticHooks.onMutate(params);
-      
-      // 更新本地状态
-      const updatedPage = transformPage(params, context.previous);
-      setPage(updatedPage);
-      
-      return { ...context, previousPage: context.previous, pageUrl: page.url };
-    },
-    onSuccess: (newPage, _params) => {
-      // 更新缓存（使用新页面的URL，因为URL可能包含时间戳变化）
-      const pageUrl = newPage.url;
-      const currentPageKey = queryKeys.currentPage(pageUrl);
-      queryClient.setQueryData(currentPageKey, newPage);
-      setPage(newPage);
-      
-      // 更新 Storage
-      updatePageInCollection(page.id, () => newPage).catch(console.error);
-      
-      // 调用成功回调
-      onSuccess?.(newPage);
-    },
-    onError: (error, params, context) => {
-      optimisticHooks.onError(error, params, context);
-    },
-    onSettled: (data, error, variables, context) => {
-      if (data && context) {
-        optimisticHooks.onSettled(data, error, variables, context);
+      // 如果页面没有 tag 了，后端会检查是否在当前页面
+      // - 如果在当前页面，保留页面（只是没有 tag）
+      // - 如果不在当前页面，删除页面
+      // 所以这里先执行乐观更新，假设页面会被保留（如果用户在当前页面）
+      // 如果后端返回 null，说明页面被删除了，在 onSuccess 中处理
+      if (updatedPage === null) {
+        // 页面没有 tag 了，但后端可能会保留（如果用户在当前页面）
+        // 先更新为没有 tag 的页面（乐观更新）
+        const pageWithoutTags = { ...previousPage, tags: [] };
+        
+        // 临时页面不写入Storage（不持久化）
+        if (!isTemporaryPage) {
+          const pageKey = `page::${page.id}`;
+          try {
+            await storageService.set(pageKey, pageWithoutTags);
+          } catch (error) {
+            console.error('[useUpdatePageTags] 更新原子化存储失败:', error);
+            // 降级到集合存储
+            await updatePageInCollection(page.id, () => pageWithoutTags);
+          }
+        }
+
+        // 更新 React Query 缓存
+        queryClient.setQueryData(queryKeys.currentPage(page.url), pageWithoutTags);
+
+        // 更新本地状态（保留页面，只是没有 tag）
+        setPage(pageWithoutTags);
+
+        return { previousPage, pageUrl: page.url, pageId: page.id, wasDeleted: false, updatedPage: pageWithoutTags };
+      } else {
+        // 正常更新页面的乐观更新
+        // 临时页面不写入Storage（不持久化）
+        if (!isTemporaryPage) {
+          const pageKey = `page::${page.id}`;
+          try {
+            await storageService.set(pageKey, updatedPage);
+          } catch (error) {
+            console.error('[useUpdatePageTags] 更新原子化存储失败:', error);
+            // 降级到集合存储
+            await updatePageInCollection(page.id, () => updatedPage);
+          }
+        }
+
+        // 更新 React Query 缓存
+        queryClient.setQueryData(queryKeys.currentPage(page.url), updatedPage);
+
+        // 更新本地状态
+        setPage(updatedPage);
+
+        return { previousPage, pageUrl: page.url, pageId: page.id, wasDeleted: false, updatedPage };
       }
+    },
+    onSuccess: (newPage, _params, context) => {
+      if (newPage === null) {
+        // 页面已删除（用户不在当前页面）
+        // 从 React Query 缓存中移除页面
+        queryClient.removeQueries({ queryKey: queryKeys.currentPage(page.url) });
+
+        // 从 Storage 中移除页面（使用原子化存储）
+        // 注意：临时页面不需要从Storage移除，因为它们本来就不在Storage中
+        const wasTemporary = page.id.startsWith('temp_');
+        if (!wasTemporary) {
+          const pageKey = `page::${page.id}`;
+          storageService.remove(pageKey).catch((error) => {
+            console.error('[useUpdatePageTags] 从 Storage 移除页面失败:', error);
+          });
+        }
+
+        // 更新本地状态为 null
+        setPage(null);
+
+        // 触发页面删除回调
+        onPageDeleted?.();
+
+        onSuccess?.(null);
+      } else {
+        // 检查是否是临时页面转换为持久化页面
+        const wasTemporary = context?.pageId?.startsWith('temp_') || false;
+        const isNowPersistent = !newPage.id.startsWith('temp_');
+        
+        if (wasTemporary && isNowPersistent) {
+          // 临时页面转换为持久化页面
+          // 清除旧临时页面的缓存
+          queryClient.removeQueries({ queryKey: queryKeys.currentPage(page.url) });
+          // 设置新持久化页面的缓存
+          queryClient.setQueryData(queryKeys.currentPage(newPage.url), newPage);
+          
+          // 更新本地状态
+          setPage(newPage);
+          
+          // 持久化页面需要写入Storage
+          const pageKey = `page::${newPage.id}`;
+          storageService.set(pageKey, newPage).catch((error) => {
+            console.error('[useUpdatePageTags] 更新原子化存储失败，降级到集合存储:', error);
+            // 降级到集合存储
+            updatePageInCollection(newPage.id, () => newPage).catch(console.error);
+          });
+        } else if (wasTemporary && !isNowPersistent) {
+          // 仍然是临时页面（删除所有tag后）
+          // 更新缓存（使用新页面的URL，因为临时页面ID可能变化）
+          const pageUrl = newPage.url;
+          queryClient.setQueryData(queryKeys.currentPage(pageUrl), newPage);
+          
+          // 更新本地状态
+          setPage(newPage);
+          
+          // 临时页面不写入Storage（不持久化）
+        } else {
+          // 持久化页面的正常更新
+          // 更新缓存（使用新页面的URL，因为URL可能包含时间戳变化）
+          const pageUrl = newPage.url;
+          const currentPageKey = queryKeys.currentPage(pageUrl);
+          queryClient.setQueryData(currentPageKey, newPage);
+          
+          // 更新本地状态
+          setPage(newPage);
+          
+          // 更新 Storage（优先使用原子化存储）
+          const pageKey = `page::${newPage.id}`;
+          storageService.set(pageKey, newPage).catch((error) => {
+            console.error('[useUpdatePageTags] 更新原子化存储失败，降级到集合存储:', error);
+            // 降级到集合存储
+            updatePageInCollection(newPage.id, () => newPage).catch(console.error);
+          });
+        }
+        
+        // 调用成功回调
+        onSuccess?.(newPage);
+      }
+    },
+    onError: (error, _params, context) => {
+      console.error('[useUpdatePageTags] 更新失败:', error);
+
+      // 回滚：恢复旧页面
+      if (context?.previousPage) {
+        queryClient.setQueryData(queryKeys.currentPage(context.pageUrl), context.previousPage);
+        setPage(context.previousPage);
+
+        // 如果之前删除了页面，需要恢复 Storage
+        if (context.wasDeleted) {
+          const pageKey = `page::${context.pageId}`;
+          storageService.set(pageKey, context.previousPage).catch(console.error);
+        } else {
+          // 如果之前更新了页面，需要恢复 Storage
+          updatePageInCollection(context.pageId, () => context.previousPage).catch(console.error);
+        }
+      }
+    },
+    onSettled: () => {
+      // 不需要额外的 settled 处理
     },
     retry: 2,
   });
@@ -353,6 +479,79 @@ export function useUpdatePageDetails(
       if (data && context && typeof context === 'object' && 'previous' in context && 'queryKey' in context && 'storageKey' in context) {
         optimisticHooks.onSettled(data, error, variables, context as any);
       }
+    },
+    retry: 2,
+  });
+}
+
+/**
+ * 删除页面 Hook
+ * 使用乐观更新规范
+ */
+export function useDeletePage(
+  page: TaggedPage | null,
+  onOptimisticUpdate?: () => void,
+  onRollback?: (page: TaggedPage) => void
+) {
+  const queryClient = useQueryClient();
+
+  if (!page) {
+    return useMutation<void, Error, void>({
+      mutationFn: () => Promise.reject(new Error('Page not loaded')),
+    });
+  }
+
+  return useMutation({
+    mutationFn: async () => {
+      return currentPageService.deletePage(page.id);
+    },
+    onMutate: async () => {
+      // 取消正在进行的查询
+      await queryClient.cancelQueries({ queryKey: queryKeys.currentPage(page.url) });
+
+      // 获取旧数据快照
+      const previousPage = queryClient.getQueryData<TaggedPage>(queryKeys.currentPage(page.url));
+
+      // 从 React Query 缓存中移除页面
+      queryClient.removeQueries({ queryKey: queryKeys.currentPage(page.url) });
+
+      // 从 Storage 中移除页面（使用原子化存储）
+      const pageKey = `page::${page.id}`;
+      try {
+        await storageService.remove(pageKey);
+      } catch (error) {
+        console.error('[useDeletePage] 从 Storage 移除页面失败:', error);
+      }
+
+      // 触发远端同步（fire-and-forget）
+      backgroundApi.deletePage(page.id).catch(console.error);
+
+      // 乐观更新：调用回调
+      onOptimisticUpdate?.();
+
+      return { previousPage, pageUrl: page.url, pageId: page.id };
+    },
+    onError: (error, _variables, context) => {
+      console.error('删除页面失败:', error);
+
+      // 回滚缓存
+      if (context?.previousPage) {
+        queryClient.setQueryData(queryKeys.currentPage(context.pageUrl), context.previousPage);
+      }
+
+      // 回滚 Storage
+      if (context?.previousPage) {
+        const pageKey = `page::${context.pageId}`;
+        storageService.set(pageKey, context.previousPage).catch(console.error);
+      }
+
+      // 回滚：恢复页面
+      if (context?.previousPage) {
+        onRollback?.(context.previousPage);
+      }
+    },
+    onSettled: () => {
+      // 删除操作不需要额外的 settled 处理
     },
     retry: 2,
   });

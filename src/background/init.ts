@@ -4,7 +4,7 @@
 import { GameplayStore } from '../services/gameplayStore';
 import { syncStorageService, storageService, STORAGE_KEYS } from '../services/storageService';
 import { syncService } from '../services/syncService';
-import { TagsCollection, PageCollection } from '../shared/types/gameplayTag';
+import { TagsCollection, PageCollection, TaggedPage } from '../shared/types/gameplayTag';
 
 const gameplayStore = GameplayStore.getInstance();
 let initPromise: Promise<void> | null = null;
@@ -22,19 +22,60 @@ export async function getInitializationPromise(): Promise<void> {
     try {
       console.log('Background: 启动初始化...');
 
-      const data = await storageService.getMultiple([
-        STORAGE_KEYS.TAGS,
-        STORAGE_KEYS.PAGES,
-        STORAGE_KEYS.PAGE_SETTINGS,
-      ]);
+      // 优先使用原子化存储加载页面数据
+      let pages: PageCollection = {};
+      let tags: TagsCollection | null = null;
+      
+      try {
+        // 尝试从原子化存储加载
+        const pageIndex = await storageService.get<string[]>('page_index');
+        if (pageIndex && pageIndex.length > 0) {
+          const pagePromises = pageIndex.map(async (pageId) => {
+            const atomicKey = `page::${pageId}`;
+            return await storageService.get<TaggedPage>(atomicKey);
+          });
+          const loadedPages = (await Promise.all(pagePromises)).filter((page): page is TaggedPage => page !== null);
+          
+          // 转换为 Collection 格式
+          for (const page of loadedPages) {
+            pages[page.id] = page;
+          }
+        }
+      } catch (error) {
+        console.warn('Background: 从原子化存储加载页面失败，尝试集合存储:', error);
+      }
+      
+      // 如果原子化存储中没有数据，尝试从集合存储加载（向后兼容）
+      if (Object.keys(pages).length === 0) {
+        const data = await storageService.getMultiple([
+          STORAGE_KEYS.TAGS,
+          STORAGE_KEYS.PAGES,
+          STORAGE_KEYS.PAGE_SETTINGS,
+        ]);
+        pages = (data[STORAGE_KEYS.PAGES] as PageCollection | null) ?? {};
+        tags = (data[STORAGE_KEYS.TAGS] as TagsCollection | null) ?? null;
+        // 读取页面设置（保持加载以初始化存储状态）
+        void data[STORAGE_KEYS.PAGE_SETTINGS];
+      } else {
+        // 如果原子化存储有数据，仍然需要加载 TAGS 和 PAGE_SETTINGS
+        const data = await storageService.getMultiple([
+          STORAGE_KEYS.TAGS,
+          STORAGE_KEYS.PAGE_SETTINGS,
+        ]);
+        tags = (data[STORAGE_KEYS.TAGS] as TagsCollection | null) ?? null;
+        // 读取页面设置（保持加载以初始化存储状态）
+        void data[STORAGE_KEYS.PAGE_SETTINGS];
+      }
+
+      // 如果 tags 还没有加载，单独加载
+      if (tags === null) {
+        tags = await storageService.get<TagsCollection>(STORAGE_KEYS.TAGS) ?? null;
+      }
 
       gameplayStore.initialize({
-        tags: data[STORAGE_KEYS.TAGS] as TagsCollection | null,
-        pages: data[STORAGE_KEYS.PAGES] as PageCollection | null,
+        tags: tags,
+        pages: pages,
       });
-
-      // 读取页面设置（保持加载以初始化存储状态）
-      void data[STORAGE_KEYS.PAGE_SETTINGS];
 
       // ✅ 性能优化：延迟初始化同步服务，不阻塞首次操作
       // 同步服务在后台异步初始化，允许首次操作立即返回

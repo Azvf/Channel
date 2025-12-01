@@ -115,11 +115,13 @@ export function registerRpcHandler<T extends object>(service: T): void {
           const isCriticalOperation = method === 'importData' || method === 'importBookmarks';
           
           if (!isReadOnly) {
-            // 写入操作：关键操作立即提交，其他操作使用防抖提交
+            // 写入操作：关键操作立即提交，其他操作使用防抖提交（不阻塞响应）
             if (isCriticalOperation) {
               await gameplayStore.commitImmediate();
             } else {
-              await gameplayStore.commitDebounced();
+              // 性能优化：不等待防抖提交，让存储写入在后台异步完成
+              // RPC 调用可以立即返回，提升用户体验（UI 已使用乐观更新）
+              gameplayStore.commitDebounced();
             }
           }
           // 读取操作不提交，避免不必要的存储写入

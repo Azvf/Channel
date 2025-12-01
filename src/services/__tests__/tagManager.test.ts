@@ -953,6 +953,47 @@ describe('GameplayStore', () => {
       expect(updatedPageB?.tags).not.toContain(tagA.id);
     });
 
+    it('deleteTag 性能测试：删除被大量页面使用的标签', () => {
+      // 创建一个标签
+      const tagToDelete = store.createTag('PopularTag');
+      
+      // 创建 150 个页面并都添加该标签
+      const pageCount = 150;
+      const pageIds: string[] = [];
+      for (let i = 0; i < pageCount; i++) {
+        const page = store.createOrUpdatePage(
+          `https://example${i}.com`,
+          `Page ${i}`,
+          `example${i}.com`
+        );
+        pageIds.push(page.id);
+        store.addTagToPage(page.id, tagToDelete.id);
+      }
+
+      // 验证标签被正确添加到所有页面
+      expect(store.getTaggedPages(tagToDelete.id).length).toBe(pageCount);
+
+      // 性能测试：删除标签
+      const startTime = performance.now();
+      const deleteResult = store.deleteTag(tagToDelete.id);
+      const duration = performance.now() - startTime;
+
+      // 验证删除成功
+      expect(deleteResult).toBe(true);
+      expect(store.getTagById(tagToDelete.id)).toBeUndefined();
+
+      // 验证所有页面的标签都被移除
+      for (const pageId of pageIds) {
+        const page = store.getPageById(pageId);
+        expect(page?.tags).not.toContain(tagToDelete.id);
+      }
+
+      // 性能断言：删除 150 个页面的标签应该在 100ms 内完成
+      // 优化前可能需要 500ms+，优化后应该 < 100ms
+      expect(duration).toBeLessThan(100);
+      console.log(`[性能测试] 删除被 ${pageCount} 个页面使用的标签耗时: ${duration.toFixed(2)}ms`);
+    });
+
     it('应该清理标签的绑定关系', () => {
       const tag1 = store.createTag('前端');
       const tag2 = store.createTag('后端');

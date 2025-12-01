@@ -17,7 +17,7 @@ const logger = createLogger('usePageCache');
 
 export interface UsePageCacheReturn {
   queryFn: QueryFunction<TaggedPage>;
-  mutatePage: (newPage: TaggedPage) => void;
+  mutatePage: (newPage: TaggedPage | null) => void;
   getCachedPage: (url: string) => TaggedPage | undefined;
   isCacheMatched: (url: string) => boolean;
 }
@@ -109,9 +109,19 @@ export function usePageCache(
   /**
    * 更新页面缓存
    * 使用页面对象中的 URL 作为缓存键，确保缓存键始终正确
+   * 如果传入 null，则清除当前 URL 的缓存
    */
   const mutatePage = useCallback(
-    (newPage: TaggedPage) => {
+    (newPage: TaggedPage | null) => {
+      if (newPage === null) {
+        // 如果传入 null，清除当前 URL 的缓存
+        const urlForCache = currentUrlRef.current;
+        if (urlForCache) {
+          queryClient.removeQueries({ queryKey: queryKeys.currentPage(urlForCache) });
+        }
+        return;
+      }
+
       // 优先使用页面对象中的 URL，如果没有则使用 currentUrl（降级策略）
       const urlForCache = newPage.url || currentUrlRef.current;
       if (urlForCache) {

@@ -103,6 +103,13 @@ class CurrentPageService {
   }
 
   /**
+   * 删除页面
+   */
+  async deletePage(pageId: string): Promise<void> {
+    return backgroundApi.deletePage(pageId);
+  }
+
+  /**
    * 获取所有已标记的页面
    */
   async getAllTaggedPages() {
