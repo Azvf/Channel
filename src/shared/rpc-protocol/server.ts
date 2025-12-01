@@ -39,6 +39,22 @@ function isWriteOperation(method: string): boolean {
 }
 
 /**
+ * 判断方法是否为纯读取操作（用于优化：读取操作不提交事务）
+ */
+function isReadOnlyOperation(method: string): boolean {
+  const readOnlyMethods = [
+    'getCurrentPage',
+    'getAllTags',
+    'getAllTaggedPages',
+    'getUserStats',
+    'getAllTagUsageCounts',
+    'exportData',
+    'getTabInfo'
+  ];
+  return readOnlyMethods.includes(method);
+}
+
+/**
  * RPC 服务端注册器
  */
 export function registerRpcHandler<T extends object>(service: T): void {
@@ -94,9 +110,19 @@ export function registerRpcHandler<T extends object>(service: T): void {
           const result = await handler.apply(service, args);
 
           // 6. 事务提交 (Atomic Commit)
-          // 只有业务逻辑成功才提交。
-          // 如果 gameplayStore.commit() 失败，这里会抛出异常，sendResponse 会返回错误给前端
-          await gameplayStore.commit();
+          // 性能优化：读取操作跳过提交，写入操作使用防抖提交
+          const isReadOnly = isReadOnlyOperation(method);
+          const isCriticalOperation = method === 'importData' || method === 'importBookmarks';
+          
+          if (!isReadOnly) {
+            // 写入操作：关键操作立即提交，其他操作使用防抖提交
+            if (isCriticalOperation) {
+              await gameplayStore.commitImmediate();
+            } else {
+              await gameplayStore.commitDebounced();
+            }
+          }
+          // 读取操作不提交，避免不必要的存储写入
 
           // 注意：同步逻辑由业务层（BackgroundServiceImpl）精细控制
           // 业务层会调用 syncService.markTagChange() 或 syncService.markPageChange()

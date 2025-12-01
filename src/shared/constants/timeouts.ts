@@ -18,5 +18,12 @@ export const TIMEOUTS = {
    * 选择 2 秒的原因：平衡数据新鲜度和性能开销，避免短时间内重复分析同一页面
    */
   PAGE_CACHE_DEBOUNCE: 2000,
+  
+  /** 
+   * 2秒 - 标签页缓存有效期
+   * 用于 BackgroundServiceImpl 中缓存当前活动标签页信息
+   * 选择 2 秒的原因：chrome.tabs.query 调用成本较高（~50ms），短时间内重复调用可复用缓存，提升 getCurrentPage 响应速度
+   */
+  TAB_CACHE_TTL: 2000,
 } as const;
 

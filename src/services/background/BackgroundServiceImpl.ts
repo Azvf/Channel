@@ -17,6 +17,63 @@ const gameplayStore = GameplayStore.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
 
 /**
+ * 标签页缓存：缓存当前活动标签页信息，避免频繁查询 chrome.tabs.query
+ * 性能优化：chrome.tabs.query 调用成本较高（~50ms），短时间内重复调用可复用缓存
+ */
+interface TabCache {
+  tabId: number;
+  url: string;
+  title: string;
+  favIconUrl?: string;
+  timestamp: number; // 缓存时间戳
+}
+
+let tabCache: TabCache | null = null;
+
+/**
+ * 初始化标签页缓存监听器
+ */
+function initializeTabCache(): void {
+  // 监听标签页更新
+  chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+    // 只缓存活动标签页的更新
+    if (tab.active && tab.url && !tab.url.startsWith('about:')) {
+      if (changeInfo.url || changeInfo.title || changeInfo.favIconUrl) {
+        tabCache = {
+          tabId: tab.id!,
+          url: tab.url,
+          title: tab.title || '',
+          favIconUrl: tab.favIconUrl,
+          timestamp: Date.now()
+        };
+      }
+    }
+  });
+
+  // 监听标签页激活
+  chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    try {
+      const tab = await chrome.tabs.get(activeInfo.tabId);
+      if (tab.url && !tab.url.startsWith('about:')) {
+        tabCache = {
+          tabId: tab.id!,
+          url: tab.url,
+          title: tab.title || '',
+          favIconUrl: tab.favIconUrl,
+          timestamp: Date.now()
+        };
+      }
+    } catch (_error) {
+      // 静默失败，标签页可能已关闭
+      tabCache = null;
+    }
+  });
+}
+
+// 初始化标签页缓存监听器
+initializeTabCache();
+
+/**
  * 获取页面设置
  */
 async function getPageSettings(): Promise<PageSettings> {
@@ -134,30 +191,53 @@ export class BackgroundServiceImpl implements IBackgroundApi {
         tab = tabs[0];
         tabId = tab?.id;
       } else {
-        // 降级到查询 active tab（用于 popup 打开时的同步调用）
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        // 性能优化：优先使用缓存，避免频繁查询 chrome.tabs.query
+        const now = Date.now();
+        if (tabCache && (now - tabCache.timestamp) < TIMEOUTS.TAB_CACHE_TTL) {
+          // 缓存有效，直接使用
+          resolvedUrl = tabCache.url;
+          tabId = tabCache.tabId;
+          tab = {
+            id: tabCache.tabId,
+            url: tabCache.url,
+            title: tabCache.title,
+            favIconUrl: tabCache.favIconUrl
+          } as chrome.tabs.Tab;
+        } else {
+          // 缓存无效或不存在，查询并更新缓存
+          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
-        // 检查运行时错误（popup 关闭时 chrome.tabs.query 会失败）
-        if (chrome.runtime.lastError) {
-          console.warn('[getCurrentPage] Chrome runtime 错误（可能是 popup 已关闭）:', chrome.runtime.lastError.message);
-          throw new Error('Popup 窗口已关闭或无法访问标签页');
+          // 检查运行时错误（popup 关闭时 chrome.tabs.query 会失败）
+          if (chrome.runtime.lastError) {
+            console.warn('[getCurrentPage] Chrome runtime 错误（可能是 popup 已关闭）:', chrome.runtime.lastError.message);
+            throw new Error('Popup 窗口已关闭或无法访问标签页');
+          }
+
+          if (!tabs || tabs.length === 0) {
+            const errorMessage = '无法获取当前标签页';
+            console.warn('[getCurrentPage] 没有找到活动标签页（可能是 popup 已关闭）');
+            throw new Error(errorMessage);
+          }
+
+          tab = tabs[0];
+
+          if (!tab || !tab.id || !tab.url || tab.url.startsWith('about:')) {
+            console.error('[getCurrentPage] 无效的标签页信息 (URL 为空或 about:blank)');
+            throw new Error('无法在当前页面上操作 (页面尚未加载完成)');
+          }
+
+          resolvedUrl = tab.url;
+          tabId = tab.id;
+          
+          // 更新缓存
+          tabCache = {
+            tabId: tab.id,
+            url: tab.url,
+            title: tab.title || '',
+            favIconUrl: tab.favIconUrl,
+            timestamp: now
+          };
         }
-
-        if (!tabs || tabs.length === 0) {
-          const errorMessage = '无法获取当前标签页';
-          console.warn('[getCurrentPage] 没有找到活动标签页（可能是 popup 已关闭）');
-          throw new Error(errorMessage);
-        }
-
-        tab = tabs[0];
-
-        if (!tab || !tab.id || !tab.url || tab.url.startsWith('about:')) {
-          console.error('[getCurrentPage] 无效的标签页信息 (URL 为空或 about:blank)');
-          throw new Error('无法在当前页面上操作 (页面尚未加载完成)');
-        }
-
-        resolvedUrl = tab.url;
-        tabId = tab.id;
       }
 
     let domain: string;

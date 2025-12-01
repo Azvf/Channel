@@ -25,26 +25,31 @@ npm install
 
 1. 复制环境变量示例文件：
 ```bash
-cp .env.development.example .env.development
+cp .env.example .env
+# 或使用开发环境专用配置
+cp .env.example .env.development
 ```
 
-2. 编辑 `.env.development` 文件，填入你的 Supabase 配置：
+2. 编辑 `.env` 或 `.env.development` 文件，填入以下配置：
+
+**Chrome Extension 私钥（必需）**：
+```env
+EXTENSION_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...你的私钥内容...\n-----END PRIVATE KEY-----"
+```
+> 注意：私钥用于固定 Extension ID，确保多设备间 ID 一致。换行符必须使用 `\n` 转义。
+
+**Supabase 配置（必需）**：
 ```env
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
+> 这些值可以从 Supabase Dashboard -> Settings -> API 获取。
 
-这些值可以从 Supabase Dashboard -> Settings -> API 获取。
-
-### 开发密钥配置
-
-首次运行需要生成开发密钥（用于固定 Extension ID）：
-
+3. 运行密钥生成脚本验证配置：
 ```bash
 node scripts/bin/generate-keys.js
 ```
-
-然后在 Supabase Dashboard -> Authentication -> URL Configuration 中添加重定向 URL：
+这会输出你的 Extension ID，然后在 Supabase Dashboard -> Authentication -> URL Configuration 中添加重定向 URL：
 ```
 https://<你的Extension ID>.chromiumapp.org/
 ```

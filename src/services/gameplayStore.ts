@@ -28,6 +28,19 @@ export class GameplayStore {
   private tagRepo: ITagRepository | null = null;
   private pageRepo: IPageRepository | null = null;
   
+  // 防抖提交相关
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly DEBOUNCE_DELAY = 500; // 500ms 防抖延迟
+  private pendingCommit: Promise<void> | null = null; // 跟踪待处理的提交
+  
+  // 增量存储：跟踪变化的页面和标签 ID
+  private _changedPageIds: Set<string> = new Set();
+  private _changedTagIds: Set<string> = new Set();
+  
+  // 内存索引：提升查询性能
+  private _tagToPages: Map<string, Set<string>> = new Map(); // tagId -> Set<pageId>
+  private _tagNameToId: Map<string, string> = new Map(); // tagName (lowercase) -> tagId
+  
   public get isInitialized(): boolean {
     return this._isInitialized;
   }
@@ -97,12 +110,40 @@ export class GameplayStore {
     try {
       this.tags = data.tags ?? {};
       this.pages = data.pages ?? {};
+      
+      // 构建内存索引
+      this.rebuildIndices();
+      
       this._isInitialized = true; // 标记为已初始化
       this.notifyListeners(); // 通知 UI
     } catch (error) {
       console.error('GameplayStore 初始化失败:', error);
       this._isInitialized = false; // 失败时重置
       throw error;
+    }
+  }
+  
+  /**
+   * 重建内存索引（用于初始化和数据更新后）
+   * 性能优化：维护标签到页面的反向索引和标签名称索引，将查询操作从 O(N) 降到 O(1) 或 O(M)
+   */
+  private rebuildIndices(): void {
+    this._tagToPages.clear();
+    this._tagNameToId.clear();
+    
+    // 构建标签名称索引：优化 findTagByName 从 O(N) 到 O(1)
+    for (const [tagId, tag] of Object.entries(this.tags)) {
+      this._tagNameToId.set(tag.name.toLowerCase(), tagId);
+    }
+    
+    // 构建标签到页面的反向索引：优化 getTaggedPages 从 O(N) 到 O(M)，M 是使用该标签的页面数
+    for (const [pageId, page] of Object.entries(this.pages)) {
+      for (const tagId of page.tags) {
+        if (!this._tagToPages.has(tagId)) {
+          this._tagToPages.set(tagId, new Set());
+        }
+        this._tagToPages.get(tagId)!.add(pageId);
+      }
     }
   }
 
@@ -118,6 +159,10 @@ export class GameplayStore {
       if (data.pages !== undefined) {
         this.pages = data.pages ?? {};
       }
+      
+      // 重建索引以保持一致性
+      this.rebuildIndices();
+      
       this.notifyListeners(); // 通知 UI
     } catch (error) {
       console.error('GameplayStore 更新数据失败:', error);
@@ -148,8 +193,11 @@ export class GameplayStore {
 
     this.tags[id] = tag;
     
+    // 更新标签名称索引
+    this._tagNameToId.set(trimmedName.toLowerCase(), id);
+    
     // 关键：只标记，不保存
-    this.markDirty();
+    this.markDirty(undefined, id);
     
     this.notifyListeners(); // 通知 UI
     return tag;
@@ -178,7 +226,8 @@ export class GameplayStore {
     b.bindings = b.bindings.filter(id => id !== tagIdA);
     a.updatedAt = timeService.now();
     b.updatedAt = timeService.now();
-    this.markDirty();
+    this.markDirty(undefined, tagIdA);
+    this.markDirty(undefined, tagIdB);
     this.notifyListeners(); // 通知 UI
     return true;
   }
@@ -199,11 +248,13 @@ export class GameplayStore {
 
   /**
    * 根据名称查找标签（忽略大小写）
+   * 使用内存索引优化：从 O(N) 降到 O(1)
    */
   public findTagByName(name: string): GameplayTag | undefined {
     if (!name) return undefined;
     const trimmedName = name.trim().toLowerCase();
-    return this.getAllTags().find(tag => tag.name.toLowerCase() === trimmedName);
+    const tagId = this._tagNameToId.get(trimmedName);
+    return tagId ? this.tags[tagId] : undefined;
   }
 
   /**
@@ -233,9 +284,15 @@ export class GameplayStore {
     }
 
     // 3. 更新名称
+    const oldName = tag.name.toLowerCase();
     tag.name = trimmedName;
     tag.updatedAt = timeService.now();
-    this.markDirty();
+    
+    // 更新标签名称索引
+    this._tagNameToId.delete(oldName);
+    this._tagNameToId.set(trimmedName.toLowerCase(), tagId);
+    
+    this.markDirty(undefined, tagId);
     this.notifyListeners(); // 通知 UI
 
     return { success: true };
@@ -322,8 +379,15 @@ export class GameplayStore {
     if (!this.pages[pageId].tags.includes(tagId)) {
       this.pages[pageId].tags.push(tagId);
       this.pages[pageId].updatedAt = timeService.now();
+      
+      // 更新标签到页面的反向索引
+      if (!this._tagToPages.has(tagId)) {
+        this._tagToPages.set(tagId, new Set());
+      }
+      this._tagToPages.get(tagId)!.add(pageId);
+      
       log.debug('addTagToPage: added', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
-      this.markDirty();
+      this.markDirty(pageId);
       this.notifyListeners(); // 通知 UI
       return true;
     } else {
@@ -343,8 +407,19 @@ export class GameplayStore {
     if (index > -1) {
       this.pages[pageId].tags.splice(index, 1);
       this.pages[pageId].updatedAt = timeService.now();
+      
+      // 更新标签到页面的反向索引
+      const pageSet = this._tagToPages.get(tagId);
+      if (pageSet) {
+        pageSet.delete(pageId);
+        // 如果该标签没有关联任何页面，清理索引条目（可选优化）
+        if (pageSet.size === 0) {
+          this._tagToPages.delete(tagId);
+        }
+      }
+      
       log.debug('removeTagFromPage: removed', { pageId, tagId, tagsCount: this.pages[pageId].tags.length });
-      this.markDirty();
+      this.markDirty(pageId);
       this.notifyListeners(); // 通知 UI
       return true;
     } else {
@@ -357,18 +432,34 @@ export class GameplayStore {
     const pageId = this.generatePageId(url);
     
     if (this.pages[pageId]) {
-      // 更新现有页面，保持原有的标签数据和手动编辑标记
-      const existingTags = this.pages[pageId].tags; // 保存现有标签
-      const existingTitleManuallyEdited = this.pages[pageId].titleManuallyEdited; // 保存手动编辑标记
-      this.pages[pageId] = {
-        ...this.pages[pageId], // 保持所有现有属性
-        title,
-        updatedAt: timeService.now(),
-        tags: existingTags, // 确保标签不被覆盖
-        titleManuallyEdited: existingTitleManuallyEdited, // 保持手动编辑标记
-        ...(favicon && { favicon }),
-        ...(coverImage && { coverImage })
-      };
+      // 检查页面是否真的需要更新
+      const existingPage = this.pages[pageId];
+      const existingTags = existingPage.tags; // 保存现有标签
+      const existingTitleManuallyEdited = existingPage.titleManuallyEdited; // 保存手动编辑标记
+      
+      // 比较需要更新的字段，判断是否真的发生了变化
+      const titleChanged = existingPage.title !== title;
+      const faviconChanged = favicon !== undefined && existingPage.favicon !== favicon;
+      const coverImageChanged = coverImage !== undefined && existingPage.coverImage !== coverImage;
+      const hasChanges = titleChanged || faviconChanged || coverImageChanged;
+      
+      // 只有数据真正变化时才更新和标记 dirty
+      if (hasChanges) {
+        this.pages[pageId] = {
+          ...existingPage, // 保持所有现有属性
+          ...(titleChanged && { title }),
+          ...(titleChanged && { updatedAt: timeService.now() }),
+          tags: existingTags, // 确保标签不被覆盖
+          titleManuallyEdited: existingTitleManuallyEdited, // 保持手动编辑标记
+          ...(favicon && { favicon }),
+          ...(coverImage && { coverImage })
+        };
+        this.markDirty(pageId);
+        this.notifyListeners(); // 通知 UI
+      } else {
+        // 数据未变化，不标记 dirty，但仍通知监听器（保持 UI 一致性）
+        this.notifyListeners();
+      }
     } else {
       // 创建新页面（默认 titleManuallyEdited 为 undefined/false）
       this.pages[pageId] = {
@@ -383,10 +474,10 @@ export class GameplayStore {
         coverImage,
         titleManuallyEdited: false // 新创建的页面默认未手动编辑
       };
+      this.markDirty(pageId); // 新页面需要保存
+      this.notifyListeners(); // 通知 UI
     }
 
-    this.markDirty();
-    this.notifyListeners(); // 通知 UI
     return this.pages[pageId];
   }
 
@@ -416,7 +507,7 @@ export class GameplayStore {
         updatedAt: timeService.now(),
       };
 
-      this.markDirty();
+      this.markDirty(pageId);
       this.notifyListeners(); // 通知 UI
       return true;
     }
@@ -441,11 +532,16 @@ export class GameplayStore {
       return Object.values(this.pages).filter(page => page.tags && page.tags.length > 0);
     }
 
-    // 返回包含该标签的页面（不再包含子标签聚合）
-    const result: TaggedPage[] = [];
+    // 使用内存索引优化：从 O(N) 降到 O(M)，M 是使用该标签的页面数
+    const pageIds = this._tagToPages.get(tagId);
+    if (!pageIds || pageIds.size === 0) {
+      return [];
+    }
 
-    for (const page of Object.values(this.pages)) {
-      if (page.tags && page.tags.length > 0 && page.tags.includes(tagId)) {
+    const result: TaggedPage[] = [];
+    for (const pageId of pageIds) {
+      const page = this.pages[pageId];
+      if (page) {
         result.push(page);
       }
     }
@@ -514,7 +610,7 @@ export class GameplayStore {
       titleManuallyEdited: isManualEdit ? true : false,
       updatedAt: timeService.now()
     };
-    this.markDirty();
+    this.markDirty(pageId);
     this.notifyListeners(); // 通知 UI
     
     return true;
@@ -525,6 +621,14 @@ export class GameplayStore {
     this.pages = {};
     this._isInitialized = false; // 重置初始化状态，允许重新初始化
     this._isDirty = false; // 重置脏标记
+    
+    // 清空变化跟踪集合
+    this._changedPageIds.clear();
+    this._changedTagIds.clear();
+    
+    // 清空内存索引
+    this._tagToPages.clear();
+    this._tagNameToId.clear();
     
     // ✅ 修复：强制断开所有订阅，防止测试间污染和监听器泄漏
     this.listeners.clear();
@@ -672,48 +776,163 @@ export class GameplayStore {
 
   /**
    * 辅助方法：标记数据为脏
+   * @param pageId - 可选的页面 ID，用于增量存储跟踪
+   * @param tagId - 可选的标签 ID，用于增量存储跟踪
    */
-  private markDirty(): void {
+  private markDirty(pageId?: string, tagId?: string): void {
     this._isDirty = true;
+    if (pageId) {
+      this._changedPageIds.add(pageId);
+    }
+    if (tagId) {
+      this._changedTagIds.add(tagId);
+    }
   }
 
   /**
-   * 提供给外部（中间件）调用的提交方法
+   * 立即提交方法（用于关键操作，如 importData）
    * 只有当数据脏了时，才写入 Storage
    */
-  public async commit(): Promise<void> {
+  public async commitImmediate(): Promise<void> {
+    // 清除防抖定时器，如果有的话
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    
+    // 等待任何待处理的提交完成
+    if (this.pendingCommit) {
+      await this.pendingCommit;
+    }
+    
+    // 执行立即提交
     if (!this._isDirty) return;
     
     await this.saveToStorage();
     this._isDirty = false;
-    console.log('[GameplayStore] Transaction committed to storage.');
+    console.log('[GameplayStore] Transaction committed to storage (immediate).');
+  }
+
+  /**
+   * 防抖提交方法（用于批量写操作，减少存储写入频率）
+   * 短时间内多次修改只提交一次
+   */
+  public async commitDebounced(): Promise<void> {
+    // 如果已有待处理的提交，返回同一个 Promise
+    if (this.pendingCommit) {
+      return this.pendingCommit;
+    }
+    
+    // 清除之前的防抖定时器
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    
+    // 创建新的提交 Promise
+    this.pendingCommit = new Promise<void>((resolve) => {
+      this.debounceTimer = setTimeout(async () => {
+        try {
+          if (this._isDirty) {
+            await this.saveToStorage();
+            this._isDirty = false;
+            console.log('[GameplayStore] Transaction committed to storage (debounced).');
+          }
+        } catch (error) {
+          console.error('[GameplayStore] Debounced commit failed:', error);
+        } finally {
+          this.debounceTimer = null;
+          this.pendingCommit = null;
+          resolve();
+        }
+      }, this.DEBOUNCE_DELAY);
+    });
+    
+    return this.pendingCommit;
+  }
+
+  /**
+   * 向后兼容的提交方法（默认使用防抖提交）
+   * 只有当数据脏了时，才写入 Storage
+   */
+  public async commit(): Promise<void> {
+    return this.commitDebounced();
   }
 
   private async saveToStorage(): Promise<void> {
     try {
       // 如果 Repository 已设置，使用 Repository
       if (this.tagRepo && this.pageRepo) {
-        await this.tagRepo.saveBatch(Object.values(this.tags));
-        await this.pageRepo.saveBatch(Object.values(this.pages));
+        // Repository 模式：如果使用增量存储，只保存变化的数据
+        if (this._changedTagIds.size > 0 || this._changedPageIds.size > 0) {
+          const changedTags = Array.from(this._changedTagIds)
+            .map(id => this.tags[id])
+            .filter(Boolean);
+          const changedPages = Array.from(this._changedPageIds)
+            .map(id => this.pages[id])
+            .filter(Boolean);
+          
+          if (changedTags.length > 0) {
+            await this.tagRepo.saveBatch(changedTags);
+          }
+          if (changedPages.length > 0) {
+            await this.pageRepo.saveBatch(changedPages);
+          }
+        } else {
+          // 没有变化跟踪，保存全部（向后兼容）
+          await this.tagRepo.saveBatch(Object.values(this.tags));
+          await this.pageRepo.saveBatch(Object.values(this.pages));
+        }
       } else {
         // 原子化存储模式：分片存储，每个页面独立 key
         // 这样可以避免 8MB 配额限制，并且单页更新从 O(N) 降低到 O(1)
         const useAtomicStorage = true; // 启用原子化存储
         
         if (useAtomicStorage) {
-          // 1. 保存标签（保持传统方式，因为标签数量通常较少）
-          await storageService.set(STORAGE_KEYS.TAGS, this.tags);
+          // 增量存储：只保存变化的标签和页面
           
-          // 2. 分片存储页面：每个页面独立 key (page::${url_hash})
-          const pagePromises = Object.values(this.pages).map(page => {
-            const urlHash = this.generatePageId(page.url);
-            return storageService.set(`page::${urlHash}`, page);
-          });
-          await Promise.all(pagePromises);
+          // 1. 保存标签：如果有变化的标签，只保存变化的；否则保存全部
+          if (this._changedTagIds.size > 0) {
+            // 只保存变化的标签，但仍需要保存完整的标签集合（因为存储是单个 key）
+            await storageService.set(STORAGE_KEYS.TAGS, this.tags);
+          } else if (this._changedTagIds.size === 0 && Object.keys(this.tags).length > 0) {
+            // 如果没有变化跟踪但有标签数据，保存全部（首次保存或向后兼容）
+            await storageService.set(STORAGE_KEYS.TAGS, this.tags);
+          }
           
-          // 3. 保存索引：存储所有 page_id 列表
-          const pageIndex = Object.keys(this.pages);
-          await storageService.set('page_index', pageIndex);
+          // 2. 增量保存页面：只保存变化的页面
+          if (this._changedPageIds.size > 0) {
+            // 批量保存变化的页面（使用 setMultiple 提升性能）
+            const pageDataToSave: Record<string, TaggedPage> = {};
+            const changedPageIds = Array.from(this._changedPageIds);
+            
+            for (const pageId of changedPageIds) {
+              const page = this.pages[pageId];
+              if (page) {
+                const urlHash = this.generatePageId(page.url);
+                pageDataToSave[`page::${urlHash}`] = page;
+              }
+            }
+            
+            // 分批保存（每批 100 个，避免超过存储限制）
+            const BATCH_SIZE = 100;
+            const keys = Object.keys(pageDataToSave);
+            for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+              const batch = keys.slice(i, i + BATCH_SIZE);
+              const batchData: Record<string, TaggedPage> = {};
+              for (const key of batch) {
+                batchData[key] = pageDataToSave[key];
+              }
+              await storageService.setMultiple(batchData);
+            }
+            
+            // 3. 更新索引：存储所有 page_id 列表（需要读取现有索引并合并）
+            const existingIndex = await storageService.get<string[]>('page_index') || [];
+            const pageIndexSet = new Set([...existingIndex, ...changedPageIds]);
+            const pageIndex = Array.from(pageIndexSet);
+            await storageService.set('page_index', pageIndex);
+          }
+          // 如果没有页面变化（_changedPageIds 为空），不保存页面（增量存储优化）
         } else {
           // 传统存储方式（向后兼容）
           const dataToSave = {
@@ -723,6 +942,10 @@ export class GameplayStore {
           await storageService.setMultiple(dataToSave);
         }
       }
+      
+      // 提交后清空变化跟踪集合
+      this._changedPageIds.clear();
+      this._changedTagIds.clear();
     } catch (error) {
       console.error('保存存储数据失败:', error);
       // 注意：这里不抛出错误，以保持向后兼容性
@@ -871,7 +1094,20 @@ export class GameplayStore {
       this.pages = imported.pages;
     }
 
-    this.markDirty();
+    // 批量导入：标记所有导入的标签和页面
+    this._isDirty = true;
+    // 标记所有导入的标签
+    for (const tagId of Object.keys(imported.tags)) {
+      this._changedTagIds.add(tagId);
+    }
+    // 标记所有导入的页面
+    for (const pageId of Object.keys(imported.pages)) {
+      this._changedPageIds.add(pageId);
+    }
+    
+    // 重建索引以保持一致性
+    this.rebuildIndices();
+    
     this.notifyListeners(); // 通知 UI
 
     return {
@@ -909,14 +1145,23 @@ export class GameplayStore {
       return false; // 标签不存在
     }
 
-    // 1. 从所有页面中移除引用
-    Object.values(this.pages).forEach(page => {
-      const index = page.tags.indexOf(tagId);
-      if (index > -1) {
-        page.tags.splice(index, 1);
-        page.updatedAt = timeService.now();
+    // 1. 使用索引优化：从 O(N×M) 降到 O(M)，M 是使用该标签的页面数
+    const pageIds = this._tagToPages.get(tagId);
+    if (pageIds) {
+      for (const pageId of pageIds) {
+        const page = this.pages[pageId];
+        if (page) {
+          const index = page.tags.indexOf(tagId);
+          if (index > -1) {
+            page.tags.splice(index, 1);
+            page.updatedAt = timeService.now();
+            this.markDirty(pageId);
+          }
+        }
       }
-    });
+      // 清理索引
+      this._tagToPages.delete(tagId);
+    }
 
     // 2. 清理与其他标签的绑定关系
     if (tagToDelete.bindings && tagToDelete.bindings.length > 0) {
@@ -925,31 +1170,36 @@ export class GameplayStore {
         if (otherTag) {
           otherTag.bindings = otherTag.bindings.filter(id => id !== tagId);
           otherTag.updatedAt = timeService.now();
+          this.markDirty(undefined, otherId);
         }
       });
     }
 
     // 3. 删除标签本身
     delete this.tags[tagId];
-    this.markDirty();
+    
+    // 更新标签名称索引
+    this._tagNameToId.delete(tagToDelete.name.toLowerCase());
+    
+    this.markDirty(undefined, tagId);
     this.notifyListeners(); // 通知 UI
     return true;
   }
 
   /**
    * 清理所有未使用的标签
+   * 使用索引优化：从 O(N×M) 降到 O(N)
    */
   public cleanupUnusedTags(): void {
-    
     const allTagIds = Object.keys(this.tags);
     const usedTagIds = new Set<string>();
     
-    // 收集所有被页面使用的标签ID
-    Object.values(this.pages).forEach(page => {
-      page.tags.forEach(tagId => {
+    // 使用索引收集所有被页面使用的标签ID（O(N) 而不是 O(N×M)）
+    for (const [tagId, pageIds] of this._tagToPages.entries()) {
+      if (pageIds.size > 0) {
         usedTagIds.add(tagId);
-      });
-    });
+      }
+    }
     
     // 找出未使用的标签
     const unusedTagIds = allTagIds.filter(tagId => !usedTagIds.has(tagId));
@@ -958,7 +1208,6 @@ export class GameplayStore {
     unusedTagIds.forEach(tagId => {
       this.deleteTag(tagId);
     });
-    
   }
   // 移除层级相关辅助方法
 }

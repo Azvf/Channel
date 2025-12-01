@@ -41,8 +41,8 @@ export default defineConfig(({ mode }) => {
   // 加载环境变量（Vite 会自动处理 VITE_ 前缀的环境变量）
   // 在代码中可以直接使用 import.meta.env.VITE_SUPABASE_URL
   
-  // 获取开发密钥
-  const devKeyData = mode === 'development' ? getDevKey() : null;
+  // 获取开发密钥（传递 mode 参数确保加载正确的环境变量文件）
+  const devKeyData = mode === 'development' ? getDevKey(mode) : null;
 
   return {
   // 开发服务器配置（用于预览）
