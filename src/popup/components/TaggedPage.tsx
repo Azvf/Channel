@@ -23,6 +23,7 @@ import { useUpdatePageDetails } from "../hooks/mutations/usePageMutations";
 import { useAppContext } from "../context/AppContext";
 import { getTransition, DURATION } from "../../design-tokens/animation"; // [Refactor] 引入物理引擎
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { normalizeTaggedPagePartial } from "../../shared/utils/dataNormalizer";
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
 // 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
@@ -151,7 +152,7 @@ export function TaggedPage({
     return visiblePages.filter((page) =>
       searchTags.every((tagName) => {
         const tagId = tagNameToId.get(tagName);
-        return tagId ? page.tags.includes(tagId) : false;
+        return tagId && page.tags ? page.tags.includes(tagId) : false;
       }),
     );
   }, [visiblePages, searchTags, tagNameToId]);
@@ -240,10 +241,10 @@ export function TaggedPage({
         const basePages = prevPages ?? allPages;
         return basePages.map((p) =>
           p.id === editingPage.id
-            ? {
+            ? normalizeTaggedPagePartial({
                 ...p,
                 title: updatedPage.title,
-              }
+              })
             : p
         );
       });
@@ -297,7 +298,7 @@ export function TaggedPage({
       const trimmedTitle = title.trim();
       const nextTitle = trimmedTitle.length > 0 ? trimmedTitle : editingPage.title;
 
-      const currentTagNames = editingPage.tags
+      const currentTagNames = (editingPage.tags || [])
         .map((tagId) => tagIdToName.get(tagId))
         .filter(Boolean) as string[];
 
@@ -312,11 +313,11 @@ export function TaggedPage({
         const basePages = prevPages ?? allPages;
         return basePages.map((p) =>
           p.id === editingPage.id
-            ? {
+            ? normalizeTaggedPagePartial({
                 ...p,
                 title: nextTitle,
                 tags: newTagIds,
-              }
+              })
             : p
         );
       });
@@ -324,11 +325,11 @@ export function TaggedPage({
       // 同时更新 editingPage 状态
       setEditingPage((prev) => {
         if (!prev || prev.id !== editingPage.id) return prev;
-        return {
+        return normalizeTaggedPagePartial({
           ...prev,
           title: nextTitle,
           tags: newTagIds,
-        };
+        });
       });
 
       // 使用乐观更新的 mutation
@@ -355,7 +356,9 @@ export function TaggedPage({
               setOptimisticPages((prevPages) => {
                 const basePages = prevPages ?? allPages;
                 return basePages.map((p) => 
-                  p.id === originalPageRef.current!.id ? originalPageRef.current! : p
+                  p.id === originalPageRef.current!.id 
+                    ? normalizeTaggedPagePartial(originalPageRef.current!)
+                    : p
                 );
               });
               setEditingPage(originalPageRef.current);
@@ -374,7 +377,7 @@ export function TaggedPage({
 
   const editingPageTagNames = useMemo(() => {
     if (!editingPage) return [];
-    return editingPage.tags
+    return (editingPage.tags || [])
       .map((tagId) => tagIdToName.get(tagId))
       .filter(Boolean) as string[];
   }, [editingPage, tagIdToName]);
@@ -795,7 +798,7 @@ function PageCard({
         </div>
 
         <div className="flex flex-wrap gap-2.5">
-          {page.tags.map((tagId) => {
+          {(page.tags || []).map((tagId) => {
             const tagName = tagIdToName.get(tagId) ?? tagId;
             const isHighlighted = searchTags.includes(tagName);
 

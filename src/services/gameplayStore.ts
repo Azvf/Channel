@@ -143,7 +143,8 @@ export class GameplayStore {
     
     // 构建标签到页面的反向索引：优化 getTaggedPages 从 O(N) 到 O(M)，M 是使用该标签的页面数
     for (const [pageId, page] of Object.entries(this.pages)) {
-      for (const tagId of page.tags) {
+      const tags = Array.isArray(page.tags) ? page.tags : [];
+      for (const tagId of tags) {
         if (!this._tagToPages.has(tagId)) {
           this._tagToPages.set(tagId, new Set());
         }
@@ -216,6 +217,9 @@ export class GameplayStore {
     const a = this.tags[tagIdA];
     const b = this.tags[tagIdB];
     if (!a || !b) return false;
+    // 确保 bindings 是数组
+    if (!Array.isArray(a.bindings)) a.bindings = [];
+    if (!Array.isArray(b.bindings)) b.bindings = [];
     if (!a.bindings.includes(tagIdB)) a.bindings.push(tagIdB);
     if (!b.bindings.includes(tagIdA)) b.bindings.push(tagIdA);
     a.updatedAt = timeService.now();
@@ -229,6 +233,9 @@ export class GameplayStore {
     const a = this.tags[tagIdA];
     const b = this.tags[tagIdB];
     if (!a || !b) return false;
+    // 确保 bindings 是数组
+    if (!Array.isArray(a.bindings)) a.bindings = [];
+    if (!Array.isArray(b.bindings)) b.bindings = [];
     a.bindings = a.bindings.filter(id => id !== tagIdB);
     b.bindings = b.bindings.filter(id => id !== tagIdA);
     a.updatedAt = timeService.now();
@@ -242,7 +249,8 @@ export class GameplayStore {
   public getBoundTags(tagId: string): GameplayTag[] {
     const tag = this.tags[tagId];
     if (!tag) return [];
-    return tag.bindings.map(id => this.tags[id]).filter(Boolean) as GameplayTag[];
+    const bindings = Array.isArray(tag.bindings) ? tag.bindings : [];
+    return bindings.map(id => this.tags[id]).filter(Boolean) as GameplayTag[];
   }
 
   public getAllTags(): GameplayTag[] {
@@ -383,6 +391,11 @@ export class GameplayStore {
       return false;
     }
 
+    // 确保 tags 是数组
+    if (!Array.isArray(this.pages[pageId].tags)) {
+      this.pages[pageId].tags = [];
+    }
+
     if (!this.pages[pageId].tags.includes(tagId)) {
       this.pages[pageId].tags.push(tagId);
       this.pages[pageId].updatedAt = timeService.now();
@@ -408,6 +421,11 @@ export class GameplayStore {
     if (!this.pages[pageId]) {
       log.warn('removeTagFromPage: page not found', { pageId, tagId });
       return false;
+    }
+
+    // 确保 tags 是数组
+    if (!Array.isArray(this.pages[pageId].tags)) {
+      this.pages[pageId].tags = [];
     }
 
     const index = this.pages[pageId].tags.indexOf(tagId);
@@ -570,7 +588,8 @@ export class GameplayStore {
 
     // 遍历所有页面，累加计数
     for (const page of Object.values(this.pages)) {
-      for (const tagId of page.tags) {
+      const tags = Array.isArray(page.tags) ? page.tags : [];
+      for (const tagId of tags) {
         if (counts[tagId] !== undefined) {
           counts[tagId]++;
         }
@@ -1173,6 +1192,10 @@ export class GameplayStore {
       for (const pageId of pageIds) {
         const page = this.pages[pageId];
         if (page) {
+          // 确保 tags 是数组
+          if (!Array.isArray(page.tags)) {
+            page.tags = [];
+          }
           const index = page.tags.indexOf(tagId);
           if (index > -1) {
             page.tags.splice(index, 1);
@@ -1186,10 +1209,15 @@ export class GameplayStore {
     }
 
     // 2. 清理与其他标签的绑定关系
-    if (tagToDelete.bindings && tagToDelete.bindings.length > 0) {
-      tagToDelete.bindings.forEach(otherId => {
+    const bindings = Array.isArray(tagToDelete.bindings) ? tagToDelete.bindings : [];
+    if (bindings.length > 0) {
+      bindings.forEach(otherId => {
         const otherTag = this.tags[otherId];
         if (otherTag) {
+          // 确保 bindings 是数组
+          if (!Array.isArray(otherTag.bindings)) {
+            otherTag.bindings = [];
+          }
           otherTag.bindings = otherTag.bindings.filter(id => id !== tagId);
           otherTag.updatedAt = timeService.now();
           this.markDirty(undefined, otherId);

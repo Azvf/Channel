@@ -185,6 +185,35 @@ export function normalizeTaggedPage(page: unknown): TaggedPage | null {
 }
 
 /**
+ * 规范化 TaggedPage（用于乐观更新等场景）
+ * 
+ * 接受 Partial<TaggedPage>，确保返回完整的 TaggedPage 对象
+ * 与 normalizeTaggedPage(unknown) 不同，此函数假设输入已经是部分有效的 TaggedPage
+ * 主要用于乐观更新、对象合并等场景
+ * 
+ * @param page - 部分 TaggedPage 对象
+ * @returns 完整的 TaggedPage 对象，确保 tags 始终是数组
+ */
+export function normalizeTaggedPagePartial(page: Partial<TaggedPage>): TaggedPage {
+  const now = Date.now();
+  
+  return {
+    id: page.id ?? '',
+    url: page.url ?? '',
+    title: page.title ?? '',
+    domain: page.domain ?? '',
+    tags: Array.isArray(page.tags) ? page.tags : [], // 关键：确保 tags 始终是数组
+    createdAt: page.createdAt ?? now,
+    updatedAt: page.updatedAt ?? now,
+    favicon: page.favicon,
+    description: page.description,
+    coverImage: page.coverImage,
+    deleted: page.deleted ?? false,
+    titleManuallyEdited: page.titleManuallyEdited,
+  };
+}
+
+/**
  * 规范化 GameplayTag：修复格式问题，返回有效的 GameplayTag 或 null
  */
 export function normalizeGameplayTag(tag: unknown): GameplayTag | null {

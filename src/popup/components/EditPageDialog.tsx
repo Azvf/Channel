@@ -6,6 +6,7 @@ import { ModalFooter } from "./ModalFooter";
 import { Save } from "lucide-react";
 import { TaggedPage } from "../../shared/types/gameplayTag";
 import { GlassButton } from "./GlassButton";
+import { useModalScrollLock } from "../hooks/headless/useModalScrollLock";
 
 interface EditPageDialogProps {
   isOpen: boolean;
@@ -68,144 +69,12 @@ export function EditPageDialog({
     img.src = page.coverImage;
   }, [isOpen, page.coverImage, page.id]);
 
-  // 彻底防止底层页面滚动：在document级别拦截所有滚动事件
-  useEffect(() => {
-    if (isOpen) {
-      // 添加属性标记对话框打开状态
-      document.body.setAttribute('data-edit-dialog-open', 'true');
-      
-      // 保存原始状态
-      const originalBodyOverflow = document.body.style.overflow;
-      const originalHtmlOverflow = document.documentElement.style.overflow;
-      
-      // 禁用body和html的滚动
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-      
-      // 检查元素是否在对话框的可滚动内容区域内
-      const isInScrollableArea = (target: EventTarget | null): boolean => {
-        if (!target || !scrollableContentRef.current) return false;
-        const element = target as HTMLElement;
-        return scrollableContentRef.current.contains(element) || scrollableContentRef.current === element;
-      };
-
-      // 检查元素是否在对话框内（包括header和footer）
-      const isInDialog = (target: EventTarget | null): boolean => {
-        if (!target || !modalRef.current) return false;
-        const element = target as HTMLElement;
-        return modalRef.current.contains(element) || modalRef.current === element;
-      };
-
-      // 检查可滚动内容区域是否可以继续滚动
-      const canScroll = (deltaY: number): boolean => {
-        if (!scrollableContentRef.current) return false;
-        const { scrollTop, scrollHeight, clientHeight } = scrollableContentRef.current;
-        const isAtTop = scrollTop <= 0;
-        const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
-        
-        // 如果已经在顶部/底部且还要继续滚动，不允许
-        if ((isAtTop && deltaY < 0) || (isAtBottom && deltaY > 0)) {
-          return false;
-        }
-        return true;
-      };
-
-      // 在捕获阶段拦截滚轮事件
-      const handleWheel = (e: WheelEvent) => {
-        const target = e.target as HTMLElement;
-        
-        // 如果在对话框的可滚动内容区域内，且可以滚动，则允许
-        if (isInScrollableArea(target)) {
-          if (canScroll(e.deltaY)) {
-            // 允许滚动，但阻止事件继续冒泡到底层
-            e.stopPropagation();
-          } else {
-            // 不能继续滚动，阻止默认行为和冒泡
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-          }
-        } else {
-          // 不在可滚动区域内，完全阻止
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        }
-      };
-
-      // 拦截触摸滚动事件
-      const handleTouchMove = (e: TouchEvent) => {
-        const target = e.target as HTMLElement;
-        
-        // 只有在可滚动内容区域内才允许触摸滚动
-        if (!isInScrollableArea(target)) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        } else {
-          e.stopPropagation();
-        }
-      };
-
-      // 拦截滚动事件（防止通过其他方式滚动）
-      const handleScroll = (e: Event) => {
-        const target = e.target as HTMLElement;
-        
-        // 如果滚动发生在对话框外，阻止
-        if (!isInDialog(target)) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        } else {
-          e.stopPropagation();
-        }
-      };
-
-      // 使用捕获阶段，确保在事件到达目标之前拦截
-      const options = { passive: false, capture: true };
-      document.addEventListener('wheel', handleWheel, options);
-      document.addEventListener('touchmove', handleTouchMove, options);
-      document.addEventListener('scroll', handleScroll, options);
-      
-      // 也阻止键盘滚动（空格、方向键等）
-      const handleKeyDown = (e: KeyboardEvent) => {
-        const target = e.target as HTMLElement;
-        const scrollKeys = [' ', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'];
-        
-        if (scrollKeys.includes(e.key)) {
-          // 如果不在对话框内，阻止键盘滚动
-          if (!isInDialog(target)) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-          } else if (!isInScrollableArea(target)) {
-            // 在对话框内但不在可滚动区域，也阻止
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        }
-      };
-      document.addEventListener('keydown', handleKeyDown, options);
-      
-      return () => {
-        // 移除属性标记
-        document.body.removeAttribute('data-edit-dialog-open');
-        
-        // 恢复原始状态
-        document.body.style.overflow = originalBodyOverflow;
-        document.documentElement.style.overflow = originalHtmlOverflow;
-        
-        // 移除所有事件监听器
-        document.removeEventListener('wheel', handleWheel, options as any);
-        document.removeEventListener('touchmove', handleTouchMove, options as any);
-        document.removeEventListener('scroll', handleScroll, options as any);
-        document.removeEventListener('keydown', handleKeyDown, options as any);
-      };
-    } else {
-      // dialog 关闭时也移除属性标记
-      document.body.removeAttribute('data-edit-dialog-open');
-    }
-  }, [isOpen]);
+  // 使用 Headless Hook 处理 Modal 滚动锁定
+  useModalScrollLock({
+    isOpen,
+    modalRef,
+    scrollableContentRef,
+  });
 
   const handleSave = async () => {
     try {
