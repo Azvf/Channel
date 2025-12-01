@@ -5,6 +5,7 @@ import { timeService } from './timeService';
 import { ITagRepository, IPageRepository } from '../infra/database/chrome-storage/repositories/types';
 import { ChromeTagRepository, ChromePageRepository } from '../infra/database/chrome-storage/repositories/ChromeStorageRepository';
 import { cacheMonitor } from './cacheMonitor';
+import { normalizeTagsCollection, normalizePageCollection } from '../shared/utils/dataNormalizer';
 
 type ChangeListener = () => void;
 
@@ -108,8 +109,9 @@ export class GameplayStore {
     }
     
     try {
-      this.tags = data.tags ?? {};
-      this.pages = data.pages ?? {};
+      // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+      this.tags = normalizeTagsCollection(data.tags ?? {});
+      this.pages = normalizePageCollection(data.pages ?? {});
       
       // 构建内存索引
       this.rebuildIndices();
@@ -126,6 +128,9 @@ export class GameplayStore {
   /**
    * 重建内存索引（用于初始化和数据更新后）
    * 性能优化：维护标签到页面的反向索引和标签名称索引，将查询操作从 O(N) 降到 O(1) 或 O(M)
+   * 
+   * 注意：数据规范化由 normalizeTagsCollection 和 normalizePageCollection 保证，
+   * 这里不再需要防御性检查
    */
   private rebuildIndices(): void {
     this._tagToPages.clear();
@@ -154,10 +159,12 @@ export class GameplayStore {
   public updateData(data: { tags?: TagsCollection | null; pages?: PageCollection | null }): void {
     try {
       if (data.tags !== undefined) {
-        this.tags = data.tags ?? {};
+        // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+        this.tags = normalizeTagsCollection(data.tags ?? {});
       }
       if (data.pages !== undefined) {
-        this.pages = data.pages ?? {};
+        // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+        this.pages = normalizePageCollection(data.pages ?? {});
       }
       
       // 重建索引以保持一致性
@@ -975,10 +982,14 @@ export class GameplayStore {
           pagesCollection[page.id] = page;
         });
         
+        // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+        const normalizedTags = normalizeTagsCollection(tagsCollection);
+        const normalizedPages = normalizePageCollection(pagesCollection);
+        
         this._isInitialized = false; // 强制重新初始化
         this.initialize({
-          tags: tagsCollection,
-          pages: pagesCollection
+          tags: normalizedTags,
+          pages: normalizedPages
         });
       } else {
         // 原子化存储模式：从分片存储读取
@@ -1007,10 +1018,14 @@ export class GameplayStore {
             pagesCollection[page.id] = page;
           });
           
+          // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+          const normalizedTags = normalizeTagsCollection(tags || {});
+          const normalizedPages = normalizePageCollection(pagesCollection);
+          
           this._isInitialized = false; // 强制重新初始化
           this.initialize({
-            tags: tags || {},
-            pages: pagesCollection
+            tags: normalizedTags,
+            pages: normalizedPages
           });
         } else {
           // 传统存储方式（向后兼容）
@@ -1018,11 +1033,16 @@ export class GameplayStore {
             STORAGE_KEYS.TAGS,
             STORAGE_KEYS.PAGES
           ]);
+          
+          // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+          const normalizedTags = normalizeTagsCollection(storageData[STORAGE_KEYS.TAGS] as TagsCollection | null ?? {});
+          const normalizedPages = normalizePageCollection(storageData[STORAGE_KEYS.PAGES] as PageCollection | null ?? {});
+          
           this._isInitialized = false; // 强制重新初始化
           // initialize 内部会调用 notifyListeners，这里不需要重复调用
           this.initialize({
-            tags: storageData[STORAGE_KEYS.TAGS] as TagsCollection | null,
-            pages: storageData[STORAGE_KEYS.PAGES] as PageCollection | null
+            tags: normalizedTags,
+            pages: normalizedPages
           });
         }
       }
@@ -1086,22 +1106,24 @@ export class GameplayStore {
           }
         }
 
-      this.tags = mergedTags;
-      this.pages = mergedPages;
-    } else {
-      // 覆盖模式：完全替换现有数据
-      this.tags = imported.tags;
-      this.pages = imported.pages;
-    }
+        // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+        this.tags = normalizeTagsCollection(mergedTags);
+        this.pages = normalizePageCollection(mergedPages);
+      } else {
+        // 覆盖模式：完全替换现有数据
+        // 数据规范化：在数据进入 GameplayStore 之前统一规范化
+        this.tags = normalizeTagsCollection(imported.tags ?? {});
+        this.pages = normalizePageCollection(imported.pages ?? {});
+      }
 
     // 批量导入：标记所有导入的标签和页面
     this._isDirty = true;
     // 标记所有导入的标签
-    for (const tagId of Object.keys(imported.tags)) {
+    for (const tagId of Object.keys(this.tags)) {
       this._changedTagIds.add(tagId);
     }
     // 标记所有导入的页面
-    for (const pageId of Object.keys(imported.pages)) {
+    for (const pageId of Object.keys(this.pages)) {
       this._changedPageIds.add(pageId);
     }
     
@@ -1113,8 +1135,8 @@ export class GameplayStore {
     return {
         success: true,
         imported: {
-          tagsCount: Object.keys(imported.tags).length,
-          pagesCount: Object.keys(imported.pages).length
+          tagsCount: Object.keys(this.tags).length,
+          pagesCount: Object.keys(this.pages).length
         }
       };
     } catch (error) {
