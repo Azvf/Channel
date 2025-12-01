@@ -48,3 +48,19 @@ export interface IDateRangeStrategy {
   getEndDate(today: Date): Date;
 }
 
+// 增量缓存元数据
+export interface StatsWallCacheMetadata {
+  version: number; // 缓存版本号
+  lastComputedAt: number; // 最后计算时间戳
+  lastPageVersion: number; // 最后处理的页面版本号（使用最大 updatedAt 作为版本标识）
+  activityMap: Record<string, number>; // 日期 -> 计数映射（序列化为对象）
+  pageIds: string[]; // 已处理的页面 ID 集合（序列化为数组）
+}
+
+// 增量更新结果
+export interface IncrementalUpdateResult {
+  updatedDates: string[]; // 更新的日期列表
+  newDates: string[]; // 新增的日期列表
+  removedDates: string[]; // 移除的日期列表（如果页面被删除）
+}
+

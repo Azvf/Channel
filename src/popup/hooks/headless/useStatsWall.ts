@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { statsWallManager } from '../../../services/StatsWallManager';
 import { CalendarLayoutInfo } from '../../../shared/types/statsWall';
 import { RENDER_TICK } from '../../../design-tokens/animation'; // [Refactor] 使用统一的渲染周期常量
+import type { StatsWallUpdateEvent } from '../../../shared/rpc-protocol/events';
+import { backgroundApi } from '../../../services/popup/currentPageService';
+import { storageService, STORAGE_KEYS } from '../../../services/storageService';
 
 export interface DayData {
   id: string;
@@ -51,19 +54,102 @@ export function useStatsWall(isOpen: boolean): UseStatsWallReturn {
   );
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
-  // 1. 数据获取逻辑
+  const currentVersionRef = useRef<number | null>(null); // 当前版本号
+
+  // 从 RPC 获取数据的辅助函数（使用 useCallback 避免重复创建）
+  const fetchStatsWallData = useCallback(async (clientVersion?: number): Promise<void> => {
+    try {
+      const result = await backgroundApi.getStatsWallData(clientVersion);
+
+      // 更新版本号和布局数据
+      currentVersionRef.current = result.version;
+      setLayout(result.data);
+    } catch (err) {
+      console.error('[useStatsWall] 获取 Stats Wall 数据失败:', err);
+    }
+  }, []);
+
+  // 1. 数据获取逻辑（Popup 打开时）
   useEffect(() => {
     if (isOpen) {
-      // Manager 处理了缓存和逻辑，React 组件只负责"索要"数据
-      statsWallManager.getStatsWallData()
-        .then(data => setLayout(data))
-        .catch(err => {
-          // 静默失败
-          console.error("后台加载活动数据失败:", err);
+      // 先从 Storage 读取版本号
+      storageService.get<{ version: number; computedAt: number }>(STORAGE_KEYS.STATS_WALL_VERSION)
+        .then(metadata => {
+          const storedVersion = metadata?.version;
+          // 通过 RPC 获取数据（传入版本号，如果匹配则返回缓存）
+          fetchStatsWallData(storedVersion);
+        })
+        .catch(() => {
+          // 如果读取版本号失败，直接获取数据（不传版本号）
+          fetchStatsWallData();
         });
     }
-  }, [isOpen]);
+  }, [isOpen, fetchStatsWallData]);
+
+  // 1.5. 监听后台计算完成事件
+  useEffect(() => {
+    if (!isOpen) {
+      return; // 只在模态框打开时监听
+    }
+
+    const handleMessage = (message: any, _sender: chrome.runtime.MessageSender, _sendResponse: (response?: any) => void) => {
+      // 检查是否是 Stats Wall 事件
+      if (message?.event === 'statsWall' && message?.payload?.type === 'statsWall:updated') {
+        const event = message.payload as StatsWallUpdateEvent;
+        
+        // 检查版本号是否匹配
+        if (event.version === currentVersionRef.current) {
+          return;
+        }
+        
+        // 版本号不匹配，通过 RPC 获取最新数据
+        fetchStatsWallData(currentVersionRef.current ?? undefined);
+      }
+    };
+
+    // 注册消息监听器
+    chrome.runtime.onMessage.addListener(handleMessage);
+
+    // 清理函数
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleMessage);
+    };
+  }, [isOpen, fetchStatsWallData]);
+
+  // 1.6. 监听 Storage 变化（作为后备机制）
+  useEffect(() => {
+    if (!isOpen) {
+      return; // 只在模态框打开时监听
+    }
+
+    const handleStorageChange = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string
+    ) => {
+      // 只处理 local storage 的变化
+      if (areaName !== 'local') {
+        return;
+      }
+
+      // 检查是否是 Stats Wall 版本号变化
+      if (changes[STORAGE_KEYS.STATS_WALL_VERSION]) {
+        const newValue = changes[STORAGE_KEYS.STATS_WALL_VERSION].newValue as { version: number; computedAt: number } | undefined;
+
+        if (newValue && newValue.version !== currentVersionRef.current) {
+          // 版本号变化，通过 RPC 获取最新数据
+          fetchStatsWallData(currentVersionRef.current ?? undefined);
+        }
+      }
+    };
+
+    // 注册 Storage 变化监听器
+    chrome.storage.onChanged.addListener(handleStorageChange);
+
+    // 清理函数
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange);
+    };
+  }, [isOpen, fetchStatsWallData]);
   
   // 2. 滚轮事件处理 - 将垂直滚动转换为水平滚动
   useEffect(() => {

@@ -60,6 +60,8 @@ function isReadOnlyOperation(method: string): boolean {
 export function registerRpcHandler<T extends object>(service: T): void {
   chrome.runtime.onMessage.addListener(
     (message: JsonRpcRequest, _sender, sendResponse) => {
+      // 记录所有收到的消息（用于调试）
+      // 使用类型断言检查 event 属性，因为 JsonRpcRequest 类型中没有 event
       // 1. 协议校验
       if (message?.jsonrpc !== '2.0' || !message.method || !message.id) {
         // 忽略非 RPC 消息，返回 false 让其他处理器处理

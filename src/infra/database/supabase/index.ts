@@ -19,8 +19,14 @@ function getSupabaseUrl(): string | undefined {
   // Vite 构建环境：直接使用 import.meta.env
   // Vite 会在构建时静态替换 import.meta.env.VITE_SUPABASE_URL 为实际值
   // 这里必须直接引用，不能使用 eval 或动态访问，否则 Vite 无法静态分析
-  // 在测试环境中，这个文件应该被 mock 替换，所以这里不会被执行
-  return import.meta.env.VITE_SUPABASE_URL;
+  // 在测试环境中（如 Playwright），import.meta.env 可能是 undefined，需要安全访问
+  try {
+    // 安全访问 import.meta.env，避免在测试环境中报错
+    const metaEnv = (import.meta as any)?.env;
+    return metaEnv?.VITE_SUPABASE_URL;
+  } catch {
+    return undefined;
+  }
 }
 
 function getSupabaseKey(): string | undefined {
@@ -31,8 +37,14 @@ function getSupabaseKey(): string | undefined {
   
   // Vite 构建环境：直接使用 import.meta.env
   // Vite 会在构建时静态替换 import.meta.env.VITE_SUPABASE_ANON_KEY 为实际值
-  // 在测试环境中，这个文件应该被 mock 替换，所以这里不会被执行
-  return import.meta.env.VITE_SUPABASE_ANON_KEY;
+  // 在测试环境中（如 Playwright），import.meta.env 可能是 undefined，需要安全访问
+  try {
+    // 安全访问 import.meta.env，避免在测试环境中报错
+    const metaEnv = (import.meta as any)?.env;
+    return metaEnv?.VITE_SUPABASE_ANON_KEY;
+  } catch {
+    return undefined;
+  }
 }
 
 const supabaseUrl = getSupabaseUrl();

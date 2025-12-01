@@ -24,6 +24,7 @@ export interface TaggedPage {
   coverImage?: string; // Hero image URL from MetaDataDetector
   deleted?: boolean; // 标记是否已删除（用于同步）
   titleManuallyEdited?: boolean; // 标记标题是否被用户手动编辑过
+  titleSource?: 'auto' | 'user_operation' | 'manual_edit'; // Title来源：auto=自动更新, user_operation=用户操作确认, manual_edit=手动编辑
 }
 
 export interface TagsCollection {

@@ -16,6 +16,7 @@ import { onInstalledHandler, getInitializationPromise } from './init';
 import { syncService } from '../services/syncService';
 import { registerRpcHandler } from '../shared/rpc-protocol/server';
 import { BackgroundServiceImpl } from '../services/background/BackgroundServiceImpl';
+import { statsWallComputeService } from '../services/background/StatsWallComputeService';
 
 // 注册插件安装监听器
 try {
@@ -32,6 +33,13 @@ try {
   
   // 初始化 Tab Title 监听器
   backgroundService.initializeTabTitleMonitor();
+  
+  // 初始化 Stats Wall 计算服务（需要在 gameplayStore 初始化后）
+  getInitializationPromise().then(async () => {
+    await statsWallComputeService.initialize();
+  }).catch((error) => {
+    console.error('[Background] Stats Wall 计算服务初始化失败:', error);
+  });
   
   console.log('[Background] Service Worker 启动成功，RPC 处理器已注册，Tab Title 监听器已启动');
 } catch (error) {

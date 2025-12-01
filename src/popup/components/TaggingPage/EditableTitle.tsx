@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Loader2, Link as LinkIcon } from "lucide-react";
+import { createLogger } from "@/shared/utils/logger";
+
+const logger = createLogger('EditableTitle');
 
 interface EditableTitleProps {
   title: string;
@@ -20,11 +23,24 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(title);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevTitleRef = useRef<string>(title);
 
   // 同步外部数据
   useEffect(() => {
+    const prevValue = prevTitleRef.current;
+    prevTitleRef.current = title;
     setValue(title);
-  }, [title]);
+    
+    // 记录title prop变化
+    if (prevValue !== title) {
+      logger.debug('[EditableTitle] title prop变化:', {
+        prevValue,
+        newValue: title,
+        isEditing,
+        willResetInput: !isEditing, // 如果不在编辑状态，会重置输入框
+      });
+    }
+  }, [title, isEditing]);
 
   const handleBlur = () => {
     setIsEditing(false);

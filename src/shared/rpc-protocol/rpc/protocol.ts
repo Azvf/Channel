@@ -84,7 +84,8 @@ export interface IBackgroundApi {
   updatePageTitle(pageId: string, title: string, isManualEdit?: boolean): Promise<void>;
   updatePageTags(pageId: string, payload: { 
     tagsToAdd: string[]; 
-    tagsToRemove: string[] 
+    tagsToRemove: string[];
+    title?: string; // 可选的title，用于临时页面（避免重新获取）
   }): Promise<{ newPage: TaggedPage; newStats: { todayCount: number; streak: number } }>;
   updatePageDetails(pageId: string, payload: {
     title: string;

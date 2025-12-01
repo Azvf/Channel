@@ -36,6 +36,10 @@ export const STORAGE_KEYS = {
   SYNC_SHADOW_MAP: 'sync_shadow_map', // [新增] Shadow Map (三路合并基准)
   SYNC_LAST_FULL_SYNC: 'sync_last_full_sync', // [新增] 上次全量同步时间戳
   SYNC_LOCK: 'sync_lock', // [新增] 同步锁 (防止并发)
+  
+  // Stats Wall 缓存相关
+  STATS_WALL_CACHE: 'stats_wall_cache_metadata', // Stats Wall 缓存元数据
+  STATS_WALL_VERSION: 'stats_wall_version', // Stats Wall 版本号元数据（轻量级）
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS] | string;

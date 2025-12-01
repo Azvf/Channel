@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { currentPageService, backgroundApi } from '../../../services/popup/currentPageService';
+import { currentPageService } from '../../../services/popup/currentPageService';
 import type { GameplayTag } from '../../../shared/types/gameplayTag';
 import { queryKeys } from '../../../lib/queryKeys';
 import { updateTagInCollection, removeTagFromCollection, addTagToCollection } from '../../utils/optimisticUpdate';
@@ -46,8 +46,7 @@ export function useUpdateTag(
       // 乐观更新：立即更新 UI
       onOptimisticUpdate?.(tagId, newName);
 
-      // 触发远端同步（fire-and-forget）
-      backgroundApi.updateTag(tagId, newName).catch(console.error);
+      // 注意：实际的更新操作由 mutationFn 完成，onMutate 只负责乐观更新
 
       return { tagId, oldName: oldName || currentTag.name, previousTags };
     },
@@ -112,8 +111,7 @@ export function useDeleteTag(
       // 乐观更新：立即从列表中移除
       onOptimisticUpdate?.(tagId);
 
-      // 触发远端同步（fire-and-forget）
-      backgroundApi.deleteTag(tagId).catch(console.error);
+      // 注意：实际的删除操作由 mutationFn 完成，onMutate 只负责乐观更新
 
       return { tagId, tag: tagToDelete, previousTags };
     },
@@ -182,8 +180,7 @@ export function useCreateTag(
       // 乐观更新：立即添加到列表
       onOptimisticUpdate?.(tempTag);
 
-      // 触发远端同步（fire-and-forget）
-      currentPageService.createTag(tagName).catch(console.error);
+      // 注意：实际的创建操作由 mutationFn 完成，onMutate 只负责乐观更新
 
       return { tempTagId: tempTag.id, tagName, previousTags, tempTag };
     },

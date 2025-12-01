@@ -90,7 +90,7 @@ class CurrentPageService {
    */
   async updatePageTags(
     pageId: string,
-    payload: { tagsToAdd: string[]; tagsToRemove: string[] },
+    payload: { tagsToAdd: string[]; tagsToRemove: string[]; title?: string },
   ) {
     return backgroundApi.updatePageTags(pageId, payload);
   }

@@ -203,6 +203,18 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     };
   }, []);
 
+  // 监听currentPage.title变化，用于定位Title变化问题
+  useEffect(() => {
+    if (currentPage) {
+      logger.debug('[TaggingPage] currentPage.title变化:', {
+        pageId: currentPage.id,
+        title: currentPage.title,
+        url: currentPage.url,
+        isTemporary: currentPage.id.startsWith('temp_'),
+      });
+    }
+  }, [currentPage?.title, currentPage?.id]);
+
   // currentPageRef 的更新已合并到上面的 useMemo 中
 
   // 使用 Storage 同步 Hook

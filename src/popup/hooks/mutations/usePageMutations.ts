@@ -4,6 +4,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef, useEffect } from 'react';
 import { currentPageService, backgroundApi } from '../../../services/popup/currentPageService';
 import { TaggedPage } from '../../../shared/types/gameplayTag';
 import { queryKeys } from '../../../lib/queryKeys';
@@ -177,6 +178,13 @@ export function useUpdatePageTags(
   onPageDeleted?: () => void
 ) {
   const queryClient = useQueryClient();
+  // 使用ref保存最新的page，避免闭包问题
+  const pageRef = useRef<TaggedPage | null>(page);
+
+  // 同步ref和page
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
   if (!page) {
     return useMutation<TaggedPage | null, Error, { tagsToAdd: string[]; tagsToRemove: string[] }>({
@@ -216,11 +224,23 @@ export function useUpdatePageTags(
 
   return useMutation({
     mutationFn: async (params: { tagsToAdd: string[]; tagsToRemove: string[] }) => {
+      // 使用ref中的最新page，避免闭包问题
+      const currentPage = pageRef.current;
+      if (!currentPage) {
+        throw new Error('Page not loaded');
+      }
+
       // 调用后端更新标签
       // 后端会检查：如果页面没有 tag 了，检查是否在当前页面
       // - 如果在当前页面，保留页面（只是没有 tag）
       // - 如果不在当前页面，删除页面
-      const result = await currentPageService.updatePageTags(page.id, params);
+      // 如果是临时页面，或者可能删除所有tag（会转为临时页面），传递title以确保使用正确的title
+      const isTemporaryPage = currentPage.id.startsWith('temp_');
+      const willDeleteAllTags = currentPage.tags.length === params.tagsToRemove.length && params.tagsToAdd.length === 0;
+      const payload = (isTemporaryPage || willDeleteAllTags)
+        ? { ...params, title: currentPage.title }
+        : params;
+      const result = await currentPageService.updatePageTags(currentPage.id, payload);
       // result.newPage 可能是 null（如果页面被删除），也可能是页面对象（如果保留页面）
       return result.newPage;
     },
@@ -290,6 +310,16 @@ export function useUpdatePageTags(
       }
     },
     onSuccess: (newPage, _params, context) => {
+      console.log('[useUpdatePageTags] onSuccess - Title变化追踪:', {
+        oldPageId: page.id,
+        oldPageTitle: page.title,
+        newPageId: newPage?.id,
+        newPageTitle: newPage?.title,
+        titleChanged: newPage ? page.title !== newPage.title : false,
+        wasTemporary: page.id.startsWith('temp_'),
+        isNowPersistent: newPage ? !newPage.id.startsWith('temp_') : false,
+      });
+
       if (newPage === null) {
         // 页面已删除（用户不在当前页面）
         // 从 React Query 缓存中移除页面
@@ -307,6 +337,8 @@ export function useUpdatePageTags(
 
         // 更新本地状态为 null
         setPage(null);
+        // 同步更新ref
+        pageRef.current = null;
 
         // 触发页面删除回调
         onPageDeleted?.();
@@ -319,6 +351,14 @@ export function useUpdatePageTags(
         
         if (wasTemporary && isNowPersistent) {
           // 临时页面转换为持久化页面
+          console.log('[useUpdatePageTags] 临时页面转持久化页面 - 更新状态:', {
+            oldPageId: page.id,
+            oldPageTitle: page.title,
+            newPageId: newPage.id,
+            newPageTitle: newPage.title,
+            titleChanged: page.title !== newPage.title,
+          });
+          
           // 清除旧临时页面的缓存
           queryClient.removeQueries({ queryKey: queryKeys.currentPage(page.url) });
           // 设置新持久化页面的缓存
@@ -326,6 +366,8 @@ export function useUpdatePageTags(
           
           // 更新本地状态
           setPage(newPage);
+          // 同步更新ref
+          pageRef.current = newPage;
           
           // 持久化页面需要写入Storage
           const pageKey = `page::${newPage.id}`;
@@ -342,10 +384,19 @@ export function useUpdatePageTags(
           
           // 更新本地状态
           setPage(newPage);
+          // 同步更新ref
+          pageRef.current = newPage;
           
           // 临时页面不写入Storage（不持久化）
         } else {
           // 持久化页面的正常更新
+          console.log('[useUpdatePageTags] 持久化页面更新 - 更新状态:', {
+            pageId: newPage.id,
+            oldTitle: page.title,
+            newTitle: newPage.title,
+            titleChanged: page.title !== newPage.title,
+          });
+          
           // 更新缓存（使用新页面的URL，因为URL可能包含时间戳变化）
           const pageUrl = newPage.url;
           const currentPageKey = queryKeys.currentPage(pageUrl);
@@ -353,6 +404,8 @@ export function useUpdatePageTags(
           
           // 更新本地状态
           setPage(newPage);
+          // 同步更新ref
+          pageRef.current = newPage;
           
           // 更新 Storage（优先使用原子化存储）
           const pageKey = `page::${newPage.id}`;

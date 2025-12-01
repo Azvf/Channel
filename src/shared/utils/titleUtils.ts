@@ -121,7 +121,93 @@ export function isTitleSimilar(title1: string, title2: string): boolean {
       }
     }
   }
+
+  return false;
+}
+
+/**
+ * 检测两个标题之间的差异是否微不足道（不重要的变化）
+ * 用于过滤掉频繁但无意义的Title更新，如通知计数、时间戳等
+ * 
+ * 支持的场景：
+ * 1. 通知计数变化：如 "(5) 页面标题" ↔ "(6) 页面标题"
+ * 2. 时间戳变化：如 "页面标题 - 10:30" ↔ "页面标题 - 10:31"
+ * 3. 前缀标记变化：如 "【新提醒】页面标题" ↔ "【      】页面标题"（已有 isTitleSimilar 处理）
+ * 4. 数字后缀变化：如 "页面标题 (1)" ↔ "页面标题 (2)"
+ * 
+ * @param title1 - 第一个标题
+ * @param title2 - 第二个标题
+ * @returns 如果差异微不足道返回 true，否则返回 false
+ */
+export function isTitleTriviallyDifferent(title1: string, title2: string): boolean {
+  if (title1 === title2) {
+    return true;
+  }
+
+  // 先使用 isTitleSimilar 检查（处理前缀标记等）
+  if (isTitleSimilar(title1, title2)) {
+    return true;
+  }
+
+  // 提取核心标题（去除常见的前缀和后缀）
+  const extractCoreTitle = (title: string): string => {
+    // 移除通知计数前缀：如 "(5) " 或 "[5] " 或 "5 - "
+    let core = title.replace(/^[([]?\d+[)\]]?\s*[-–—]?\s*/, '');
+    
+    // 移除常见的前缀标记（中文和英文）
+    core = core.replace(/^【[^】]*】\s*/, ''); // 中文方括号
+    core = core.replace(/^\[[^\]]*\]\s*/, ''); // 英文方括号
+    core = core.replace(/^\([^)]*\)\s*/, ''); // 圆括号
+    
+    // 移除时间戳后缀：如 " - 10:30" 或 " | 10:30" 或 " (10:30)"
+    core = core.replace(/\s*[-–—|]\s*\d{1,2}:\d{2}(:\d{2})?\s*$/, '');
+    core = core.replace(/\s*\(\d{1,2}:\d{2}(:\d{2})?\)\s*$/, '');
+    
+    // 移除数字后缀：如 " (1)" 或 " [2]"
+    core = core.replace(/\s*[([]\d+[)\]]\s*$/, '');
+    
+    return core.trim();
+  };
+
+  const core1 = extractCoreTitle(title1);
+  const core2 = extractCoreTitle(title2);
+
+  // 如果核心标题相同，则认为差异微不足道
+  if (core1 === core2 && core1.length > 0) {
+    return true;
+  }
+
+  // 检查是否只是数字部分不同（通知计数模式）
+  // 模式1: "(数字) 标题" 或 "[数字] 标题"
+  const notificationPattern = /^[([]?(\d+)[)\]]?\s*(.+)$/;
+  const match1 = title1.match(notificationPattern);
+  const match2 = title2.match(notificationPattern);
   
+  if (match1 && match2 && match1[2] === match2[2]) {
+    // 核心标题相同，只是数字不同
+    return true;
+  }
+
+  // 模式2: "标题 (数字)" 或 "标题 [数字]"
+  const suffixPattern = /^(.+?)\s*[([](\d+)[)\]]\s*$/;
+  const suffixMatch1 = title1.match(suffixPattern);
+  const suffixMatch2 = title2.match(suffixPattern);
+  
+  if (suffixMatch1 && suffixMatch2 && suffixMatch1[1] === suffixMatch2[1]) {
+    // 核心标题相同，只是后缀数字不同
+    return true;
+  }
+
+  // 检查时间戳模式：如 "标题 - 10:30" ↔ "标题 - 10:31"
+  const timePattern = /^(.+?)\s*[-–—|]\s*\d{1,2}:\d{2}(:\d{2})?\s*$/;
+  const timeMatch1 = title1.match(timePattern);
+  const timeMatch2 = title2.match(timePattern);
+  
+  if (timeMatch1 && timeMatch2 && timeMatch1[1] === timeMatch2[1]) {
+    // 核心标题相同，只是时间戳不同
+    return true;
+  }
+
   return false;
 }
 

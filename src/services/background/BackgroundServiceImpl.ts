@@ -12,6 +12,7 @@ import { titleFetchService } from './TitleFetchService';
 import { tabTitleMonitor } from './TabTitleMonitor';
 import { isTitleUrl } from '@/shared/utils/titleUtils';
 import { TIMEOUTS } from '@/shared/constants/timeouts';
+import { statsWallComputeService } from './StatsWallComputeService';
 
 const gameplayStore = GameplayStore.getInstance();
 let currentPageSettings: PageSettings = DEFAULT_PAGE_SETTINGS;
@@ -194,7 +195,30 @@ export class BackgroundServiceImpl implements IBackgroundApi {
         // 性能优化：优先使用缓存，避免频繁查询 chrome.tabs.query
         const now = Date.now();
         if (tabCache && (now - tabCache.timestamp) < TIMEOUTS.TAB_CACHE_TTL) {
-          // 缓存有效，直接使用
+          // 验证缓存是否仍然有效：检查当前活动标签页的URL是否与缓存一致
+          try {
+            const currentTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (currentTabs && currentTabs.length > 0 && currentTabs[0].url) {
+              const currentUrl = currentTabs[0].url;
+              // 如果当前URL与缓存URL不一致，清除缓存并重新查询
+              if (currentUrl !== tabCache.url) {
+                console.log('[getCurrentPage] 当前URL与缓存不一致，清除缓存:', { currentUrl, cachedUrl: tabCache.url });
+                tabCache = null; // 清除缓存，强制重新查询
+              }
+            } else {
+              // 如果无法获取当前URL，清除缓存并重新查询
+              console.log('[getCurrentPage] 无法获取当前URL，清除缓存');
+              tabCache = null;
+            }
+          } catch (error) {
+            // 如果查询失败，清除缓存，强制重新查询
+            console.warn('[getCurrentPage] 验证缓存时出错，清除缓存:', error);
+            tabCache = null;
+          }
+        }
+        
+        if (tabCache && (now - tabCache.timestamp) < TIMEOUTS.TAB_CACHE_TTL) {
+          // 缓存有效且已验证，直接使用
           resolvedUrl = tabCache.url;
           tabId = tabCache.tabId;
           tab = {
@@ -251,6 +275,16 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     // 优先使用已存在的页面数据，避免重复创建，同时确保标题策略正确
     const existingPage = gameplayStore.getPageByUrl(resolvedUrl);
     
+    console.log('[getCurrentPage] 页面查找结果:', {
+      url: resolvedUrl,
+      existingPageId: existingPage?.id,
+      existingPageTitle: existingPage?.title,
+      existingPageTitleSource: existingPage?.titleSource,
+      existingPageTags: existingPage?.tags?.length || 0,
+      tabTitle: tab?.title,
+      existingPageUpdatedAt: existingPage?.updatedAt,
+    });
+    
     // 标题策略：已存在页面使用数据库标题（用户可能已编辑），新页面使用 Tab 标题
     // metadata.title 将在后台异步更新，不阻塞当前返回
     let titleToUse: string;
@@ -279,12 +313,32 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       // 不保存到GameplayStore，不触发同步，只返回临时对象
     } else {
       // 页面已存在，正常创建/更新
+      console.log('[getCurrentPage] 调用createOrUpdatePage:', {
+        url: resolvedUrl,
+        titleToUse,
+        existingPageId: existingPage.id,
+        existingPageTitle: existingPage.title,
+        existingPageTitleSource: existingPage.titleSource,
+        tabTitle: tab?.title,
+      });
+      
       page = gameplayStore.createOrUpdatePage(
         resolvedUrl,
         titleToUse, 
         domain,
         tab?.favIconUrl,
       );
+
+      console.log('[getCurrentPage] createOrUpdatePage返回:', {
+        pageId: page.id,
+        pageTitle: page.title,
+        pageTitleSource: page.titleSource,
+        pageTags: page.tags?.length || 0,
+        pageUpdatedAt: page.updatedAt,
+        existingPageUpdatedAt: existingPage.updatedAt,
+        isSameObject: page === existingPage,
+        dataChanged: JSON.stringify(page) !== JSON.stringify(existingPage),
+      });
 
       // RPC Server 层会统一处理事务，不需要手动调用 commit()
 
@@ -295,6 +349,16 @@ export class BackgroundServiceImpl implements IBackgroundApi {
         triggerBackgroundSync(syncService.markPageChange('update', page.id, page));
       }
     }
+
+    console.log('[getCurrentPage] 最终返回的page:', {
+      pageId: page.id,
+      pageUrl: page.url,
+      pageTitle: page.title,
+      pageTitleSource: page.titleSource,
+      pageTags: page.tags?.length || 0,
+      pageUpdatedAt: page.updatedAt,
+      isTemporary: page.id.startsWith('temp_'),
+    });
 
     // 后台异步执行 ANALYZE_PAGE，不阻塞返回（分析逻辑已分离到独立方法）
     if (tabId) {
@@ -345,6 +409,13 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     const success = gameplayStore.updatePageTitle(pageId, title, isManualEdit);
     if (!success) {
       throw new Error('更新页面标题失败');
+    }
+
+    // 如果是手动编辑，设置titleSource为manual_edit
+    // 注意：updatePageTitle已经会设置titleSource为manual_edit（如果isManualEdit为true）
+    // 但为了确保一致性，这里也设置一下
+    if (isManualEdit) {
+      gameplayStore.setPageTitleSource(pageId, 'manual_edit');
     }
 
     const page = gameplayStore.getPageById(pageId);
@@ -452,7 +523,7 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
   async updatePageTags(
     pageId: string, 
-    payload: { tagsToAdd: string[]; tagsToRemove: string[] }
+    payload: { tagsToAdd: string[]; tagsToRemove: string[]; title?: string }
   ): Promise<{ newPage: TaggedPage | null; newStats: { todayCount: number; streak: number } }> {
     const startTime = performance.now();
     
@@ -514,8 +585,17 @@ export class BackgroundServiceImpl implements IBackgroundApi {
           domain = protocolMatch ? `${protocolMatch[1]}-page` : 'internal-page';
         }
 
-        // 获取标题（从tab获取）
-        const title = tab?.title || '无标题';
+        // 获取标题：优先使用传入的title（临时页面的title），否则从tab获取
+        const title = payload.title || tab?.title || '无标题';
+        
+        console.log('[updatePageTags] 临时页面转持久化页面 - Title信息:', {
+          pageId,
+          payloadTitle: payload.title,
+          tabTitle: tab?.title,
+          finalTitle: title,
+          usedPayloadTitle: !!payload.title,
+          usedTabTitle: !payload.title && !!tab?.title,
+        });
 
         persistentPage = gameplayStore.createOrUpdatePage(
           tempPageUrl,
@@ -523,7 +603,17 @@ export class BackgroundServiceImpl implements IBackgroundApi {
           domain,
           tab?.favIconUrl,
         );
+        // 如果使用了payload中的title，标记为user_operation（用户操作确认）
+        if (payload.title) {
+          gameplayStore.setPageTitleSource(persistentPage.id, 'user_operation');
+        }
         triggerBackgroundSync(syncService.markPageChange('create', persistentPage.id, persistentPage));
+      } else {
+        // 如果已有持久化页面，但使用了payload中的title且title不同，更新title并标记
+        if (payload.title && persistentPage.title !== payload.title) {
+          gameplayStore.updatePageTitle(persistentPage.id, payload.title, false);
+          gameplayStore.setPageTitleSource(persistentPage.id, 'user_operation');
+        }
       }
 
       // 添加tag到持久化页面
@@ -537,6 +627,13 @@ export class BackgroundServiceImpl implements IBackgroundApi {
         throw new Error('更新页面失败');
       }
 
+      console.log('[updatePageTags] 临时页面转持久化页面 - 返回页面Title:', {
+        pageId: updatedPage.id,
+        title: updatedPage.title,
+        originalPayloadTitle: payload.title,
+        titleSource: updatedPage.titleSource,
+      });
+
       triggerBackgroundSync(syncService.markPageChange('update', updatedPage.id, updatedPage));
       const stats = gameplayStore.getUserStats();
       
@@ -548,9 +645,39 @@ export class BackgroundServiceImpl implements IBackgroundApi {
     }
 
     // 持久化页面的正常更新逻辑
-    const page = gameplayStore.getPageById(pageId);
+    let page = gameplayStore.getPageById(pageId);
+    
+    // 如果通过pageId找不到页面，尝试通过URL查找（可能是页面被删除后重新创建）
     if (!page) {
-      throw new Error('页面不存在');
+      // 尝试获取当前标签页URL
+      let currentUrl: string | undefined;
+      try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs && tabs.length > 0 && tabs[0].url) {
+          currentUrl = tabs[0].url;
+        }
+      } catch (error) {
+        console.warn('[updatePageTags] 无法获取当前标签页URL:', error);
+      }
+      
+      // 如果获取到URL，尝试通过URL查找页面
+      if (currentUrl) {
+        page = gameplayStore.getPageByUrl(currentUrl);
+        if (page) {
+          console.log('[updatePageTags] 通过URL找到页面，使用新pageId:', {
+            oldPageId: pageId,
+            newPageId: page.id,
+            url: currentUrl,
+          });
+          // 更新pageId为找到的页面ID
+          pageId = page.id;
+        }
+      }
+      
+      // 如果仍然找不到页面，抛出错误
+      if (!page) {
+        throw new Error('页面不存在');
+      }
     }
 
     normalizedTagsToAdd.forEach(tagName => {
@@ -570,18 +697,68 @@ export class BackgroundServiceImpl implements IBackgroundApi {
       }
     });
 
+    // 如果使用了payload中的title且title不同，更新title并标记为user_operation
+    if (payload.title && page.title !== payload.title) {
+      gameplayStore.updatePageTitle(pageId, payload.title, false);
+      gameplayStore.setPageTitleSource(pageId, 'user_operation');
+      // 重新获取更新后的页面
+      const pageAfterTitleUpdate = gameplayStore.getPageById(pageId);
+      if (pageAfterTitleUpdate) {
+        page = pageAfterTitleUpdate;
+      }
+    }
+
+    // 重新获取更新后的页面（可能title已更新）
     const updatedPage = gameplayStore.getPageById(pageId);
     if (!updatedPage) {
       throw new Error('更新页面失败');
     }
 
+    console.log('[updatePageTags] 持久化页面更新 - Title信息:', {
+      pageId,
+      oldTitle: page.title,
+      newTitle: updatedPage.title,
+      titleChanged: page.title !== updatedPage.title,
+      payloadTitle: payload.title,
+      titleSource: updatedPage.titleSource,
+    });
+
     // 如果页面没有 tag 了，删除持久化页面，返回临时页面对象
     if (updatedPage.tags.length === 0) {
       // 保存页面信息用于创建临时页面对象
       const pageUrl = updatedPage.url;
-      const pageTitle = updatedPage.title;
       const pageDomain = updatedPage.domain;
       const pageFavicon = updatedPage.favicon;
+
+      // 获取title：优先使用payload中的title（用户当前看到的title），
+      // 否则从tab获取当前title，最后才使用持久化页面的title（可能已被TabTitleMonitor更新）
+      let pageTitle: string;
+      if (payload.title) {
+        // 使用payload中的title（用户当前看到的title）
+        pageTitle = payload.title;
+      } else {
+        // 尝试从tab获取当前title
+        let tabTitle: string | undefined;
+        try {
+          const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (tabs && tabs.length > 0 && tabs[0].url === pageUrl && tabs[0].title) {
+            tabTitle = tabs[0].title;
+          }
+        } catch (error) {
+          console.warn('[updatePageTags] 无法获取当前标签页title:', error);
+        }
+        
+        // 使用tab的title或持久化页面的title作为后备
+        pageTitle = tabTitle || updatedPage.title;
+      }
+
+      console.log('[updatePageTags] 删除持久化页面并创建临时页面 - Title信息:', {
+        pageId,
+        payloadTitle: payload.title,
+        persistentPageTitle: updatedPage.title,
+        finalTitle: pageTitle,
+        usedPayloadTitle: !!payload.title,
+      });
 
       // 删除持久化页面
       const deleteSuccess = gameplayStore.deletePage(pageId);
@@ -625,6 +802,12 @@ export class BackgroundServiceImpl implements IBackgroundApi {
         willDelete: updatedPage.tags.length === 0,
       });
     }
+
+    console.log('[updatePageTags] 持久化页面更新 - 返回页面Title:', {
+      pageId: updatedPage.id,
+      title: updatedPage.title,
+      oldTitle: page.title,
+    });
 
     return {
       newPage: updatedPage,
@@ -785,6 +968,21 @@ export class BackgroundServiceImpl implements IBackgroundApi {
 
   async getUserStats(): Promise<{ todayCount: number; streak: number }> {
     return gameplayStore.getUserStats();
+  }
+
+  // ==================== Stats Wall 相关 ====================
+
+  /**
+   * 获取 Stats Wall 数据
+   * @param version 客户端版本号，如果匹配则返回缓存，否则重新计算
+   * @returns Stats Wall 数据和版本号信息
+   */
+  async getStatsWallData(version?: number): Promise<{
+    data: import('../../shared/types/statsWall').CalendarLayoutInfo;
+    version: number;
+    cached: boolean;
+  }> {
+    return statsWallComputeService.getStatsWallData(version);
   }
 
   // ==================== Data 相关 ====================

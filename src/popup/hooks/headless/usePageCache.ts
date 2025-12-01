@@ -46,10 +46,28 @@ export function usePageCache(
    * 优先从 RPC 获取（权威数据源），降级到 Storage 读取
    */
   const queryFn = useCallback<QueryFunction<TaggedPage>>(async () => {
+    const currentUrl = currentUrlRef.current;
+    logger.debug('[usePageCache] queryFn 开始执行:', {
+      currentUrl,
+      cacheKey: currentUrl ? queryKeys.currentPage(currentUrl) : 'none',
+    });
+    
     // 优先从 RPC 获取（权威数据源）
     try {
       logger.debug('[usePageCache] 从 RPC 获取数据（权威数据源）');
       const page = await currentPageService.getCurrentPage();
+      
+      logger.debug('[usePageCache] RPC 返回的页面数据:', {
+        pageId: page.id,
+        pageUrl: page.url,
+        pageTitle: page.title,
+        pageTitleSource: page.titleSource,
+        pageTags: page.tags?.length || 0,
+        pageUpdatedAt: page.updatedAt,
+        isTemporary: page.id.startsWith('temp_'),
+        currentUrl,
+        urlMatch: currentUrl ? isUrlMatch(page.url, currentUrl) : false,
+      });
       
       // 触发后台分析，校验数据一致性（使用防抖避免频繁调用）
       const now = Date.now();
@@ -91,7 +109,15 @@ export function usePageCache(
           );
 
           if (matchedPage) {
-            logger.debug('[usePageCache] 从 Storage 读取缓存数据（降级策略）');
+            logger.debug('[usePageCache] 从 Storage 读取缓存数据（降级策略）:', {
+              pageId: matchedPage.id,
+              pageUrl: matchedPage.url,
+              pageTitle: matchedPage.title,
+              pageTitleSource: matchedPage.titleSource,
+              pageTags: matchedPage.tags?.length || 0,
+              pageUpdatedAt: matchedPage.updatedAt,
+              currentUrl: url,
+            });
             return matchedPage;
           }
         }

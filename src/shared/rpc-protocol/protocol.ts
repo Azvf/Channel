@@ -2,6 +2,7 @@
 // 协议层：定义类型契约和错误标准
 
 import type { GameplayTag, TaggedPage } from '../types/gameplayTag';
+import type { CalendarLayoutInfo } from '../types/statsWall';
 
 /**
  * 标准化 JSON-RPC 2.0 请求结构
@@ -85,7 +86,8 @@ export interface IBackgroundApi {
   updatePageTitle(pageId: string, title: string, isManualEdit?: boolean): Promise<void>;
   updatePageTags(pageId: string, payload: { 
     tagsToAdd: string[]; 
-    tagsToRemove: string[] 
+    tagsToRemove: string[];
+    title?: string; // 可选的title，用于临时页面（避免重新获取）
   }): Promise<{ newPage: TaggedPage | null; newStats: { todayCount: number; streak: number } }>;
   updatePageDetails(pageId: string, payload: {
     title: string;
@@ -99,6 +101,13 @@ export interface IBackgroundApi {
   
   // Stats 相关
   getUserStats(): Promise<{ todayCount: number; streak: number }>;
+  
+  // Stats Wall 相关
+  getStatsWallData(version?: number): Promise<{
+    data: CalendarLayoutInfo;
+    version: number;
+    cached: boolean; // 是否来自缓存
+  }>;
   
   // Data 相关
   exportData(): Promise<string>;

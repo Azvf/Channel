@@ -94,11 +94,12 @@ export class GameplayStore {
    * 通知所有监听器数据已变化
    */
   private notifyListeners(): void {
-    this.listeners.forEach(cb => {
+    // 使用 Array.from 来获取索引，因为 Set.forEach 不提供索引参数
+    Array.from(this.listeners).forEach((cb) => {
       try {
         cb();
       } catch (error) {
-        console.error('GameplayStore: 监听器执行失败', error);
+        console.error(`[GameplayStore] 监听器执行失败:`, error);
       }
     });
   }
@@ -487,6 +488,7 @@ export class GameplayStore {
 
   public createOrUpdatePage(url: string, title: string, domain: string, favicon?: string, coverImage?: string): TaggedPage {
     const pageId = this.generatePageId(url);
+    const log = logger('GameplayStore');
     
     if (this.pages[pageId]) {
       // 检查页面是否真的需要更新
@@ -494,11 +496,28 @@ export class GameplayStore {
       const existingTags = existingPage.tags; // 保存现有标签
       const existingTitleManuallyEdited = existingPage.titleManuallyEdited; // 保存手动编辑标记
       
+      log.debug('[createOrUpdatePage] 页面已存在，检查更新:', {
+        pageId,
+        existingTitle: existingPage.title,
+        newTitle: title,
+        existingTitleSource: existingPage.titleSource,
+        existingTags: existingTags.length,
+        existingUpdatedAt: existingPage.updatedAt,
+      });
+      
       // 比较需要更新的字段，判断是否真的发生了变化
       const titleChanged = existingPage.title !== title;
       const faviconChanged = favicon !== undefined && existingPage.favicon !== favicon;
       const coverImageChanged = coverImage !== undefined && existingPage.coverImage !== coverImage;
       const hasChanges = titleChanged || faviconChanged || coverImageChanged;
+      
+      log.debug('[createOrUpdatePage] 变化检查:', {
+        pageId,
+        titleChanged,
+        faviconChanged,
+        coverImageChanged,
+        hasChanges,
+      });
       
       // 只有数据真正变化时才更新和标记 dirty
       if (hasChanges) {
@@ -508,13 +527,27 @@ export class GameplayStore {
           ...(titleChanged && { updatedAt: timeService.now() }),
           tags: existingTags, // 确保标签不被覆盖
           titleManuallyEdited: existingTitleManuallyEdited, // 保持手动编辑标记
+          titleSource: existingPage.titleSource, // 保持titleSource（除非明确设置）
           ...(favicon && { favicon }),
           ...(coverImage && { coverImage })
         };
         this.markDirty(pageId);
         this.notifyListeners(); // 通知 UI
+        
+        log.debug('[createOrUpdatePage] 页面已更新:', {
+          pageId,
+          newTitle: this.pages[pageId].title,
+          newTitleSource: this.pages[pageId].titleSource,
+          newUpdatedAt: this.pages[pageId].updatedAt,
+        });
       } else {
         // 数据未变化，不标记 dirty，但仍通知监听器（保持 UI 一致性）
+        log.debug('[createOrUpdatePage] 页面数据未变化，直接返回:', {
+          pageId,
+          title: existingPage.title,
+          titleSource: existingPage.titleSource,
+          updatedAt: existingPage.updatedAt,
+        });
         this.notifyListeners();
       }
     } else {
@@ -533,9 +566,24 @@ export class GameplayStore {
       };
       this.markDirty(pageId); // 新页面需要保存
       this.notifyListeners(); // 通知 UI
+      
+      log.debug('[createOrUpdatePage] 创建新页面:', {
+        pageId,
+        title,
+        titleSource: this.pages[pageId].titleSource,
+      });
     }
 
-    return this.pages[pageId];
+    const returnedPage = this.pages[pageId];
+    log.debug('[createOrUpdatePage] 返回页面:', {
+      pageId: returnedPage.id,
+      title: returnedPage.title,
+      titleSource: returnedPage.titleSource,
+      tags: returnedPage.tags.length,
+      updatedAt: returnedPage.updatedAt,
+    });
+    
+    return returnedPage;
   }
 
   /**
@@ -666,6 +714,30 @@ export class GameplayStore {
       title: trimmedTitle,
       // 如果是手动编辑则设置为 true，如果是自动更新则设置为 false（清除标记）
       titleManuallyEdited: isManualEdit ? true : false,
+      // 如果是手动编辑，设置titleSource为manual_edit；如果是自动更新，保持原有titleSource
+      titleSource: isManualEdit ? 'manual_edit' : page.titleSource,
+      updatedAt: timeService.now()
+    };
+    this.markDirty(pageId);
+    this.notifyListeners(); // 通知 UI
+    
+    return true;
+  }
+
+  /**
+   * 设置页面Title来源
+   * @param pageId - 页面ID
+   * @param source - Title来源：'auto' | 'user_operation' | 'manual_edit'
+   */
+  public setPageTitleSource(pageId: string, source: 'auto' | 'user_operation' | 'manual_edit'): boolean {
+    const page = this.pages[pageId];
+    if (!page) {
+      return false;
+    }
+    
+    this.pages[pageId] = {
+      ...page,
+      titleSource: source,
       updatedAt: timeService.now()
     };
     this.markDirty(pageId);
