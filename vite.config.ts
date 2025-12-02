@@ -7,6 +7,7 @@ import { writeFileSync, readFileSync, existsSync } from 'fs'
 import { getDevKey } from './scripts/bin/generate-keys.js'
 import tailwindcss from 'tailwindcss'
 import autoprefixer from 'autoprefixer'
+import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin'
 
 // 自定义插件：在构建后处理 HTML 文件
 function postBuildPlugin() {
@@ -89,6 +90,7 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     react(),
+    vanillaExtractPlugin(),
     postBuildPlugin(),
     viteStaticCopy({
       targets: [

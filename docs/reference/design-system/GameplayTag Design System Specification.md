@@ -6,7 +6,8 @@
 > 本文档仅描述视觉语言的**语义用途**。
 > * **设计常量 (Token)**: 定义于 [`src/design-tokens/tokens.ts`](../src/design-tokens/tokens.ts)
 > * **样式变量 (CSS)**: 定义于 [`src/popup/styles/tokens.css`](../src/popup/styles/tokens.css)
-> * **主题系统**: 定义于 [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 和 [`src/popup/theme-loader.ts`](../src/popup/theme-loader.ts)
+> * **主题系统**: 定义于 [`src/design-tokens/theme.ts`](../src/design-tokens/theme.ts)，通过 Vanilla Extract 在构建时生成 CSS（[`src/design-tokens/theme.css.ts`](../src/design-tokens/theme.css.ts)）
+> * **主题加载器**: [`src/popup/theme-loader.ts`](../src/popup/theme-loader.ts) - 在页面加载前同步应用主题，防止闪烁
 > * **组件预览**: 请运行 `npm run storybook` 查看 "Design Tokens" 章节。
 
 ## 1. 空间与布局 (Spacing & Layout)
@@ -82,17 +83,20 @@
 
 ### 架构设计
 
-主题系统采用**CSS 变量**和**同步加载**机制：
+主题系统采用**Vanilla Extract**实现**Zero-Runtime CSS**和**同步加载**机制：
 
-* **CSS 变量**: 所有主题变量通过 CSS 自定义属性（`--c-*`）定义
+* **Zero-Runtime CSS**: 所有主题变量在构建时通过 Vanilla Extract 预计算生成 CSS，运行时无 JavaScript 样式计算
+* **CSS 变量**: 所有主题变量通过 CSS 自定义属性（`--c-*`）定义，由 Vanilla Extract 自动生成
 * **同步加载**: 使用 `theme-loader.ts` 在 React 加载前同步应用主题，防止主题闪烁
-* **统一数据源**: 主题变量定义在 [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 中
+* **统一数据源**: 主题变量定义在 [`src/design-tokens/theme.ts`](../src/design-tokens/theme.ts) 中，作为唯一数据源（SSOT）
 
 ### 主题定义位置
 
-* **主题变量定义**: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) - 包含所有主题的 CSS 变量映射
+* **主题变量定义**: [`src/design-tokens/theme.ts`](../src/design-tokens/theme.ts) - 包含所有主题的 CSS 变量映射（唯一数据源）
+* **CSS 生成逻辑**: [`src/design-tokens/theme.css.ts`](../src/design-tokens/theme.css.ts) - Vanilla Extract 构建时 CSS 生成逻辑
 * **主题加载器**: [`src/popup/theme-loader.ts`](../src/popup/theme-loader.ts) - 在页面加载前同步应用主题，防止闪烁
-* **样式变量**: [`src/popup/styles/tokens.css`](../src/popup/styles/tokens.css) - CSS 变量声明
+* **主题工具函数**: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) - 运行时主题切换工具函数
+* **样式变量**: [`src/popup/styles/tokens.css`](../src/popup/styles/tokens.css) - 语义化变量和派生变量定义
 
 ### 主题变量结构
 
@@ -107,8 +111,13 @@
 
 添加新主题只需：
 
-1. 在 [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 的 `THEME_VARS` 对象中添加新主题配置
-2. 在 [`src/popup/theme-loader.ts`](../src/popup/theme-loader.ts) 的 `themeVars` 对象中添加相同的配置
+1. 在 [`src/design-tokens/theme.ts`](../src/design-tokens/theme.ts) 的 `THEME_VARS` 对象中添加新主题配置
+2. Vanilla Extract 会自动在构建时生成对应的 CSS 变量（通过 [`src/design-tokens/theme.css.ts`](../src/design-tokens/theme.css.ts)）
 3. 确保所有必需的 CSS 变量都已定义
 
-详见: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) 中的 `THEME_VARS` 对象。
+**架构优势**：
+- **Zero-Runtime**: 所有 CSS 在构建时生成，运行时只需设置 `data-theme` 属性
+- **类型安全**: TypeScript 类型检查确保主题变量一致性
+- **SSOT**: `theme.ts` 是唯一数据源，无需手动同步多个文件
+
+详见: [`src/design-tokens/theme.ts`](../src/design-tokens/theme.ts) 中的 `THEME_VARS` 对象。

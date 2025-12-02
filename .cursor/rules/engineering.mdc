@@ -149,16 +149,20 @@ Before editing code, verify:
 
 ## 6. Code Generation
 
-### Design Tokens
+### Design Tokens & Theme System
 
-- Run `npm run generate:tokens` to generate CSS variables from `src/design-tokens/tokens.ts`
+- **Theme System (Vanilla Extract)**: CSS is automatically generated at build time from `src/design-tokens/theme.ts`
+  - **Source**: [`src/design-tokens/theme.ts`](../../src/design-tokens/theme.ts) - Single Source of Truth (SSOT) for all theme variables
+  - **CSS Generation**: [`src/design-tokens/theme.css.ts`](../../src/design-tokens/theme.css.ts) - Vanilla Extract build-time CSS generation
+  - **Zero-Runtime**: All CSS is pre-computed at build time, runtime only needs to set `data-theme` attribute
+  - **No Manual Generation**: No need to run any commands, Vite plugin handles CSS generation automatically
 
 - Token change process:
-  1. **Modify Token Source**: Update `src/design-tokens/tokens.ts` with new/updated tokens
-  2. **Generate CSS**: Run `npm run generate:tokens` to regenerate CSS variables
+  1. **Modify Theme Source**: Update `src/design-tokens/theme.ts` with new/updated theme variables
+  2. **Build Automatically Generates CSS**: Vanilla Extract plugin automatically generates CSS during build
   3. **Update Documentation**: If token semantics change, update `docs/reference/design-system/GameplayTag Design System Specification.md` with semantic description (NOT hardcoded values)
   4. **Verify**: Run `npm run check:docs` to ensure no hardcoded values in documentation
-  5. **Reference in Code**: Use tokens via CSS variables (`var(--token-name)`) or TypeScript imports (`@/design-tokens/tokens`)
+  5. **Reference in Code**: Use tokens via CSS variables (`var(--token-name)`) or TypeScript imports (`@/design-tokens/theme`)
 
 - **Golden Rule**: NEVER hardcode values in documentation. Always reference tokens or code
 

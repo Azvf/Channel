@@ -8,8 +8,10 @@
  * 1. TypeScript 类型检查
  * 2. ESLint 检查（包含自定义规则）
  * 3. 依赖架构检查（dependency-cruiser）
- * 4. Design Tokens 生成（确保 CSS 变量是最新的）
- * 5. 文档规范检查（lint-docs）
+ * 4. 文档规范检查（lint-docs）
+ * 
+ * 注意：Design Tokens CSS 现在由 Vanilla Extract 在构建时自动生成，
+ * 无需手动运行生成脚本。
  */
 
 import { execSync } from 'child_process';
@@ -88,11 +90,6 @@ function main() {
       command: 'node scripts/bin/lint-docs.js',
       description: '文档规范检查（严禁硬编码）',
       allowFailure: false,
-    },
-    {
-      command: 'npm run generate:tokens',
-      description: '生成 Design Tokens CSS',
-      allowFailure: true, // 如果生成脚本未完全实现，允许失败
     },
   ];
   

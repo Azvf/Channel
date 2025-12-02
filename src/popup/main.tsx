@@ -1,5 +1,10 @@
 import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
+// 引入 Vanilla Extract 生成的 CSS（必须在 index.css 之前）
+// 注意：虽然源文件是 .css.ts，但 Vite 会处理它，就像引入普通 .css 一样
+// 必须在 index.css 之前导入，确保主题变量在语义化变量之前定义
+import '../design-tokens/theme.css';
+// 引入主样式文件（包含 tokens.css 和其他样式）
 import './index.css';
 import App from './App';
 import { loadAppInitialState, loadAppInitialStateSync } from '../services/appInitService';

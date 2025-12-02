@@ -3,6 +3,7 @@
    ======================================== */
 
 /* Layer 1: Design Tokens & Variables */
+/* 注意：theme.css 在 main.tsx 中通过 import 导入，确保在 index.css 之前加载 */
 @import './styles/tokens.css';
 
 /* Layer 2: Base Styles */

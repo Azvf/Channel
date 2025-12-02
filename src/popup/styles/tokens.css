@@ -13,60 +13,17 @@
    ----------------------------------------
 
    职责说明：
-   - body 选择器：定义基础 fallback 值，仅在主题系统未加载时使用
-   - 实际运行时，这些值会被 src/popup/theme-loader.ts 注入的内联样式覆盖
-   - 这里作为开发参考和最终 fallback，确保即使主题系统失败也能正常显示
+   - 主题变量现在由 Vanilla Extract 在构建时生成（theme.css.ts）
+   - 主题变量定义在 :root 和 [data-theme="..."] 选择器中
+   - 这里不再需要 body 选择器中的 fallback 值
+   - 非主题化变量（如 z-index, spacing）直接在 :root 中定义
 
    设计原则：
-   - 所有主题化变量使用 var(--variable, fallback) 模式
-   - fallback 值应该与 light 主题的默认值一致
+   - 所有主题化变量由 Vanilla Extract 生成，无需手动定义
+   - 语义化变量和派生变量在 :root 中定义，引用主题变量
    - 非主题化变量（如 z-index, spacing）直接在 :root 中定义
 
 */
-body {
-  /* 颜色基础值 - fallback（light 主题默认值） */
-  --c-glass: #bbbbbc;
-  --c-light: #fff;
-  --c-dark: #000;
-  --c-content: #224;
-  --c-action: #0052f5;
-  --c-bg: #E8E8E9;
-  
-  /* Glass 反射参数 - fallback */
-  --glass-reflex-dark: 1;
-  --glass-reflex-light: 1;
-  --saturation: 150%;
-  
-  /* 字体 fallback - 实际值由主题系统提供 */
-  --font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif);
-  
-  /* 阴影系统 fallback - 实际值由主题系统提供 */
-  --shadow-color: var(--shadow-color, rgba(0, 0, 0, 0.1));
-  
-  /* --- Glass Physics System (Depth-Aware Rendering) --- */
-  /* Glass 参数 fallback - 实际值由主题系统提供 */
-  --glass-blur-base: var(--glass-blur-base, 12px);
-  --glass-blur-decay: var(--glass-blur-decay, 2px);
-  --glass-opacity-base: var(--glass-opacity-base, 0.15);
-  --glass-opacity-increment: var(--glass-opacity-increment, 0.05);
-  --glass-reflex-strength: var(--glass-reflex-strength, 1);
-  
-  /* Animation Tokens fallback - 实际值由主题系统提供 */
-  --transition-fast: var(--transition-fast, 200ms);
-  --transition-base: var(--transition-base, 300ms);
-  --transition-slow: var(--transition-slow, 400ms);
-  --transition-hero: var(--transition-hero, 700ms); /* [Refactor] 专用于 Logo/Hero 动画 */
-
-  --ease-smooth: var(--ease-base, cubic-bezier(0.4, 0, 0.2, 1));
-  --ease-glass: var(--ease-glass, cubic-bezier(1, 0.0, 0.4, 1));
-
-  /* Focus States fallback - 实际值由主题系统提供 */
-  --focus-ring-width: var(--focus-ring-width, 3px); /* [Refactor] 焦点光晕宽度，统一管理 */
-  --focus-ring-color: var(--focus-ring-color, var(--c-action));
-  --focus-ring-opacity: var(--focus-ring-opacity, 0.5);
-}
 
 /* ----------------------------------------
 
@@ -163,8 +120,7 @@ body {
      (已修复：使用大数值，并移除底部的冲突代码)
      ======================================== */
   
-  /* 圆角基础值 fallback - 实际值由主题系统提供 */
-  --radius-base: var(--radius-base, 1.0rem);
+  /* 圆角基础值由 Vanilla Extract 主题系统提供，无需重新定义 */
   
   /* [xs] 微小元素 (Checkbox, Tags) - 像鹅卵石 */
   --radius-xs: calc(var(--radius-base) * 0.5);    /* 基于 radius-base */
@@ -253,10 +209,7 @@ body {
   --letter-spacing-section-title: var(--font-section-title-letter-spacing, 0.05em);
 
   /* Body & Content */
-  /* 字体大小和字重 fallback - 实际值由主题系统提供 */
-  --font-size-base: var(--font-size-base, 0.85rem);
-  --font-weight-base: var(--font-weight-base, 400);
-  --font-weight-bold: var(--font-weight-bold, 600);
+  /* 字体大小和字重由 Vanilla Extract 主题系统提供，无需重新定义 */
   --font-body: var(--font-body-weight, 400) var(--font-body-size, 0.85rem)/var(--font-body-line-height, 1.4) var(--font-family);
   --letter-spacing-body: var(--font-body-letter-spacing, 0.01em);
 
@@ -313,9 +266,7 @@ body {
   --bg-action-solid: var(--c-action);
 
   /* Borders */
-  /* 边框宽度 fallback - 实际值由主题系统提供 */
-  --border-width-base: var(--border-width-base, 1px);
-  --border-width-thick: var(--border-width-thick, 2px);
+  /* 边框宽度由 Vanilla Extract 主题系统提供，无需重新定义 */
   --border-glass-subtle: color-mix(in srgb, var(--c-glass) 15%, transparent);
   --border-glass-moderate: color-mix(in srgb, var(--c-glass) 20%, transparent);
   --border-glass-strong: color-mix(in srgb, var(--c-glass) 30%, transparent);
@@ -328,16 +279,12 @@ body {
   --hover-color-action: var(--c-action);
 
   /* Intent Colors (for Alerts, Badges, etc.) */
-  /* Intent 颜色 fallback - 实际值由主题系统提供 */
-  --color-destructive: var(--color-destructive, #D0021B);
-  --color-warning: var(--color-warning, #F5A623); /* [Refactor] 新增 Warning Token，替代硬编码 HEX */
+  /* Intent 颜色由 Vanilla Extract 主题系统提供，无需重新定义 */
   --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
   --hover-color-destructive: var(--color-destructive);
 
   /* Tooltip Specifics */
-  /* Tooltip 样式 fallback - 实际值由主题系统提供 */
-  --tooltip-shadow-intensity: var(--tooltip-shadow-intensity, 0.12);
-  --tooltip-border-opacity: var(--tooltip-border-opacity, 0.2);
+  /* Tooltip 样式由 Vanilla Extract 主题系统提供，无需重新定义 */
   --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
   --tooltip-border: 1px solid color-mix(in srgb, var(--border-glass-moderate) calc(var(--tooltip-border-opacity) * 100%), transparent);
   --tooltip-radius: var(--radius-md);
@@ -358,10 +305,7 @@ body {
   /* Scrollbar System */
   --sb-width: 10px;
   --sb-thumb-width-visual: 4px;
-  /* 滚动条透明度 fallback - 实际值由主题系统提供 */
-  --sb-thumb-opacity-idle: var(--sb-thumb-opacity-idle, 0.12);
-  --sb-thumb-opacity-hover: var(--sb-thumb-opacity-hover, 0.25);
-  --sb-thumb-opacity-active: var(--sb-thumb-opacity-active, 0.4);
+  /* 滚动条透明度由 Vanilla Extract 主题系统提供，无需重新定义 */
   --sb-thumb-idle: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-idle) * 100%), transparent);
   --sb-thumb-hover: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-hover) * 100%), transparent);
   --sb-thumb-active: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-active) * 100%), transparent);

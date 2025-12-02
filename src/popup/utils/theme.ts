@@ -1,27 +1,26 @@
 /**
  * 主题工具函数
  * 用于在 html 元素上应用主题，使用 data-theme 属性进行主题检测
+ * 
+ * 架构说明：
+ * - CSS 变量由 Vanilla Extract 在构建时生成（theme.css.ts）
+ * - 运行时只需设置 data-theme 属性，CSS 选择器会自动匹配
+ * - 极其高效：只需修改属性，浏览器合成线程会自动处理变量切换
  */
 
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
-import { THEME_VARS } from '../../design-tokens/theme';
 
+/**
+ * 应用主题到 body
+ * 
+ * 极其高效：只需修改属性，浏览器合成线程会自动处理变量切换
+ * 
+ * @param themeValue - 主题名称
+ * @param disableTransition - 是否禁用过渡效果（用于初始加载）
+ */
 export function applyThemeToBody(themeValue: string, disableTransition: boolean = false): void {
   const body = document.body;
   if (!body) return;
-  
-  const vars = THEME_VARS[themeValue as keyof typeof THEME_VARS] || THEME_VARS.light;
-  
-  // 更新 :root 样式（如果 HTML 脚本已创建）
-  let rootStyle = document.getElementById('theme-inline-root') as HTMLStyleElement;
-  if (rootStyle) {
-    let rootCss = ':root{';
-    for (const [key, value] of Object.entries(vars)) {
-      rootCss += key + ':' + value + '!important;';
-    }
-    rootCss += '}';
-    rootStyle.textContent = rootCss;
-  }
   
   // 控制过渡效果
   if (disableTransition) {
@@ -32,12 +31,8 @@ export function applyThemeToBody(themeValue: string, disableTransition: boolean 
     body.style.removeProperty('transition');
   }
   
-  // 设置 CSS 变量到 body
-  for (const [key, value] of Object.entries(vars)) {
-    body.style.setProperty(key, value, 'important');
-  }
-  
-  // 使用 data-theme 属性进行主题检测（替代 :has() hack）
+  // 使用 data-theme 属性进行主题检测
+  // CSS 选择器 [data-theme="..."] 会立即匹配并应用对应的 CSS 变量
   document.documentElement.setAttribute('data-theme', themeValue);
 }
 
@@ -47,5 +42,7 @@ export function applyThemeToBody(themeValue: string, disableTransition: boolean 
 export async function applySavedTheme(): Promise<void> {
   const savedTheme = (await storageService.get<string>(STORAGE_KEYS.THEME)) || 'light';
   applyThemeToBody(savedTheme);
+  
+  // 持久化到 localStorage（用于 theme-loader.ts 同步读取）
+  localStorage.setItem('theme', savedTheme);
 }
-

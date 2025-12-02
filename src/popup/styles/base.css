@@ -7,7 +7,7 @@
   /* Base typography. This is not applied to elements which have an ancestor with a Tailwind text class. */
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     :is(h1, h2, h3, h4) {
-      font-weight: 500;
+      font-weight: var(--font-weight-medium);
       line-height: 1.5;
       color: var(--color-text-primary);
     }
@@ -30,13 +30,13 @@
 }
 
 html {
-  font-size: var(--font-size);
+  font-size: 16px; /* 标准基准，确保 rem 单位计算正确 */
   scroll-behavior: smooth;
   overflow-y: scroll;
 }
 
 body {
-  font-size: 20px;
+  font-size: var(--font-size-base); /* 使用主题变量，而不是硬编码 20px */
   background: var(--c-bg);
   color: var(--c-content);
   transition: none; /* Initial state */

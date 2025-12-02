@@ -11,8 +11,8 @@
     "check:arch": "dependency-cruiser --config .dependency-cruiser.cjs src",
     "check:deps": "npm run check:arch",
     "check:docs": "node scripts/bin/lint-docs.js",
-    "prepare:dev": "npm run generate:tokens",
-    "prepare:build": "npm run generate:tokens && npm run check",
+    "prepare:dev": "",
+    "prepare:build": "npm run check",
     "prebuild": "npm run check",
     "build": "npm run prepare:build && vite build",
     "build:dev": "npm run prepare:build && vite build --mode development",
@@ -40,7 +40,6 @@
     "build-storybook": "storybook build",
     "chromatic": "npx chromatic",
     "/* ----- 工具脚本 (Utility Scripts) ----- */": "",
-    "generate:tokens": "node scripts/bin/generate-tokens-css.js",
     "/* ----- Schema-Driven Development (SDD) ----- */": "",
     "gen:types": "node scripts/bin/setup-supabase-types.js",
     "gen:types:manual": "supabase gen types typescript --project-id ${SUPABASE_PROJECT_ID} > src/shared/types/database.types.ts",
@@ -97,7 +96,8 @@
     "typescript": "^5.1.6",
     "vite": "^7.2.2",
     "vite-plugin-static-copy": "^3.1.4",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "@vanilla-extract/vite-plugin": "^5.1.3"
   },
   "keywords": [
     "browser-extension",
@@ -123,6 +123,7 @@
     "lucide-react": "^0.552.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "@vanilla-extract/css": "^1.15.1"
   }
 }
