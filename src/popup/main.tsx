@@ -59,6 +59,90 @@ function registerCSSProperties() {
   }
 }
 
+/**
+ * [Rendering Architect] 全局原生 Tooltip 禁用器
+ * 
+ * 原理：
+ * 使用 MutationObserver 建立一个"DOM 卫士"。
+ * 当任何元素试图通过 title 属性"走私"原生 Tooltip 时，
+ * 卫士会立即拦截，将 title 偷渡为无障碍属性 aria-label，
+ * 然后销毁原 title 属性。
+ * 
+ * 性能影响：
+ * 极低。逻辑仅在 DOM 变更微任务中运行，且操作均为 O(1) 或 O(N_added_nodes)。
+ */
+function disableNativeTooltips() {
+  // 核心处理器：处理单个节点
+  const processNode = (node: Node) => {
+    // 快速过滤：只处理元素节点
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    
+    const el = node as HTMLElement;
+    
+    // 1. 检查自身
+    if (el.hasAttribute('title')) {
+      const title = el.getAttribute('title');
+      if (title) {
+        // [A11y] 关键：迁移语义到 aria-label，防止可访问性丢失
+        // 仅在没有现成 aria-label 时迁移，避免覆盖更精确的描述
+        if (!el.hasAttribute('aria-label') && !el.hasAttribute('aria-labelledby')) {
+          el.setAttribute('aria-label', title);
+        }
+        // [Dev] 保留原始 title 数据供调试或自定义组件使用
+        el.setAttribute('data-original-title', title);
+        // [Render] 移除原生属性，物理阻断浏览器 Tooltip 渲染
+        el.removeAttribute('title');
+      }
+    }
+
+    // 2. 检查子树 (深度优先，但仅针对由于 innerHTML 或大块插入的情况)
+    // 注意：querySelectorAll 在大型子树上可能昂贵，但在 Popup 场景下通常可控
+    if (el.children.length > 0) {
+      el.querySelectorAll('[title]').forEach(child => {
+        const childEl = child as HTMLElement;
+        const title = childEl.getAttribute('title');
+        if (title) {
+          if (!childEl.hasAttribute('aria-label') && !childEl.hasAttribute('aria-labelledby')) {
+            childEl.setAttribute('aria-label', title);
+          }
+          childEl.setAttribute('data-original-title', title);
+          childEl.removeAttribute('title');
+        }
+      });
+    }
+  };
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      // 场景 A: 新元素被插入 (ChildList)
+      if (mutation.type === 'childList') {
+        mutation.addedNodes.forEach(processNode);
+      }
+      // 场景 B: 现有元素的 title 属性发生了变化 (Attributes)
+      else if (mutation.type === 'attributes' && mutation.attributeName === 'title') {
+        processNode(mutation.target);
+      }
+    }
+  });
+
+  // 1. 立即清理当前 DOM (防止脚本加载前的遗漏)
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('[title]').forEach(el => processNode(el));
+
+    // 2. 启动卫士
+    const target = document.body || document.documentElement;
+    observer.observe(target, {
+      childList: true, // 监听节点增删
+      subtree: true,   // 监听整个子树
+      attributes: true,// 监听属性变化
+      attributeFilter: ['title'] // [Perf] 性能白名单：只关心 title 属性变化
+    });
+  }
+}
+
+// 在 React 挂载前立即执行，确保"零延迟"生效
+disableNativeTooltips();
+
 // 立即注册 CSS 属性（在 React 渲染前）
 registerCSSProperties();
 

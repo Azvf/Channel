@@ -27,6 +27,24 @@
   :where(button, input, select, textarea, a[href], [role="button"], [tabindex]):focus-visible {
     outline: none;
   }
+
+  /* ========================================
+     INPUT PLACEHOLDER STYLES
+     确保所有 Input 的 placeholder 文本使用主题字体
+     ======================================== */
+  input::placeholder,
+  textarea::placeholder {
+    font: var(--font-body);
+    color: var(--color-text-tertiary);
+  }
+
+  /* ========================================
+     DISABLE NATIVE TOOLTIPS
+     全局禁用浏览器默认的 title 属性 tooltip
+     使用自定义 Tooltip 组件替代
+     ======================================== */
+  /* 注意：CSS 无法直接禁用 title tooltip，需要通过 JavaScript 移除 title 属性 */
+  /* 见 main.tsx 中的 disableNativeTooltips() 函数 */
 }
 
 html {

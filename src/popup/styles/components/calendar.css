@@ -139,7 +139,10 @@
   /* [Refactor] 使用全局 Token，对齐到 4px 网格 */
   width: var(--calendar-legend-square-size);
   height: var(--calendar-legend-square-size);
-  border-radius: var(--radius-xs);
+  /* [Design] Liquid Conformality: 等比例计算圆角，与 activity-day-square 保持相同的视觉比例（tile 样式） */
+  /* activity-day-square: 24px 大小，8px 圆角 = 1/3 比例 */
+  /* legend-square: 10px 大小，按相同比例计算圆角 */
+  border-radius: calc(var(--calendar-legend-square-size) * var(--radius-xs) / var(--calendar-cell-size));
 }
 
 .calendar-legend-fixed .legend-square[data-level="0"] {
