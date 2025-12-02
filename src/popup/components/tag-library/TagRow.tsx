@@ -34,12 +34,18 @@ export const TagRow = memo(function TagRow({
       label: '编辑',
       onClick: () => onEditTag(tag),
       icon: <Pencil />,
+      shortcut: 'Meta+E',
+    },
+    {
+      type: 'divider',
+      label: '',
     },
     {
       label: '删除',
       onClick: () => onDeleteTag(tag.id),
       icon: <Trash2 />,
       variant: 'destructive',
+      shortcut: 'Meta+Backspace',
     },
   ];
 

@@ -51,5 +51,8 @@ export const POSITIONING = {
   TOOLTIP_OFFSET: 6,
   /** 8px - Dropdown offset from anchor (aligned with --space-2) */
   DROPDOWN_OFFSET: SPACE.SPACE_2,
+  /** 8px - Collision detection padding (aligned with --space-2) */
+  COLLISION_PADDING: SPACE.SPACE_2,
 } as const;
+
 

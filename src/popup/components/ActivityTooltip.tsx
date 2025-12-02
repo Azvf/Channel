@@ -3,152 +3,141 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn } from '../utils/motion';
 import { POSITIONING } from '../utils/layoutConstants';
-import { DURATION } from '../../design-tokens/animation'; // [Refactor] 使用统一的动画常量
+import { DURATION } from '../../design-tokens/animation';
+import { GlassCard } from './GlassCard';
 
 interface ActivityTooltipProps {
   children: React.ReactElement;
   content: string;
 }
 
+/**
+ * ActivityTooltip Component
+ * 
+ * 显示在活动元素上方的工具提示
+ * 使用手动定位和 Portal 渲染
+ */
 export function ActivityTooltip({ children, content }: ActivityTooltipProps) {
-  const [show, setShow] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const updatePosition = () => {
-    if (!triggerRef.current || !tooltipRef.current) return;
-
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const tooltipRect = tooltipRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    // [Refactor] 使用标准定位常量
-    const viewportMargin = POSITIONING.VIEWPORT_MARGIN;
-    const tooltipOffset = POSITIONING.TOOLTIP_OFFSET;
-
-    let top = triggerRect.top - tooltipRect.height - tooltipOffset;
-    let left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
-
-    // 1. 垂直回退 (Fallback Chain)
-    if (top < viewportMargin) {
-      // 如果上方空间不够，放到下方
-      top = triggerRect.bottom + tooltipOffset;
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
     }
-    // 钳制在视口内
-    top = Math.max(viewportMargin, Math.min(top, viewportHeight - tooltipRect.height - viewportMargin));
+    timeoutRef.current = setTimeout(() => {
+      setIsVisible(true);
+    }, DURATION.BASE * 1000); // 300ms 延迟
+  };
 
-    // 2. 水平钳制
-    left = Math.max(viewportMargin, Math.min(left, viewportWidth - tooltipRect.width - viewportMargin));
-    
-    setPosition({ top, left });
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setIsVisible(false);
   };
 
   useLayoutEffect(() => {
-    if (show) {
-      updatePosition();
-      
-      // 监听滚动和窗口大小变化，更新位置
-      const handleUpdate = () => {
-        updatePosition();
-      };
-      
-      window.addEventListener('scroll', handleUpdate, true);
-      window.addEventListener('resize', handleUpdate);
-      
-      return () => {
-        window.removeEventListener('scroll', handleUpdate, true);
-        window.removeEventListener('resize', handleUpdate);
-      };
+    if (!isVisible || !triggerRef.current || !tooltipRef.current) {
+      return;
     }
-  }, [show]);
 
-  const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    // [Refactor] 300 -> DURATION.BASE * 1000，与系统动画节奏一致
-    timerRef.current = setTimeout(() => {
-      setShow(true);
-    }, DURATION.BASE * 1000);
-    // 调用原有的 onMouseEnter（如果有）
-    if (children.props.onMouseEnter) {
-      children.props.onMouseEnter(e);
-    }
-  };
+    const updatePosition = () => {
+      if (!triggerRef.current || !tooltipRef.current) return;
 
-  const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    setShow(false);
-    // 调用原有的 onMouseLeave（如果有）
-    if (children.props.onMouseLeave) {
-      children.props.onMouseLeave(e);
-    }
-  };
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const tooltipRect = tooltipRef.current.getBoundingClientRect();
 
-  // 清理定时器
+      // 优先显示在上方，空间不足时切换到下方
+      const spaceAbove = triggerRect.top;
+      const spaceBelow = window.innerHeight - triggerRect.bottom;
+      const showAbove = spaceAbove >= tooltipRect.height + POSITIONING.TOOLTIP_OFFSET || spaceAbove > spaceBelow;
+
+      const top = showAbove
+        ? triggerRect.top - tooltipRect.height - POSITIONING.TOOLTIP_OFFSET
+        : triggerRect.bottom + POSITIONING.TOOLTIP_OFFSET;
+      const left = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
+
+      setPosition({ top, left });
+    };
+
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isVisible, content]);
+
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
   }, []);
 
-  // 克隆 children (activity-bar 或其他元素) 并附加 ref 和事件
-  const trigger = React.cloneElement(children, {
-    ref: (node: HTMLElement | null) => {
-      // 使用类型断言来处理 ref
-      (triggerRef as React.MutableRefObject<HTMLElement | null>).current = node;
-      // 如果 children 有 ref，也调用它
-      const childRef = (children as any).ref;
-      if (typeof childRef === 'function') {
-        childRef(node);
-      } else if (childRef && 'current' in childRef) {
-        (childRef as React.MutableRefObject<HTMLElement | null>).current = node;
+  const triggerElement = React.cloneElement(children, {
+    ref: (node: HTMLElement) => {
+      triggerRef.current = node;
+      // 如果 children 已经有 ref，也要调用它
+      const originalRef = (children as any).ref;
+      if (typeof originalRef === 'function') {
+        originalRef(node);
+      } else if (originalRef && typeof originalRef === 'object' && 'current' in originalRef) {
+        // 使用类型断言处理 ref.current
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (originalRef as any).current = node;
       }
     },
     onMouseEnter: handleMouseEnter,
     onMouseLeave: handleMouseLeave,
   });
 
-  const tooltipElement = (
-    <motion.div
-      ref={tooltipRef}
-      className="fixed px-2.5 py-1.5 rounded-lg"
-      style={{
-        // [Refactor] 使用明确的 Tooltip 层级
-        zIndex: 'var(--z-tooltip)',
-        top: position.top,
-        left: position.left,
-        // [Refactor] Tokenized Tooltip Styles
-        background: 'var(--tooltip-bg)',
-        border: 'var(--tooltip-border)',
-        boxShadow: 'var(--tooltip-shadow)',
-        fontSize: 'var(--tooltip-font-size)',
-        fontWeight: 500,
-        color: 'var(--tooltip-text-color)',
-        backdropFilter: 'blur(12px)', // Optional: keep specific blur if needed
-        pointerEvents: 'none',
-      }}
-      variants={fadeIn}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-    >
-      {content}
-    </motion.div>
-  );
-
   return (
     <>
-      {trigger}
-      {typeof document !== 'undefined' && (
+      {triggerElement}
+      {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
-          {show && createPortal(tooltipElement, document.body)}
-        </AnimatePresence>
+          {isVisible && (
+            <motion.div
+              ref={tooltipRef}
+              style={{
+                position: 'fixed',
+                top: `${position.top}px`,
+                left: `${position.left}px`,
+                zIndex: 'var(--z-tooltip)',
+                pointerEvents: 'none',
+              }}
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <GlassCard
+                depthLevel={1}
+                style={{
+                  padding: 'var(--space-1_5) var(--space-2_5)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: 'var(--tooltip-border)',
+                  boxShadow: 'var(--tooltip-shadow)',
+                  fontSize: 'var(--tooltip-font-size)',
+                  fontWeight: 500,
+                  color: 'var(--tooltip-text-color)',
+                }}
+              >
+                {content}
+              </GlassCard>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
       )}
     </>
   );
 }
-

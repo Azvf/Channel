@@ -734,17 +734,24 @@ function PageCard({
       label: 'Edit',
       onClick: () => onEditPage(page),
       icon: <Pencil />,
+      shortcut: 'Meta+E',
     },
     {
       label: 'Copy URL',
       onClick: () => onCopyUrl(page.url),
       icon: <Copy />,
+      shortcut: 'Meta+Shift+C',
+    },
+    {
+      type: 'divider',
+      label: '',
     },
     {
       label: 'Delete',
       onClick: () => onDeletePage(page),
       icon: <Trash2 />,
       variant: 'destructive',
+      shortcut: 'Meta+Backspace',
     },
   ];
 

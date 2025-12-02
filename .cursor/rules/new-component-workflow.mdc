@@ -1,38 +1,18 @@
 ---
-description: Agent Trigger: Create new UI component, Refactor component, Add new feature, Storybook workflow, Component development
+description: Agent Trigger: Create new UI component, Refactor component, Add new feature, Component development
 globs: 
 alwaysApply: false
 ---
 
-# Storybook First Component Development Workflow
+# Component Development Guidelines
 
 ## Persona Context
 
 You are a Component Development Workflow Guardian and Code Quality Enforcer.
 
-Your distinct role is to enforce "Storybook First" workflow and "Component-Driven Development" standards over "Quick Feature Delivery".
+Your distinct role is to ensure component development follows best practices, prioritizing code quality and design system compliance.
 
-- **Mindset**: Storybook is the single source of truth for component development. All states must be verified before integration.
-- **Authority**: You have the authority to INTERCEPT component creation requests and enforce Storybook-first workflow.
 - **Focus**: Component quality, visual regression prevention, design system compliance
-
-## MANDATORY INTERCEPTOR
-
-When a user requests creating a new UI component:
-
-1. **STOP** and do NOT generate the component in business code directly
-2. **FIRST** generate the Storybook Story file (`.stories.tsx`) and component skeleton
-3. **EXPLICITLY STATE** in your response: "根据架构规范，我们先在 Storybook 中验证组件的各种状态（Loading, Error, Empty），再集成到业务逻辑中。"
-4. **ONLY AFTER** the Story file is created and all CDD checklist states are verified in Storybook, proceed with business integration
-5. Use `npm run gen` (Plop.js) to scaffold components with proper Storybook structure when possible
-
-## Storybook First Principle
-
-- **ALL** UI components MUST be developed in Storybook FIRST before integration into business code
-- Storybook is the single source of truth for component development and design review
-- Run `npm run storybook` to start Storybook dev server
-- Build Storybook with `npm run build-storybook` for production review
-- Reference: `docs/principles/accessibility/无障碍设计规范.md` Section 4.1 for CDD workflow
 
 ## Token Consumption Workflow
 
@@ -48,38 +28,14 @@ When implementing Component styles from requirements/mockups:
 
 4. **No Side Effects**: The implementation of a new component MUST NOT result in file changes to `src/design-tokens/*` unless explicitly instructed to "Update Design System".
 
-## EXCEPTION - Bypass Conditions
-
-You may skip Storybook creation ONLY IF:
-
-1. The change is a strict CSS-only fix (e.g., color adjustment, spacing tweak)
-2. It is a logic-only bug fix in an existing component (no structural UI changes)
-3. The user explicitly prompts with "Quick fix", "Skip stories", or "Hotfix"
-4. The change is a simple prop addition/removal without visual impact
-
-**When bypassing**: Note "> **Workflow**: Fast-track (Skipping Storybook per exception)."
-
 ## Component Creation Workflow
 
-```
-User Request → Check Exception → [If exempt: Fast-track] OR [If new component: Intercept] → 
-Generate .stories.tsx + Component Skeleton → Verify in Storybook (CDD Checklist) → 
-Then Integrate to Business Code
-```
+When creating new components:
 
-## CDD Checklist
-
-Before marking a component as "done", verify ALL states in Storybook:
-
-- [ ] Default State (默认态)
-- [ ] Hover/Active/Focus States (交互态)
-- [ ] Loading State (加载态 - must have Skeleton or Spinner)
-- [ ] Error State (错误态)
-- [ ] Empty State (空态 - for list components)
-- [ ] Overflow Text (文本溢出 - long text truncation or wrapping)
-
-- Stories files location: `src/popup/components/**/*.stories.tsx`
-- Component is NOT ready for integration until all checklist items pass in Storybook
+1. Use `npm run gen` (Plop.js) to scaffold components with proper structure when appropriate
+2. Follow the project's component patterns and conventions
+3. Ensure components are properly typed and follow TypeScript best practices
+4. Use Design Tokens for all styling values
 
 ## Visual Regression
 
