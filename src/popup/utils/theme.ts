@@ -4,7 +4,7 @@
  */
 
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
-import { THEME_VARS } from '../../design-tokens/color';
+import { THEME_VARS } from '../../design-tokens/theme';
 
 export function applyThemeToBody(themeValue: string, disableTransition: boolean = false): void {
   const body = document.body;

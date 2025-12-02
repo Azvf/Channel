@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: center;
   padding: 0.6em 1.2em;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-md);
   background-color: var(--bg-surface-glass);
   border: none;
   color: var(--color-text-primary);

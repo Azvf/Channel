@@ -25,6 +25,7 @@ export * from './opacity';
 export * from './shadow';
 export * from './scrollbar';
 export * from './focus';
+export * from './theme';
 export * from './utils';
 
 // 为了向后兼容，导出完整的 tokens 对象（供生成脚本使用）
@@ -41,6 +42,7 @@ import { OPACITY } from './opacity';
 import { SHADOWS } from './shadow';
 import { SCROLLBAR } from './scrollbar';
 import { FOCUS } from './focus';
+import { THEME_VARS } from './theme';
 
 /**
  * 完整的 tokens 对象（用于生成脚本）
@@ -60,5 +62,6 @@ export const TOKENS = {
   SHADOWS,
   SCROLLBAR,
   FOCUS,
+  THEME_VARS,
 } as const;
 

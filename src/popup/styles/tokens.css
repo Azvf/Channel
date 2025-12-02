@@ -12,12 +12,19 @@
 
    ----------------------------------------
 
-   注意：实际运行时，这些值会被 src/popup/theme-loader.ts 
+   职责说明：
+   - body 选择器：定义基础 fallback 值，仅在主题系统未加载时使用
+   - 实际运行时，这些值会被 src/popup/theme-loader.ts 注入的内联样式覆盖
+   - 这里作为开发参考和最终 fallback，确保即使主题系统失败也能正常显示
 
-   中注入的内联样式覆盖。这里作为开发参考和 Fallback。
+   设计原则：
+   - 所有主题化变量使用 var(--variable, fallback) 模式
+   - fallback 值应该与 light 主题的默认值一致
+   - 非主题化变量（如 z-index, spacing）直接在 :root 中定义
 
 */
 body {
+  /* 颜色基础值 - fallback（light 主题默认值） */
   --c-glass: #bbbbbc;
   --c-light: #fff;
   --c-dark: #000;
@@ -25,34 +32,78 @@ body {
   --c-action: #0052f5;
   --c-bg: #E8E8E9;
   
+  /* Glass 反射参数 - fallback */
   --glass-reflex-dark: 1;
   --glass-reflex-light: 1;
   --saturation: 150%;
   
+  /* 字体 fallback - 实际值由主题系统提供 */
+  --font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif);
+  
+  /* 阴影系统 fallback - 实际值由主题系统提供 */
+  --shadow-color: var(--shadow-color, rgba(0, 0, 0, 0.1));
+  
   /* --- Glass Physics System (Depth-Aware Rendering) --- */
-  --glass-blur-base: 12px;
-  --glass-blur-decay: 2px;
+  /* Glass 参数 fallback - 实际值由主题系统提供 */
+  --glass-blur-base: var(--glass-blur-base, 12px);
+  --glass-blur-decay: var(--glass-blur-decay, 2px);
+  --glass-opacity-base: var(--glass-opacity-base, 0.15);
+  --glass-opacity-increment: var(--glass-opacity-increment, 0.05);
+  --glass-reflex-strength: var(--glass-reflex-strength, 1);
   
-  /* Base Opacity & Increment */
-  --glass-opacity-base: 0.15; 
-  --glass-opacity-increment: 0.05;
-  
-  /* Reflex Strength */
-  --glass-reflex-strength: 1;
-  
-  /* Animation Tokens */
-  --transition-fast: 200ms;
-  --transition-base: 300ms;
-  --transition-slow: 400ms;
-  --transition-hero: 700ms; /* [Refactor] 专用于 Logo/Hero 动画 */
+  /* Animation Tokens fallback - 实际值由主题系统提供 */
+  --transition-fast: var(--transition-fast, 200ms);
+  --transition-base: var(--transition-base, 300ms);
+  --transition-slow: var(--transition-slow, 400ms);
+  --transition-hero: var(--transition-hero, 700ms); /* [Refactor] 专用于 Logo/Hero 动画 */
 
-  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-glass: cubic-bezier(1, 0.0, 0.4, 1);
+  --ease-smooth: var(--ease-base, cubic-bezier(0.4, 0, 0.2, 1));
+  --ease-glass: var(--ease-glass, cubic-bezier(1, 0.0, 0.4, 1));
 
-  /* Focus States */
-  --focus-ring-width: 3px; /* [Refactor] 焦点光晕宽度，统一管理 */
+  /* Focus States fallback - 实际值由主题系统提供 */
+  --focus-ring-width: var(--focus-ring-width, 3px); /* [Refactor] 焦点光晕宽度，统一管理 */
+  --focus-ring-color: var(--focus-ring-color, var(--c-action));
+  --focus-ring-opacity: var(--focus-ring-opacity, 0.5);
 }
 
+/* ----------------------------------------
+
+   2. SEMANTIC VARIABLES & DERIVED TOKENS
+
+   ----------------------------------------
+
+   职责说明：
+   - :root 选择器：定义语义化变量和派生变量
+   - 这些变量基于 body 中的基础变量，通过计算或组合生成
+   - 非主题化变量（如 z-index, spacing）直接在这里定义
+   - 主题化变量使用 var(--variable, fallback) 模式引用主题系统
+
+   设计原则：
+   - 语义化命名：使用 --color-text-primary 而非 --c-content
+   - 派生变量：基于基础变量计算（如 --radius-sm = calc(var(--radius-base) * 0.75)）
+   - 层级清晰：基础变量 -> 语义变量 -> 组件变量
+
+*/
+/* ----------------------------------------
+
+   2. SEMANTIC VARIABLES & DERIVED TOKENS
+
+   ----------------------------------------
+
+   职责说明：
+   - :root 选择器：定义语义化变量和派生变量
+   - 这些变量基于 body 中的基础变量，通过计算或组合生成
+   - 非主题化变量（如 z-index, spacing）直接在这里定义
+   - 主题化变量使用 var(--variable, fallback) 模式引用主题系统
+
+   设计原则：
+   - 语义化命名：使用 --color-text-primary 而非 --c-content
+   - 派生变量：基于基础变量计算（如 --radius-sm = calc(var(--radius-base) * 0.75)）
+   - 层级清晰：基础变量 -> 语义变量 -> 组件变量
+
+*/
 :root {
   /* ========================================
      Z-INDEX SCALE (SEMANTIC ELEVATION)
@@ -112,26 +163,29 @@ body {
      (已修复：使用大数值，并移除底部的冲突代码)
      ======================================== */
   
+  /* 圆角基础值 fallback - 实际值由主题系统提供 */
+  --radius-base: var(--radius-base, 1.0rem);
+  
   /* [xs] 微小元素 (Checkbox, Tags) - 像鹅卵石 */
-  --radius-xs: 0.5rem;    /* 8px */
+  --radius-xs: calc(var(--radius-base) * 0.5);    /* 基于 radius-base */
   
   /* [sm] 内部元素 (List items) */
-  --radius-sm: 0.75rem;   /* 12px */
+  --radius-sm: calc(var(--radius-base) * 0.75);   /* 基于 radius-base */
   
   /* [md] 标准容器 (Cards, Inputs) - 核心基准 */
-  --radius-md: 1.0rem;    /* 16px */
+  --radius-md: var(--radius-base);    /* 直接使用 radius-base */
   
   /* [lg] 强调容器 (Popovers, Large Cards) */
-  --radius-lg: 1.5rem;    /* 24px */
+  --radius-lg: calc(var(--radius-base) * 1.5);    /* 基于 radius-base */
   
   /* [xl] 模态框/独立面板 (Modals) */
-  --radius-xl: 2.0rem;    /* 32px */
+  --radius-xl: calc(var(--radius-base) * 2.0);    /* 基于 radius-base */
   
   /* [2xl] 屏幕级/外壳 (App Shell) */
-  --radius-2xl: 2.5rem;   /* 40px */
+  --radius-2xl: calc(var(--radius-base) * 2.5);   /* 基于 radius-base */
   
   /* [3xl] 极致圆角 */
-  --radius-3xl: 3rem;     /* 48px */
+  --radius-3xl: calc(var(--radius-base) * 3.0);     /* 基于 radius-base */
   
   /* [full] 胶囊 */
   --radius-full: 9999px;
@@ -182,46 +236,52 @@ body {
   --icon-size-xl: var(--space-8);
 
   /* --- Typography System --- */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  /* 字体通过主题系统定义，这里提供 fallback */
+  --font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+    sans-serif);
 
   /* Headings */
-  --font-page-title: 600 1.1rem/1.35 var(--font-family);
-  --letter-spacing-page-title: -0.015em;
+  /* Typography 变量 fallback - 实际值由主题系统提供 */
+  --font-page-title: var(--font-page-title-weight, 600) var(--font-page-title-size, 1.1rem)/var(--font-page-title-line-height, 1.35) var(--font-family);
+  --letter-spacing-page-title: var(--font-page-title-letter-spacing, -0.015em);
 
-  --font-header-title: 700 1rem/1.35 var(--font-family);
-  --letter-spacing-header-title: -0.02em;
+  --font-header-title: var(--font-header-title-weight, 700) var(--font-header-title-size, 1rem)/var(--font-header-title-line-height, 1.35) var(--font-family);
+  --letter-spacing-header-title: var(--font-header-title-letter-spacing, -0.02em);
 
-  --font-section-title: 600 0.75rem/1.4 var(--font-family);
-  --letter-spacing-section-title: 0.05em;
+  --font-section-title: var(--font-section-title-weight, 600) var(--font-section-title-size, 0.75rem)/var(--font-section-title-line-height, 1.4) var(--font-family);
+  --letter-spacing-section-title: var(--font-section-title-letter-spacing, 0.05em);
 
   /* Body & Content */
-  --font-body: 400 0.85rem/1.4 var(--font-family);
-  --letter-spacing-body: 0.01em;
+  /* 字体大小和字重 fallback - 实际值由主题系统提供 */
+  --font-size-base: var(--font-size-base, 0.85rem);
+  --font-weight-base: var(--font-weight-base, 400);
+  --font-weight-bold: var(--font-weight-bold, 600);
+  --font-body: var(--font-body-weight, 400) var(--font-body-size, 0.85rem)/var(--font-body-line-height, 1.4) var(--font-family);
+  --letter-spacing-body: var(--font-body-letter-spacing, 0.01em);
 
-  --font-list-item: 500 0.9rem/1.4 var(--font-family);
-  --letter-spacing-list-item: normal;
+  --font-list-item: var(--font-list-item-weight, 500) var(--font-list-item-size, 0.9rem)/var(--font-list-item-line-height, 1.4) var(--font-family);
+  --letter-spacing-list-item: var(--font-list-item-letter-spacing, normal);
 
   /* UI Elements */
-  --font-caption: 400 0.8rem/1.4 var(--font-family);
-  --letter-spacing-caption: 0.005em;
+  --font-caption: var(--font-caption-weight, 400) var(--font-caption-size, 0.8rem)/var(--font-caption-line-height, 1.4) var(--font-family);
+  --letter-spacing-caption: var(--font-caption-letter-spacing, 0.005em);
 
-  --font-footnote: 400 0.75rem/1.4 var(--font-family);
-  --letter-spacing-footnote: 0.01em;
+  --font-footnote: var(--font-footnote-weight, 400) var(--font-footnote-size, 0.75rem)/var(--font-footnote-line-height, 1.4) var(--font-family);
+  --letter-spacing-footnote: var(--font-footnote-letter-spacing, 0.01em);
 
-  --font-label: 600 0.7rem/1.4 var(--font-family);
-  --letter-spacing-label: 0.02em;
+  --font-label: var(--font-label-weight, 600) var(--font-label-size, 0.7rem)/var(--font-label-line-height, 1.4) var(--font-family);
+  --letter-spacing-label: var(--font-label-letter-spacing, 0.02em);
 
-  --font-tag: 500 0.75rem/1.4 var(--font-family);
-  --letter-spacing-tag: 0.01em;
+  --font-tag: var(--font-tag-weight, 500) var(--font-tag-size, 0.75rem)/var(--font-tag-line-height, 1.4) var(--font-family);
+  --letter-spacing-tag: var(--font-tag-letter-spacing, 0.01em);
 
-  --font-module-title: 500 0.7rem/1.4 var(--font-family);
-  --letter-spacing-module-title: 0.05em;
+  --font-module-title: var(--font-module-title-weight, 500) var(--font-module-title-size, 0.7rem)/var(--font-module-title-line-height, 1.4) var(--font-family);
+  --letter-spacing-module-title: var(--font-module-title-letter-spacing, 0.05em);
 
   /* Micro Text (for Calendar, Legends, etc.) */
-  --font-micro: 500 0.6rem/1 var(--font-family); /* 约 9.6px - 极小的标签 */
-  --font-small: 400 0.7rem/1.4 var(--font-family); /* 约 11.2px - 小文本 */
+  --font-micro: var(--font-micro-weight, 500) var(--font-micro-size, 0.6rem)/var(--font-micro-line-height, 1) var(--font-family); /* 约 9.6px - 极小的标签 */
+  --font-small: var(--font-small-weight, 400) var(--font-small-size, 0.7rem)/var(--font-small-line-height, 1.4) var(--font-family); /* 约 11.2px - 小文本 */
 
   /* ----------------------------------------
 
@@ -253,6 +313,9 @@ body {
   --bg-action-solid: var(--c-action);
 
   /* Borders */
+  /* 边框宽度 fallback - 实际值由主题系统提供 */
+  --border-width-base: var(--border-width-base, 1px);
+  --border-width-thick: var(--border-width-thick, 2px);
   --border-glass-subtle: color-mix(in srgb, var(--c-glass) 15%, transparent);
   --border-glass-moderate: color-mix(in srgb, var(--c-glass) 20%, transparent);
   --border-glass-strong: color-mix(in srgb, var(--c-glass) 30%, transparent);
@@ -265,17 +328,21 @@ body {
   --hover-color-action: var(--c-action);
 
   /* Intent Colors (for Alerts, Badges, etc.) */
-  --color-destructive: #D0021B;
-  --color-warning: #F5A623; /* [Refactor] 新增 Warning Token，替代硬编码 HEX */
+  /* Intent 颜色 fallback - 实际值由主题系统提供 */
+  --color-destructive: var(--color-destructive, #D0021B);
+  --color-warning: var(--color-warning, #F5A623); /* [Refactor] 新增 Warning Token，替代硬编码 HEX */
   --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
   --hover-color-destructive: var(--color-destructive);
 
   /* Tooltip Specifics */
+  /* Tooltip 样式 fallback - 实际值由主题系统提供 */
+  --tooltip-shadow-intensity: var(--tooltip-shadow-intensity, 0.12);
+  --tooltip-border-opacity: var(--tooltip-border-opacity, 0.2);
   --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
-  --tooltip-border: 1px solid var(--border-glass-moderate);
+  --tooltip-border: 1px solid color-mix(in srgb, var(--border-glass-moderate) calc(var(--tooltip-border-opacity) * 100%), transparent);
   --tooltip-radius: var(--radius-md);
   --tooltip-shadow: 
-    0 4px 12px -2px rgba(0, 0, 0, 0.12),
+    0 4px 12px -2px color-mix(in srgb, var(--shadow-color) calc(var(--tooltip-shadow-intensity) * 100%), transparent),
     inset 0 1px 0 0 color-mix(in srgb, var(--c-light) 40%, transparent);
   --tooltip-font-size: 0.75rem;
   --tooltip-line-height: 1.2;
@@ -291,20 +358,25 @@ body {
   /* Scrollbar System */
   --sb-width: 10px;
   --sb-thumb-width-visual: 4px;
-  --sb-thumb-idle: color-mix(in srgb, var(--c-content) 12%, transparent);
-  --sb-thumb-hover: color-mix(in srgb, var(--c-content) 25%, transparent);
-  --sb-thumb-active: color-mix(in srgb, var(--c-content) 40%, transparent);
+  /* 滚动条透明度 fallback - 实际值由主题系统提供 */
+  --sb-thumb-opacity-idle: var(--sb-thumb-opacity-idle, 0.12);
+  --sb-thumb-opacity-hover: var(--sb-thumb-opacity-hover, 0.25);
+  --sb-thumb-opacity-active: var(--sb-thumb-opacity-active, 0.4);
+  --sb-thumb-idle: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-idle) * 100%), transparent);
+  --sb-thumb-hover: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-hover) * 100%), transparent);
+  --sb-thumb-active: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-active) * 100%), transparent);
 
   /* --- Shadow System --- */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  /* 使用主题化的阴影颜色 */
+  --shadow-sm: 0 1px 2px 0 color-mix(in srgb, var(--shadow-color) 50%, transparent);
+  --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px color-mix(in srgb, var(--shadow-color) 60%, transparent);
+  --shadow-lg: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px color-mix(in srgb, var(--shadow-color) 50%, transparent);
+  --shadow-xl: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px color-mix(in srgb, var(--shadow-color) 40%, transparent);
 
   /* Elevation (for Dropdowns & Modals) */
   --shadow-elevation-low: var(--shadow-sm);
   --shadow-elevation-medium: var(--shadow-md);
-  --shadow-elevation-high: 0 16px 40px -12px rgba(0, 0, 0, 0.2), 0 4px 12px -4px rgba(0, 0, 0, 0.1);
+  --shadow-elevation-high: 0 16px 40px -12px var(--shadow-color), 0 4px 12px -4px color-mix(in srgb, var(--shadow-color) 50%, transparent);
 
   /* --- Component-Level Shadow Tokens (Glass Effects) --- */
   /* [Refactor] 提取复杂阴影逻辑，统一管理光照方向 */
