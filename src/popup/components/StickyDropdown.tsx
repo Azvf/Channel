@@ -1,109 +1,94 @@
-import React, { useEffect, useState, useLayoutEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SMOOTH_TRANSITION } from '../utils/motion';
-import { DURATION } from '../../design-tokens/animation';
 
-// ----------------------------------------------------------------
-// 独立组件: 负责无延迟跟随的下拉菜单容器
-// 使用 createPortal + 手动定位实现，跟随 anchor 元素位置
-// ----------------------------------------------------------------
+import { SMOOTH_TRANSITION } from '@/popup/utils/motion';
+
 export interface StickyDropdownProps {
   isOpen: boolean;
   anchorRef: React.RefObject<HTMLElement>;
   children: React.ReactNode;
   zIndex?: string;
+  offset?: { x: number; y: number };
 }
 
 /**
  * StickyDropdown Component
  * 
- * 一个跟随 anchor 元素位置的下拉菜单组件
- * 使用 createPortal 渲染到 body，手动计算位置
+ * 使用 Direct DOM Manipulation 和事件驱动更新，避免 React 渲染周期开销。
+ * 仅在 scroll/resize/open 时触发位置计算，移除死循环以降低 CPU 消耗。
  */
 export function StickyDropdown({ 
   isOpen, 
   anchorRef, 
   children, 
-  zIndex = "var(--z-dropdown)" 
+  zIndex = "var(--z-dropdown)",
+  offset = { x: 0, y: 0 }
 }: StickyDropdownProps) {
-  const [mounted, setMounted] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 延迟卸载以播放退出动画：使用 mounted 状态来延迟卸载，让 Framer Motion 的 exit 动画能够播放
-  useEffect(() => {
-    if (isOpen) {
-      setMounted(true);
-    } else {
-      const timer = setTimeout(() => setMounted(false), DURATION.FAST * 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen]);
-
   useLayoutEffect(() => {
-    if (!mounted || !isOpen || !anchorRef.current) {
-      return;
-    }
+    if (!isOpen || !anchorRef.current) return;
 
     const updatePosition = () => {
-      if (!anchorRef.current) return;
+      const dropdown = dropdownRef.current;
+      const anchor = anchorRef.current;
+      
+      if (!dropdown || !anchor) return;
 
-      const rect = anchorRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom,
-        left: rect.left,
-        width: rect.width,
-      });
+      const rect = anchor.getBoundingClientRect();
+      const top = rect.bottom + offset.y;
+      const left = rect.left + offset.x;
+      const width = rect.width;
+
+      dropdown.style.top = `${top}px`;
+      dropdown.style.left = `${left}px`;
+      dropdown.style.width = `${width}px`;
     };
 
     updatePosition();
 
+    let rafId: number | null = null;
     const handleUpdate = () => {
-      updatePosition();
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        updatePosition();
+        rafId = null;
+      });
     };
 
     window.addEventListener('scroll', handleUpdate, true);
     window.addEventListener('resize', handleUpdate);
-    
-    // 使用 requestAnimationFrame 循环更新以保持高性能
-    let rafId: number;
-    const loop = () => {
-      updatePosition();
-      rafId = requestAnimationFrame(loop);
-    };
-    rafId = requestAnimationFrame(loop);
+
+    const resizeObserver = new ResizeObserver(() => handleUpdate());
+    resizeObserver.observe(anchorRef.current);
 
     return () => {
       window.removeEventListener('scroll', handleUpdate, true);
       window.removeEventListener('resize', handleUpdate);
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
+      resizeObserver.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [mounted, isOpen, anchorRef]);
+  }, [isOpen, anchorRef, offset.x, offset.y]);
 
-  if (!anchorRef.current || !mounted) {
-    return null;
-  }
+  if (typeof document === 'undefined') return null;
 
-  return typeof document !== 'undefined' ? createPortal(
+  return createPortal(
     <AnimatePresence>
-      {mounted && (
+      {isOpen && (
         <motion.div
           ref={dropdownRef}
           initial={{ opacity: 0, scale: 0.98, y: -4 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: -4 }}
-          // [Refactor] 使用统一的动画系统
           transition={SMOOTH_TRANSITION}
           style={{
             position: 'fixed',
-            top: `${position.top}px`,
-            left: `${position.left}px`,
-            width: `${position.width}px`,
+            top: 0,
+            left: 0,
             zIndex: zIndex,
             transformOrigin: 'top center',
+            willChange: 'top, left, width',
           }}
         >
           {children}
@@ -111,5 +96,5 @@ export function StickyDropdown({
       )}
     </AnimatePresence>,
     document.body
-  ) : null;
+  );
 }
