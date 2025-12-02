@@ -393,10 +393,19 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       style={{ color: "var(--color-text-secondary)" }}
                       strokeWidth={2}
                     />
-                    <span style={{ font: "var(--font-footnote)", color: "var(--color-text-secondary)", fontWeight: 500 }}>
+                    <span style={{ 
+                      font: "var(--font-footnote)", 
+                      letterSpacing: "var(--letter-spacing-footnote)",
+                      color: "var(--color-text-secondary)" 
+                    }}>
                       Today:
                     </span>
-                    <span style={{ font: "var(--font-footnote)", color: "var(--color-text-primary)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ 
+                      font: "var(--font-tag)", 
+                      letterSpacing: "var(--letter-spacing-tag)",
+                      color: "var(--color-text-primary)", 
+                      fontVariantNumeric: "tabular-nums" 
+                    }}>
                       {stats.todayCount}
                     </span>
                   </div>
@@ -406,10 +415,19 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       style={{ color: "var(--color-text-secondary)" }}
                       strokeWidth={2}
                     />
-                    <span style={{ font: "var(--font-footnote)", color: "var(--color-text-secondary)", fontWeight: 500 }}>
+                    <span style={{ 
+                      font: "var(--font-footnote)", 
+                      letterSpacing: "var(--letter-spacing-footnote)",
+                      color: "var(--color-text-secondary)" 
+                    }}>
                       Streak:
                     </span>
-                    <span style={{ font: "var(--font-footnote)", color: "var(--color-text-primary)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                    <span style={{ 
+                      font: "var(--font-tag)", 
+                      letterSpacing: "var(--letter-spacing-tag)",
+                      color: "var(--color-text-primary)", 
+                      fontVariantNumeric: "tabular-nums" 
+                    }}>
                       {stats.streak} days
                     </span>
                   </div>
