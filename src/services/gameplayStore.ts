@@ -152,7 +152,7 @@ export class GameplayStore {
           console.warn('[GameplayStore] 保存重建的 page_index 失败:', error);
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // 如果读取失败，从现有页面数据重建
       this._pageIndexCache = Object.keys(this.pages);
     }

@@ -49,7 +49,7 @@ export class StatsWallComputeService {
       if (metadata?.version !== undefined) {
         this.version = metadata.version;
       }
-    } catch (error) {
+    } catch (_error) {
       // 版本号恢复失败不影响主流程，继续使用默认值 0
     }
     
@@ -123,7 +123,7 @@ export class StatsWallComputeService {
 
     try {
       await storageService.set(STORAGE_KEYS.STATS_WALL_VERSION, metadata);
-    } catch (error) {
+    } catch (_error) {
       // 存储失败不影响主流程，继续执行
     }
   }
