@@ -33,34 +33,21 @@ function postBuildPlugin() {
         content = content.replace(/src=["']\.\.\/\.\.\/([^"']+\.js)["']/g, 'src="./$1"')
         content = content.replace(/href=["']\.\.\/\.\.\/([^"']+\.css)["']/g, 'href="./$1"')
         
-        // 内联 theme-loader.js 到 <head> 中，消除闪白
-        // 性能优化：同步执行，确保在首次渲染前设置 data-theme
-        if (existsSync(themeLoaderPath)) {
-          let themeLoaderContent = readFileSync(themeLoaderPath, 'utf-8')
-          
-          // 移除 source map 注释（如果存在）
-          themeLoaderContent = themeLoaderContent.replace(/\/\/# sourceMappingURL=.*$/gm, '').trim()
-          
-          // 查找并替换 theme-loader script 标签
-          // 匹配：<script type="module" ... src="./theme-loader.js"></script> 或类似格式
-          const themeLoaderScriptRegex = /<script[^>]*src=["'][^"']*theme-loader\.js["'][^>]*><\/script>/i
-          
-          if (themeLoaderScriptRegex.test(content)) {
-            // 替换为内联 script（非 module，非 defer，确保同步执行）
-            // 注意：JavaScript 代码可以直接嵌入 script 标签，不需要 HTML 转义
-            // 但需要处理 </script> 标签（如果代码中包含），使用字符串拼接避免被解析为结束标签
-            const safeContent = themeLoaderContent.replace(/<\/script>/g, '<\\/script>')
-            
-            content = content.replace(
-              themeLoaderScriptRegex,
-              `<script>${safeContent}</script>`
-            )
-            console.log('✓ Inlined theme-loader.js to eliminate flash of white')
-          } else {
-            console.warn('⚠ theme-loader.js script tag not found in HTML, inlining skipped')
+        // 将 theme-loader 从 module 脚本改为同步脚本，并移到 <head> 最前面
+        // 注意：Manifest V3 CSP 不允许内联脚本，必须使用外部文件
+        const themeLoaderScriptRegex = /<script[^>]*src=["'][^"']*theme-loader\.js["'][^>]*><\/script>/i
+        let themeLoaderScript = ''
+        if (themeLoaderScriptRegex.test(content)) {
+          // 提取 theme-loader 脚本标签
+          const match = content.match(themeLoaderScriptRegex)
+          if (match) {
+            themeLoaderScript = '<script src="./theme-loader.js"></script>\n    '
+            // 移除原来的 theme-loader 脚本标签
+            content = content.replace(themeLoaderScriptRegex, '')
+            // 将 theme-loader 插入到 <head> 标签后，确保最先执行
+            content = content.replace(/<head[^>]*>/i, (match) => match + '\n    ' + themeLoaderScript.trim())
+            console.log('✓ Updated theme-loader.js to synchronous external script and moved to top of <head> (CSP compliant)')
           }
-        } else {
-          console.warn('⚠ theme-loader.js not found at expected path, inlining skipped')
         }
         
         writeFileSync(outputPath, content, 'utf-8')
