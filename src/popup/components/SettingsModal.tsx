@@ -39,8 +39,9 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
   // 主题选项配置
   const themeOptions = [
     { value: 'light', label: 'Light' },
-    { value: 'dark', label: 'Dark' },
     { value: 'dim', label: 'Dim' },
+    { value: 'rhine-light', label: 'Rhine Light' },
+    { value: 'rhine-dark', label: 'Rhine Dark' },
   ];
 
   // 主题切换处理函数

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sun, Moon, Sparkles } from "lucide-react";
+import { Sun, Sparkles, FlaskConical, Beaker } from "lucide-react";
 import { applyThemeToBody } from "../utils/theme";
 import { storageService, STORAGE_KEYS } from "../../services/storageService";
 import { DELAY } from "../../design-tokens/animation"; // [Refactor] 使用统一的延迟常量
@@ -11,8 +11,9 @@ interface ThemeSwitcherProps {
 // 定义主题选项以便于映射
 const themeOptions = [
   { value: 'light', icon: Sun, option: '1' },
-  { value: 'dark', icon: Moon, option: '2' },
-  { value: 'dim', icon: Sparkles, option: '3' }
+  { value: 'dim', icon: Sparkles, option: '2' },
+  { value: 'rhine-light', icon: FlaskConical, option: '3' }, // 莱茵生命亮色主题
+  { value: 'rhine-dark', icon: Beaker, option: '4' }         // 莱茵生命暗色主题
 ];
 
 export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {

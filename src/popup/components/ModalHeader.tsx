@@ -1,5 +1,6 @@
 // React import not needed in React 17+
 import { X } from 'lucide-react';
+import { IconButton } from './ui/buttons';
 
 interface ModalHeaderProps {
   title: string;
@@ -27,20 +28,12 @@ export function ModalHeader({ title, onClose }: ModalHeaderProps) {
         {title}
       </h2>
 
-      <button
+      <IconButton
         onClick={onClose}
-        className="rounded-lg transition-all hover-destructive"
-        style={{
-          // [Refactor] Standard Button Sizing
-          padding: 'var(--space-2)',
-          background: 'transparent',
-          border: '1px solid transparent',
-          color: 'var(--color-text-tertiary)',
-          cursor: 'pointer'
-        }}
-      >
-        <X className="icon-base" />
-      </button>
+        variant="destructive"
+        icon={<X className="icon-base" />}
+        aria-label="Close"
+      />
     </div>
   );
 }

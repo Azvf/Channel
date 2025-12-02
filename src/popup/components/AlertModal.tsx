@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { FunctionalModal } from './FunctionalModal';
 import { ModalFooter } from './ModalFooter';
-import { GlassButton } from './GlassButton';
+import { Button } from './ui/buttons';
 import { Info, AlertTriangle, XCircle } from 'lucide-react';
 
 type AlertActionVariant = 'default' | 'primary' | 'destructive';
@@ -62,17 +62,17 @@ export function AlertModal({
     <ModalFooter>
       {actions.map((action) => {
         const { id, label, variant, onClick: handleClick, autoFocus } = action;
-        // Map 'default' to 'secondary' for GlassButton
+        // Map 'default' to 'secondary' for Button
         const buttonVariant = variant === 'default' ? 'secondary' : variant;
         return (
-          <GlassButton
+          <Button
             key={id}
             onClick={handleClick}
             variant={buttonVariant}
             autoFocus={autoFocus ?? id === resolvedAutoFocusId}
           >
             {label}
-          </GlassButton>
+          </Button>
         );
       })}
     </ModalFooter>

@@ -25,6 +25,7 @@ import { getTransition, DURATION } from "../../design-tokens/animation"; // [Ref
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { normalizeTaggedPagePartial } from "../../shared/utils/dataNormalizer";
 import { AlertModal, type AlertAction } from "./AlertModal";
+import { GlassButton, IconButton } from "./ui/buttons";
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
 // 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
@@ -459,38 +460,10 @@ export function TaggedPage({
       {/* 保留原有 style 块，但使用 token 优化颜色和动画时间 */}
       <style>
         {`
-          .hud-button {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: var(--space-1); /* 0.25rem -> 4px */
-            margin: -var(--space-1);
-            border-radius: var(--radius-md);
-            transition: background-color var(--transition-fast) var(--ease-smooth);
-          }
-
-          .hud-button:hover {
-            background-color: var(--bg-action-subtle); /* Tokenized Hover */
-          }
-
-          .hud-button:hover .stat-item-icon,
-          .hud-button:hover .stat-item-value,
-          .hud-button-settings:hover {
-            color: var(--color-text-action) !important; /* Tokenized Color */
-          }
-
-          .hud-button-settings {
-            padding: 0.375rem;
-            border-radius: var(--radius-md);
-            color: var(--color-text-tertiary);
-            transition:
-              color var(--transition-fast) var(--ease-smooth),
-              transform var(--transition-fast) var(--ease-smooth),
-              background-color var(--transition-fast) var(--ease-smooth);
-          }
-
-          .hud-button-settings:hover {
-            transform: scale(1.1);
+          /* [Refactor] IconButton 容器模式 hover 效果：改变子元素颜色 */
+          .hud-button-wrapper:hover .stat-item-icon,
+          .hud-button-wrapper:hover .stat-item-value {
+            color: var(--color-text-action) !important;
           }
         `}
       </style>
@@ -500,31 +473,34 @@ export function TaggedPage({
           <div className="space-y-4">
             {/* Header - 保持原样布局 */}
             <div className="flex items-center justify-between gap-3">
-              <button
+              <IconButton
                 onClick={onOpenStats}
                 title="View Activity"
-                className="hud-button flex items-center gap-3"
+                variant="hud"
+                className="hud-button-wrapper flex items-center gap-3"
               >
                 <StatItem icon={<TrendingUp />} value={stats.streak} />
                 <StatItem icon={<Bookmark />} value={visiblePages.length} />
                 <StatItem icon={<TagIcon />} value={allTags.length} />
-              </button>
+              </IconButton>
 
               <div className="flex items-center gap-1.5">
-                <button
+                <IconButton
                   onClick={onOpenTagLibrary}
                   title="Tag Library"
-                  className="hud-button hud-button-settings"
-                >
-                  <TagIcon className="icon-sm" strokeWidth={2} />
-                </button>
-                <button
+                  variant="hud"
+                  size="sm"
+                  hoverScale={true}
+                  icon={<TagIcon className="icon-sm" strokeWidth={2} />}
+                />
+                <IconButton
                   onClick={onOpenSettings}
                   title="Settings"
-                  className="hud-button hud-button-settings"
-                >
-                  <Settings className="icon-sm" strokeWidth={2} />
-                </button>
+                  variant="hud"
+                  size="sm"
+                  hoverScale={true}
+                  icon={<Settings className="icon-sm" strokeWidth={2} />}
+                />
               </div>
             </div>
 
@@ -558,24 +534,21 @@ export function TaggedPage({
                   </span>
                 </div>
 
-                <button
+                <GlassButton
                   onClick={() => setSearchTags([])}
-                  className="glass-button"
+                  className="px-3 py-1 text-sm"
                   style={{
                     // [Refactor] 使用标准字体 Token
                     font: "var(--font-caption)",
                     letterSpacing: "var(--letter-spacing-caption)",
-                    padding: "0.4em 0.9em",
                     opacity: searchTags.length > 0 ? 1 : 0,
                     visibility: searchTags.length > 0 ? "visible" : "hidden",
                     pointerEvents: searchTags.length > 0 ? "auto" : "none",
-                     // [Refactor] 使用统一的物理引擎
-                     transition: getTransition(DURATION.FAST),
                   }}
                   disabled={loading}
                 >
                   Clear All
-                </button>
+                </GlassButton>
               </div>
 
               <TagInput

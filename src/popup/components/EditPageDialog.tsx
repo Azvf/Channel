@@ -5,7 +5,7 @@ import { FunctionalModal } from "./FunctionalModal";
 import { ModalFooter } from "./ModalFooter";
 import { Save } from "lucide-react";
 import { TaggedPage } from "../../shared/types/gameplayTag";
-import { GlassButton } from "./GlassButton";
+import { Button } from "./ui/buttons";
 import { useModalScrollLock } from "../hooks/headless/useModalScrollLock";
 
 interface EditPageDialogProps {
@@ -97,14 +97,14 @@ export function EditPageDialog({
 
   const footer = (
     <ModalFooter>
-      <GlassButton onClick={handleCancel} variant="secondary">Cancel</GlassButton>
-      <GlassButton 
+      <Button onClick={handleCancel} variant="secondary">Cancel</Button>
+      <Button 
         onClick={handleSave} 
         variant="primary" 
         icon={<Save className="icon-base" />}
       >
         Save
-      </GlassButton>
+      </Button>
     </ModalFooter>
   );
 

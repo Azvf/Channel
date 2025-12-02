@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { useCallback, useState } from 'react';
 
 import { AnimatedFlipList } from './AnimatedFlipList';
+import { GlassButton } from './ui/buttons';
 
 interface DemoItem {
   id: number;
@@ -57,15 +58,15 @@ export const Interactive: Story = {
     return (
       <div className="flex flex-col gap-4 w-[320px]">
         <div className="flex items-center gap-2">
-          <button className="glass-button px-3 py-1 text-sm" onClick={addItem}>
+          <GlassButton className="px-3 py-1 text-sm" onClick={addItem}>
             添加
-          </button>
-          <button className="glass-button px-3 py-1 text-sm" onClick={removeItem} disabled={items.length === 0}>
+          </GlassButton>
+          <GlassButton className="px-3 py-1 text-sm" onClick={removeItem} disabled={items.length === 0}>
             删除
-          </button>
-          <button className="glass-button px-3 py-1 text-sm" onClick={shuffleItems} disabled={items.length < 2}>
+          </GlassButton>
+          <GlassButton className="px-3 py-1 text-sm" onClick={shuffleItems} disabled={items.length < 2}>
             打乱
-          </button>
+          </GlassButton>
         </div>
         <AnimatedFlipList
           items={items}
