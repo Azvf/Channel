@@ -293,47 +293,47 @@
     
     const vars = themeVars[theme] || themeVars.light;
     
-    // 3. 在 <head> 中注入 <style> 标签，为 :root 设置变量
-    const rootStyle = document.createElement('style');
-    rootStyle.id = 'theme-inline-root';
-    let rootCss = ':root{';
-    for (const [key, value] of Object.entries(vars)) {
-      rootCss += `${key}:${value}!important;`;
+    // 2. 应用主题变量到 DOM（使用 Constructable Stylesheets API）
+    const supportsAdoptedStyleSheets = 'adoptedStyleSheets' in document;
+    let rootStyleSheet: CSSStyleSheet | null = null;
+
+    if (supportsAdoptedStyleSheets) {
+      rootStyleSheet = new CSSStyleSheet();
+      (window as any).__themeRootSheet = rootStyleSheet; // Share for theme.ts
+      const sortedEntries = Object.entries(vars).sort(([a], [b]) => a.localeCompare(b));
+      const rootCss = `:root{${sortedEntries.map(([k, v]) => `${k}:${String(v)}!important`).join(';')}}`;
+      rootStyleSheet.replaceSync(rootCss);
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, rootStyleSheet];
+    } else {
+      const rootStyle = document.createElement('style');
+      rootStyle.id = 'theme-inline-root';
+      const sortedEntries = Object.entries(vars).sort(([a], [b]) => a.localeCompare(b));
+      let rootCss = `:root{${sortedEntries.map(([k, v]) => `${k}:${String(v)}!important`).join(';')}}`;
+      rootStyle.textContent = rootCss;
+      document.head.appendChild(rootStyle);
     }
-    rootCss += '}';
-    rootStyle.textContent = rootCss;
-    document.head.appendChild(rootStyle);
     
-    // 4. 定义一个函数，用于在 <body> 出现时立即应用样式
+    // 3. 定义一个函数，用于在 <body> 出现时立即应用样式
     const applyToBody = () => {
       if (document.body) {
-        // 禁用过渡，防止闪烁
         document.body.setAttribute('data-theme-no-transition', 'true');
         document.body.style.setProperty('transition', 'none', 'important');
-        
-        // 应用 CSS 变量
-        for (const [key, value] of Object.entries(vars)) {
-          document.body.style.setProperty(key, value, 'important');
+
+        if (!supportsAdoptedStyleSheets) {
+          const rootStyle = document.getElementById('theme-inline-root');
+          if (!rootStyle) { // Fallback if <style> tag not created
+            for (const [key, value] of Object.entries(vars)) {
+              document.body.style.setProperty(key, String(value), 'important');
+            }
+          }
         }
-        
-        // 为 CSS :has() 选择器创建隐藏的 input
-        const existingInputs = document.body.querySelectorAll('input[name="theme-persist"]');
-        existingInputs.forEach(input => input.remove());
-        
-        const themeInput = document.createElement('input');
-        themeInput.type = 'radio';
-        themeInput.name = 'theme-persist';
-        themeInput.value = theme;
-        themeInput.checked = true;
-        themeInput.style.cssText = 'position:absolute;opacity:0;pointer-events:none;width:0;height:0;';
-        document.body.appendChild(themeInput);
-        
+        document.documentElement.setAttribute('data-theme', theme);
         return true;
       }
       return false;
     };
 
-    // 5. 使用 MutationObserver 监视 <body> 的出现
+    // 4. 使用 MutationObserver 监视 <body> 的出现
     if (!applyToBody()) {
       const observer = new MutationObserver((_mutations, obs) => {
         if (document.body && applyToBody()) {
@@ -364,4 +364,3 @@
     console.warn('Theme loader script failed', e);
   }
 })();
-

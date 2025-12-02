@@ -1,6 +1,6 @@
 /**
  * 主题工具函数
- * 用于在 body 上应用主题，让 CSS 的 :has() 选择器能够正确检测主题
+ * 用于在 html 元素上应用主题，使用 data-theme 属性进行主题检测
  */
 
 import { storageService, STORAGE_KEYS } from '../../services/storageService';
@@ -37,22 +37,8 @@ export function applyThemeToBody(themeValue: string, disableTransition: boolean 
     body.style.setProperty(key, value, 'important');
   }
   
-  // 移除所有现有的主题 input
-  const existingInputs = body.querySelectorAll('input[name="theme-persist"]');
-  existingInputs.forEach(input => input.remove());
-  
-  // 创建隐藏的 input 元素用于主题检测（CSS :has() 选择器）
-  const themeInput = document.createElement('input');
-  themeInput.type = 'radio';
-  themeInput.name = 'theme-persist';
-  themeInput.value = themeValue;
-  themeInput.checked = true;
-  themeInput.style.position = 'absolute';
-  themeInput.style.opacity = '0';
-  themeInput.style.pointerEvents = 'none';
-  themeInput.style.width = '0';
-  themeInput.style.height = '0';
-  body.appendChild(themeInput);
+  // 使用 data-theme 属性进行主题检测（替代 :has() hack）
+  document.documentElement.setAttribute('data-theme', themeValue);
 }
 
 /**
