@@ -28,7 +28,20 @@ export function ThemeSwitcher({ initialTheme }: ThemeSwitcherProps) {
     setTheme(newTheme);
     // 异步保存
     await storageService.set(STORAGE_KEYS.THEME, newTheme);
-    applyThemeToBody(newTheme);
+    
+    // 核心优化：使用 View Transitions API 实现 GPU 级主题切换动画
+    // 浏览器会对旧状态和新状态分别截图，然后在 GPU 上进行交叉淡入淡出
+    // 零主线程阻塞，即使 JS 再忙，过渡也丝般顺滑
+    if (document.startViewTransition) {
+      // 使用 View Transitions API（Chrome 111+）
+      document.startViewTransition(() => {
+        // 这里的 DOM 更新会被浏览器"录制"并用于过渡动画
+        applyThemeToBody(newTheme);
+      });
+    } else {
+      // 降级策略：不支持 View Transitions 的浏览器使用传统 CSS transition
+      applyThemeToBody(newTheme);
+    }
     
     // 展开状态下切换主题时，保持展开状态，不自动关闭
     // 用户可以继续选择其他主题，或者点击 backdrop 关闭

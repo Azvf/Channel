@@ -56,7 +56,11 @@ function postBuildPlugin() {
               `<script>${safeContent}</script>`
             )
             console.log('✓ Inlined theme-loader.js to eliminate flash of white')
+          } else {
+            console.warn('⚠ theme-loader.js script tag not found in HTML, inlining skipped')
           }
+        } else {
+          console.warn('⚠ theme-loader.js not found at expected path, inlining skipped')
         }
         
         writeFileSync(outputPath, content, 'utf-8')

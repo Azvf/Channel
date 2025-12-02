@@ -24,6 +24,45 @@ const ReactQueryDevtoolsProduction = React.lazy(() =>
 );
 
 /**
+ * 注册 Houdini CSS Typed OM 属性
+ * 
+ * 启用颜色变量的硬件加速平滑过渡，使主题切换时颜色从"突变"变为"渐变"
+ * 
+ * 架构说明：
+ * - 在 React 渲染前注册，确保主题切换时浏览器可以对颜色进行线性插值
+ * - 只注册核心颜色变量，避免过度注册
+ * - 提供降级支持：不支持 registerProperty 的浏览器会忽略此代码
+ */
+function registerCSSProperties() {
+  // 检测浏览器是否支持 CSS.registerProperty
+  if ('registerProperty' in CSS) {
+    const colorProperties = [
+      { name: '--c-bg' },
+      { name: '--c-glass' },
+      { name: '--c-content' },
+      { name: '--c-action' },
+    ];
+
+    colorProperties.forEach(({ name }) => {
+      try {
+        CSS.registerProperty({
+          name,
+          syntax: '<color>',
+          inherits: true,
+          initialValue: 'transparent',
+        });
+      } catch (error) {
+        // 静默失败：某些浏览器可能不支持特定语法，不影响功能
+        console.warn(`Failed to register CSS property ${name}:`, error);
+      }
+    });
+  }
+}
+
+// 立即注册 CSS 属性（在 React 渲染前）
+registerCSSProperties();
+
+/**
  * 应用初始化
  * 在 React 渲染前加载所有状态，避免页面闪烁
  * 

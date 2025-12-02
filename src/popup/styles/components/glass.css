@@ -23,10 +23,9 @@
   /* 使用更保守的 contain 值，避免影响某些 CSS 属性的继承 */
   contain: layout paint;
   
-  /* [Pro Tip] 强制 GPU 按照 alpha 通道进行遮罩裁剪，修复 Safari/Chrome 的圆角溢出问题 */
-  /* 当使用 backdrop-filter 和 transform 时，浏览器有时会忽略 overflow: hidden 对子元素的裁剪 */
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
-  mask-image: radial-gradient(white, black);
+  /* [性能优化] 显式声明合成层，帮助浏览器进行内存管理 */
+  /* 只在需要时使用 will-change，避免滥用导致不必要的内存分配 */
+  will-change: transform, backdrop-filter;
   
   /* --- [核心优化] 动态模糊计算 --- */
   /* 深度越深，模糊越小（因为背景已经被上层模糊过了，没必要浪费 GPU） */
@@ -107,5 +106,20 @@
   width: 0;
   height: 0;
   z-index: -1;
+}
+
+/* --- [性能优化] 条件性 Mask 应用 --- */
+/* 
+ * mask-image 是浏览器中渲染成本最高的操作之一，会强制分配显存极大的离屏缓冲区
+ * 现代浏览器的 border-radius + overflow: hidden 在大多数合成层场景下已修复溢出问题
+ * 
+ * 策略：默认不应用 mask-image，仅在确实需要时通过 .masked 类启用
+ * 如果测试发现 Safari 上圆角溢出问题严重，可以在特定元素上添加 .masked 类
+ */
+.liquidGlass-wrapper.masked {
+  /* 强制 GPU 按照 alpha 通道进行遮罩裁剪，修复 Safari/Chrome 的圆角溢出问题 */
+  /* 当使用 backdrop-filter 和 transform 时，浏览器有时会忽略 overflow: hidden 对子元素的裁剪 */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
 }
 
