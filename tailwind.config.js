@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 import { TYPOGRAPHY } from './src/design-tokens/typography';
-import { SHADOWS } from './src/design-tokens/shadow';
 
 // 辅助函数：将 Token 转换为 Tailwind 格式
 function extractFontStyles(styles) {
@@ -51,6 +50,12 @@ export default {
         'border-subtle': 'var(--border-subtle)',
         'border-focus': 'var(--border-focus)',
         
+        // 空状态
+        'empty-state': {
+          stroke: 'var(--empty-state-stroke)',
+          fill: 'var(--empty-state-fill)',
+        },
+        
         // 交互色
         'action': {
           DEFAULT: 'var(--color-action)',
@@ -73,21 +78,18 @@ export default {
         'c-glass': 'var(--c-glass)',
       },
       
-      // 🔥 阴影系统：环境光与物理投影
+      // 🔥 阴影系统：主题感知的语义化阴影
+      // 注意：阴影类型由主题模式决定（Light = 物理投影，Dark = 光晕效果）
+      // 使用统一的语义名称，在不同主题下自动映射到对应的物理效果
       boxShadow: {
-        // 物理投影 (Light Mode)
-        'sm': SHADOWS.sm,
-        'md': SHADOWS.md,
-        'lg': SHADOWS.lg,
-        // 悬浮状态
-        'float': SHADOWS.float,
-        // 光晕系统 (Dark/Cyber Mode)
-        'glow-sm': SHADOWS['glow-sm'],
-        'glow-md': SHADOWS['glow-md'],
-        'glow-lg': SHADOWS['glow-lg'],
-        // 内发光
-        'inner-light': SHADOWS['inner-light'],
-        'inner-glow': SHADOWS['inner-glow'],
+        // 语义化阴影（主题感知）
+        'sm': 'var(--shadow-sm)',
+        'md': 'var(--shadow-md)',
+        'lg': 'var(--shadow-lg)',
+        'float': 'var(--shadow-float)',
+        // 内发光（通用，不依赖主题）
+        'inner-light': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.1)',
+        'inner-glow': 'inset 0 0 20px -10px var(--color-action)',
       },
       
       // 🔥 核心修复：将 Tailwind 的类名映射到 CSS 变量

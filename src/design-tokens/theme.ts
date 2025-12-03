@@ -4,6 +4,7 @@
  */
 
 import { PALETTE } from './color';
+import { SHADOWS } from './shadow';
 
 type ThemeVariables = Record<string, string>;
 
@@ -36,13 +37,18 @@ const DEFAULT_THEME: ThemeVariables = {
   // --- 2. 文本层级 (Typography Colors) ---
   // 使用 slate-900 而不是纯黑，减少视觉疲劳
   '--text-primary': PALETTE.slate[900],   // 标题、核心内容
-  '--text-secondary': PALETTE.slate[500], // 说明、次要信息
+  '--text-secondary': PALETTE.slate[600], // 说明、次要信息 (使用 Slate-600 确保 WCAG AA 对比度)
   '--text-tertiary': PALETTE.slate[400],  // 占位符、禁用态
   '--text-on-action': PALETTE.base.white, // 按钮上的文字
 
   // --- 3. 边框与分割 (Borders) ---
   '--border-subtle': PALETTE.slate[200], // 极淡的分割线
   '--border-focus': PALETTE.blue[600],   // 聚焦时的边框
+  
+  // --- 3.1 空状态 (Empty State) ---
+  // 用于空状态插画的线条和填充，比 border-subtle 更淡，避免抢夺注意力
+  '--empty-state-stroke': PALETTE.slate[300], // 空状态插画线条（比 border-subtle 稍深，但足够淡）
+  '--empty-state-fill': PALETTE.slate[100],   // 空状态插画填充
 
   // --- 4. 交互色 (Action) ---
   '--color-action': PALETTE.blue[600],
@@ -78,9 +84,16 @@ const DEFAULT_THEME: ThemeVariables = {
   '--glass-reflex-strength': '1',
   '--saturation': '150%',
   
-  // --- 7. 其他系统变量 ---
-  '--font-family': "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  // --- 7. 阴影系统 (Light Mode: 物理投影) ---
+  // Light Mode 仅使用物理投影，模拟纸张和光照
+  '--shadow-sm': SHADOWS.sm,
+  '--shadow-md': SHADOWS.md,
+  '--shadow-lg': SHADOWS.lg,
+  '--shadow-float': SHADOWS.float,
   '--shadow-color': 'rgba(0, 0, 0, 0.1)',
+  
+  // --- 8. 其他系统变量 ---
+  '--font-family': "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   '--radius-base': '16px', // 对应 rounded-md
   '--transition-fast': '200ms',
   '--transition-base': '300ms',
@@ -128,6 +141,7 @@ const DEFAULT_THEME: ThemeVariables = {
   '--font-micro-letter-spacing': '0.02em',
   '--ease-base': 'cubic-bezier(0.4, 0, 0.2, 1)',
   '--ease-glass': 'cubic-bezier(1, 0.0, 0.4, 1)',
+  '--ease-spring': 'cubic-bezier(0.2, 0.8, 0.2, 1)', // iOS/Mac 风格的重量感物理曲线
   '--tooltip-shadow-intensity': '0.12',
   '--tooltip-border-opacity': '0.2',
 } as const;
@@ -158,6 +172,10 @@ const PARTIAL_THEMES = {
     // 边框：深色模式下，边框是定义层级的关键（因为阴影不可见）
     '--border-subtle': PALETTE.slate[800],
     
+    // 空状态：深色模式下使用更亮的线条和填充
+    '--empty-state-stroke': PALETTE.slate[700],
+    '--empty-state-fill': PALETTE.slate[900],
+    
     // 交互：在深色背景上，通常需要稍微提亮主色以保证对比度
     '--color-action': PALETTE.blue[500], 
 
@@ -175,6 +193,12 @@ const PARTIAL_THEMES = {
     '--glass-tooltip-blur': '45px',
     '--glass-tooltip-opacity': '0.95',
 
+    // 阴影系统 (Dark Mode: 光晕效果)
+    // Dark Mode 仅使用光晕效果，模拟屏幕自发光
+    '--shadow-sm': SHADOWS['glow-sm'],
+    '--shadow-md': SHADOWS['glow-md'],
+    '--shadow-lg': SHADOWS['glow-lg'],
+    '--shadow-float': SHADOWS['glow-md'], // 悬浮状态使用中等光晕
     '--shadow-color': 'rgba(0, 0, 0, 0.3)',
     '--focus-ring-opacity': '0.6',
     '--tooltip-shadow-intensity': '0.15',
@@ -193,6 +217,8 @@ const PARTIAL_THEMES = {
     '--text-secondary': PALETTE.rhine.tundra,
     
     '--border-subtle': '#1A1A1A',
+    '--empty-state-stroke': '#2A2A2A', // 比 border-subtle 稍亮
+    '--empty-state-fill': '#0F0F0F',   // 极暗的填充
     '--color-action': PALETTE.rhine.holo,
     
     // 极具攻击性的玻璃效果

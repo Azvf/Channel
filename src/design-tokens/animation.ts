@@ -72,11 +72,12 @@ export const EASE = {
   OUT_CUBIC: [0.16, 1, 0.3, 1] as const,
   
   /** 
-   * [0.5, 1.5, 0.5, 1] - 机械/回弹感
-   * 用于 Toggle、Switch 等需要"反馈感"的交互
+   * [0.2, 0.8, 0.2, 1] - iOS/Mac 风格的"重量感"物理曲线
+   * 用于需要平滑、有重量感的交互（Modal、Dialog、Card 动画）
+   * 特点：快速启动，平滑减速，带有轻微的弹性感，但不会过度回弹
    * 对应 CSS: --ease-spring
    */
-  SPRING: [0.5, 1.5, 0.5, 1] as const,
+  SPRING: [0.2, 0.8, 0.2, 1] as const,
 } as const;
 
 /**
@@ -153,7 +154,7 @@ export const ANIMATION = {
     smooth: { bezier: [0.4, 0, 0.2, 1], description: '通用平滑运动 (Google Material/iOS Standard)' },
     glass: { bezier: [1, 0.0, 0.4, 1], description: '玻璃材质的阻尼感' },
     outCubic: { bezier: [0.16, 1, 0.3, 1], description: '更有重量感的滑入 (Apple Style)' },
-    spring: { bezier: [0.5, 1.5, 0.5, 1], description: '机械/回弹感 (Toggle, Switch)' },
+    spring: { bezier: [0.2, 0.8, 0.2, 1], description: 'iOS/Mac 风格的重量感物理曲线 (Modal, Dialog, Card)' },
   },
   renderTick: { ms: 100, description: '一个渲染周期' },
 } as const;
