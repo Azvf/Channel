@@ -45,10 +45,11 @@ const DEFAULT_THEME: ThemeVariables = {
   '--border-subtle': PALETTE.slate[200], // 极淡的分割线
   '--border-focus': PALETTE.blue[600],   // 聚焦时的边框
   
-  // --- 3.1 空状态 (Empty State) ---
-  // 用于空状态插画的线条和填充，比 border-subtle 更淡，避免抢夺注意力
-  '--empty-state-stroke': PALETTE.slate[300], // 空状态插画线条（比 border-subtle 稍深，但足够淡）
-  '--empty-state-fill': PALETTE.slate[100],   // 空状态插画填充
+  // --- 3.1 插画与空状态 (Illustration & Empty States) ---
+  // 设计风格：像纸上淡淡的铅笔草稿
+  '--illustration-stroke': PALETTE.slate[300], // 线条颜色
+  '--illustration-fill': PALETTE.slate[100],   // 填充颜色
+  '--illustration-bg': PALETTE.slate[50],      // 插画的背景底板（如果是圆形容器）
 
   // --- 4. 交互色 (Action) ---
   '--color-action': PALETTE.blue[600],
@@ -172,9 +173,11 @@ const PARTIAL_THEMES = {
     // 边框：深色模式下，边框是定义层级的关键（因为阴影不可见）
     '--border-subtle': PALETTE.slate[800],
     
-    // 空状态：深色模式下使用更亮的线条和填充
-    '--empty-state-stroke': PALETTE.slate[700],
-    '--empty-state-fill': PALETTE.slate[900],
+    // --- [新增] Dark Mode 插画 ---
+    // 设计风格：夜视仪下的微光轮廓
+    '--illustration-stroke': PALETTE.slate[700], 
+    '--illustration-fill': 'rgba(255, 255, 255, 0.02)', // 极淡的白透
+    '--illustration-bg': PALETTE.slate[900],
     
     // 交互：在深色背景上，通常需要稍微提亮主色以保证对比度
     '--color-action': PALETTE.blue[500], 
@@ -217,8 +220,11 @@ const PARTIAL_THEMES = {
     '--text-secondary': PALETTE.rhine.tundra,
     
     '--border-subtle': '#1A1A1A',
-    '--empty-state-stroke': '#2A2A2A', // 比 border-subtle 稍亮
-    '--empty-state-fill': '#0F0F0F',   // 极暗的填充
+    // --- [新增] Dim Mode (Rhine) 插画 ---
+    // 设计风格：因为 Dim Mode 背景极黑，线条可以更暗沉隐秘，或者带一点点品牌色
+    '--illustration-stroke': '#333333', // 极暗的灰
+    '--illustration-fill': 'rgba(204, 247, 40, 0.05)', // 极淡的莱茵绿填充，增加品牌感
+    '--illustration-bg': '#0A0A0A',
     '--color-action': PALETTE.rhine.holo,
     
     // 极具攻击性的玻璃效果
@@ -264,7 +270,11 @@ const PARTIAL_THEMES = {
     '--ease-base': 'cubic-bezier(0.5, 0, 0.1, 1)',
     '--ease-glass': 'cubic-bezier(1, 0.0, 0.3, 1)',
     '--tooltip-shadow-intensity': '0.1',
-    '--tooltip-border-opacity': '0.15'
+    '--tooltip-border-opacity': '0.15',
+    // --- [新增] Rhine Light 插画 ---
+    '--illustration-stroke': PALETTE.slate[300],
+    '--illustration-fill': PALETTE.slate[100],
+    '--illustration-bg': PALETTE.slate[50],
   },
 
   'rhine-dark': {
@@ -284,6 +294,10 @@ const PARTIAL_THEMES = {
     '--ease-glass': 'cubic-bezier(1, 0.0, 0.3, 1)',
     '--tooltip-shadow-intensity': '0.25',
     '--tooltip-border-opacity': '0.3',
+    // --- [新增] Rhine Dark 插画 ---
+    '--illustration-stroke': PALETTE.slate[700],
+    '--illustration-fill': 'rgba(255, 255, 255, 0.02)',
+    '--illustration-bg': PALETTE.slate[900],
   }
 } as const;
 
