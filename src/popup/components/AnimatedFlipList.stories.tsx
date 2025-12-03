@@ -71,7 +71,7 @@ export const Interactive: Story = {
         <AnimatedFlipList
           items={items}
           renderItem={(item) => (
-            <div className="p-3 rounded-xl bg-[color-mix(in_srgb,var(--c-glass)20%,transparent)] border border-[color-mix(in_srgb,var(--c-glass)35%,transparent)] text-sm text-[color-mix(in_srgb,var(--c-content)80%,var(--c-bg))] shadow-sm">
+            <div className="p-3 rounded-xl bg-[color-mix(in_srgb,var(--glass-bg)20%,transparent)] border border-[color-mix(in_srgb,var(--glass-bg)35%,transparent)] text-sm text-[color-mix(in_srgb,var(--text-primary)80%,var(--bg-page))] shadow-sm">
               {item.label}
             </div>
           )}

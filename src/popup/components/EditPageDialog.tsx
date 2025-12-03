@@ -156,7 +156,7 @@ export function EditPageDialog({
             style={{
               background: 'var(--bg-surface-glass-subtle)',
               border: '1px solid var(--border-glass-subtle)',
-              font: 'var(--font-small)',
+              font: 'var(--font-caption)',
               color: 'var(--color-text-tertiary)',
               fontWeight: 500,
               wordBreak: 'break-all',

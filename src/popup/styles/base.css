@@ -1,127 +1,161 @@
 /* ========================================
-   LAYER 2: BASE STYLES
-   Global Reset, Scrollbar, HTML Tags
+   LAYER 2: BASE STYLES & RESETS
+   Global Reset, Typography Defaults, Scrollbar
    ======================================== */
 
 @layer base {
-  /* Base typography. This is not applied to elements which have an ancestor with a Tailwind text class. */
-  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
-    :is(h1, h2, h3, h4) {
-      font-weight: var(--font-weight-medium);
-      line-height: 1.5;
-      color: var(--color-text-primary);
-    }
-    
-    /* ... (Keeping sizes but ensuring colors are tokenized) ... */
-    
-    :is(p, label, button, input) {
-      color: var(--color-text-primary);
-    }
+  /* * 全局清理 
+   * 移除移动端点击高亮，平滑滚动
+   */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+    /* 不硬编码 font-size，让浏览器决定基准，尊重用户的可访问性设置 */
   }
 
-  /* ========================================
-     FOCUS VISIBLE RESET
-     移除所有交互元素的默认 focus-visible outline
-     使用 :where() 降低特异性，便于覆盖
-     ======================================== */
+  /* * 核心排版绑定 
+   * 直接应用我们在 tailwind.config.js 中定义的语义化类
+   */
+  body {
+    @apply font-sans text-body;
+    /* 使用 CSS 变量而非 Tailwind 类，因为颜色系统基于 CSS 变量 */
+    background: var(--bg-page);
+    color: var(--text-primary);
+    
+    /* 字体平滑处理 - 让无衬线体在 Mac 上更精致 */
+    -webkit-font-smoothing: antialiased; 
+    -moz-osx-font-smoothing: grayscale;
+    
+    /* 阻止默认的过度滚动反弹效果，保持 App 质感 */
+    overscroll-behavior: none;
+    
+    /* 初始状态无过渡，避免 FOUC */
+    transition: none;
+  }
+
+  /* 性能优化: 仅在主题加载完成后启用过渡，避免 FOUC 和 Layout Thrashing */
+  body[data-theme-ready] {
+    transition: background var(--transition-slow) var(--ease-glass), 
+                color var(--transition-slow) var(--ease-glass);
+  }
+
+  body[data-theme-no-transition] {
+    transition: none !important;
+  }
+
+  /* * 默认标题样式兜底
+   * 防止开发时忘记加 class 导致层级混乱
+   * 使用 :where() 降低权重，方便后续覆盖
+   */
+  :where(h1) { 
+    @apply text-heading1;
+    color: var(--color-text-primary);
+  }
+  
+  :where(h2) { 
+    @apply text-heading2;
+    color: var(--color-text-primary);
+  }
+  
+  :where(h3) { 
+    @apply text-heading3;
+    color: var(--color-text-primary);
+  }
+  
+  :where(h4, h5, h6) { 
+    @apply text-body;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+  
+  :where(p) { 
+    margin-bottom: 0.5em; 
+  }
+  
+  :where(p:last-child) { 
+    margin-bottom: 0; 
+  }
+
+  /* * 交互元素重置
+   * 移除丑陋的默认 focus outline，由自定义组件处理 focus 态
+   */
   :where(button, input, select, textarea, a[href], [role="button"], [tabindex]):focus-visible {
     outline: none;
   }
 
-  /* ========================================
-     INPUT PLACEHOLDER STYLES
-     确保所有 Input 的 placeholder 文本使用主题字体
-     ======================================== */
-  input::placeholder,
-  textarea::placeholder {
-    font: var(--font-body);
+  /* * 输入框占位符统一
+   * 确保 placeholder 看起来像 "辅助文字" (Caption)
+   */
+  ::placeholder {
+    @apply text-caption;
     color: var(--color-text-tertiary);
+    opacity: 1; /* Chrome/Firefox 默认有时会降低 opacity，强制设为 100 以便颜色准确 */
   }
 
-  /* ========================================
-     DISABLE NATIVE TOOLTIPS
-     全局禁用浏览器默认的 title 属性 tooltip
-     使用自定义 Tooltip 组件替代
-     ======================================== */
-  /* 注意：CSS 无法直接禁用 title tooltip，需要通过 JavaScript 移除 title 属性 */
-  /* 见 main.tsx 中的 disableNativeTooltips() 函数 */
-}
-
-html {
-  font-size: 16px; /* 标准基准，确保 rem 单位计算正确 */
-  scroll-behavior: smooth;
-  overflow-y: scroll;
-}
-
-body {
-  font-size: var(--font-size-base); /* 使用主题变量，而不是硬编码 20px */
-  background: var(--c-bg);
-  color: var(--c-content);
-  transition: none; /* Initial state */
-}
-
-/* 性能优化: 仅在主题加载完成后启用过渡，避免 FOUC 和 Layout Thrashing */
-body[data-theme-ready] {
-  transition: background var(--transition-slow) var(--ease-glass), 
-              color var(--transition-slow) var(--ease-glass);
-}
-
-body[data-theme-no-transition] {
-  transition: none !important;
+  /* * 文本选区颜色
+   * 匹配品牌色，但保持低饱和度以免刺眼
+   */
+  ::selection {
+    background-color: var(--bg-action-moderate);
+    color: var(--text-primary);
+  }
 }
 
 /* ========================================
-   SCROLLBAR SYSTEM: "Ghost Pill"
+   LAYER 3: THE INVISIBLE SCROLLBAR
+   仅在 hover 时显示，平时隐形，打造"纯净"界面
    ======================================== */
 
-/* --- Webkit (Chrome, Edge, Safari) --- */
-::-webkit-scrollbar {
-  width: var(--sb-width);
-  height: var(--sb-width);
+@media (pointer: fine) {
+  /* 滚动条整体轨道 */
+  ::-webkit-scrollbar {
+    width: 6px;  /* 极致纤细 */
+    height: 6px;
+  }
+
+  /* 轨道背景 - 永远透明 */
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* 滑块 - 默认状态 (几乎隐形/极淡) */
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(150, 150, 150, 0.2); /* 平时极淡 */
+    border-radius: 9999px;         /* Pill shape */
+    transition: background-color 0.2s ease;
+  }
+
+  /* 鼠标悬停在滑块上 */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(150, 150, 150, 0.5); /* 激活时加深 */
+  }
+
+  /* 滑块激活状态 */
+  ::-webkit-scrollbar-thumb:active {
+    background-color: rgba(150, 150, 150, 0.7);
+  }
+
+  /* 滚动条角落 */
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--sb-thumb-idle);
-  border-radius: var(--radius-full);
-  border: 3px solid transparent;
-  background-clip: content-box;
-  transition: background-color var(--transition-base);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--sb-thumb-hover);
-}
-
-::-webkit-scrollbar-thumb:active {
-  background-color: var(--sb-thumb-active);
-}
-
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-/* --- Firefox (Standard CSS) --- */
+/* Firefox 滚动条样式 */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--sb-thumb-idle) transparent;
+  scrollbar-color: rgba(150, 150, 150, 0.2) transparent;
 }
 
-/* Selection color */
-::selection {
-  background-color: var(--bg-action-moderate);
-  color: var(--c-content);
-}
-
-/* Optimization: 提示浏览器开启硬件加速 */
+/* * 性能优化层
+ * 强制开启 GPU 加速，防止玻璃拟态效果导致的掉帧
+ */
+.hardware-accelerated,
 [class*="backdrop-blur"],
 .liquidGlass-effect {
   transform: translateZ(0);
   -webkit-font-smoothing: antialiased;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+  perspective: 1000px;
 }
-

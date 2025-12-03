@@ -178,7 +178,7 @@ export function TagInput({
           style={{
             overflow: 'hidden',
             borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--shadow-elevation-high)',
+            boxShadow: 'var(--shadow-lg)',
             // [Refactor] 使用 GlassCard 自动处理 backdrop-filter，移除手动样式
           }}
         >

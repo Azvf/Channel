@@ -63,9 +63,9 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
   // [关键] 共享样式：必须确保 Ghost Div 和 Textarea 的 排版属性 完全一致！
   // 提取自你原来的 TaggingPage.tsx 样式
   const typographyStyle: React.CSSProperties = {
-    font: "var(--font-page-title)",
-    letterSpacing: "var(--letter-spacing-page-title)",
-    lineHeight: 1.35,
+    font: "var(--font-heading2)",
+    letterSpacing: "var(--letter-spacing-heading2)",
+    lineHeight: 1.3,
     padding: "0.25rem 0", // 保持一致的 vertical padding
     width: "100%",
     wordBreak: "break-word",

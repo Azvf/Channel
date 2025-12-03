@@ -142,7 +142,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
             书签导入完成
           </p>
           <div style={{ 
-            fontSize: 'var(--font-footnote)', 
+            fontSize: 'var(--font-caption-size)', 
             color: 'var(--color-text-secondary)',
             lineHeight: '1.5'
           }}>
@@ -192,7 +192,7 @@ export function SettingsModal({ isOpen, onClose, initialTheme }: SettingsModalPr
           <div>
             <p style={{ marginBottom: 'var(--space-2)' }}>{errorMessage}</p>
             <p style={{ 
-              fontSize: 'var(--font-footnote)', 
+              fontSize: 'var(--font-caption-size)', 
               color: 'var(--color-text-secondary)' 
             }}>
               {solution}

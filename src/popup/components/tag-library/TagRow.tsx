@@ -70,7 +70,7 @@ export const TagRow = memo(function TagRow({
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div
             className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: tag.color || "var(--c-action)" }}
+            style={{ backgroundColor: tag.color || "var(--color-action)" }}
           ></div>
           <input
             type="text"
@@ -102,7 +102,7 @@ export const TagRow = memo(function TagRow({
           <span
             style={{
               color: "var(--color-text-secondary)",
-              font: "var(--font-footnote)",
+              font: "var(--font-caption)",
               fontWeight: 400,
               opacity: 1,
             }}
@@ -128,7 +128,7 @@ export const TagRow = memo(function TagRow({
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div
           className="w-3 h-3 rounded-full flex-shrink-0"
-          style={{ backgroundColor: tag.color || 'var(--c-action)' }}
+          style={{ backgroundColor: tag.color || 'var(--color-action)' }}
         />
         <span
           className="truncate"
@@ -147,7 +147,7 @@ export const TagRow = memo(function TagRow({
           className="transition-opacity duration-150 group-hover:opacity-0"
           style={{
             color: 'var(--color-text-secondary)',
-            font: 'var(--font-footnote)',
+            font: 'var(--font-caption)',
             fontWeight: 400
           }}
         >

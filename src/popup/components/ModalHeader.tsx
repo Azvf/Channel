@@ -19,8 +19,8 @@ export function ModalHeader({ title, onClose }: ModalHeaderProps) {
     >
       <h2
         style={{
-          font: 'var(--font-header-title)',
-          letterSpacing: 'var(--letter-spacing-header-title)',
+          font: 'var(--font-heading1)',
+          letterSpacing: 'var(--letter-spacing-heading1)',
           color: 'var(--color-text-primary)',
           margin: 0
         }}

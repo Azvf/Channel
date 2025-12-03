@@ -7,7 +7,7 @@
  * 关键特性：
  * - Zero-Runtime: 所有样式在构建时预计算
  * - SSOT: theme.ts 是唯一数据源
- * - Tailwind 兼容: 精确控制 CSS 变量命名，保持 --c-action 格式
+ * - Tailwind 兼容: 精确控制 CSS 变量命名，保持语义化变量格式
  */
 
 import { createGlobalTheme, createGlobalThemeContract } from '@vanilla-extract/css';
@@ -17,15 +17,15 @@ import { THEME_VARS } from './theme';
  * 1. 定义变量契约 (Contract)
  * 
  * 关键点：使用 mapper 保持变量名与当前系统完全一致。
- * Vanilla Extract 默认会哈希变量名，但我们需要保留 '--c-action' 这种格式
+ * Vanilla Extract 默认会哈希变量名，但我们需要保留语义化变量格式
  * 以便 Tailwind 配置无需修改即可继续工作。
  * 
  * mapper 函数处理逻辑：
- * - path[0] 是 key，例如 "--c-action"
+ * - path[0] 是 key，例如 "--bg-page"
  * - VE 会自动添加 "--" 前缀，所以我们移除原始 key 中的前缀以避免 "--" 重复
  */
 const vars = createGlobalThemeContract(THEME_VARS.light, (_value, path) => {
-  // path[0] 是 key，例如 "--c-action"
+  // path[0] 是 key，例如 "--bg-page"
   // VE 会自动添加 "--" 前缀，所以我们移除原始 key 中的前缀以避免 "--" 重复
   const key = path[0];
   return key.replace(/^--/, '');

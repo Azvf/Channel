@@ -128,7 +128,7 @@
   align-items: center;
   gap: var(--space-1);
   /* [Refactor] 使用标准小文本 Token */
-  font: var(--font-small);
+  font: var(--font-caption);
   color: var(--color-text-tertiary);
   margin-top: var(--space-2);
   padding-right: var(--space-0_5);
@@ -164,7 +164,7 @@
 /* Activity Group Title - 粘性标题 */
 .activity-group-title {
   /* [Refactor] 使用标准小文本 Token */
-  font: var(--font-small);
+  font: var(--font-caption);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -174,7 +174,7 @@
   top: 0;
   z-index: var(--z-sticky);
   background-color: var(--bg-surface-glass-active); /* Solid-ish glass */
-  backdrop-filter: blur(var(--glass-blur-base));
+  backdrop-filter: blur(var(--glass-panel-blur));
   padding: var(--space-2);
 }
 

@@ -6,8 +6,8 @@
 
 /* Settings Modal */
 .settings-section-title {
-  font: var(--font-section-title);
-  letter-spacing: var(--letter-spacing-section-title);
+  font: var(--font-label);
+  letter-spacing: var(--letter-spacing-label);
   text-transform: uppercase;
   color: var(--color-text-secondary);
   margin-top: var(--space-6);
@@ -43,8 +43,8 @@
 
 .settings-row-label {
   /* [Refactor] 使用标准字体 Token */
-  font: var(--font-list-item);
-  color: var(--c-content);
+  font: var(--font-body);
+  color: var(--text-primary);
   user-select: none;
 }
 
@@ -61,8 +61,8 @@
   /* [Design] Liquid Conformality: 使用语义化圆角变量，替代硬编码的 0.5rem */
   border-radius: var(--radius-md); /* 16px */
   /* [Refactor] 使用标准字体 Token */
-  font: var(--font-list-item);
-  color: var(--c-content);
+  font: var(--font-body);
+  color: var(--text-primary);
   cursor: pointer;
   transition: background-color var(--transition-fast) var(--ease-smooth),
               color var(--transition-fast) var(--ease-smooth);
@@ -72,7 +72,7 @@
 .settings-row-button:hover {
   /* [Refactor] 8% mix -> var(--bg-surface-glass-subtle) (10%)，统一使用语义化 Token */
   background-color: var(--bg-surface-glass-subtle);
-  color: var(--c-action);
+  color: var(--color-action);
 }
 
 /* ========================================
@@ -88,7 +88,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-surface-glass-active); /* Tokenized backdrop */
-  backdrop-filter: blur(var(--glass-blur-base)); /* [Refactor] 统一使用 Token，与 BaseModal 保持一致 */
+  backdrop-filter: blur(var(--glass-modal-blur)); /* 使用 modal 级别的玻璃效果 */
   overflow-y: auto;
   padding: var(--space-4);
 }
@@ -102,7 +102,7 @@
   background-color: var(--bg-surface-solid-ish) !important;
   backdrop-filter: blur(var(--glass-blur-heavy)) saturate(180%) !important;
   border: 1px solid var(--border-glass-strong);
-  box-shadow: var(--shadow-xl); /* Tokenized shadow */
+  box-shadow: var(--shadow-float); /* 悬浮状态阴影 */
   /* [Design] Liquid Conformality: 模态框容器使用最大的圆角，像从屏幕升起的 */
   border-radius: var(--radius-2xl); /* 40px */
   display: flex;
@@ -131,7 +131,7 @@
 
 .stats-wall-title {
   /* [Refactor] 使用标准页面标题 Token */
-  font: var(--font-page-title);
+  font: var(--font-heading2);
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -163,12 +163,12 @@
   position: relative;
   display: inline-block;
   /* [Refactor] 使用标准字体 Token */
-  font: var(--font-header-title);
-  letter-spacing: var(--letter-spacing-header-title);
+  font: var(--font-heading1);
+  letter-spacing: var(--letter-spacing-heading1);
   background: linear-gradient(
     90deg, 
-    var(--c-action) 0%, 
-    color-mix(in srgb, var(--c-content) 90%, transparent) 80%
+    var(--color-action) 0%, 
+    color-mix(in srgb, var(--text-primary) 90%, transparent) 80%
   );
   -webkit-background-clip: text;
   background-clip: text;

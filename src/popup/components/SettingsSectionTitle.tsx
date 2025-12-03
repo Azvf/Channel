@@ -11,8 +11,8 @@ export function SettingsSectionTitle({ children, className = '', style }: Settin
     <div
       className={`settings-section-title ${className}`}
       style={{
-        font: 'var(--font-section-title)',
-        letterSpacing: 'var(--letter-spacing-section-title)',
+        font: 'var(--font-label)',
+        letterSpacing: 'var(--letter-spacing-label)',
         textTransform: 'uppercase',
         color: 'var(--color-text-secondary)',
         // [Refactor] Tokenized Margins

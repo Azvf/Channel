@@ -26,7 +26,7 @@ export interface AlertModalProps {
 const intentMap = {
   info: {
     icon: Info,
-    color: 'var(--c-action)',
+    color: 'var(--color-action)',
   },
   warning: {
     icon: AlertTriangle,

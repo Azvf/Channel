@@ -91,7 +91,7 @@
 */
 .hover-action {
   background-color: transparent;
-  color: var(--c-content);
+  color: var(--text-primary);
   transition: background-color var(--transition-fast) var(--ease-smooth),
               color var(--transition-fast) var(--ease-smooth);
 }

@@ -78,7 +78,7 @@ export function SettingsRow({
         >
           <span
             style={{
-              font: 'var(--font-list-item)',
+              font: 'var(--font-body)',
               color: 'var(--color-text-primary)',
               userSelect: 'none',
             }}
@@ -88,8 +88,8 @@ export function SettingsRow({
           {value && (
             <span
               style={{
-                font: 'var(--font-footnote)',
-                letterSpacing: 'var(--letter-spacing-footnote)',
+                font: 'var(--font-caption)',
+                letterSpacing: 'var(--letter-spacing-caption)',
                 color: 'var(--color-text-secondary)',
                 userSelect: 'none',
               }}

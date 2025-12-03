@@ -146,7 +146,7 @@ export function AccountSection() {
                         <p style={{ 
                           textAlign: 'center', 
                           // [Refactor] 使用标准字体 Token
-                        font: 'var(--font-small)', 
+                        font: 'var(--font-caption)', 
                           color: 'var(--color-text-tertiary)', // Tokenized
                           padding: 'var(--space-2)' 
                         }}>
@@ -282,7 +282,7 @@ export function AccountSection() {
                       <div className="text-center pt-1">
                          <span style={{ 
                            // [Refactor] 使用标准字体 Token
-                        font: 'var(--font-small)', 
+                        font: 'var(--font-caption)', 
                            color: 'var(--color-text-tertiary)' // Tokenized
                          }}>
                            End-to-end encrypted
@@ -293,7 +293,7 @@ export function AccountSection() {
                     /* --- Authenticated State --- */
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                         <div className="flex justify-between items-center pt-1 px-1">
-                            <span style={{ font: 'var(--font-small)', color: 'var(--color-text-secondary)' }}>
+                            <span style={{ font: 'var(--font-caption)', color: 'var(--color-text-secondary)' }}>
                                 {isPro ? "Unlimited devices" : `${deviceCount} / ${MAX_FREE_DEVICES} devices`}
                             </span>
                             <button 

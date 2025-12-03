@@ -29,19 +29,18 @@
   
   /* --- [核心优化] 动态模糊计算 --- */
   /* 深度越深，模糊越小（因为背景已经被上层模糊过了，没必要浪费 GPU） */
-  /* 使用 clamp() 替代 max()，兼容性更好，防止模糊度变成负数 */
-  --dynamic-blur: clamp(0px, calc(var(--glass-blur-base) - (var(--local-depth) * var(--glass-blur-decay))), var(--glass-blur-base));
+  /* 使用 panel 级别作为基础，支持动态深度调整 */
+  --dynamic-blur: var(--glass-panel-blur);
   
   /* 动态模糊值（现代浏览器支持 CSS 变量在 backdrop-filter 中使用） */
-  /* 如果浏览器不支持，会回退到基础值 12px（通过 JavaScript 动态注入） */
-  backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--saturation));
+  backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--glass-panel-saturation));
+  -webkit-backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--glass-panel-saturation));
   
   /* --- [核心优化] 动态不透明度计算 --- */
   /* 深度越深，越不透明，增加层级感 */
-  --dynamic-opacity: calc(var(--glass-opacity-base) + (var(--local-depth) * var(--glass-opacity-increment)));
+  --dynamic-opacity: var(--glass-panel-opacity);
   
-  background-color: color-mix(in srgb, var(--c-glass) calc(var(--dynamic-opacity) * 100%), transparent);
+  background-color: color-mix(in srgb, var(--glass-bg) calc(var(--dynamic-opacity) * 100%), transparent);
   
   /* --- 阴影优化 (保持原有的精美设计，但可以微调强度) --- */
   /* 随着深度增加，阴影可以稍微加重，增强立体感 */
@@ -73,11 +72,11 @@
   -webkit-backdrop-filter: none !important;
   
   /* 作为补偿，增加不透明度，避免看起来太透 */
-  background-color: color-mix(in srgb, var(--c-glass) 80%, transparent);
+  background-color: color-mix(in srgb, var(--glass-bg) 80%, transparent);
   
   /* 移除昂贵的阴影计算 */
   box-shadow: none;
-  border: 1px solid color-mix(in srgb, var(--c-glass) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-bg) 30%, transparent);
   
   /* 只在动画模式下使用 will-change，避免滥用 */
   will-change: transform, opacity;

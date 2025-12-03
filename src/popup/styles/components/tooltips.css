@@ -15,8 +15,8 @@
   line-height: var(--tooltip-line-height);
   letter-spacing: var(--tooltip-letter-spacing);
   padding: var(--tooltip-padding);
-  backdrop-filter: blur(8px) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(8px) saturate(var(--saturation));
+  backdrop-filter: blur(var(--glass-tooltip-blur)) saturate(var(--glass-tooltip-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-tooltip-blur)) saturate(var(--glass-tooltip-saturation));
   pointer-events: none;
   user-select: none;
   white-space: nowrap;

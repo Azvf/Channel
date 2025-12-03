@@ -49,8 +49,8 @@ export function Tag({ label, onRemove, className = "", variant = 'default' }: Ta
             className="whitespace-nowrap px-2.5 py-1"
             style={{
               color: variantStyles.color,
-              font: 'var(--font-tag)',
-              letterSpacing: 'var(--letter-spacing-tag)',
+              font: 'var(--font-label)',
+              letterSpacing: 'var(--letter-spacing-label)',
               userSelect: 'none'
             }}
           >

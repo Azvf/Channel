@@ -300,12 +300,12 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             <motion.div layout="position">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Plus className="icon-sm" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
+                  <Plus className="icon-sm" strokeWidth={1.5} style={{ color: "var(--color-action)" }} />
                   <span
                     style={{
                       color: "var(--color-text-module-title)",
-                      font: "var(--font-module-title)",
-                      letterSpacing: "var(--letter-spacing-module-title)",
+                      font: "var(--font-label)",
+                      letterSpacing: "var(--letter-spacing-label)",
                       textTransform: "uppercase",
                       whiteSpace: "nowrap",
                     }}
@@ -323,7 +323,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       className="p-2 rounded-lg transition-all flex-shrink-0 hover:bg-[var(--hover-bg-glass)]"
                       title="重试"
                     >
-                      <RefreshCw className="icon-base" strokeWidth={1.5} style={{ color: "var(--c-action)" }} />
+                      <RefreshCw className="icon-base" strokeWidth={1.5} style={{ color: "var(--color-action)" }} />
                     </button>
                   ) : currentPage?.url ? (
                     /* 正常状态：显示 URL */
@@ -394,15 +394,15 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       strokeWidth={2}
                     />
                     <span style={{ 
-                      font: "var(--font-footnote)", 
-                      letterSpacing: "var(--letter-spacing-footnote)",
+                      font: "var(--font-caption)", 
+                      letterSpacing: "var(--letter-spacing-caption)",
                       color: "var(--color-text-secondary)" 
                     }}>
                       Today:
                     </span>
                     <span style={{ 
-                      font: "var(--font-tag)", 
-                      letterSpacing: "var(--letter-spacing-tag)",
+                      font: "var(--font-label)", 
+                      letterSpacing: "var(--letter-spacing-label)",
                       color: "var(--color-text-primary)", 
                       fontVariantNumeric: "tabular-nums" 
                     }}>
@@ -416,15 +416,15 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                       strokeWidth={2}
                     />
                     <span style={{ 
-                      font: "var(--font-footnote)", 
-                      letterSpacing: "var(--letter-spacing-footnote)",
+                      font: "var(--font-caption)", 
+                      letterSpacing: "var(--letter-spacing-caption)",
                       color: "var(--color-text-secondary)" 
                     }}>
                       Streak:
                     </span>
                     <span style={{ 
-                      font: "var(--font-tag)", 
-                      letterSpacing: "var(--letter-spacing-tag)",
+                      font: "var(--font-label)", 
+                      letterSpacing: "var(--letter-spacing-label)",
                       color: "var(--color-text-primary)", 
                       fontVariantNumeric: "tabular-nums" 
                     }}>

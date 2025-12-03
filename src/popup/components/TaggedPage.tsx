@@ -28,7 +28,7 @@ import { AlertModal, type AlertAction } from "./AlertModal";
 import { GlassButton, IconButton } from "./ui/buttons";
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
-// 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
+// 原: color: "color-mix(in srgb, var(--text-primary) 50%, var(--bg-page))" -> var(--color-text-secondary)
 const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
   <div
     className="flex items-center gap-1"
@@ -52,8 +52,8 @@ const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => 
     <span
       className="stat-item-value"
       style={{
-        font: "var(--font-tag)",
-        letterSpacing: "var(--letter-spacing-tag)",
+        font: "var(--font-label)",
+        letterSpacing: "var(--letter-spacing-label)",
         color: "var(--color-text-tertiary)", // Tokenized (approx 70% mix)
         transition: "color var(--transition-fast) var(--ease-smooth)",
       }}
@@ -520,13 +520,13 @@ export function TaggedPage({
                   <Search
                     className="icon-sm"
                     strokeWidth={1.5}
-                    style={{ color: "var(--c-action)" }}
+                    style={{ color: "var(--color-action)" }}
                   />
                   <span
                     style={{
                       color: "var(--color-text-module-title)", // Tokenized
-                      font: "var(--font-module-title)",
-                      letterSpacing: "var(--letter-spacing-module-title)",
+                      font: "var(--font-label)",
+                      letterSpacing: "var(--letter-spacing-label)",
                       textTransform: "uppercase",
                     }}
                   >
@@ -564,8 +564,8 @@ export function TaggedPage({
                 <span
                   style={{
                     color: "var(--color-text-secondary)", // Tokenized
-                    font: "var(--font-footnote)",
-                    letterSpacing: "var(--letter-spacing-footnote)",
+                    font: "var(--font-caption)",
+                    letterSpacing: "var(--letter-spacing-caption)",
                   }}
                 >
                   {searchTags.length > 0 ? "Filtered results" : "All pages"}
@@ -576,7 +576,7 @@ export function TaggedPage({
                     color: "var(--color-text-primary)",
                     background: "var(--bg-surface-glass-hover)", // Tokenized: 16% mix
                     // [Refactor] 使用标准字体 Token
-                    font: "var(--font-small)",
+                    font: "var(--font-caption)",
                     fontWeight: 600,
                     letterSpacing: "0.01em",
                     border: "1px solid var(--border-glass-moderate)", // Tokenized
@@ -667,7 +667,7 @@ export function TaggedPage({
                     <div className="space-y-1">
                       <p
                         style={{
-                          font: "var(--font-list-item)",
+                          font: "var(--font-body)",
                           color: "var(--color-text-tertiary)",
                           margin: 0,
                         }}
@@ -806,7 +806,7 @@ function PageCard({
             style={{
               // [Refactor] 菜单按钮背景: color-mix 18% -> 接近 --bg-surface-glass-active (20%)
               background: "var(--bg-surface-glass-active)",
-              backdropFilter: "blur(var(--glass-blur-base))",
+              backdropFilter: "blur(var(--glass-panel-blur))",
               border: "1.5px solid var(--border-glass-moderate)",
               color: "var(--color-text-tertiary)",
               cursor: "pointer",
@@ -827,11 +827,11 @@ function PageCard({
           onClick={(e) => e.stopPropagation()}
         >
           <h2
-            className="hover:text-[var(--c-action)] transition-colors"
+            className="hover:text-[var(--color-action)] transition-colors"
             style={{
               color: "var(--color-text-primary)",
-              font: "var(--font-page-title)",
-              letterSpacing: "var(--letter-spacing-page-title)",
+              font: "var(--font-heading2)",
+              letterSpacing: "var(--letter-spacing-heading2)",
               margin: 0,
             }}
           >
@@ -872,8 +872,8 @@ function PageCard({
                 className="inline-flex items-center px-2.5 py-1 rounded-lg"
                 style={{
                   color: "var(--color-text-secondary)",
-                  font: "var(--font-tag)",
-                  letterSpacing: "var(--letter-spacing-tag)",
+                  font: "var(--font-label)",
+                  letterSpacing: "var(--letter-spacing-label)",
                   // [Refactor] 标签背景: 10% -> --bg-surface-glass
                   background: "var(--bg-surface-glass)",
                   // [Refactor] 标签边框: 18% -> --border-glass-moderate

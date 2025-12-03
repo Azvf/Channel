@@ -126,9 +126,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
   border-radius: var(--radius-full);
   /* [Refactor] 12% mix -> var(--bg-surface-glass) (10%)，统一使用标准玻璃背景 Token */
   background-color: var(--bg-surface-glass);
-  /* [Refactor] blur(8px) -> var(--glass-blur-base) (12px)，统一磨砂质感 */
-  backdrop-filter: blur(var(--glass-blur-base)) url(#switcher) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur-base)) saturate(var(--saturation));
+  /* 使用 panel 级别的玻璃效果 */
+  backdrop-filter: blur(var(--glass-panel-blur)) url(#switcher) saturate(var(--glass-panel-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(var(--glass-panel-saturation));
   /* [Refactor] 使用组件级阴影 Token */
   box-shadow: var(--shadow-switcher-track);
   transition: background-color var(--transition-slow) var(--ease-glass),
@@ -173,7 +173,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .switcher__option {
-  --c: var(--c-content);
+  --c: var(--text-primary);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -190,7 +190,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .theme-switcher-container .theme-switcher-expanded .switcher__option:hover {
-  --c: var(--c-action);
+  --c: var(--color-action);
   cursor: pointer;
 }
 
@@ -244,7 +244,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .switcher__option:has(input:checked) {
-  --c: var(--c-content);
+  --c: var(--text-primary);
   cursor: auto;
 }
 
@@ -262,9 +262,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
   /* 注意：36% 较重，但 active 状态(20%)是最接近的语义化选择 */
   background-color: var(--bg-surface-glass-active);
   z-index: var(--z-base);
-  /* [Refactor] blur(8px) -> var(--glass-blur-base) (12px)，统一磨砂质感 */
-  backdrop-filter: blur(var(--glass-blur-base)) url(#switcher) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur-base)) saturate(var(--saturation));
+  /* 使用 panel 级别的玻璃效果 */
+  backdrop-filter: blur(var(--glass-panel-blur)) url(#switcher) saturate(var(--glass-panel-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(var(--glass-panel-saturation));
   /* [Refactor] 使用组件级阴影 Token */
   box-shadow: var(--shadow-glass-button-inner);
   transition: width var(--transition-base) var(--ease-smooth),
@@ -338,9 +338,9 @@ body[data-edit-dialog-open] .theme-switcher-container {
   --tab-switcher-overlay-inset-horizontal: var(--space-0_5);
   /* [Refactor] 统一使用标准玻璃背景 Token，与 ExpandableSwitcher 保持一致 */
   background-color: var(--bg-surface-glass);
-  /* [Refactor] blur(8px) -> var(--glass-blur-base) (12px)，统一磨砂质感 */
-  backdrop-filter: blur(var(--glass-blur-base)) url(#tab-switcher) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur-base)) saturate(var(--saturation));
+  /* 使用 panel 级别的玻璃效果 */
+  backdrop-filter: blur(var(--glass-panel-blur)) url(#tab-switcher) saturate(var(--glass-panel-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(var(--glass-panel-saturation));
   /* [Refactor] 使用组件级阴影 Token，与 ExpandableSwitcher 保持一致 */
   box-shadow: var(--shadow-switcher-track);
   transition: background-color var(--transition-slow) var(--ease-glass),
@@ -378,7 +378,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .tab-switcher .switcher__option:hover:not(:has(input:checked)) {
-  --c: var(--c-action);
+  --c: var(--color-action);
   cursor: pointer;
 }
 
@@ -387,7 +387,7 @@ body[data-edit-dialog-open] .theme-switcher-container {
 }
 
 .tab-switcher .switcher__option:hover:not(:has(input:checked)) .switcher__label {
-  color: var(--c-action);
+  color: var(--color-action);
 }
 
 .tab-switcher .switcher__label {
@@ -414,8 +414,8 @@ body[data-edit-dialog-open] .theme-switcher-container {
   z-index: var(--z-base);
   box-sizing: border-box;
   /* [Fix] 添加 backdrop-filter 效果以匹配 ExpandableSwitcher 的玻璃态 */
-  backdrop-filter: blur(var(--glass-blur-base)) url(#tab-switcher) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(var(--glass-blur-base)) saturate(var(--saturation));
+  backdrop-filter: blur(var(--glass-panel-blur)) url(#tab-switcher) saturate(var(--glass-panel-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-panel-blur)) saturate(var(--glass-panel-saturation));
   /* [Fix] 使用组件级阴影 Token，与 ExpandableSwitcher 保持一致 */
   box-shadow: var(--shadow-glass-button-inner);
   transition: top var(--transition-base) var(--ease-smooth),

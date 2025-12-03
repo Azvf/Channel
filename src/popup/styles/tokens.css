@@ -38,7 +38,7 @@
    - 主题化变量使用 var(--variable, fallback) 模式引用主题系统
 
    设计原则：
-   - 语义化命名：使用 --color-text-primary 而非 --c-content
+   - 语义化命名：使用 --text-primary, --bg-page 等语义化变量
    - 派生变量：基于基础变量计算（如 --radius-sm = calc(var(--radius-base) * 0.75)）
    - 层级清晰：基础变量 -> 语义变量 -> 组件变量
 
@@ -56,7 +56,7 @@
    - 主题化变量使用 var(--variable, fallback) 模式引用主题系统
 
    设计原则：
-   - 语义化命名：使用 --color-text-primary 而非 --c-content
+   - 语义化命名：使用 --text-primary, --bg-page 等语义化变量
    - 派生变量：基于基础变量计算（如 --radius-sm = calc(var(--radius-base) * 0.75)）
    - 层级清晰：基础变量 -> 语义变量 -> 组件变量
 
@@ -97,22 +97,22 @@
   --z-toast: 100;
   --z-cursor-drag: 1000; /* 拖拽时的替身 */
 
-  /* --- Spacing Scale (4px Grid) --- */
-  /* [Design] Liquid Conformality: 配合大圆角的 Padding 调整 */
-  --space-0_5: 0.125rem; /* 2px */
-  --space-1: 0.25rem;    /* 4px */
-  --space-1_5: 0.375rem; /* 6px */
-  --space-2: 0.5rem;     /* 8px */
-  --space-2_5: 0.625rem; /* 10px */
-  --space-3: 0.875rem;   /* 14px (原 12px -> 14px，配合大圆角) */
-  --space-3_5: 0.875rem; /* 14px */
-  --space-4: 1.125rem;   /* 18px (原 16px -> 18px，配合大圆角) */
-  --space-5: 1.5rem;     /* 24px (原 20px -> 24px，配合大圆角) */
-  --space-6: 1.5rem;     /* 24px */
-  --space-8: 2rem;       /* 32px */
-  --space-10: 2.5rem;    /* 40px */
-  --space-12: 3rem;      /* 48px */
-  --space-16: 4rem;      /* 64px */
+  /* --- Spacing Scale (Strict 4px Grid) --- */
+  /* 核心原则：所有的空间都必须是 4 的倍数 */
+  --space-0_5: 0.125rem; /* 2px - 微调/边框内偏移 */
+  --space-1: 0.25rem;    /* 4px - 紧凑间距 (Tag内边距) */
+  --space-1_5: 0.375rem; /* 6px - 图标与文本 */
+  --space-2: 0.5rem;     /* 8px - 小组件内边距 (Button sm) */
+  --space-2_5: 0.625rem; /* 10px - 视觉校正间距 */
+  --space-3: 0.75rem;    /* 12px - 列表项间距 */
+  --space-4: 1rem;       /* 16px - [基准] 标准内边距 (Card/Input) */
+  --space-5: 1.25rem;    /* 20px - 舒适的段落间距 */
+  --space-6: 1.5rem;     /* 24px - 模块分割 (Gap) */
+  --space-8: 2rem;       /* 32px - 大模块留白 (Section Padding) */
+  --space-10: 2.5rem;    /* 40px - 视觉分割 */
+  --space-12: 3rem;      /* 48px - 极大留白 */
+  --space-16: 4rem;      /* 64px - 版式留白 (Hero Section) */
+  --space-20: 5rem;      /* 80px - 页面底部留白 */
 
   /* ========================================
      RADIUS SCALE: "Liquid Conformality"
@@ -177,7 +177,7 @@
   --icon-size-xs: var(--space-3); 
   
   /* 14px - Small (Metadata icons, Tab switcher) */
-  --icon-size-sm: var(--space-3_5); 
+  --icon-size-sm: var(--space-3); 
   
   /* 16px - Base (Standard menu icons, Button icons) - 对应 Tailwind w-4 */
   --icon-size-base: var(--space-4); 
@@ -193,48 +193,34 @@
 
   /* --- Typography System --- */
   /* 字体通过主题系统定义，这里提供 fallback */
-  --font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif);
+  --font-family: var(--font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif);
 
-  /* Headings */
+  /* Headings - 新的语义化层级系统 */
   /* Typography 变量 fallback - 实际值由主题系统提供 */
-  --font-page-title: var(--font-page-title-weight, 600) var(--font-page-title-size, 1.1rem)/var(--font-page-title-line-height, 1.35) var(--font-family);
-  --letter-spacing-page-title: var(--font-page-title-letter-spacing, -0.015em);
+  --font-heading1: var(--font-heading1-weight, 600) var(--font-heading1-size, 1.5rem)/var(--font-heading1-line-height, 1.2) var(--font-family);
+  --letter-spacing-heading1: var(--font-heading1-letter-spacing, -0.02em);
 
-  --font-header-title: var(--font-header-title-weight, 700) var(--font-header-title-size, 1rem)/var(--font-header-title-line-height, 1.35) var(--font-family);
-  --letter-spacing-header-title: var(--font-header-title-letter-spacing, -0.02em);
+  --font-heading2: var(--font-heading2-weight, 600) var(--font-heading2-size, 1.125rem)/var(--font-heading2-line-height, 1.3) var(--font-family);
+  --letter-spacing-heading2: var(--font-heading2-letter-spacing, -0.01em);
 
-  --font-section-title: var(--font-section-title-weight, 600) var(--font-section-title-size, 0.75rem)/var(--font-section-title-line-height, 1.4) var(--font-family);
-  --letter-spacing-section-title: var(--font-section-title-letter-spacing, 0.05em);
+  --font-heading3: var(--font-heading3-weight, 500) var(--font-heading3-size, 1rem)/var(--font-heading3-line-height, 1.4) var(--font-family);
+  --letter-spacing-heading3: var(--font-heading3-letter-spacing, -0.005em);
 
   /* Body & Content */
-  /* 字体大小和字重由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --font-body: var(--font-body-weight, 400) var(--font-body-size, 0.85rem)/var(--font-body-line-height, 1.4) var(--font-family);
-  --letter-spacing-body: var(--font-body-letter-spacing, 0.01em);
-
-  --font-list-item: var(--font-list-item-weight, 500) var(--font-list-item-size, 0.9rem)/var(--font-list-item-line-height, 1.4) var(--font-family);
-  --letter-spacing-list-item: var(--font-list-item-letter-spacing, normal);
+  /* 字体大小和字重由主题系统提供，无需重新定义 */
+  --font-body: var(--font-body-weight, 400) var(--font-body-size, 0.875rem)/var(--font-body-line-height, 1.5) var(--font-family);
+  --letter-spacing-body: var(--font-body-letter-spacing, 0);
 
   /* UI Elements */
-  --font-caption: var(--font-caption-weight, 400) var(--font-caption-size, 0.8rem)/var(--font-caption-line-height, 1.4) var(--font-family);
-  --letter-spacing-caption: var(--font-caption-letter-spacing, 0.005em);
+  --font-caption: var(--font-caption-weight, 400) var(--font-caption-size, 0.75rem)/var(--font-caption-line-height, 1.4) var(--font-family);
+  --letter-spacing-caption: var(--font-caption-letter-spacing, 0.01em);
 
-  --font-footnote: var(--font-footnote-weight, 400) var(--font-footnote-size, 0.75rem)/var(--font-footnote-line-height, 1.4) var(--font-family);
-  --letter-spacing-footnote: var(--font-footnote-letter-spacing, 0.01em);
-
-  --font-label: var(--font-label-weight, 600) var(--font-label-size, 0.7rem)/var(--font-label-line-height, 1.4) var(--font-family);
+  --font-label: var(--font-label-weight, 500) var(--font-label-size, 0.75rem)/var(--font-label-line-height, 1) var(--font-family);
   --letter-spacing-label: var(--font-label-letter-spacing, 0.02em);
 
-  --font-tag: var(--font-tag-weight, 500) var(--font-tag-size, 0.75rem)/var(--font-tag-line-height, 1.4) var(--font-family);
-  --letter-spacing-tag: var(--font-tag-letter-spacing, 0.01em);
-
-  --font-module-title: var(--font-module-title-weight, 500) var(--font-module-title-size, 0.7rem)/var(--font-module-title-line-height, 1.4) var(--font-family);
-  --letter-spacing-module-title: var(--font-module-title-letter-spacing, 0.05em);
-
   /* Micro Text (for Calendar, Legends, etc.) */
-  --font-micro: var(--font-micro-weight, 500) var(--font-micro-size, 0.6rem)/var(--font-micro-line-height, 1) var(--font-family); /* 约 9.6px - 极小的标签 */
-  --font-small: var(--font-small-weight, 400) var(--font-small-size, 0.7rem)/var(--font-small-line-height, 1.4) var(--font-family); /* 约 11.2px - 小文本 */
+  /* 警告：严禁用于任何需要阅读的信息 */
+  --font-micro: var(--font-micro-weight, 500) var(--font-micro-size, 0.625rem)/var(--font-micro-line-height, 1) var(--font-family); /* 10px - 极小的标签 */
 
   /* ----------------------------------------
 
@@ -245,38 +231,38 @@
      ---------------------------------------- */
   
   /* Text Colors */
-  --color-text-primary: var(--c-content);
-  --color-text-secondary: color-mix(in srgb, var(--c-content) 50%, transparent);
-  --color-text-tertiary: color-mix(in srgb, var(--c-content) 40%, transparent);
-  --color-text-quaternary: color-mix(in srgb, var(--c-content) 30%, transparent);
-  --color-text-action: var(--c-action);
-  --color-text-module-title: color-mix(in srgb, var(--c-content) 70%, var(--c-bg));
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: color-mix(in srgb, var(--text-primary) 50%, transparent);
+  --color-text-tertiary: color-mix(in srgb, var(--text-primary) 40%, transparent);
+  --color-text-quaternary: color-mix(in srgb, var(--text-primary) 30%, transparent);
+  --color-text-action: var(--color-action);
+  --color-text-module-title: color-mix(in srgb, var(--text-primary) 70%, var(--bg-page));
 
   /* Surface Colors (Glass) */
-  --bg-surface-glass: color-mix(in srgb, var(--c-glass) 10%, transparent);
-  --bg-surface-glass-hover: color-mix(in srgb, var(--c-glass) 15%, transparent);
-  --bg-surface-glass-active: color-mix(in srgb, var(--c-glass) 20%, transparent);
-  --bg-surface-glass-subtle: color-mix(in srgb, var(--c-glass) 8%, transparent);
-  --bg-surface-solid-ish: color-mix(in srgb, var(--c-bg) 98%, transparent); /* [Refactor] 接近不透明的背景，用于大型模态框 */
+  --bg-surface-glass: color-mix(in srgb, var(--glass-bg) 10%, transparent);
+  --bg-surface-glass-hover: color-mix(in srgb, var(--glass-bg) 15%, transparent);
+  --bg-surface-glass-active: color-mix(in srgb, var(--glass-bg) 20%, transparent);
+  --bg-surface-glass-subtle: color-mix(in srgb, var(--glass-bg) 8%, transparent);
+  --bg-surface-solid-ish: color-mix(in srgb, var(--bg-page) 98%, transparent); /* [Refactor] 接近不透明的背景，用于大型模态框 */
 
   /* Surface Colors (Action) */
-  --bg-action-subtle: color-mix(in srgb, var(--c-action) 10%, transparent);
-  --bg-action-moderate: color-mix(in srgb, var(--c-action) 20%, transparent);
-  --bg-action-strong: color-mix(in srgb, var(--c-action) 80%, transparent);
-  --bg-action-solid: var(--c-action);
+  --bg-action-subtle: color-mix(in srgb, var(--color-action) 10%, transparent);
+  --bg-action-moderate: color-mix(in srgb, var(--color-action) 20%, transparent);
+  --bg-action-strong: color-mix(in srgb, var(--color-action) 80%, transparent);
+  --bg-action-solid: var(--color-action);
 
   /* Borders */
   /* 边框宽度由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --border-glass-subtle: color-mix(in srgb, var(--c-glass) 15%, transparent);
-  --border-glass-moderate: color-mix(in srgb, var(--c-glass) 20%, transparent);
-  --border-glass-strong: color-mix(in srgb, var(--c-glass) 30%, transparent);
-  --border-action-subtle: color-mix(in srgb, var(--c-action) 20%, transparent);
+  --border-glass-subtle: color-mix(in srgb, var(--glass-bg) 15%, transparent);
+  --border-glass-moderate: color-mix(in srgb, var(--glass-bg) 20%, transparent);
+  --border-glass-strong: color-mix(in srgb, var(--glass-bg) 30%, transparent);
+  --border-action-subtle: color-mix(in srgb, var(--color-action) 20%, transparent);
 
-  /* Legacy Hover Mappings (Backward Compatibility) */
+  /* Hover Mappings */
   --hover-bg-glass: var(--bg-surface-glass-hover);
   --hover-border-glass: var(--border-glass-moderate);
   --hover-bg-action: var(--bg-action-moderate);
-  --hover-color-action: var(--c-action);
+  --hover-color-action: var(--color-action);
 
   /* Intent Colors (for Alerts, Badges, etc.) */
   /* Intent 颜色由 Vanilla Extract 主题系统提供，无需重新定义 */
@@ -285,7 +271,7 @@
 
   /* Tooltip Specifics */
   /* Tooltip 样式由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
+  --tooltip-bg: color-mix(in srgb, var(--bg-page) 85%, var(--glass-bg) 10%);
   --tooltip-border: 1px solid color-mix(in srgb, var(--border-glass-moderate) calc(var(--tooltip-border-opacity) * 100%), transparent);
   --tooltip-radius: var(--radius-md);
   --tooltip-shadow: 
@@ -295,7 +281,7 @@
   --tooltip-line-height: 1.2;
   --tooltip-font-weight: 500;
   --tooltip-letter-spacing: 0.01em;
-  --tooltip-text-color: var(--c-content);
+  --tooltip-text-color: var(--text-primary);
   --tooltip-padding: 0.3rem 0.6rem;
   --tooltip-offset: 6px;
   --tooltip-transition-duration: 150ms;
@@ -306,21 +292,30 @@
   --sb-width: 10px;
   --sb-thumb-width-visual: 4px;
   /* 滚动条透明度由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --sb-thumb-idle: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-idle) * 100%), transparent);
-  --sb-thumb-hover: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-hover) * 100%), transparent);
-  --sb-thumb-active: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-active) * 100%), transparent);
+  --sb-thumb-idle: color-mix(in srgb, var(--text-primary) calc(var(--sb-thumb-opacity-idle) * 100%), transparent);
+  --sb-thumb-hover: color-mix(in srgb, var(--text-primary) calc(var(--sb-thumb-opacity-hover) * 100%), transparent);
+  --sb-thumb-active: color-mix(in srgb, var(--text-primary) calc(var(--sb-thumb-opacity-active) * 100%), transparent);
 
-  /* --- Shadow System --- */
-  /* 使用主题化的阴影颜色 */
-  --shadow-sm: 0 1px 2px 0 color-mix(in srgb, var(--shadow-color) 50%, transparent);
-  --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px color-mix(in srgb, var(--shadow-color) 60%, transparent);
-  --shadow-lg: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px color-mix(in srgb, var(--shadow-color) 50%, transparent);
-  --shadow-xl: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px color-mix(in srgb, var(--shadow-color) 40%, transparent);
-
-  /* Elevation (for Dropdowns & Modals) */
-  --shadow-elevation-low: var(--shadow-sm);
-  --shadow-elevation-medium: var(--shadow-md);
-  --shadow-elevation-high: 0 16px 40px -12px var(--shadow-color), 0 4px 12px -4px color-mix(in srgb, var(--shadow-color) 50%, transparent);
+  /* --- Shadow System (Ambient Lighting) --- */
+  /* Light Mode: 使用物理投影 (Drop Shadow) 表现高度 */
+  --shadow-sm: 0 1px 2px 0 var(--shadow-color);
+  --shadow-md: 0 4px 6px -1px var(--shadow-color);
+  --shadow-lg: 0 10px 15px -3px var(--shadow-color);
+  
+  /* 悬浮状态 (Elevation) */
+  --shadow-float: 0 20px 25px -5px var(--shadow-color), 0 8px 10px -6px var(--shadow-color);
+  
+  /* --- Glow System (for Dark/Cyber Mode) --- */
+  /* 使用 Brand Color 产生漫反射，制造"屏幕在发光"的错觉 */
+  --shadow-glow-sm: 0 0 8px -2px var(--color-action), 0 0 4px -2px var(--color-action);
+  --shadow-glow-md: 0 0 16px -4px var(--color-action), 0 0 8px -4px var(--color-action);
+  --shadow-glow-lg: 0 0 32px -8px var(--color-action), 0 0 16px -8px var(--color-action);
+  
+  /* --- 内发光 (Inner Light) --- */
+  /* 用于玻璃边缘的高光，增加厚度感 */
+  --shadow-inner-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  --shadow-inner-glow: inset 0 0 20px -10px var(--color-action);
+  
 
   /* --- Component-Level Shadow Tokens (Glass Effects) --- */
   /* [Refactor] 提取复杂阴影逻辑，统一管理光照方向 */

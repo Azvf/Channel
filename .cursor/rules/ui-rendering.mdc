@@ -23,17 +23,27 @@ You are a Senior Frontend Rendering Architect working on Glassmorphism UI compon
 
 ## Design Tokens
 
-- **ALWAYS** use CSS variables from `src/design-tokens/tokens.ts` (e.g., `var(--space-4)`, `var(--radius-md)`, `var(--transition-fast)`)
-- In TypeScript, import from `@/design-tokens/tokens` (e.g., `ANIMATION.duration.base`, `SPACING[4]`)
+- **ALWAYS** use CSS variables from design tokens (e.g., `var(--space-4)`, `var(--radius-md)`, `var(--transition-fast)`)
+- In TypeScript, import from individual token files:
+  - `@/design-tokens/spacing` for `SPACING`
+  - `@/design-tokens/shadow` for `SHADOWS`
+  - `@/design-tokens/glass` for `GLASS`
+  - `@/design-tokens/typography` for `TYPOGRAPHY`
+  - `@/design-tokens/animation` for `ANIMATION`
 - Use semantic z-index tokens like `var(--z-modal-content)` instead of magic numbers
+- **Spacing**: Strictly follows 4px grid system. All spacing values must be multiples of 4px
+- **Shadow**: Use physical shadows (`shadow-sm`, `shadow-md`, `shadow-lg`) for Light Mode, glow effects (`glow-sm`, `glow-md`, `glow-lg`) for Dark Mode
+- **Glass**: Use level-based system (`panel`, `modal`, `tooltip`) with independent blur, saturation, and opacity
 - Extend the Design Token system for new values rather than creating one-off styles
 - Reference: `docs/reference/design-system/GameplayTag Design System Specification.md` for token semantics
 
 ### Token Stability Protocol (CRITICAL)
 
-- **Immutable Infrastructure**: Treat `src/design-tokens/tokens.ts` as **Read-Only** during standard UI development.
+- **Immutable Infrastructure**: Treat design token files (`spacing.ts`, `shadow.ts`, `glass.ts`, etc.) as **Read-Only** during standard UI development.
 
 - **Prohibition**: NEVER modify an existing token value (e.g., changing `space-4` from 16px to 15px) to fix a local visual bug.
+
+- **4px Grid Enforcement**: Spacing tokens MUST strictly follow 4px grid system. All values must be multiples of 4px.
 
 - **Adaptation Strategy**: If a design requires a value not present in tokens:
 
@@ -41,11 +51,11 @@ You are a Senior Frontend Rendering Architect working on Glassmorphism UI compon
 
   2. **Composition**: Use CSS `calc()` with multiple tokens if absolutely necessary.
 
-  3. **New Token Request**: ONLY if the value is a reusable pattern, propose adding a **NEW** token (e.g., `space-3_5`), but NEVER mutate existing ones.
+  3. **New Token Request**: ONLY if the value is a reusable pattern and follows 4px grid, propose adding a **NEW** token, but NEVER mutate existing ones.
 
 ### 🔓 System Maintenance Override
 
-You are prohibited from modifying `src/design-tokens/tokens.ts` during normal component development.
+You are prohibited from modifying design token files (`spacing.ts`, `shadow.ts`, `glass.ts`, etc.) during normal component development.
 
 **HOWEVER**, you may enter "Maintainer Mode" and modify tokens ONLY IF:
 
@@ -59,11 +69,13 @@ You are prohibited from modifying `src/design-tokens/tokens.ts` during normal co
 
 **Maintenance Workflow**:
 
-1. **Modify**: Update `src/design-tokens/tokens.ts`.
+1. **Modify**: Update the relevant design token file (`spacing.ts`, `shadow.ts`, `glass.ts`, etc.).
 
-2. **Regenerate**: MUST run `npm run generate:tokens` immediately to update CSS variables.
+2. **Update CSS**: Update `src/popup/styles/tokens.css` if CSS variable mappings changed.
 
-3. **Document**: Remind the user to update `docs/reference/design-system/GameplayTag Design System Specification.md` if semantics changed.
+3. **Update Tailwind**: Update `tailwind.config.js` if Tailwind class mappings changed.
+
+4. **Document**: Remind the user to update `docs/reference/design-system/GameplayTag Design System Specification.md` if semantics changed.
 
 ### Iconography System
 
@@ -73,32 +85,44 @@ You are prohibited from modifying `src/design-tokens/tokens.ts` during normal co
 - **Implementation**: 
   - Icon components: `src/popup/components/` (import on demand)
   - Size tokens: `src/popup/styles/tokens.css` (`--icon-size-*`)
-  - Reference: `src/design-tokens/tokens.ts` for `ICON_SIZES` object
+  - Reference: `src/popup/styles/tokens.css` for `--icon-size-*` CSS variables
   - Reference: `docs/principles/accessibility/无障碍设计规范.md` Section 4.2 for iconography guidelines
 
 ### Theme System
 
-- **ALWAYS** use CSS variables from the theme system (e.g., `var(--c-content)`, `var(--c-action)`, `var(--c-bg)`)
-- **Theme Definition**: All theme variables are defined in `src/popup/utils/theme.ts` as `THEME_VARS` object
+- **ALWAYS** use semantic CSS variables from the theme system:
+  - Background: `var(--bg-page)`, `var(--bg-surface)`, `var(--bg-overlay)`
+  - Text: `var(--text-primary)`, `var(--text-secondary)`, `var(--text-tertiary)`, `var(--text-on-action)`
+  - Border: `var(--border-subtle)`, `var(--border-focus)`
+  - Action: `var(--color-action)`, `var(--color-action-hover)`
+  - Glass: `var(--glass-bg)`, `var(--glass-border)`, `var(--glass-shadow)`
+  - Glass Levels: `var(--glass-panel-*)`, `var(--glass-modal-*)`, `var(--glass-tooltip-*)`
+- **Theme Definition**: All theme variables are defined in `src/design-tokens/theme.ts` as `THEME_VARS` object
 - **Theme Loader**: Use `src/popup/theme-loader.ts` for synchronous theme application before React loads (prevents theme flash)
-- **Theme Application**: Theme variables are applied as CSS custom properties to the `body` element
+- **Theme Application**: Theme variables are applied as CSS custom properties via Vanilla Extract (build-time generation)
 - **Extending Themes**: To create a new theme:
-  1. Add new theme configuration to `THEME_VARS` object in `src/popup/utils/theme.ts`
-  2. Add the same configuration to `themeVars` object in `src/popup/theme-loader.ts`
-  3. Ensure all required CSS variables are defined (e.g., `--c-glass`, `--c-light`, `--c-dark`, `--c-content`, `--c-action`, `--c-bg`)
-- **Theme Structure**: Theme variables include base colors (glass, light, dark, bg), content color, action color, and glass effect parameters (reflex, saturation)
+  1. Add new theme configuration to `THEME_VARS` object in `src/design-tokens/theme.ts`
+  2. Vanilla Extract automatically generates CSS at build time
+  3. Ensure all required semantic CSS variables are defined
+- **Theme Structure**: Theme variables use semantic naming (background, text, border, action, glass) rather than generic color names
 - **Reference**: 
-  - Theme variables: `src/popup/utils/theme.ts` (`THEME_VARS` object)
+  - Theme variables: `src/design-tokens/theme.ts` (`THEME_VARS` object)
+  - CSS generation: `src/design-tokens/theme.css.ts` (Vanilla Extract)
   - Theme loader: `src/popup/theme-loader.ts` (synchronous theme application)
   - CSS variables: `src/popup/styles/tokens.css`
-  - Design system spec: `docs/reference/design-system/GameplayTag Design System Specification.md` Section 6
+  - Design system spec: `docs/reference/design-system/GameplayTag Design System Specification.md` Section 7
 
 ## Glassmorphism Effects
 
 - **ALWAYS** use `<GlassCard depthLevel={n} />` component from `src/popup/components/GlassCard.tsx` for glassmorphism effects
+- **Level-Based System**: Glass effects are organized by level:
+  - `panel`: Sidebars, navigation (12px blur, 180% saturation, 0.7 opacity)
+  - `modal`: Modals, dropdowns (24px blur, 200% saturation, 0.8 opacity)
+  - `tooltip`: Tooltips, toasts (40px blur, 150% saturation, 0.9 opacity)
+- **CSS Variables**: Use level-specific variables (e.g., `var(--glass-panel-blur)`, `var(--glass-modal-blur)`) instead of generic `--glass-blur-base`
 - **Layer Promotion**: Ensure `will-change: transform` or `transform: translateZ(0)` for proper layer promotion
 - **Isolation**: Isolate backdrop-filter operations to separate compositing layers to avoid repainting parent elements
-- **Optimization**: Use blur radius 8-16px and `contain: layout style paint` for scrollable containers
+- **Optimization**: Use appropriate blur radius based on level and `contain: layout style paint` for scrollable containers
 
 ## Depth-Aware Rendering Physics
 
@@ -153,7 +177,7 @@ As depth level increases, visual properties MUST follow these physical optical l
 
 Depth-aware rendering simulates real optical physics, not simple transparency. This creates a more natural, physically consistent visual hierarchy that users perceive as more "real" and less "digital".
 
-Reference: `docs/reference/design-system/GameplayTag Design System Specification.md` Section 3, `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 1.1, `src/popup/components/GlassCard.tsx`, `src/popup/styles/components/glass.css`
+Reference: `docs/reference/design-system/GameplayTag Design System Specification.md` Section 3, `docs/principles/interaction/GameplayTag 交互与体验开发手册.md` Section 1.1, `src/popup/components/GlassCard.tsx`, `src/popup/styles/components/glass.css`, `src/design-tokens/glass.ts`
 
 ## Rendering Performance
 
@@ -196,7 +220,7 @@ Reference: `docs/reference/design-system/GameplayTag Design System Specification
 
 ### Unified Physics
 
-- **ALWAYS** use animation constants from `src/design-tokens/tokens.ts` (e.g., `ANIMATION.duration.base`, `ANIMATION.ease.smooth`)
+- **ALWAYS** use animation constants from `@/design-tokens/animation` (e.g., `ANIMATION.duration.base`, `ANIMATION.ease.smooth`)
 - Use motion variants from `src/popup/utils/motion.ts` when available
 - **GPU-Accelerated Properties**: Prefer `transform` and `opacity` for animations (compositor thread)
 - **Performance**: Ensure animations complete within 16ms per frame (60fps). Use `requestAnimationFrame` for complex sequences
@@ -334,13 +358,13 @@ Before writing any UI code, you MUST output an analysis that addresses:
 ```tsx
 // ✅ CORRECT: Using GlassCard, Tokens, and Semantic Layering
 import { GlassCard } from '@/popup/components/GlassCard';
-import { SPACING } from '@/design-tokens/tokens';
+import { SPACING } from '@/design-tokens/spacing';
 
 export const UserProfile = () => (
   <GlassCard
     depthLevel={2} // Explicit depth
     className="flex flex-col"
-    style={{ gap: SPACING[4] }} // Use Token, not magic number
+    style={{ gap: SPACING[4].px }} // Use Token, not magic number
   >
     <div className="z-base relative"> {/* Explicit Stacking Context */}
       {/* Content */}
@@ -361,9 +385,10 @@ const Container = styled.div`
 `;
 
 // ✅ CORRECT: Use TypeScript imports for calculations
-import { SPACING, ANIMATION } from '@/design-tokens/tokens';
+import { SPACING } from '@/design-tokens/spacing';
+import { ANIMATION } from '@/design-tokens/animation';
 
-const dynamicSpacing = SPACING[4] * 2; // 32px (calculated from token)
+const dynamicSpacing = SPACING[4].px * 2; // 32px (calculated from token)
 const animationDuration = ANIMATION.duration.base;
 ```
 

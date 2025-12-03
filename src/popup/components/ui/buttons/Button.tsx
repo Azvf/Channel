@@ -65,7 +65,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
       sm: { 
         height: 'var(--control-height-sm)', // [Refactor] 使用标准控件高度 Token
         padding: '0 var(--space-3)', 
-        font: 'var(--font-small)' // [Refactor] 使用标准字体 Token
+        font: 'var(--font-caption)' // [Refactor] 使用标准字体 Token
       },
       md: { 
         height: 'var(--control-height-md)', // [Refactor] 使用标准控件高度 Token (原 --row-min-height)

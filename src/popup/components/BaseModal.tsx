@@ -79,7 +79,7 @@ export function BaseModal({
   const defaultBackdropStyle: React.CSSProperties = {
     zIndex: 'var(--z-modal-backdrop)',
     background: 'var(--bg-surface-glass-active)',
-    backdropFilter: 'blur(var(--glass-blur-base))',
+    backdropFilter: 'blur(var(--glass-modal-blur))',
   };
 
   // 背景图片通过独立层承载，支持预留的模糊效果功能
@@ -126,10 +126,10 @@ export function BaseModal({
               ? 'var(--bg-surface-glass-active)' // 使用标准玻璃背景 token，与背景图片层叠加
               : 'var(--bg-surface-solid-ish)',
             backdropFilter: backgroundImage
-              ? 'blur(var(--glass-blur-base)) saturate(var(--saturation))'
-              : 'blur(calc(var(--glass-blur-base) * 1.5)) saturate(var(--saturation))', // 使用 calc() 基于 token 计算，避免硬编码
+              ? `blur(var(--glass-modal-blur)) saturate(var(--glass-modal-saturation))`
+              : `blur(var(--glass-modal-blur)) saturate(var(--glass-modal-saturation))`,
             border: '1px solid var(--border-glass-strong)',
-            boxShadow: 'var(--shadow-xl)',
+            boxShadow: 'var(--shadow-float)',
             ...glassCardStyle,
           }}
         >
@@ -150,7 +150,7 @@ export function BaseModal({
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
-                filter: `blur(calc(var(--glass-blur-base) * 1.5))`, // 使用设计 token 计算模糊值
+                filter: `blur(var(--glass-modal-blur))`,
                 opacity: 'var(--opacity-hover)', // 使用设计 token
                 zIndex: -1,
                 borderRadius: 'var(--radius-2xl)',

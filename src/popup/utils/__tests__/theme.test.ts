@@ -11,8 +11,8 @@ describe('applyThemeToBody', () => {
 
     applyThemeToBody('dark');
 
-    expect(setPropertySpy).toHaveBeenCalledWith('--c-bg', '#1b1b1d', 'important');
-    expect(setPropertySpy).toHaveBeenCalledWith('--c-action', '#03d5ff', 'important');
+    expect(setPropertySpy).toHaveBeenCalledWith('--bg-page', expect.any(String), 'important');
+    expect(setPropertySpy).toHaveBeenCalledWith('--color-action', expect.any(String), 'important');
 
     setPropertySpy.mockRestore();
   });

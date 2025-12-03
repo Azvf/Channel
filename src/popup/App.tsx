@@ -240,8 +240,8 @@ export default function App({ initialState }: AppProps) {
             className="channel-title-anchor"
             style={{
               // [Refactor] 使用 Typography Tokens
-              font: "var(--font-header-title)",
-              letterSpacing: "var(--letter-spacing-header-title)",
+              font: "var(--font-heading1)",
+              letterSpacing: "var(--letter-spacing-heading1)",
               color: "var(--color-text-primary)",
               cursor: "default",
               userSelect: "none",

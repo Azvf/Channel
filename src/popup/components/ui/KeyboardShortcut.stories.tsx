@@ -112,7 +112,7 @@ export const InMenuItem: Story = {
         gap: 'var(--space-2)',
       }}
     >
-      <span style={{ font: 'var(--font-list-item)', color: 'var(--color-text-primary)' }}>
+      <span style={{ font: 'var(--font-body)', color: 'var(--color-text-primary)' }}>
         Edit
       </span>
       <KeyboardShortcut shortcut="Meta+E" />

@@ -219,12 +219,12 @@ export function ContextMenu({ children, menuItems, className }: ContextMenuProps
                             outline: 'none',
                             cursor: item.onClick ? 'pointer' : 'default',
                             color: item.isSelected
-                              ? 'var(--c-action)'
+                              ? 'var(--color-action)'
                               : item.variant === 'destructive'
                               ? 'var(--color-text-secondary)'
                               : 'var(--color-text-primary)',
-                            font: 'var(--font-list-item)',
-                            letterSpacing: 'var(--letter-spacing-list-item)',
+                            font: 'var(--font-body)',
+                            letterSpacing: 'var(--letter-spacing-body)',
                             minWidth: 0,
                             overflow: 'hidden',
                           }}

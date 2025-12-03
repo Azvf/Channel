@@ -52,7 +52,7 @@
 
 .glass-button.primary {
   background-color: var(--bg-action-strong);
-  color: var(--c-light);
+  color: var(--text-on-action);
 }
 
 .glass-button.primary:hover {

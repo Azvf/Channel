@@ -37,10 +37,11 @@ function registerCSSProperties() {
   // 检测浏览器是否支持 CSS.registerProperty
   if ('registerProperty' in CSS) {
     const colorProperties = [
-      { name: '--c-bg' },
-      { name: '--c-glass' },
-      { name: '--c-content' },
-      { name: '--c-action' },
+      { name: '--bg-page' },
+      { name: '--bg-surface' },
+      { name: '--text-primary' },
+      { name: '--color-action' },
+      { name: '--glass-bg' },
     ];
 
     colorProperties.forEach(({ name }) => {

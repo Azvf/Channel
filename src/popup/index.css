@@ -42,8 +42,8 @@ html, body {
   overflow-y: hidden;
   overflow-x: hidden;
   /* Tokenized */
-  background: var(--c-bg); /* 使用主题背景色 */
-  color: var(--color-text-primary); /* Tokenized */
+  background: var(--bg-page); /* 使用主题背景色 */
+  color: var(--text-primary); /* Tokenized */
 }
 
 /* 覆盖 base.css 中 html 的 overflow-y: scroll */
@@ -56,8 +56,8 @@ html {
   width: 360px;
   height: 560px; /* 固定高度，而不是 min-height */
   overflow: hidden; /* root 不滚动，让内部的 div 滚动 */
-  background: var(--c-bg); /* Tokenized - 使用主题背景色 */
-  color: var(--color-text-primary); /* Tokenized */
+  background: var(--bg-page); /* Tokenized - 使用主题背景色 */
+  color: var(--text-primary); /* Tokenized */
 }
 
 /* 确保 TabSwitcher 容器（绝对定位）完全透明 */
