@@ -8,48 +8,49 @@
  * - 优化滚动性能（布局边界、合成层）
  */
 
-/* 容器：Flex 布局，利用 CSS 变量控制高度 */
+/* 容器：Flex 布局，主轴为垂直方向 */
 .tag-input-dropdown-container {
   display: flex;
   flex-direction: column;
-  padding: var(--space-3);
-  /* 核心：通过 CSS 变量计算最大高度，而不是 JS */
-  /* max-height 只计算内容区域，不包括 padding（因为 padding 在容器上） */
-  /* 但为了确保总高度正确，我们需要包括 padding */
-  /* 使用 box-sizing: border-box 或者调整计算 */
+  /* 关键修改：移除容器的 max-height 计算，让内容撑开容器 */
+  width: 100%;
   box-sizing: border-box;
-  max-height: calc(var(--visible-rows, 3) * var(--dropdown-row-height) + var(--space-3) * 2);
-  /* 平滑过渡，这是 JS 方案很难做到的 */
-  transition: max-height 0.2s cubic-bezier(0.2, 0, 0, 1);
+  padding: var(--space-1); /* 稍微减小容器 padding，交给 item 处理，视觉更紧凑 */
 }
 
-/* 滚动区域：利用布局边界优化性能 */
+/* 滚动区域：限制高度的核心区域 */
 .tag-input-dropdown-scrollable {
   flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
-  min-height: 0; /* 关键：允许 flex 子元素收缩 */
-  /* 滚动条隐藏 */
+  
+  /* 关键架构变更：在这里控制最大可见行数 */
+  /* 假设行高 --control-height-sm (约32px) 或 --dropdown-row-height */
+  /* var(--visible-rows) 由 React 传入，默认为 3 */
+  max-height: calc(var(--visible-rows, 3) * var(--control-height-sm));
+
+  /* 性能优化：创建独立的渲染层，避免滚动时引起整个 Dropdown 重绘 */
+  contain: layout style paint;
+  overscroll-behavior: contain; /* 阻止滚动链传递给父级 */
+  
+  /* 隐藏滚动条但保留功能 */
   scrollbar-width: none;
   -ms-overflow-style: none;
-  /* 性能优化：创建独立的布局边界 */
-  contain: layout style paint;
-  /* 可选：提升到合成层，GPU 加速滚动 */
-  will-change: scroll-position;
-  transform: translateZ(0);
 }
 
 .tag-input-dropdown-scrollable::-webkit-scrollbar {
   display: none;
 }
 
-/* 固定底部：不参与滚动 */
+/* 固定底部：Footer */
 .tag-input-dropdown-fixed {
-  flex-shrink: 0; /* 防止被压缩 */
+  flex-shrink: 0; /* 严禁压缩 */
+  /* 视觉分割线，移除了 background blur，因为在 GlassCard 内部不需要二次模糊 */
   border-top: 1px solid var(--border-glass-subtle);
-  background: var(--bg-surface-glass);
-  backdrop-filter: blur(8px);
-  z-index: 10;
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  position: relative;
+  z-index: var(--z-content); /* 确保 Footer 在滚动内容之上 */
 }
 
 /* Separator：使用 border 替代独立组件，性能更好 */

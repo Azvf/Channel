@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Plus } from "lucide-react";
 
+import { cn } from "@/popup/utils/cn";
+
 import { useTagInput } from "../hooks/headless/useTagInput";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 
@@ -93,11 +95,14 @@ export function TagInput({
         id: `tag-input-option-${idx}`,
       }));
 
-  const { scrollableItems, fixedFooterItem, separatorItem, getOriginalIndex } = 
+  const { scrollableItems, fixedFooterItem, getOriginalIndex } = 
     useDropdownSections(itemsToProcess);
 
   const hasFooter = !!fixedFooterItem;
-  const visibleRows = hasFooter ? 4 : 3; // 声明式配置：有 Create 时 4 行，无 Create 时 3 行
+  
+  // 修正：无论是否有 footer，滚动区域都展示最多 4 行。
+  // 因为我们将 Footer 移出了滚动计算区域，所以这里只需要定义 Body 的高度。
+  const visibleRows = 4;
 
   const dropdownButtonRef = useRef<HTMLButtonElement>(null);
   const isButtonClickingRef = useRef(false);
@@ -149,6 +154,15 @@ export function TagInput({
   const inputProps = getInputProps({
     placeholder: tags.length === 0 ? placeholder : "",
   });
+
+  // 提取公共样式函数：保证 Create 和 List Item 视觉完全一致
+  const getItemClassName = (isHighlighted: boolean) => cn(
+    "w-full text-left transition-colors flex items-center justify-between gap-2 tag-input-option relative select-none",
+    "py-2 px-3 rounded-md text-sm", // 标准化 padding 和 圆角
+    isHighlighted 
+      ? "bg-[var(--bg-surface-glass-hover)] text-[var(--color-text-action)]" 
+      : "bg-transparent text-[var(--color-text-primary)]"
+  );
 
   return (
     <div 
@@ -271,40 +285,22 @@ export function TagInput({
           role="listbox"
           data-sticky-dropdown
         >
-          {/* 滚动区域：Match 选项 */}
+          {/* 滚动区域 */}
           <DropdownBody>
             {scrollableItems.map((item, localIndex) => {
               const originalIndex = getOriginalIndex(localIndex, 'scrollable');
               const optionProps = getOptionProps(originalIndex);
-              const displayText = item.data as string;
-
+              
               return (
                 <div key={item.id} className="scrollbar-hide">
                   <button
-                    ref={(el) => { 
-                      if (optionButtonsRef.current) {
-                        optionButtonsRef.current[originalIndex] = el; 
-                      }
-                    }}
+                    ref={(el) => { if (optionButtonsRef.current) optionButtonsRef.current[originalIndex] = el; }}
                     {...optionProps}
-                    className="w-full text-left transition-colors flex items-center justify-between gap-2 tag-input-option"
-                    style={{ 
-                      padding: 'var(--space-3) var(--space-3)',
-                      color: item.isHighlighted 
-                        ? 'var(--color-text-action)' 
-                        : 'var(--color-text-primary)',
-                      font: 'var(--font-body)',
-                      fontWeight: 400,
-                      letterSpacing: 'var(--letter-spacing-body)',
-                      background: item.isHighlighted 
-                        ? 'var(--bg-surface-glass-hover)' 
-                        : 'transparent',
-                      borderRadius: 'var(--radius-sm)',
-                    }}
+                    className={getItemClassName(item.isHighlighted)}
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="truncate">
-                        {displayText}
+                      <span className="truncate font-normal">
+                        {item.data}
                       </span>
                     </div>
                   </button>
@@ -313,52 +309,34 @@ export function TagInput({
             })}
           </DropdownBody>
 
-          {/* 固定底部：Create 选项（如果存在） */}
+          {/* 固定底部：样式完全复用，仅图标不同 */}
           {hasFooter && fixedFooterItem && (
-            <DropdownFooter showSeparator={!!separatorItem}>
+            <DropdownFooter showSeparator>
               {(() => {
                 const originalIndex = getOriginalIndex(0, 'footer');
                 const optionProps = getOptionProps(originalIndex);
+                // 显示逻辑：如果只是单纯的 Create 提示，可以加引号
                 const displayText = `Create "${fixedFooterItem.data}"`;
 
                 return (
                   <div key={fixedFooterItem.id} className="scrollbar-hide">
                     <button
-                      ref={(el) => { 
-                        if (optionButtonsRef.current) {
-                          optionButtonsRef.current[originalIndex] = el; 
-                        }
-                      }}
+                      ref={(el) => { if (optionButtonsRef.current) optionButtonsRef.current[originalIndex] = el; }}
                       {...optionProps}
-                      className="w-full text-left transition-colors flex items-center justify-between gap-2 tag-input-option"
-                      style={{ 
-                        padding: 'var(--space-3) var(--space-3)',
-                        color: fixedFooterItem.isHighlighted 
-                          ? 'var(--color-text-action)' 
-                          : 'var(--color-text-action)',
-                        font: 'var(--font-body)',
-                        fontWeight: 500,
-                        letterSpacing: 'var(--letter-spacing-body)',
-                        background: fixedFooterItem.isHighlighted 
-                          ? 'var(--bg-surface-glass-hover)' 
-                          : 'transparent',
-                        borderRadius: 'var(--radius-sm)',
-                      }}
+                      className={getItemClassName(fixedFooterItem.isHighlighted)}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div 
-                          className="flex items-center justify-center icon-base rounded-full flex-shrink-0"
-                          style={{ background: 'var(--bg-action-subtle)' }}
-                        >
-                          <Plus className="icon-xs" strokeWidth={2.5} />
+                        {/* 保持图标容器大小与普通 Item 的对齐方式一致 */}
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--bg-action-subtle)] text-[var(--color-text-action)] flex-shrink-0">
+                          <Plus className="w-3.5 h-3.5" strokeWidth={3} />
                         </div>
-                        <span className="truncate">
+                        <span className="truncate font-medium">
                           {displayText}
                         </span>
                       </div>
-                      {/* 快捷键徽标（仅场景 A 存在 secondaryAction 时显示） */}
+                      
                       {secondaryAction === 'CREATE' && (
-                        <ShortcutBadge keys={['Shift', 'Enter']} className="flex-shrink-0" />
+                         <ShortcutBadge keys={['Shift', 'Enter']} className="flex-shrink-0 opacity-80" />
                       )}
                     </button>
                   </div>

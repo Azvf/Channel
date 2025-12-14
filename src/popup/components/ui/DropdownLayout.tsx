@@ -17,8 +17,8 @@ import { GlassCard } from '../GlassCard';
 interface DropdownLayoutProps {
   children: React.ReactNode;
   className?: string;
-  /** 最大可见行数（3 或 4） */
-  maxRows?: 3 | 4;
+  /** 滚动区域的最大可见行数 (不包含 Footer) */
+  maxRows?: number;
   style?: React.CSSProperties;
   /** GlassCard 的其他属性 */
   depthLevel?: number;
@@ -30,7 +30,7 @@ interface DropdownLayoutProps {
 export const DropdownLayout: React.FC<DropdownLayoutProps> = ({ 
   children, 
   className,
-  maxRows = 3,
+  maxRows = 3.5, // 默认 3.5 行，提示用户还有更多内容
   style,
   depthLevel = 1,
   id,
@@ -42,9 +42,8 @@ export const DropdownLayout: React.FC<DropdownLayoutProps> = ({
       depthLevel={depthLevel}
       className={cn("flex flex-col overflow-hidden", className)}
       style={{
-        // 通过 CSS 变量传递行数配置，CSS 负责计算高度
+        // 传递给 CSS 使用
         '--visible-rows': maxRows,
-        // 保持原有的样式
         borderRadius: 'var(--radius-lg)',
         boxShadow: 'var(--shadow-elevation-high)',
         border: 'var(--border-width-base) solid var(--border-glass-subtle)',
@@ -76,15 +75,13 @@ export const DropdownBody: React.FC<{ children: React.ReactNode }> = ({ children
  * DropdownFooter 固定底部组件
  * 
  * 固定在底部的操作区域，不参与滚动
+ * showSeparator 已经通过 CSS border-top 处理了，这里保留 prop 兼容但主要靠 CSS
  */
 export const DropdownFooter: React.FC<{ 
   children: React.ReactNode;
-  showSeparator?: boolean;
-}> = ({ children, showSeparator = false }) => (
+  showSeparator?: boolean; 
+}> = ({ children }) => (
   <div className="tag-input-dropdown-fixed">
-    {showSeparator && (
-      <div className="tag-input-dropdown-separator" />
-    )}
     {children}
   </div>
 );
