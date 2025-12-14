@@ -120,13 +120,7 @@ export function useTagInput({
   
   // 包装 setIsMenuOpen，确保关闭时设置 manuallyClosedRef
   const setIsMenuOpen = useCallback((open: boolean) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:114',message:'setIsMenuOpen called',data:{open:open,currentState:isMenuOpenState,renderedItemsLength:smartCombobox.renderedItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     setIsMenuOpenState(open);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:116',message:'setIsMenuOpenState executed',data:{open:open},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     if (!open) {
       manuallyClosedRef.current = true;
       smartCombobox.setHighlightedIndex(-1);
@@ -190,31 +184,19 @@ export function useTagInput({
   
   // --- 纯逻辑：建议列表计算（向后兼容，从 smartCombobox 转换） ---
   const options = useMemo(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:187',message:'Options calculation start',data:{inputValue:inputValue,inputValueTrimmed:inputValue.trim(),isMenuOpen:isMenuOpen,renderedItemsLength:smartCombobox.renderedItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     // 未打开且无输入时不计算，避免不必要的计算开销
     if (!inputValue.trim() && !isMenuOpen) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:190',message:'Options calculation - early return empty',data:{inputValueTrimmed:inputValue.trim(),isMenuOpen:isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return [];
     }
     
     // 如果菜单打开但没有输入，显示所有可用的 suggestions
     if (!inputValue.trim() && isMenuOpen && smartCombobox.renderedItems.length === 0) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:199',message:'Options calculation - menu open but no input, showing all suggestions',data:{suggestionsLength:suggestions.length,tagsLength:tags.length,excludeTagsLength:excludeTags.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       // 过滤已选中和排除的项
       const availableSuggestions = suggestions.filter(suggestion => {
         const isSelected = tags.includes(suggestion);
         const isExcluded = excludeTags.includes(suggestion);
         return !isSelected && !isExcluded;
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:207',message:'Options calculation - available suggestions result',data:{availableSuggestionsLength:availableSuggestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return availableSuggestions;
     }
     
@@ -227,9 +209,6 @@ export function useTagInput({
         }
         return item.data as string;
       });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:218',message:'Options calculation - result',data:{optionsLength:result.length,renderedItemsLength:smartCombobox.renderedItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return result;
   }, [smartCombobox.renderedItems, inputValue, isMenuOpen, suggestions, tags, excludeTags]);
   

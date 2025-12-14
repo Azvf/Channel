@@ -119,13 +119,7 @@ export function useSmartCombobox<T>({
 
   // 执行搜索预测
   const prediction = useMemo<PredictionResult<T>>(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSmartCombobox.ts:122',message:'Prediction calculation start',data:{inputValue:inputValue,inputValueTrimmed:inputValue.trim(),availableSourceLength:availableSource.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (!inputValue.trim()) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSmartCombobox.ts:125',message:'Prediction - no input, returning empty',data:{availableSourceLength:availableSource.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return {
         exactMatch: null,
         partialMatches: [],
@@ -134,17 +128,11 @@ export function useSmartCombobox<T>({
     }
 
     const result = strategy.predict(inputValue, availableSource);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSmartCombobox.ts:133',message:'Prediction result',data:{exactMatch:result.exactMatch,partialMatchesLength:result.partialMatches.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return result;
   }, [inputValue, availableSource, strategy]);
 
   // 计算组合框模式和渲染项
   const { renderedItems, mode, secondaryAction } = useMemo(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSmartCombobox.ts:134',message:'RenderedItems calculation start',data:{inputValue:inputValue.trim(),predictionExactMatch:prediction.exactMatch,predictionPartialMatchesLength:prediction.partialMatches.length,allowCreation:allowCreation},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     const trimmedInput = inputValue.trim();
     const items: RenderedItem<T>[] = [];
     let currentMode: ComboboxMode = 'SELECT_EXISTING';
@@ -215,9 +203,6 @@ export function useSmartCombobox<T>({
       hasSecondaryAction = null;
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useSmartCombobox.ts:210',message:'RenderedItems calculation result',data:{itemsLength:items.length,mode:currentMode,secondaryAction:hasSecondaryAction},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return {
       renderedItems: items,
       mode: currentMode,

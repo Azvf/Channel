@@ -62,9 +62,6 @@ export function TagInput({
     renderedItems,
     secondaryAction,
   } = useTagInput({
-    // #region agent log
-    // Log hook initialization
-    // #endregion
     tags,
     suggestions,
     excludeTags,
@@ -75,12 +72,6 @@ export function TagInput({
     autoFocus,
     disabled,
   });
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:69',message:'TagInput render - state values',data:{isMenuOpen:isMenuOpen,renderedItemsLength:renderedItems?.length,optionsLength:options.length,suggestionsLength:suggestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  }, [isMenuOpen, renderedItems, options.length, suggestions.length]);
-  // #endregion
 
   // 使用 useDropdownSections 处理数据切片
   const itemsToProcess = (renderedItems && renderedItems.length > 0) 
@@ -115,9 +106,6 @@ export function TagInput({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (isButtonClickingRef.current) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:79',message:'Click outside handler - button clicking, ignoring',data:{isButtonClicking:isButtonClickingRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         return;
       }
 
@@ -128,9 +116,6 @@ export function TagInput({
       );
       
       if (isClickOnDropdownButton) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:90',message:'Click outside handler - click on dropdown button, ignoring',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         return;
       }
 
@@ -138,9 +123,6 @@ export function TagInput({
       const dropdownElement = (target as Element)?.closest('[data-sticky-dropdown]');
       
       if (!isClickInsideContainer && !dropdownElement) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:98',message:'Click outside handler - closing menu',data:{currentIsMenuOpen:isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         setIsMenuOpen(false);
       }
     }
@@ -222,16 +204,9 @@ export function TagInput({
                     e.stopPropagation();
                   }}
                   onClick={(e) => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:173',message:'Dropdown button clicked',data:{currentIsMenuOpen:isMenuOpen,renderedItemsLength:renderedItems?.length,optionsLength:options.length,suggestionsLength:suggestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                    // #endregion
                     e.stopPropagation();
                     e.preventDefault();
-                    const newShowState = !isMenuOpen;
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:177',message:'Calling setIsMenuOpen',data:{newShowState:newShowState,currentIsMenuOpen:isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
-                    setIsMenuOpen(newShowState);
+                    setIsMenuOpen(!isMenuOpen);
                     setTimeout(() => {
                       isButtonClickingRef.current = false;
                     }, 0);
@@ -269,13 +244,7 @@ export function TagInput({
       </div>
 
       <StickyDropdown 
-        isOpen={(() => {
-          // #region agent log
-          const shouldOpen = isMenuOpen && (renderedItems?.length ?? options.length) > 0;
-          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:215',message:'StickyDropdown isOpen calculation',data:{isMenuOpen:isMenuOpen,renderedItemsLength:renderedItems?.length,optionsLength:options.length,shouldOpen:shouldOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
-          return shouldOpen;
-        })()} 
+        isOpen={isMenuOpen && (renderedItems?.length ?? options.length) > 0}
         anchorRef={containerRef}
         zIndex={dropdownZIndex}
       >

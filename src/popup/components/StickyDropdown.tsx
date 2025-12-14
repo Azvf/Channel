@@ -28,9 +28,6 @@ export function StickyDropdown({
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StickyDropdown.tsx:30',message:'useLayoutEffect triggered',data:{isOpen:isOpen,anchorExists:!!anchorRef.current,dropdownExists:!!dropdownRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     if (!isOpen || !anchorRef.current) return;
 
     const updatePosition = () => {
@@ -78,18 +75,8 @@ export function StickyDropdown({
 
   const setDropdownRef = useCallback((el: HTMLDivElement | null) => {
     (dropdownRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-    // #region agent log
-    if (el) {
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StickyDropdown.tsx:82',message:'dropdown ref attached',data:{elementExists:!!el,dataAttributeExists:!!el?.querySelector('[data-sticky-dropdown]')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    }
-    // #endregion
   }, []);
 
-  // #region agent log
-  if (isOpen) {
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'StickyDropdown.tsx:88',message:'rendering dropdown portal',data:{isOpen:isOpen,dropdownRefExists:!!dropdownRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  }
-  // #endregion
   return createPortal(
     <AnimatePresence>
       {isOpen && (
