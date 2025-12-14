@@ -1,10 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Tag } from "./Tag";
 import { ChevronDown, Plus } from "lucide-react";
-import { StickyDropdown } from "./StickyDropdown";
+
 import { useTagInput } from "../hooks/headless/useTagInput";
+import { LAYOUT_TRANSITION } from "../utils/motion";
+
 import { GlassCard } from "./GlassCard";
+import { StickyDropdown } from "./StickyDropdown";
+import { Tag } from "./Tag";
 
 interface TagInputProps {
   tags: string[];
@@ -40,7 +43,6 @@ export function TagInput({
   allowCreation = true,
   dropdownZIndex = "var(--z-dropdown)"
 }: TagInputProps) {
-  // 1. 引入大脑 - 所有逻辑都在这里
   const { 
     inputValue, 
     options, 
@@ -65,47 +67,73 @@ export function TagInput({
     disabled,
   });
 
-  // 2. UI 特有的逻辑 (Click Outside) - 这是纯 DOM 行为，属于 View 层
+  const dropdownButtonRef = useRef<HTMLButtonElement>(null);
+  const isButtonClickingRef = useRef(false);
+  const menuOpenRef = useRef(isMenuOpen);
+
+  useEffect(() => {
+    menuOpenRef.current = isMenuOpen;
+  }, [isMenuOpen]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      if (isButtonClickingRef.current) {
+        return;
+      }
+
       const target = event.target as Node;
-      // 检查是否点击了容器内部
-      const isClickInsideContainer = containerRef.current?.contains(target);
+      const isClickOnDropdownButton = dropdownButtonRef.current && (
+        dropdownButtonRef.current === target || 
+        dropdownButtonRef.current.contains(target)
+      );
       
-      // 检查是否点击了下拉菜单（通过查找包含特定类的元素）
+      if (isClickOnDropdownButton) {
+        return;
+      }
+
+      const isClickInsideContainer = containerRef.current?.contains(target);
       const dropdownElement = (target as Element)?.closest('[data-sticky-dropdown]');
       
       if (!isClickInsideContainer && !dropdownElement) {
         setIsMenuOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    
+    document.addEventListener("click", handleClickOutside);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
   }, [setIsMenuOpen, containerRef]);
 
-  // 3. 渲染 - 只负责视觉层
   const inputProps = getInputProps({
     placeholder: tags.length === 0 ? placeholder : "",
   });
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
-      {/* 保持原有的 Glass Wrapper 结构 */}
-      <div className="liquidGlass-wrapper relative">
+    <div 
+      ref={containerRef} 
+      className={`relative ${className}`}
+      onClick={() => {
+        inputRef.current?.focus();
+        if (suggestions.length > 0 && !isMenuOpen) {
+           setIsMenuOpen(true);
+        }
+      }}
+    >
+      <div className="liquidGlass-wrapper relative cursor-text">
         <div className="liquidGlass-content">
           <motion.div 
             className="min-h-[2.6rem]"
             style={{ backfaceVisibility: 'hidden', overflow: 'hidden' }}
+            layout
           >
             <div
-              className="flex flex-wrap gap-2 items-center cursor-text"
+              className="flex flex-wrap gap-2 items-center"
               style={{ 
                 height: 'auto',
-                padding: 'var(--space-2) var(--space-4)' // 8px 16px
+                padding: 'var(--space-2) var(--space-4)' 
               }}
-              onClick={() => inputRef.current?.focus()}
             >
-              {/* 只在list模式下显示标签气泡 */}
               <AnimatePresence mode="popLayout">
                 {mode === "list" && tags.map((tag, index) => (
                   <Tag 
@@ -116,21 +144,36 @@ export function TagInput({
                 ))}
               </AnimatePresence>
               
-              {/* Input - 仅仅是绑定 props */}
-              <input
+              <motion.input
                 ref={inputRef}
+                layout
+                transition={{
+                   layout: LAYOUT_TRANSITION
+                }}
                 type="text"
                 {...inputProps}
+                onClick={(e) => e.stopPropagation()} 
+                style={{
+                    minWidth: 'calc(var(--space-12) * 1.25)' 
+                }}
               />
               
               {/* 下拉按钮 */}
               {suggestions.length > 0 && (
                 <button
+                  ref={dropdownButtonRef}
+                  onMouseDown={(e) => {
+                    isButtonClickingRef.current = true;
+                    e.stopPropagation();
+                  }}
                   onClick={(e) => {
-                    e.stopPropagation(); // 防止触发容器的 focus
+                    e.stopPropagation();
+                    e.preventDefault();
                     const newShowState = !isMenuOpen;
                     setIsMenuOpen(newShowState);
-                    if (newShowState) inputRef.current?.focus();
+                    setTimeout(() => {
+                      isButtonClickingRef.current = false;
+                    }, 0);
                   }}
                   className="p-1.5 rounded-full flex-shrink-0 transition-all ml-auto"
                   style={{ 
@@ -164,7 +207,6 @@ export function TagInput({
         </div>
       </div>
 
-      {/* Dropdown - 只负责渲染 options */}
       <StickyDropdown 
         isOpen={isMenuOpen && options.length > 0} 
         anchorRef={containerRef}
@@ -179,15 +221,12 @@ export function TagInput({
             overflow: 'hidden',
             borderRadius: 'var(--radius-lg)',
             boxShadow: 'var(--shadow-elevation-high)',
-            // [Refactor] 使用 GlassCard 自动处理 backdrop-filter，移除手动样式
           }}
         >
           <div className="flex flex-col p-1.5">
              <div 
                className="overflow-y-auto overflow-x-hidden"
                style={{ 
-                 // [Refactor] 默认只展示 3 个选项的高度
-                 // 使用 Design Token：3 个选项高度 + 容器上下 padding
                  maxHeight: 'calc(3 * var(--dropdown-option-height) + 2 * var(--space-1_5))',
                  scrollbarWidth: 'none', 
                  msOverflowStyle: 'none' 
@@ -213,20 +252,17 @@ export function TagInput({
                       {...optionProps}
                       className="w-full text-left transition-colors flex items-center gap-2"
                       style={{ 
-                        // [Refactor] 颜色 Token 化
                         padding: 'var(--space-2) var(--space-4)',
                         color: activeIndex === index 
                           ? 'var(--color-text-action)' 
                           : (isCreateOption ? 'var(--color-text-action)' : 'var(--color-text-primary)'),
-                        // [Refactor] 使用标准字体 Token
                         font: 'var(--font-body)',
                         fontWeight: isCreateOption ? 500 : 400,
-                        letterSpacing: '0.01em',
-                        // [Refactor] 背景 Token 化
+                        letterSpacing: 'var(--letter-spacing-body)',
                         background: activeIndex === index 
                           ? 'var(--bg-surface-glass-hover)' 
                           : 'transparent',
-                        borderRadius: 'var(--radius-sm)' // 添加圆角让 hover 更自然
+                        borderRadius: 'var(--radius-sm)'
                       }}
                     >
                       {isCreateOption && (

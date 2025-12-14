@@ -32,19 +32,27 @@ export function Tag({ label, onRemove, className = "", variant = 'default' }: Ta
     <motion.div
       className={`inline-flex ${className}`}
       layout
+      initial={{ opacity: 0, scale: 0.8, width: 0 }} 
+      animate={{ opacity: 1, scale: 1, width: "auto" }}
+      exit={{ 
+        opacity: 0, 
+        scale: 0.5, 
+        width: 0,
+        transition: { duration: 0.15, ease: "easeInOut" }
+      }}
       transition={{
         layout: LAYOUT_TRANSITION,
+        opacity: { duration: 0.2 },
       }}
     >
       <div 
-        className="liquidGlass-wrapper relative"
+        className="liquidGlass-wrapper relative group cursor-text"
         style={{
-          borderRadius: 'var(--radius-full)', // [Refactor] Tokenized
+          borderRadius: 'var(--radius-full)',
           ...variantStyles
         }}
       >
-        {/* [修复] 移除 "liquidGlass-content"，它带来了 `width: 100%` 的副作用 */}
-        <div className="tag-content flex items-center gap-2 group">
+        <div className="tag-content flex items-center gap-2">
           <span 
             className="whitespace-nowrap px-2.5 py-1"
             style={{
@@ -59,18 +67,21 @@ export function Tag({ label, onRemove, className = "", variant = 'default' }: Ta
           
           {onRemove && (
             <button
-              onClick={onRemove}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
               className="transition-all rounded-full p-0.5 mr-1.5 hover-destructive"
               aria-label="Remove tag"
               style={{
-                // [Refactor] 使用标准次级文本色，hover 颜色由 hover-destructive 类控制
                 color: 'var(--color-text-secondary)', 
                 background: 'transparent',
-                flexShrink: 0
+                flexShrink: 0,
+                cursor: 'pointer'
               }}
             >
               <X 
-                className="icon-xs" 
+                className="icon-xs transition-opacity opacity-40 group-hover:opacity-100" 
                 strokeWidth={2}
               />
             </button>

@@ -68,13 +68,30 @@ export function useTagInput({
   allowCreation = true,
   mode = "list",
   onCreateTag,
-  autoFocus = false,
+  autoFocus: _autoFocus = false,
   disabled = false,
 }: UseTagInputProps): UseTagInputReturn {
   // --- 状态机 ---
   const [inputValue, setInputValue] = useState("");
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuOpenState, setIsMenuOpenState] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  
+  // 包装 setIsMenuOpen，确保关闭时设置 manuallyClosedRef
+  const setIsMenuOpen = useCallback((open: boolean) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:80',message:'setIsMenuOpen called',data:{open:open,manuallyClosedBefore:manuallyClosedRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    setIsMenuOpenState(open);
+    if (!open) {
+      manuallyClosedRef.current = true;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:84',message:'manuallyClosedRef set to true',data:{manuallyClosedAfter:manuallyClosedRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+    }
+  }, []);
+  
+  // 为了保持兼容性，使用内部状态
+  const isMenuOpen = isMenuOpenState;
   
   // --- Refs ---
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,12 +109,12 @@ export function useTagInput({
   const isAddingTagRef = useRef(false);
   const inputValueBeforeTagAddRef = useRef<string>("");
   
-  // --- 自动聚焦逻辑 ---
-  useEffect(() => {
-    if (!autoFocus || !inputRef.current) return;
-    const focusTimer = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(focusTimer);
-  }, [autoFocus]);
+  // --- 自动聚焦逻辑 --- (已禁用，防止干扰点击检测)
+  // useEffect(() => {
+  //   if (!autoFocus || !inputRef.current) return;
+  //   const focusTimer = requestAnimationFrame(() => inputRef.current?.focus());
+  //   return () => cancelAnimationFrame(focusTimer);
+  // }, [autoFocus]);
   
   // --- 纯逻辑：建议列表计算 ---
   const options = useMemo(() => {
@@ -131,7 +148,7 @@ export function useTagInput({
       id: 'close-dropdown',
       predicate: () => isMenuOpen,
       action: () => {
-        setIsMenuOpen(false);
+        setIsMenuOpenState(false);
         manuallyOpenedRef.current = false;
         manuallyClosedRef.current = true;
         setActiveIndex(-1);
@@ -159,17 +176,18 @@ export function useTagInput({
         onCreateTag(trimmed);
       }
       setInputValue("");
-      setIsMenuOpen(false);
+      setIsMenuOpenState(false);
       manuallyOpenedRef.current = false;
+      manuallyClosedRef.current = true;
       setActiveIndex(-1);
-      inputRef.current?.focus();
     } else {
       // list 模式
       if (!tags.includes(trimmed)) {
         inputValueBeforeTagAddRef.current = inputValue;
         isAddingTagRef.current = true;
-        setIsMenuOpen(false);
+        setIsMenuOpenState(false);
         manuallyOpenedRef.current = false;
+        manuallyClosedRef.current = true;
         onTagsChange([...tags, trimmed]);
       }
       setInputValue("");
@@ -197,16 +215,19 @@ export function useTagInput({
     
     // 控制显示逻辑
     if (manuallyClosedRef.current) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:212',message:'menu manually closed, skipping auto-open',data:{manuallyClosed:manuallyClosedRef.current,optionsLength:options.length,inputValue:inputValue},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       return; // 如果菜单被手动关闭，不要自动重新打开
     }
     
     if (options.length > 0 && (inputValue || manuallyOpenedRef.current)) {
-      setIsMenuOpen(prev => {
+      setIsMenuOpenState(prev => {
         if (!prev) return true;
         return prev;
       });
     } else if (options.length === 0) {
-      setIsMenuOpen(false);
+      setIsMenuOpenState(false);
     }
   }, [options, inputValue]);
   
@@ -239,8 +260,9 @@ export function useTagInput({
           case 'ArrowDown':
             e.preventDefault();
             if (!isMenuOpen && options.length > 0) {
-              setIsMenuOpen(true);
+              setIsMenuOpenState(true);
               manuallyOpenedRef.current = false;
+              manuallyClosedRef.current = false;
             }
             setActiveIndex(prev => {
               const next = prev < 0 ? 0 : (prev < options.length - 1 ? prev + 1 : 0);
@@ -252,8 +274,9 @@ export function useTagInput({
           case 'ArrowUp':
             e.preventDefault();
             if (!isMenuOpen && options.length > 0) {
-              setIsMenuOpen(true);
+              setIsMenuOpenState(true);
               manuallyOpenedRef.current = false;
+              manuallyClosedRef.current = false;
             }
             setActiveIndex(prev => {
               const next = prev > 0 ? prev - 1 : options.length - 1;
@@ -290,7 +313,7 @@ export function useTagInput({
           !disabled && 
           !manuallyClosedRef.current
         ) {
-          setIsMenuOpen(true);
+          setIsMenuOpenState(true);
           manuallyOpenedRef.current = false;
         }
         userOnFocus?.(e);
@@ -299,7 +322,7 @@ export function useTagInput({
         // 点击时，意味着用户有明确意图，可以重置手动关闭标记
         manuallyClosedRef.current = false;
         if (suggestions.length > 0 && inputValue.trim()) {
-          setIsMenuOpen(true);
+          setIsMenuOpenState(true);
           manuallyOpenedRef.current = false;
         }
         userOnClick?.(e);
@@ -327,11 +350,11 @@ export function useTagInput({
   // --- 交互：选项点击 ---
   const getOptionProps = useCallback((index: number) => ({
     onClick: () => {
-      setIsMenuOpen(false);
+      setIsMenuOpenState(false);
       manuallyOpenedRef.current = false;
+      manuallyClosedRef.current = true;
       setActiveIndex(-1);
       addTag(options[index], "suggestion");
-      inputRef.current?.focus();
     },
     onMouseEnter: () => setActiveIndex(index),
     'data-active': index === activeIndex,
