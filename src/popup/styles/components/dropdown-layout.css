@@ -1,0 +1,61 @@
+/**
+ * DropdownLayout Component Styles
+ * 下拉布局组件样式
+ * 
+ * 职责：
+ * - 定义布局规则，利用浏览器原生布局能力
+ * - 使用 CSS 变量计算高度，避免 JS 硬编码
+ * - 优化滚动性能（布局边界、合成层）
+ */
+
+/* 容器：Flex 布局，利用 CSS 变量控制高度 */
+.tag-input-dropdown-container {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  /* 核心：通过 CSS 变量计算最大高度，而不是 JS */
+  /* max-height 只计算内容区域，不包括 padding（因为 padding 在容器上） */
+  /* 但为了确保总高度正确，我们需要包括 padding */
+  /* 使用 box-sizing: border-box 或者调整计算 */
+  box-sizing: border-box;
+  max-height: calc(var(--visible-rows, 3) * var(--dropdown-row-height) + var(--space-3) * 2);
+  /* 平滑过渡，这是 JS 方案很难做到的 */
+  transition: max-height 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* 滚动区域：利用布局边界优化性能 */
+.tag-input-dropdown-scrollable {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; /* 关键：允许 flex 子元素收缩 */
+  /* 滚动条隐藏 */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* 性能优化：创建独立的布局边界 */
+  contain: layout style paint;
+  /* 可选：提升到合成层，GPU 加速滚动 */
+  will-change: scroll-position;
+  transform: translateZ(0);
+}
+
+.tag-input-dropdown-scrollable::-webkit-scrollbar {
+  display: none;
+}
+
+/* 固定底部：不参与滚动 */
+.tag-input-dropdown-fixed {
+  flex-shrink: 0; /* 防止被压缩 */
+  border-top: 1px solid var(--border-glass-subtle);
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+
+/* Separator：使用 border 替代独立组件，性能更好 */
+.tag-input-dropdown-separator {
+  height: 1px;
+  background: var(--border-glass-subtle);
+  margin: var(--space-2) 0;
+}
+

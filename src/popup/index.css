@@ -19,6 +19,8 @@
 @import './styles/components/calendar.css';
 @import './styles/components/tooltips.css';
 @import './styles/components/modals.css';
+@import './styles/components/tag-input.css';
+@import './styles/components/dropdown-layout.css';
 
 @tailwind base;
 @tailwind components;

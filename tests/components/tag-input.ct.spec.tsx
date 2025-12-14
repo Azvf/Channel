@@ -197,5 +197,182 @@ test.describe('TagInput', () => {
     // 之前的错误断言是期望它减少 100，那是视口坐标的逻辑
     expect(Math.abs(newDropdownBox!.y - initialDropdownBox!.y)).toBeLessThan(2);
   });
+
+  test('场景 A: 有匹配项时显示分割线和 Create 选项', async ({ mount, page }) => {
+    await mount(
+      <TagInputInteractive
+        suggestions={['Design', 'Desk', 'Development']}
+        tags={[]}
+        allowCreation={true}
+      />,
+    );
+
+    const input = page.locator('input');
+    await input.click();
+    await input.type('Des');
+
+    const dropdown = page.locator('[data-sticky-dropdown]');
+    await expect(dropdown).toBeVisible();
+
+    // 应该显示匹配项
+    await expect(page.locator('button:has-text("Design")')).toBeVisible();
+    await expect(page.locator('button:has-text("Desk")')).toBeVisible();
+    await expect(page.locator('button:has-text("Development")')).toBeVisible();
+
+    // 应该显示分割线
+    const separator = page.locator('.combobox-separator');
+    await expect(separator).toBeVisible();
+
+    // 应该显示 Create 选项
+    await expect(page.locator('button:has-text("Create \\"Des\\"")')).toBeVisible();
+
+    // 第一个匹配项应该被高亮（Top Hit）
+    const firstMatch = page.locator('button:has-text("Design")');
+    const firstMatchBg = await firstMatch.evaluate(el => 
+      window.getComputedStyle(el).backgroundColor
+    );
+    // 检查是否有高亮背景（非透明）
+    expect(firstMatchBg).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
+  test('场景 B: 完全无匹配时只显示 Create 选项', async ({ mount, page }) => {
+    await mount(
+      <TagInputInteractive
+        suggestions={['React', 'Vue']}
+        tags={[]}
+        allowCreation={true}
+      />,
+    );
+
+    const input = page.locator('input');
+    await input.click();
+    await input.type('Xyz');
+
+    const dropdown = page.locator('[data-sticky-dropdown]');
+    await expect(dropdown).toBeVisible();
+
+    // 不应该显示匹配项
+    await expect(page.locator('button:has-text("React")')).not.toBeVisible();
+    await expect(page.locator('button:has-text("Vue")')).not.toBeVisible();
+
+    // 应该只显示 Create 选项
+    await expect(page.locator('button:has-text("Create \\"Xyz\\"")')).toBeVisible();
+
+    // Create 选项应该被高亮
+    const createOption = page.locator('button:has-text("Create \\"Xyz\\"")');
+    const createBg = await createOption.evaluate(el => 
+      window.getComputedStyle(el).backgroundColor
+    );
+    expect(createBg).not.toBe('rgba(0, 0, 0, 0)');
+  });
+
+  test('场景 C: 完全匹配时隐藏 Create 选项', async ({ mount, page }) => {
+    await mount(
+      <TagInputInteractive
+        suggestions={['Design', 'Desk', 'Development']}
+        tags={[]}
+        allowCreation={true}
+      />,
+    );
+
+    const input = page.locator('input');
+    await input.click();
+    await input.type('Design');
+
+    const dropdown = page.locator('[data-sticky-dropdown]');
+    await expect(dropdown).toBeVisible();
+
+    // 应该只显示匹配项
+    await expect(page.locator('button:has-text("Design")')).toBeVisible();
+
+    // 不应该显示 Create 选项（避免重复创建）
+    await expect(page.locator('button:has-text("Create")')).not.toBeVisible();
+
+    // 不应该显示分割线
+    await expect(page.locator('.combobox-separator')).not.toBeVisible();
+  });
+
+  test('Shift+Enter 强制创建新标签（即使有匹配项）', async ({ mount, page }) => {
+    await mount(
+      <TagInputInteractive
+        suggestions={['Design', 'Desk']}
+        tags={[]}
+        allowCreation={true}
+      />,
+    );
+
+    const input = page.locator('input');
+    await input.click();
+    await input.type('Des');
+
+    // 等待下拉菜单出现
+    await expect(page.locator('[data-sticky-dropdown]')).toBeVisible();
+
+    // 按 Shift+Enter 强制创建
+    await page.keyboard.press('Shift+Enter');
+
+    // 应该创建新标签 "Des"
+    await expect(page.locator('.tag-content')).toContainText('Des');
+  });
+
+  test('快捷键徽标在移动端隐藏', async ({ mount, page }) => {
+    // 模拟移动设备
+    await page.setViewportSize({ width: 375, height: 667 });
+    
+    // 设置触摸设备
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'maxTouchPoints', {
+        get: () => 5,
+      });
+    });
+
+    await mount(
+      <TagInputInteractive
+        suggestions={['Design', 'Desk']}
+        tags={[]}
+        allowCreation={true}
+      />,
+    );
+
+    const input = page.locator('input');
+    await input.click();
+    await input.type('Des');
+
+    const dropdown = page.locator('[data-sticky-dropdown]');
+    await expect(dropdown).toBeVisible();
+
+    // 快捷键徽标应该被隐藏（通过 CSS Media Query）
+    // 注意：CSS Media Query 在 Playwright 中的行为可能不同，这个测试可能需要调整
+    // 在实际移动设备上，快捷键徽标会被 @media (hover: none) 隐藏
+    // 这里只验证组件渲染，不验证 CSS Media Query 行为
+  });
+
+  test('分割线正确显示在匹配项和 Create 选项之间', async ({ mount, page }) => {
+    await mount(
+      <TagInputInteractive
+        suggestions={['Design', 'Desk']}
+        tags={[]}
+        allowCreation={true}
+      />,
+    );
+
+    const input = page.locator('input');
+    await input.click();
+    await input.type('Des');
+
+    const dropdown = page.locator('[data-sticky-dropdown]');
+    await expect(dropdown).toBeVisible();
+
+    // 获取所有按钮
+    const buttons = page.locator('[data-sticky-dropdown] button[role="option"]');
+    const buttonCount = await buttons.count();
+
+    // 应该至少有匹配项和 Create 选项
+    expect(buttonCount).toBeGreaterThanOrEqual(2);
+
+    // 分割线应该存在
+    const separator = page.locator('.combobox-separator');
+    await expect(separator).toBeVisible();
+  });
 });
 

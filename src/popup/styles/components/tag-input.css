@@ -1,0 +1,33 @@
+/**
+ * TagInput Component Styles
+ * TagInput 组件样式
+ */
+
+/* 快捷键徽标响应式隐藏（移动端） */
+@media (hover: none) and (pointer: coarse) {
+  .shortcut-badge-key {
+    display: none !important;
+  }
+}
+
+/* 列表项响应式高度 */
+.tag-input-option {
+  min-height: var(--control-height-sm);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .tag-input-option {
+    min-height: var(--control-height-md);
+  }
+}
+
+/* 滚动条隐藏 */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

@@ -5,9 +5,11 @@ import { ChevronDown, Plus } from "lucide-react";
 import { useTagInput } from "../hooks/headless/useTagInput";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 
-import { GlassCard } from "./GlassCard";
 import { StickyDropdown } from "./StickyDropdown";
 import { Tag } from "./Tag";
+import { ShortcutBadge } from "./ShortcutBadge";
+import { useDropdownSections } from "../hooks/headless/useDropdownSections";
+import { DropdownLayout, DropdownBody, DropdownFooter } from "./ui/DropdownLayout";
 
 interface TagInputProps {
   tags: string[];
@@ -55,7 +57,12 @@ export function TagInput({
     inputRef,
     containerRef,
     optionButtonsRef,
+    renderedItems,
+    secondaryAction,
   } = useTagInput({
+    // #region agent log
+    // Log hook initialization
+    // #endregion
     tags,
     suggestions,
     excludeTags,
@@ -66,6 +73,31 @@ export function TagInput({
     autoFocus,
     disabled,
   });
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:69',message:'TagInput render - state values',data:{isMenuOpen:isMenuOpen,renderedItemsLength:renderedItems?.length,optionsLength:options.length,suggestionsLength:suggestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+  }, [isMenuOpen, renderedItems, options.length, suggestions.length]);
+  // #endregion
+
+  // 使用 useDropdownSections 处理数据切片
+  const itemsToProcess = (renderedItems && renderedItems.length > 0) 
+    ? renderedItems 
+    : options.map((opt, idx) => ({
+        type: (allowCreation && opt === inputValue.trim() && !suggestions.some(s => s.toLowerCase() === opt.toLowerCase())) 
+          ? 'create' as const 
+          : 'match' as const,
+        data: opt,
+        index: idx,
+        isHighlighted: idx === activeIndex,
+        id: `tag-input-option-${idx}`,
+      }));
+
+  const { scrollableItems, fixedFooterItem, separatorItem, getOriginalIndex } = 
+    useDropdownSections(itemsToProcess);
+
+  const hasFooter = !!fixedFooterItem;
+  const visibleRows = hasFooter ? 4 : 3; // 声明式配置：有 Create 时 4 行，无 Create 时 3 行
 
   const dropdownButtonRef = useRef<HTMLButtonElement>(null);
   const isButtonClickingRef = useRef(false);
@@ -78,6 +110,9 @@ export function TagInput({
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (isButtonClickingRef.current) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:79',message:'Click outside handler - button clicking, ignoring',data:{isButtonClicking:isButtonClickingRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         return;
       }
 
@@ -88,6 +123,9 @@ export function TagInput({
       );
       
       if (isClickOnDropdownButton) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:90',message:'Click outside handler - click on dropdown button, ignoring',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         return;
       }
 
@@ -95,6 +133,9 @@ export function TagInput({
       const dropdownElement = (target as Element)?.closest('[data-sticky-dropdown]');
       
       if (!isClickInsideContainer && !dropdownElement) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:98',message:'Click outside handler - closing menu',data:{currentIsMenuOpen:isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         setIsMenuOpen(false);
       }
     }
@@ -103,7 +144,7 @@ export function TagInput({
     return () => {
       document.removeEventListener("click", handleClickOutside);
     };
-  }, [setIsMenuOpen, containerRef]);
+  }, [setIsMenuOpen, containerRef, isMenuOpen]);
 
   const inputProps = getInputProps({
     placeholder: tags.length === 0 ? placeholder : "",
@@ -167,9 +208,15 @@ export function TagInput({
                     e.stopPropagation();
                   }}
                   onClick={(e) => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:173',message:'Dropdown button clicked',data:{currentIsMenuOpen:isMenuOpen,renderedItemsLength:renderedItems?.length,optionsLength:options.length,suggestionsLength:suggestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                    // #endregion
                     e.stopPropagation();
                     e.preventDefault();
                     const newShowState = !isMenuOpen;
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:177',message:'Calling setIsMenuOpen',data:{newShowState:newShowState,currentIsMenuOpen:isMenuOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
                     setIsMenuOpen(newShowState);
                     setTimeout(() => {
                       isButtonClickingRef.current = false;
@@ -208,82 +255,152 @@ export function TagInput({
       </div>
 
       <StickyDropdown 
-        isOpen={isMenuOpen && options.length > 0} 
+        isOpen={(() => {
+          // #region agent log
+          const shouldOpen = isMenuOpen && (renderedItems?.length ?? options.length) > 0;
+          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:215',message:'StickyDropdown isOpen calculation',data:{isMenuOpen:isMenuOpen,renderedItemsLength:renderedItems?.length,optionsLength:options.length,shouldOpen:shouldOpen},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          return shouldOpen;
+        })()} 
         anchorRef={containerRef}
         zIndex={dropdownZIndex}
       >
-        <GlassCard
-          depthLevel={1}
-          data-sticky-dropdown
+        <DropdownLayout
+          maxRows={visibleRows}
           id="tag-input-listbox"
           role="listbox"
-          style={{
-            overflow: 'hidden',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--shadow-elevation-high)',
-          }}
+          data-sticky-dropdown
         >
-          <div className="flex flex-col p-1.5">
-             <div 
-               className="overflow-y-auto overflow-x-hidden"
-               style={{ 
-                 maxHeight: 'calc(3 * var(--dropdown-option-height) + 2 * var(--space-1_5))',
-                 scrollbarWidth: 'none', 
-                 msOverflowStyle: 'none' 
-               }}
-             >
-              <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
+          {/* 滚动区域：Match 选项 */}
+          <DropdownBody>
+            {scrollableItems.map((item, localIndex) => {
+              const originalIndex = getOriginalIndex(localIndex, 'scrollable');
+              const optionProps = getOptionProps(originalIndex);
+              const displayText = item.data as string;
 
-              {options.map((option, index) => {
-                const isCreateOption = allowCreation && 
-                                     option === inputValue.trim() && 
-                                     !suggestions.some(s => s.toLowerCase() === option.toLowerCase());
+              return (
+                <div key={item.id} className="scrollbar-hide">
+                  <button
+                    ref={(el) => { 
+                      if (optionButtonsRef.current) {
+                        optionButtonsRef.current[originalIndex] = el; 
+                      }
+                    }}
+                    {...optionProps}
+                    className="w-full text-left transition-colors flex items-center justify-between gap-2 tag-input-option"
+                    style={{ 
+                      padding: 'var(--space-3) var(--space-3)',
+                      color: item.isHighlighted 
+                        ? 'var(--color-text-action)' 
+                        : 'var(--color-text-primary)',
+                      font: 'var(--font-body)',
+                      fontWeight: 400,
+                      letterSpacing: 'var(--letter-spacing-body)',
+                      background: item.isHighlighted 
+                        ? 'var(--bg-surface-glass-hover)' 
+                        : 'transparent',
+                      borderRadius: 'var(--radius-sm)',
+                    }}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="truncate">
+                        {displayText}
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              );
+            })}
+          </DropdownBody>
 
-                const optionProps = getOptionProps(index);
+          {/* 固定底部：Create 选项（如果存在） */}
+          {hasFooter && fixedFooterItem && (
+            <DropdownFooter showSeparator={!!separatorItem}>
+              {(() => {
+                const originalIndex = getOriginalIndex(0, 'footer');
+                const optionProps = getOptionProps(originalIndex);
+                const displayText = `Create "${fixedFooterItem.data}"`;
 
                 return (
-                  <div key={`${option}-${index}`} className="scrollbar-hide">
+                  <div key={fixedFooterItem.id} className="scrollbar-hide">
                     <button
                       ref={(el) => { 
                         if (optionButtonsRef.current) {
-                          optionButtonsRef.current[index] = el; 
+                          optionButtonsRef.current[originalIndex] = el; 
                         }
                       }}
                       {...optionProps}
-                      className="w-full text-left transition-colors flex items-center gap-2"
+                      className="w-full text-left transition-colors flex items-center justify-between gap-2 tag-input-option"
                       style={{ 
-                        padding: 'var(--space-2) var(--space-4)',
-                        color: activeIndex === index 
+                        padding: 'var(--space-3) var(--space-3)',
+                        color: fixedFooterItem.isHighlighted 
                           ? 'var(--color-text-action)' 
-                          : (isCreateOption ? 'var(--color-text-action)' : 'var(--color-text-primary)'),
+                          : 'var(--color-text-action)',
                         font: 'var(--font-body)',
-                        fontWeight: isCreateOption ? 500 : 400,
+                        fontWeight: 500,
                         letterSpacing: 'var(--letter-spacing-body)',
-                        background: activeIndex === index 
+                        background: fixedFooterItem.isHighlighted 
                           ? 'var(--bg-surface-glass-hover)' 
                           : 'transparent',
-                        borderRadius: 'var(--radius-sm)'
+                        borderRadius: 'var(--radius-sm)',
                       }}
                     >
-                      {isCreateOption && (
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         <div 
-                          className="flex items-center justify-center icon-base rounded-full"
+                          className="flex items-center justify-center icon-base rounded-full flex-shrink-0"
                           style={{ background: 'var(--bg-action-subtle)' }}
                         >
                           <Plus className="icon-xs" strokeWidth={2.5} />
                         </div>
+                        <span className="truncate">
+                          {displayText}
+                        </span>
+                      </div>
+                      {/* 快捷键徽标（仅场景 A 存在 secondaryAction 时显示） */}
+                      {secondaryAction === 'CREATE' && (
+                        <ShortcutBadge keys={['Shift', 'Enter']} className="flex-shrink-0" />
                       )}
-                      <span className="truncate">
-                        {isCreateOption ? `Create "${option}"` : option}
-                      </span>
                     </button>
                   </div>
                 );
-              })}
-            </div>
-          </div>
-        </GlassCard>
+              })()}
+            </DropdownFooter>
+          )}
+        </DropdownLayout>
       </StickyDropdown>
+      
+      {/* Live Region for Screen Readers */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          borderWidth: 0,
+        }}
+      >
+        {renderedItems && renderedItems.length > 0 && (
+          <>
+            {renderedItems.filter(item => item.type === 'match').length > 0 && (
+              `找到 ${renderedItems.filter(item => item.type === 'match').length} 个标签，按向下键导航`
+            )}
+            {renderedItems.filter(item => item.type === 'create').length > 0 && (
+              `按 Enter 创建新标签`
+            )}
+          </>
+        )}
+        {(!renderedItems || renderedItems.length === 0) && inputValue.trim() && (
+          `无匹配项，按 Enter 创建新标签`
+        )}
+      </div>
     </div>
   );
 }
