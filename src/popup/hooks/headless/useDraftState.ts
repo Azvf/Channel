@@ -88,6 +88,40 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
   useEffect(() => {
     valueRef.current = value;
   }, [value, key]);
+
+  // 当 key 变化时，如果新的 key 没有草稿，重置状态为新的 initialValue
+  // 这确保当 page.id 变化时，如果新页面没有草稿，会使用新的初始值
+  // 使用 ref 跟踪上一个 key，避免在 key 变化时误判
+  const prevKeyRef = useRef<string>(key);
+  useEffect(() => {
+    if (prevKeyRef.current === key) {
+      return;
+    }
+
+    prevKeyRef.current = key;
+
+    if (!enable) {
+      return;
+    }
+
+    let hasDraft = false;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const draft = window.localStorage.getItem(key);
+        hasDraft = draft !== null;
+      }
+    } catch (error) {
+      // 忽略错误
+    }
+
+    // key 变化意味着切换到新的上下文，如果没有草稿则重置为新的初始值
+    if (!hasDraft) {
+      isRestoredRef.current = false;
+      restoreStartedRef.current = false;
+      setValue(initialValue);
+      valueRef.current = initialValue;
+    }
+  }, [key, enable, initialValue]);
   
   // 防抖保存的 timeout ID
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);

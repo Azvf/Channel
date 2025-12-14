@@ -49,6 +49,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   const {
     value: editValue,
     setValue: setEditValue,
+    clearDraft: clearEditDraft,
   } = useDraftState({
     key: 'draft.tag_management.edit',
     initialValue: '',
@@ -119,7 +120,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   useEffect(() => {
     if (!isOpen) {
       setEditingTag(null);
-      setEditValue("");
+      // 不在这里清除 editValue，让 useDraftState 的 enable 参数控制草稿的启用/禁用
       setLoading(true);
       return;
     }
@@ -183,7 +184,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
     const trimmedValue = editValue.trim();
     if (!trimmedValue || trimmedValue === editingTag.name) {
       setEditingTag(null);
-      setEditValue("");
+      clearEditDraft();
       return;
     }
 
@@ -193,7 +194,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
       {
         onSuccess: () => {
           setEditingTag(null);
-          setEditValue("");
+          clearEditDraft();
           // 静默刷新以确保数据同步
           loadTags().catch(console.error);
         },
@@ -402,7 +403,10 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
                 usageCount={usageCounts[tag.id] || 0}
                 onEditValueChange={setEditValue}
                 onSaveEdit={handleSaveEdit}
-                onCancelEdit={() => { setEditingTag(null); setEditValue(""); }}
+                onCancelEdit={() => { 
+                  setEditingTag(null); 
+                  clearEditDraft();
+                }}
                 onEditTag={handleEditTag}
                 onDeleteTag={() => handleDeleteTag(tag.id)}
               />
