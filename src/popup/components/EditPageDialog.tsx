@@ -7,6 +7,7 @@ import { Save } from "lucide-react";
 import { TaggedPage } from "../../shared/types/gameplayTag";
 import { Button } from "./ui/buttons";
 import { useModalScrollLock } from "../hooks/headless/useModalScrollLock";
+import { useDraftState } from "../hooks/headless/useDraftState";
 
 interface EditPageDialogProps {
   isOpen: boolean;
@@ -35,17 +36,30 @@ export function EditPageDialog({
   initialTagNames,
   allSuggestions = [],
 }: EditPageDialogProps) {
-  const [editedTitle, setEditedTitle] = useState(page.title);
-  const [editedTags, setEditedTags] = useState<string[]>(initialTagNames);
+  // 使用草稿状态持久化
+  const {
+    value: editedTitle,
+    setValue: setEditedTitle,
+    clearDraft: clearTitleDraft,
+  } = useDraftState({
+    key: `draft.edit_page.${page.id}.title`,
+    initialValue: page.title,
+    enable: isOpen,
+  });
+
+  const {
+    value: editedTags,
+    setValue: setEditedTags,
+    clearDraft: clearTagsDraft,
+  } = useDraftState({
+    key: `draft.edit_page.${page.id}.tags`,
+    initialValue: initialTagNames,
+    enable: isOpen,
+  });
+
   const [backgroundImageLoaded, setBackgroundImageLoaded] = useState(false);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-
-  // Reset form when page changes or dialog opens
-  useEffect(() => {
-    setEditedTitle(page.title);
-    setEditedTags(initialTagNames);
-  }, [page, initialTagNames, isOpen]);
 
   // 预加载背景图片，避免闪烁
   useEffect(() => {
@@ -84,14 +98,18 @@ export function EditPageDialog({
           tagNames: editedTags,
         }),
       );
+      // 保存成功后清除草稿
+      clearTitleDraft();
+      clearTagsDraft();
     } catch (error) {
       console.error('保存页面失败:', error);
     }
   };
 
   const handleCancel = () => {
-    setEditedTitle(page.title);
-    setEditedTags(initialTagNames);
+    // 取消时清除草稿
+    clearTitleDraft();
+    clearTagsDraft();
     onClose();
   };
 

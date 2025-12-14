@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FunctionalModal } from "./FunctionalModal";
@@ -8,6 +8,8 @@ import { currentPageService } from "../../services/popup/currentPageService";
 import { GameplayTag } from "../../shared/types/gameplayTag";
 import { AlertModal, type AlertAction } from "./AlertModal";
 import { useUpdateTag, useDeleteTag, useCreateTag } from "../hooks/mutations/useTagMutations";
+import { useDraftState } from "../hooks/headless/useDraftState";
+import { useScrollPosition } from "../hooks/headless/useScrollPosition";
 
 // 引入模块化组件
 import { TagRow } from "./tag-library/TagRow";
@@ -31,9 +33,61 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   const [usageCounts, setUsageCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [editingTag, setEditingTag] = useState<GameplayTag | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
   const [alertState, setAlertState] = useState<AlertState | null>(null);
+
+  // 使用草稿状态持久化搜索输入
+  const {
+    value: searchQuery,
+    setValue: setSearchQuery,
+  } = useDraftState({
+    key: 'draft.tag_management.search',
+    initialValue: '',
+    enable: isOpen,
+  });
+
+  // 使用草稿状态持久化编辑输入
+  const {
+    value: editValue,
+    setValue: setEditValue,
+  } = useDraftState({
+    key: 'draft.tag_management.edit',
+    initialValue: '',
+    enable: isOpen,
+  });
+
+  // 滚动容器 ref（使用 FunctionalModal 的 contentRef）
+  const contentRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // 滚动位置恢复
+  useScrollPosition({
+    key: 'scroll.tag_management',
+    containerRef: contentRef,
+    isEnabled: isOpen,
+    axis: 'y',
+  });
+
+  // 恢复搜索输入时自动全选文本（UX 细节）
+  // 只在 modal 打开时执行一次，避免在用户输入时重复执行
+  // 使用 ref 跟踪是否已执行，防止 searchQuery 变化时重复触发
+  const hasAutoSelectedRef = useRef(false);
+  useEffect(() => {
+    if (!isOpen) {
+      hasAutoSelectedRef.current = false;
+      return;
+    }
+    // 只在 modal 刚打开且 searchQuery 有值且尚未执行过自动全选时执行
+    if (isOpen && searchQuery && searchInputRef.current && !hasAutoSelectedRef.current) {
+      // 延迟执行，确保 DOM 已渲染
+      const timeoutId = setTimeout(() => {
+        if (searchInputRef.current && !hasAutoSelectedRef.current) {
+          searchInputRef.current.select();
+          hasAutoSelectedRef.current = true;
+        }
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isOpen, searchQuery]);
 
   // Menu State - 已移除，改用 ContextMenu 组件内部管理
 
@@ -64,7 +118,6 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
 
   useEffect(() => {
     if (!isOpen) {
-      setSearchQuery("");
       setEditingTag(null);
       setEditValue("");
       setLoading(true);
@@ -229,10 +282,10 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   const handleCreateTag = () => {
     if (!canCreate || isCreating) return;
     
-    // 使用乐观更新的 mutation
-    createTag(trimmedQuery, {
-      onSuccess: (createdTag) => {
-        setSearchQuery("");
+      // 使用乐观更新的 mutation
+      createTag(trimmedQuery, {
+        onSuccess: (createdTag) => {
+          setSearchQuery("");
         // 用真实标签替换临时标签
         setTags((prevTags) => {
           const filtered = prevTags.filter((tag) => tag.id.startsWith('temp-'));
@@ -271,6 +324,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
         onClose={onClose}
         title="Tag Library"
         onBackdropClick={onClose}
+        contentRef={contentRef}
         glassCardStyle={{
           padding: "var(--space-5)",
         }}
@@ -282,8 +336,11 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
         {/* Search Input */}
         <div className="mb-4">
           <GlassInput
+            ref={searchInputRef}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+            }}
             onKeyDown={handleSearchKeyDown}
             placeholder="Search tags..."
             autoFocus={isOpen}

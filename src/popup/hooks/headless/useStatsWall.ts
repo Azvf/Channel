@@ -55,6 +55,7 @@ export function useStatsWall(isOpen: boolean): UseStatsWallReturn {
   
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const currentVersionRef = useRef<number | null>(null); // 当前版本号
+  const hasRestoredScrollRef = useRef(false); // 是否已恢复滚动位置
 
   // 从 RPC 获取数据的辅助函数（使用 useCallback 避免重复创建）
   const fetchStatsWallData = useCallback(async (clientVersion?: number): Promise<void> => {
@@ -173,50 +174,69 @@ export function useStatsWall(isOpen: boolean): UseStatsWallReturn {
     };
   }, [isOpen]); // 依赖 isOpen 即可，ref 变化通常意味着组件重载
   
-  // 3. 自动滚动逻辑
+  // 3. 滚动位置恢复和自动滚动逻辑
   useEffect(() => {
     // 仅在模态框打开、滚动容器可用且数据已加载时执行
     if (isOpen && scrollContainerRef.current && layout && layout.cells.length > 0) {
       const element = scrollContainerRef.current;
       
-      // 1. 查找第一个有活动的 day 的索引
-      const firstActivityIndex = layout.cells.findIndex(cell => cell.count > 0);
-      
-      // [修复] 从 CSS 读取动态值，而不是硬编码
-      const computedStyle = window.getComputedStyle(element);
-      const squareSize = parseFloat(computedStyle.getPropertyValue('--square-size')) || 24;
-      const gapSize = parseFloat(computedStyle.getPropertyValue('--gap-size')) || 4;
-      const colWidth = squareSize + gapSize; // 现在是 28px，但会随 CSS 自动更新
-      
-      let targetScrollLeft = 0;
-      
-      if (firstActivityIndex !== -1) {
-        // 2. 如果找到了活动
-        // 找到它在第几周 (column)
-        const firstActivityWeek = Math.floor(firstActivityIndex / 7);
-        
-        // 3. 计算滚动的目标位置
-        // 目标是滚动到第一列，并减去几周的宽度作为左边距
-        targetScrollLeft = firstActivityWeek * colWidth;
-        // 减去2周的宽度作为边距，但确保不小于0
-        targetScrollLeft = Math.max(0, targetScrollLeft - (colWidth * 2));
-      } else {
-        // 4. 如果*没有*任何活动 (firstActivityIndex === -1)
-        // 按照要求，滚动到最右侧 (当前月份)
-        targetScrollLeft = element.scrollWidth - element.clientWidth;
-      }
-      
-      // 5. 滚动到目标位置
       // 使用 rAF 和 setTimeout 确保 DOM 布局已完成
-      // [Refactor] 使用统一的渲染周期常量，避免硬编码
       const animationFrameId = requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (element) {
+        setTimeout(async () => {
+          if (!element) return;
+          
+          // 优先级：用户手动滚动位置 > 自动滚动到活动区域
+          // 仅在首次打开时恢复，避免与自动滚动冲突
+          if (!hasRestoredScrollRef.current) {
+            try {
+              // 尝试恢复用户上次的滚动位置
+              const scrollData = await storageService.get<{ x?: number }>('scroll.stats_wall');
+              
+              if (scrollData && typeof scrollData.x === 'number') {
+                // 恢复用户上次的滚动位置
+                element.scrollLeft = scrollData.x;
+                hasRestoredScrollRef.current = true;
+                return;
+              }
+            } catch (error) {
+              console.warn('[useStatsWall] Failed to restore scroll position:', error);
+            }
+            
+            // 如果没有保存的滚动位置，执行自动滚动逻辑
+            // 1. 查找第一个有活动的 day 的索引
+            const firstActivityIndex = layout.cells.findIndex(cell => cell.count > 0);
+            
+            // [修复] 从 CSS 读取动态值，而不是硬编码
+            const computedStyle = window.getComputedStyle(element);
+            const squareSize = parseFloat(computedStyle.getPropertyValue('--square-size')) || 24;
+            const gapSize = parseFloat(computedStyle.getPropertyValue('--gap-size')) || 4;
+            const colWidth = squareSize + gapSize; // 现在是 28px，但会随 CSS 自动更新
+            
+            let targetScrollLeft = 0;
+            
+            if (firstActivityIndex !== -1) {
+              // 2. 如果找到了活动
+              // 找到它在第几周 (column)
+              const firstActivityWeek = Math.floor(firstActivityIndex / 7);
+              
+              // 3. 计算滚动的目标位置
+              // 目标是滚动到第一列，并减去几周的宽度作为左边距
+              targetScrollLeft = firstActivityWeek * colWidth;
+              // 减去2周的宽度作为边距，但确保不小于0
+              targetScrollLeft = Math.max(0, targetScrollLeft - (colWidth * 2));
+            } else {
+              // 4. 如果*没有*任何活动 (firstActivityIndex === -1)
+              // 按照要求，滚动到最右侧 (当前月份)
+              targetScrollLeft = element.scrollWidth - element.clientWidth;
+            }
+            
             // 使用平滑滚动
             element.scrollTo({
               left: targetScrollLeft,
               behavior: 'smooth'
             });
+            
+            hasRestoredScrollRef.current = true;
           }
         }, RENDER_TICK); // [Refactor] 使用统一的渲染周期常量，确保布局稳定
       });
@@ -224,6 +244,53 @@ export function useStatsWall(isOpen: boolean): UseStatsWallReturn {
       return () => cancelAnimationFrame(animationFrameId);
     }
   }, [isOpen, layout]);
+  
+  // 3.5. 保存滚动位置（防抖）
+  useEffect(() => {
+    if (!isOpen || !scrollContainerRef.current) {
+      return;
+    }
+    
+    const element = scrollContainerRef.current;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    const handleScroll = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      
+      timeoutId = setTimeout(async () => {
+        try {
+          await storageService.set('scroll.stats_wall', { x: element.scrollLeft });
+        } catch (error) {
+          console.warn('[useStatsWall] Failed to save scroll position:', error);
+        }
+        timeoutId = null;
+      }, 300); // 300ms 防抖
+    };
+    
+    element.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      element.removeEventListener('scroll', handleScroll);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      // 组件卸载时立即保存滚动位置
+      if (element) {
+        storageService.set('scroll.stats_wall', { x: element.scrollLeft }).catch((error) => {
+          console.warn('[useStatsWall] Failed to save scroll position on unmount:', error);
+        });
+      }
+    };
+  }, [isOpen]);
+  
+  // 重置恢复标志（当弹窗关闭时）
+  useEffect(() => {
+    if (!isOpen) {
+      hasRestoredScrollRef.current = false;
+    }
+  }, [isOpen]);
   
   // 4. 数据转换
   const { days, monthLabels } = useMemo(() => {
