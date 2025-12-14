@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback, KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, KeyboardEvent } from 'react';
 import { useProgressiveEscape } from '../../../hooks/useProgressiveEscape';
 
 export interface UseTagInputProps {
@@ -42,7 +42,8 @@ export interface UseTagInputReturn {
     'aria-activedescendant'?: string;
   };
   getOptionProps: (index: number) => {
-    onClick: () => void;
+    onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+    onMouseDown: (e: React.MouseEvent<HTMLButtonElement>) => void;
     onMouseEnter: () => void;
     'data-active': boolean;
     // A11y 属性
@@ -78,15 +79,9 @@ export function useTagInput({
   
   // 包装 setIsMenuOpen，确保关闭时设置 manuallyClosedRef
   const setIsMenuOpen = useCallback((open: boolean) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:80',message:'setIsMenuOpen called',data:{open:open,manuallyClosedBefore:manuallyClosedRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     setIsMenuOpenState(open);
     if (!open) {
       manuallyClosedRef.current = true;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:84',message:'manuallyClosedRef set to true',data:{manuallyClosedAfter:manuallyClosedRef.current},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
     }
   }, []);
   
@@ -109,6 +104,31 @@ export function useTagInput({
   const isAddingTagRef = useRef(false);
   const inputValueBeforeTagAddRef = useRef<string>("");
   
+  // --- 焦点管理：追踪是否应该保持聚焦 ---
+  const shouldKeepFocus = useRef(false);
+  
+  // ---------------------------------------------------------------------------
+  // 核心架构 1: 同步焦点断言 (Synchronous Focus Assertion)
+  // ---------------------------------------------------------------------------
+  // 使用 useLayoutEffect 在 DOM 更新后、浏览器绘制前同步断言焦点状态
+  // 解决 Framer Motion 布局动画和 React 渲染周期导致的焦点丢失问题
+  useLayoutEffect(() => {
+    if (inputRef.current && !disabled) {
+      const activeElementBefore = document.activeElement;
+      const isInputFocused = activeElementBefore === inputRef.current;
+      const isBodyFocused = activeElementBefore === document.body;
+      
+      // 如果 shouldKeepFocus 为 true，或焦点丢失到 BODY（Framer Motion 布局动画导致），恢复焦点
+      if (shouldKeepFocus.current || (!isInputFocused && isBodyFocused)) {
+        inputRef.current.focus({ preventScroll: true });
+      }
+      
+      if (shouldKeepFocus.current) {
+        shouldKeepFocus.current = false;
+      }
+    }
+  }); // 无依赖数组，每次渲染提交后都运行，确保无死角
+  
   // --- 自动聚焦逻辑 --- (已禁用，防止干扰点击检测)
   // useEffect(() => {
   //   if (!autoFocus || !inputRef.current) return;
@@ -121,22 +141,20 @@ export function useTagInput({
     const trimmed = inputValue.trim();
     const lowerInput = trimmed.toLowerCase();
     
-    if (!trimmed && !isMenuOpen) return []; // 优化：未打开时不计算
+    // 未打开且无输入时不计算，避免不必要的计算开销
+    if (!trimmed && !isMenuOpen) return [];
     
     const available = suggestions.filter(s => 
       !tags.includes(s) && !excludeTags.includes(s)
     );
     
-    // 模糊匹配
     const matches = available.filter(s => s.toLowerCase().includes(lowerInput));
-    
-    // 检查是否有精确匹配
     const exactMatch = suggestions.some(s => s.toLowerCase() === lowerInput);
     const alreadySelected = tags.some(t => t.toLowerCase() === lowerInput);
     
-    // "创建新标签" 选项逻辑
+    // 允许创建且输入不匹配现有建议时，将用户输入作为第一项（用于创建新标签）
     if (allowCreation && trimmed && !exactMatch && !alreadySelected) {
-      return [trimmed, ...matches]; // 第一项是用户输入（用于创建）
+      return [trimmed, ...matches];
     }
     
     return matches;
@@ -152,12 +170,17 @@ export function useTagInput({
         manuallyOpenedRef.current = false;
         manuallyClosedRef.current = true;
         setActiveIndex(-1);
+        // Escape 关闭菜单后也要保持聚焦
+        shouldKeepFocus.current = true;
       }
     },
     {
       id: 'clear-input',
       predicate: () => inputValue.length > 0,
-      action: () => setInputValue("")
+      action: () => {
+        setInputValue("");
+        shouldKeepFocus.current = true;
+      }
     }
   ]);
   
@@ -170,7 +193,6 @@ export function useTagInput({
     
     if (!allowCreation && source === "input" && !matchesSuggestion) return;
     
-    // 区分是"选择建议"还是"创建新标签"
     if (mode === "create") {
       if (!matchesSuggestion && onCreateTag) {
         onCreateTag(trimmed);
@@ -180,22 +202,32 @@ export function useTagInput({
       manuallyOpenedRef.current = false;
       manuallyClosedRef.current = true;
       setActiveIndex(-1);
+      shouldKeepFocus.current = true;
     } else {
-      // list 模式
       if (!tags.includes(trimmed)) {
         inputValueBeforeTagAddRef.current = inputValue;
         isAddingTagRef.current = true;
         setIsMenuOpenState(false);
         manuallyOpenedRef.current = false;
         manuallyClosedRef.current = true;
+        // 在 onTagsChange 之前设置标志，确保 useLayoutEffect 能在渲染周期中捕获
+        shouldKeepFocus.current = true;
         onTagsChange([...tags, trimmed]);
       }
       setInputValue("");
+    }
+    
+    // 立即断言焦点，处理不触发重渲染的情况（如重复添加）
+    if (inputRef.current) {
+      inputRef.current.focus({ preventScroll: true });
     }
   }, [tags, onTagsChange, allowCreation, mode, onCreateTag, suggestions, inputValue]);
   
   const removeTag = useCallback((index: number) => {
     onTagsChange(tags.filter((_, i) => i !== index));
+    // 删除 Tag 会触发 Framer Motion 布局动画，可能导致焦点丢失到 BODY
+    // 设置标志让 useLayoutEffect 在布局更新后恢复焦点
+    shouldKeepFocus.current = true;
   }, [tags, onTagsChange]);
   
   // --- 处理添加标签后的状态清理 ---
@@ -215,15 +247,18 @@ export function useTagInput({
     
     // 控制显示逻辑
     if (manuallyClosedRef.current) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:212',message:'menu manually closed, skipping auto-open',data:{manuallyClosed:manuallyClosedRef.current,optionsLength:options.length,inputValue:inputValue},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       return; // 如果菜单被手动关闭，不要自动重新打开
     }
     
     if (options.length > 0 && (inputValue || manuallyOpenedRef.current)) {
       setIsMenuOpenState(prev => {
-        if (!prev) return true;
+        if (!prev) {
+          // 菜单打开时自动高亮第一个选项，提升键盘导航体验
+          if (activeIndex < 0) {
+            setActiveIndex(0);
+          }
+          return true;
+        }
         return prev;
       });
     } else if (options.length === 0) {
@@ -234,13 +269,13 @@ export function useTagInput({
   // --- 交互：键盘事件处理 (核心复杂性所在) ---
   const getInputProps = useCallback((userProps?: React.InputHTMLAttributes<HTMLInputElement>) => {
     // 解构 userProps，排除可能冲突的属性
-    const { value: _value, onChange: userOnChange, onKeyDown: userOnKeyDown, onFocus: userOnFocus, onClick: userOnClick, placeholder: userPlaceholder, className: userClassName, style: userStyle, ...restUserProps } = userProps || {};
+    const { value: _value, onChange: userOnChange, onKeyDown: userOnKeyDown, onFocus: userOnFocus, onBlur: userOnBlur, onClick: userOnClick, placeholder: userPlaceholder, className: userClassName, style: userStyle, ...restUserProps } = userProps || {};
     
     return {
       ...restUserProps,
-      value: inputValue, // 确保 value 始终是 string
+      value: inputValue,
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-        // 输入时清除手动关闭标记，允许菜单重新打开
+        // 用户输入时清除手动关闭标记，允许菜单在输入时自动重新打开
         if (manuallyClosedRef.current && e.target.value !== inputValue) {
           manuallyClosedRef.current = false;
         }
@@ -248,14 +283,13 @@ export function useTagInput({
         userOnChange?.(e);
       },
       onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => {
-        // 1. 先让 ESC 钩子处理
+        // 优先让渐进式退出钩子处理 ESC，支持嵌套 UI 的 LIFO 关闭顺序
         if (e.key === 'Escape' && handleEscape) {
           handleEscape(e);
           userOnKeyDown?.(e);
           return;
         }
         
-        // 2. 处理其他按键
         switch (e.key) {
           case 'ArrowDown':
             e.preventDefault();
@@ -266,7 +300,7 @@ export function useTagInput({
             }
             setActiveIndex(prev => {
               const next = prev < 0 ? 0 : (prev < options.length - 1 ? prev + 1 : 0);
-              // 确保滚动可见
+              // 滚动到可见区域，确保键盘导航时选项始终可见
               optionButtonsRef.current[next]?.scrollIntoView({ block: 'nearest' });
               return next;
             });
@@ -304,6 +338,9 @@ export function useTagInput({
         }
         userOnKeyDown?.(e);
       },
+      onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+        userOnBlur?.(e);
+      },
       onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
         // 防止 ESC 关闭后，因焦点事件导致的意外重开
         if (
@@ -315,11 +352,15 @@ export function useTagInput({
         ) {
           setIsMenuOpenState(true);
           manuallyOpenedRef.current = false;
+          // 菜单打开时自动高亮第一个选项，提升键盘导航体验
+          if (activeIndex < 0 && options.length > 0) {
+            setActiveIndex(0);
+          }
         }
         userOnFocus?.(e);
       },
       onClick: (e: React.MouseEvent<HTMLInputElement>) => {
-        // 点击时，意味着用户有明确意图，可以重置手动关闭标记
+        // 用户点击输入框表示明确意图，重置手动关闭标记以允许菜单重新打开
         manuallyClosedRef.current = false;
         if (suggestions.length > 0 && inputValue.trim()) {
           setIsMenuOpenState(true);
@@ -334,7 +375,7 @@ export function useTagInput({
         color: 'var(--color-text-primary)',
         font: 'var(--font-body)',
         letterSpacing: 'var(--letter-spacing-body)',
-        opacity: disabled ? 0.5 : 1,
+        opacity: disabled ? 'var(--opacity-disabled)' : 1,
         cursor: disabled ? 'not-allowed' : 'text',
         ...userStyle,
       },
@@ -347,13 +388,25 @@ export function useTagInput({
     };
   }, [inputValue, isMenuOpen, options, activeIndex, tags, mode, disabled, suggestions, allowCreation, handleEscape, addTag, removeTag]);
   
-  // --- 交互：选项点击 ---
+  // ---------------------------------------------------------------------------
+  // 核心架构 2: 事件阻断 (Event Interception)
+  // ---------------------------------------------------------------------------
+  // 在 onMouseDown 中阻止浏览器默认的焦点转移行为
+  // 浏览器默认：mousedown -> blur (Input失焦) -> focus (Button得焦) -> click
+  // 通过 preventDefault 阻止焦点转移，确保焦点始终保持在 Input 上
   const getOptionProps = useCallback((index: number) => ({
-    onClick: () => {
+    onMouseDown: (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      e.stopPropagation(); // 防止事件冒泡干扰其他处理器
+    },
+    onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      
       setIsMenuOpenState(false);
       manuallyOpenedRef.current = false;
       manuallyClosedRef.current = true;
       setActiveIndex(-1);
+      
       addTag(options[index], "suggestion");
     },
     onMouseEnter: () => setActiveIndex(index),
