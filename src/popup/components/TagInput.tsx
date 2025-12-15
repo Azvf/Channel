@@ -52,11 +52,6 @@ export function TagInput({
   inputValue: controlledInputValue,
   onInputValueChange,
 }: TagInputProps) {
-  // #region agent log
-  if (typeof window !== 'undefined') {
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:props',message:'TagInput props',data:{hasControlledValue:controlledInputValue!==undefined,controlledValue:controlledInputValue,hasCallback:!!onInputValueChange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }
-  // #endregion
   const { 
     inputValue, 
     options, 

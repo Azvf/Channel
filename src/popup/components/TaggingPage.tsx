@@ -230,8 +230,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     value: draftTitle,
     setValue: setDraftTitle,
     isRestored: isTitleRestored,
+    isDirty: isTitleDirty,
   } = useDraftState({
-    key: `draft.view_page.${currentUrl || 'temp'}.title`,
+    key: `draft.view_page.${currentUrl}.title`,
     initialValue: currentPage?.title || "",
     enable: !!currentUrl,
     debounceMs: 300,
@@ -242,24 +243,22 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
     value: tagInputValue,
     setValue: setTagInputValue,
   } = useDraftState({
-    key: `draft.view_page.${currentUrl || 'temp'}.tag_input`,
+    key: `draft.view_page.${currentUrl}.tag_input`,
     initialValue: "",
     enable: !!currentUrl,
   });
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaggingPage.tsx:tagInputDraft',message:'Tag input draft state',data:{currentUrl,tagInputValue,enable:!!currentUrl,key:`draft.view_page.${currentUrl || 'temp'}.tag_input`,typeOfTagInputValue:typeof tagInputValue,hasSetTagInputValue:!!setTagInputValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  }, [currentUrl, tagInputValue, setTagInputValue]);
-  // #endregion
 
-  // Server 数据同步逻辑：当 Server 数据更新且未恢复草稿时，同步 Draft
+  // Server 数据同步逻辑：当 Server 数据更新且未恢复草稿且用户未修改时，同步 Draft
   useEffect(() => {
-    if (currentPage?.title && !isTitleRestored) {
-      // 只有在没有恢复草稿的情况下，才让 Server 数据覆盖 Draft
+    // 只有当：
+    // 1. Server 数据存在
+    // 2. Draft 没有从 Storage 恢复（说明是全新的）
+    // 3. 用户还没有修改过 Draft（关键！防止覆盖用户输入）
+    if (currentPage?.title && !isTitleRestored && !isTitleDirty) {
       setDraftTitle(currentPage.title);
     }
-  }, [currentPage?.title, isTitleRestored, setDraftTitle]);
+  }, [currentPage?.title, isTitleRestored, isTitleDirty, setDraftTitle]);
 
   // 1. 初始化 Mutation Hooks
   const { mutate: updateTitle } = useUpdatePageTitle(currentPage ?? null, mutatePage);

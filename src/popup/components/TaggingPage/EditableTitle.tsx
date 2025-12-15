@@ -117,6 +117,7 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
 
   // [关键] 共享样式：必须确保 Ghost Div 和 Textarea 的 排版属性 完全一致！
   // 提取自你原来的 TaggingPage.tsx 样式
+  // 注意：所有影响布局的属性（box-sizing、border、padding、margin）必须完全一致
   const typographyStyle: React.CSSProperties = {
     font: "var(--font-page-title)",
     letterSpacing: "var(--letter-spacing-page-title)",
@@ -125,6 +126,9 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
     width: "100%",
     wordBreak: "break-word",
     whiteSpace: "pre-wrap", // 允许换行
+    boxSizing: "border-box", // 确保 box-sizing 一致
+    margin: 0, // 确保 margin 一致
+    border: "none", // 确保 border 一致（Ghost Div 和 Textarea 都使用）
   };
 
   const containerStyle: React.CSSProperties = {
@@ -188,7 +192,14 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
           EDIT MODE (编辑模式)
          ======================= */}
       {isEditing && (
-        <div className="relative w-full">
+        <div 
+          className="relative w-full"
+          style={{
+            // 创建独立的 Compositor Layer，优化渲染性能
+            isolation: "isolate",
+            transform: "translateZ(0)", // 强制硬件加速
+          }}
+        >
           {/* 1. Ghost Element (幽灵节点)
               它的唯一作用是撑开父容器高度。
               visibility: hidden 让它不可见但保留占据空间。
@@ -198,7 +209,8 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             style={{
               ...typographyStyle,
               visibility: "hidden",
-              border: "none",
+              // 提示浏览器优化高度变化
+              willChange: "height",
             }}
           >
             {/* 加上一个零宽空格或普通空格，防止空行塌陷 */}
@@ -208,6 +220,7 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
           {/* 2. 真正的 Textarea
               绝对定位覆盖在 Ghost Element 上。
               因为父容器已经被 Ghost Element 撑开了，所以 absolute 的 height: 100% 刚好填满。
+              注意：必须确保所有布局属性（box-sizing、border、padding、margin）与 Ghost Div 完全一致。
           */}
           <textarea
             ref={textareaRef}
@@ -216,12 +229,13 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             rows={1}
-            className="absolute inset-0 w-full resize-none outline-none bg-transparent border-none p-0 m-0"
+            className="absolute inset-0 w-full resize-none outline-none bg-transparent p-0 m-0"
             style={{
               ...typographyStyle,
               height: "100%",
               overflow: "hidden", // 隐藏滚动条，因为高度由 ghost 撑开
               color: "var(--color-text-primary)",
+              // border 已在 typographyStyle 中设置为 "none"，确保与 Ghost Div 一致
             }}
             autoFocus
           />

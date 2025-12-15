@@ -39,6 +39,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   const {
     value: searchQuery,
     setValue: setSearchQuery,
+    isRestored: isSearchRestored,
   } = useDraftState({
     key: 'draft.tag_management.search',
     initialValue: '',
@@ -72,13 +73,20 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
   // 只在 modal 打开时执行一次，避免在用户输入时重复执行
   // 使用 ref 跟踪是否已执行，防止 searchQuery 变化时重复触发
   const hasAutoSelectedRef = useRef(false);
+  const prevIsOpenRef = useRef(false);
   useEffect(() => {
     if (!isOpen) {
       hasAutoSelectedRef.current = false;
+      prevIsOpenRef.current = false;
       return;
     }
-    // 只在 modal 刚打开且 searchQuery 有值且尚未执行过自动全选时执行
-    if (isOpen && searchQuery && searchInputRef.current && !hasAutoSelectedRef.current) {
+    
+    // 只在 modal 从关闭变为打开时，且 searchQuery 有值且是从草稿恢复的，才自动全选
+    const isOpening = !prevIsOpenRef.current && isOpen;
+    prevIsOpenRef.current = isOpen;
+    
+    // 只在 modal 刚打开（从关闭变为打开）且 searchQuery 有值且是从草稿恢复的，才自动全选
+    if (isOpening && searchQuery && isSearchRestored && searchInputRef.current && !hasAutoSelectedRef.current) {
       // 延迟执行，确保 DOM 已渲染
       const timeoutId = setTimeout(() => {
         if (searchInputRef.current && !hasAutoSelectedRef.current) {
@@ -88,7 +96,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
       }, 0);
       return () => clearTimeout(timeoutId);
     }
-  }, [isOpen, searchQuery]);
+  }, [isOpen, searchQuery, isSearchRestored]);
 
   // Menu State - 已移除，改用 ContextMenu 组件内部管理
 

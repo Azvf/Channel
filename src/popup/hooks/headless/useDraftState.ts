@@ -6,6 +6,64 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { storageService } from '@/services/storageService';
 
+/**
+ * 优化的值比较函数
+ * 对于简单类型（string/number/boolean/null/undefined）直接比较，避免不必要的序列化
+ * 对于复杂类型（对象/数组）才使用序列化比较
+ */
+function isEqual<T>(a: T, b: T): boolean {
+  // 处理 null 和 undefined
+  if (a === null || a === undefined) {
+    return b === null || b === undefined;
+  }
+  if (b === null || b === undefined) {
+    return false;
+  }
+  
+  // 简单类型直接比较
+  const typeA = typeof a;
+  const typeB = typeof b;
+  
+  if (typeA !== typeB) {
+    return false;
+  }
+  
+  if (typeA === 'string' || typeA === 'number' || typeA === 'boolean') {
+    return a === b;
+  }
+  
+  // 复杂类型使用序列化比较
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    // 序列化失败时回退到引用比较
+    return a === b;
+  }
+}
+
+/**
+ * 获取值的序列化字符串（用于存储）
+ * 对于简单类型，直接转换为字符串；对于复杂类型，使用 JSON.stringify
+ */
+function getSerializedValue<T>(value: T): string {
+  const type = typeof value;
+  if (type === 'string') {
+    return value as string;
+  }
+  if (type === 'number' || type === 'boolean') {
+    return String(value);
+  }
+  if (value === null || value === undefined) {
+    return '';
+  }
+  // 复杂类型使用 JSON.stringify
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
+}
+
 export interface UseDraftOptions<T> {
   /** 存储键，例如 'draft.edit_page.123' */
   key: string;
@@ -24,8 +82,10 @@ export interface UseDraftStateReturn<T> {
   setValue: (newValue: T | ((prev: T) => T)) => void;
   /** 清除草稿 */
   clearDraft: () => void;
-  /** 是否从草稿恢复（用于调试） */
+  /** 是否从草稿恢复 */
   isRestored: boolean;
+  /** 是否已修改（与初始值不同） */
+  isDirty: boolean;
 }
 
 /**
@@ -46,23 +106,19 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
   const isRestoredRef = useRef(false);
   // 用于跟踪当前值，避免在 useEffect 中依赖 value
   const valueRef = useRef<T>(initialValue);
-  // 使用 ref 存储 initialValue 的序列化值，避免依赖项变化导致 useEffect 重复执行
+  // 使用 ref 存储 initialValue，避免依赖项变化导致 useEffect 重复执行
   const initialValueRef = useRef<T>(initialValue);
-  const initialValueStrRef = useRef<string>(JSON.stringify(initialValue));
+  // 对于需要序列化比较的场景，缓存序列化值
+  const initialValueStrRef = useRef<string>(getSerializedValue(initialValue));
   
   // 同步更新 initialValue ref（当 initialValue 变化时）
   useEffect(() => {
     initialValueRef.current = initialValue;
-    initialValueStrRef.current = JSON.stringify(initialValue);
+    initialValueStrRef.current = getSerializedValue(initialValue);
   }, [initialValue]);
   
   // 初始化时尝试从 Storage 恢复
   const [value, setValue] = useState<T>(() => {
-    // #region agent log
-    if (typeof window !== 'undefined') {
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'Initializing draft state',data:{key,enable,initialValue:typeof initialValue==='string'?initialValue.substring(0,50):String(initialValue).substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    }
-    // #endregion
     if (!enable) {
       return initialValue;
     }
@@ -73,31 +129,16 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
       // 对于 chrome.storage，我们需要异步读取，但为了简化，先尝试 localStorage
       if (typeof window !== 'undefined' && window.localStorage) {
         const draft = window.localStorage.getItem(key);
-        // #region agent log
-        if (typeof window !== 'undefined') {
-          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'localStorage check',data:{key,hasDraft:draft!==null,draftValue:draft?draft.substring(0,50):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        }
-        // #endregion
         if (draft !== null) {
           const parsed = JSON.parse(draft) as T;
           isRestoredRef.current = true;
           valueRef.current = parsed;
-          // #region agent log
-          if (typeof window !== 'undefined') {
-            fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'Draft restored from localStorage',data:{key,restoredValue:typeof parsed==='string'?parsed.substring(0,50):String(parsed).substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-          }
-          // #endregion
           return parsed;
         }
       }
     } catch (error) {
       // 解析失败时使用初始值
       console.warn(`[useDraftState] Failed to restore draft for key "${key}":`, error);
-      // #region agent log
-      if (typeof window !== 'undefined') {
-        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'Draft restore failed',data:{key,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      }
-      // #endregion
     }
     
     valueRef.current = initialValue;
@@ -149,13 +190,7 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
   // 防抖保存函数
   const saveDraft = useCallback(
     (newValue: T) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'saveDraft called',data:{key,enable,newValue:typeof newValue==='string'?newValue.substring(0,50):String(newValue).substring(0,50),debounceMs},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (!enable) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'saveDraft disabled',data:{key,enable},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         return;
       }
       
@@ -166,15 +201,9 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
       timeoutIdRef.current = setTimeout(async () => {
         try {
           await storageService.set(key, newValue);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'Draft saved',data:{key,value:typeof newValue==='string'?newValue.substring(0,50):String(newValue).substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
         } catch (error) {
           // 静默降级，不影响 UI
           console.warn(`[useDraftState] Failed to save draft for key "${key}":`, error);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'Draft save failed',data:{key,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
         } finally {
           timeoutIdRef.current = null;
         }
@@ -213,12 +242,10 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
     // 如果此时 value 等于 initialValue，说明可以安全恢复
     // 如果此时 value 不等于 initialValue，说明用户已经开始输入，不应该恢复
     const snapshotValue = valueRef.current;
-    const snapshotValueStr = JSON.stringify(snapshotValue);
-    // 使用 ref 中的初始值字符串，避免依赖 initialValue 导致 useEffect 重复执行
-    const initialValueStr = initialValueStrRef.current;
+    const snapshotInitialValue = initialValueRef.current;
     
-    // 如果快照值不等于初始值，说明用户已经开始输入，不应该恢复
-    if (snapshotValueStr !== initialValueStr) {
+    // 使用优化的比较函数，避免不必要的序列化
+    if (!isEqual(snapshotValue, snapshotInitialValue)) {
       return;
     }
     
@@ -230,42 +257,45 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
     storageService.get<T>(key)
       .then((draft) => {
         // 如果 storage 中有草稿，则恢复
-        // 使用函数式更新来获取最新的 value，但只在值仍然是快照值时才恢复
-        if (draft !== null) {
-          // 关键：在 Promise 回调中，先检查 valueRef.current 是否仍然等于快照值
-          // 如果 valueRef.current 已经改变，说明用户已经开始输入，不应该恢复
-          const currentRefValueStr = JSON.stringify(valueRef.current);
-          
-          if (currentRefValueStr !== snapshotValueStr || !restoreStartedRef.current) {
-            // valueRef 已经改变，说明用户已经开始输入，或者恢复过程已被取消
-            // 恢复过程已结束（无论是跳过还是取消），重置标志
-            restoreStartedRef.current = false;
-            return;
-          }
-          
-          setValue((currentValue) => {
-            // 双重检查：当前值必须仍然等于快照值（即仍然是初始值）
-            // 这样可以避免在异步恢复过程中，用户已经开始输入的情况
-            const currentValueStr = JSON.stringify(currentValue);
-            // 再次检查 valueRef（因为可能在 setValue 调用之间用户又输入了）
-            const latestRefValueStr = JSON.stringify(valueRef.current);
-            
-            if (currentValueStr === snapshotValueStr && latestRefValueStr === snapshotValueStr && restoreStartedRef.current) {
-              isRestoredRef.current = true;
-              valueRef.current = draft;
-              // 恢复完成，重置标志
-              restoreStartedRef.current = false;
-              return draft;
-            } else {
-              // 恢复过程已结束（值已改变），重置标志
-              restoreStartedRef.current = false;
-              return currentValue;
-            }
-          });
-        } else {
+        // 注意：draft 可能是 null（key 不存在）或 undefined（存储的值是 null）
+        // 只有当 draft 不是 null 且不是 undefined 时才恢复
+        // 对于字符串类型，空字符串 "" 是有效值，应该恢复
+        // 但是，如果 draft 是 null，说明 key 不存在，不应该恢复
+        if (draft === null || draft === undefined) {
           // 没有草稿，恢复过程已结束，重置标志
           restoreStartedRef.current = false;
+          return;
         }
+        
+        // draft 不是 null 也不是 undefined，可以恢复
+        // 关键：在 Promise 回调中，先检查 valueRef.current 是否仍然等于快照值
+        // 如果 valueRef.current 已经改变，说明用户已经开始输入，不应该恢复
+        const currentRefValue = valueRef.current;
+        
+        if (!isEqual(currentRefValue, snapshotInitialValue) || !restoreStartedRef.current) {
+          // valueRef 已经改变，说明用户已经开始输入，或者恢复过程已被取消
+          // 恢复过程已结束（无论是跳过还是取消），重置标志
+          restoreStartedRef.current = false;
+          return;
+        }
+        
+        setValue((currentValue) => {
+          // 双重检查：当前值必须仍然等于快照值（即仍然是初始值）
+          // 这样可以避免在异步恢复过程中，用户已经开始输入的情况
+          const latestRefValue = valueRef.current;
+          
+          if (isEqual(currentValue, snapshotInitialValue) && isEqual(latestRefValue, snapshotInitialValue) && restoreStartedRef.current) {
+            isRestoredRef.current = true;
+            valueRef.current = draft;
+            // 恢复完成，重置标志
+            restoreStartedRef.current = false;
+            return draft;
+          } else {
+            // 恢复过程已结束（值已改变），重置标志
+            restoreStartedRef.current = false;
+            return currentValue;
+          }
+        });
       })
       .catch((error) => {
         console.warn(`[useDraftState] Failed to restore draft for key "${key}":`, error);
@@ -283,9 +313,8 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
         
         // 关键：如果用户输入的值不等于初始值，说明用户已经开始输入
         // 此时应该取消任何待处理的恢复操作
-        const resolvedValueStr = JSON.stringify(resolvedValue);
-        const initialValueStr = initialValueStrRef.current;
-        if (resolvedValueStr !== initialValueStr && restoreStartedRef.current) {
+        const initialValue = initialValueRef.current;
+        if (!isEqual(resolvedValue, initialValue) && restoreStartedRef.current) {
           // 用户已经开始输入，取消恢复操作
           restoreStartedRef.current = false;
         }
@@ -331,13 +360,19 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
     };
   }, [key, enable, value]);
   
+  // 计算 isDirty：当前值是否与初始值不同
+  const isDirty = useMemo(() => {
+    return !isEqual(value, initialValueRef.current);
+  }, [value]);
+  
   return useMemo(
     () => ({
       value,
       setValue: setDraftValue,
       clearDraft,
       isRestored: isRestoredRef.current,
+      isDirty,
     }),
-    [value, setDraftValue, clearDraft]
+    [value, setDraftValue, clearDraft, isDirty]
   );
 }
