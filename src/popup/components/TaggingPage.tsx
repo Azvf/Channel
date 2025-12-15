@@ -23,6 +23,7 @@ import { useDebouncedRefetch } from '../hooks/headless/useDebouncedRefetch';
 import { useTitleRefetch } from '../hooks/headless/useTitleRefetch';
 import { useStorageSync } from '../hooks/headless/useStorageSync';
 import { useUrlSynchronization } from '../hooks/headless/useUrlSynchronization';
+import { useDraftState } from '../hooks/headless/useDraftState';
 
 interface TaggingPageProps {
   className?: string;
@@ -223,6 +224,43 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   // 使用 Title Refetch Hook
   useTitleRefetch(currentPage, currentUrl, refreshPage, isMountedRef);
 
+  // --- Draft 状态管理 ---
+  // 标题编辑草稿
+  const {
+    value: draftTitle,
+    setValue: setDraftTitle,
+    isRestored: isTitleRestored,
+  } = useDraftState({
+    key: `draft.view_page.${currentUrl || 'temp'}.title`,
+    initialValue: currentPage?.title || "",
+    enable: !!currentUrl,
+    debounceMs: 300,
+  });
+
+  // 标签输入草稿
+  const {
+    value: tagInputValue,
+    setValue: setTagInputValue,
+  } = useDraftState({
+    key: `draft.view_page.${currentUrl || 'temp'}.tag_input`,
+    initialValue: "",
+    enable: !!currentUrl,
+  });
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TaggingPage.tsx:tagInputDraft',message:'Tag input draft state',data:{currentUrl,tagInputValue,enable:!!currentUrl,key:`draft.view_page.${currentUrl || 'temp'}.tag_input`,typeOfTagInputValue:typeof tagInputValue,hasSetTagInputValue:!!setTagInputValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }, [currentUrl, tagInputValue, setTagInputValue]);
+  // #endregion
+
+  // Server 数据同步逻辑：当 Server 数据更新且未恢复草稿时，同步 Draft
+  useEffect(() => {
+    if (currentPage?.title && !isTitleRestored) {
+      // 只有在没有恢复草稿的情况下，才让 Server 数据覆盖 Draft
+      setDraftTitle(currentPage.title);
+    }
+  }, [currentPage?.title, isTitleRestored, setDraftTitle]);
+
   // 1. 初始化 Mutation Hooks
   const { mutate: updateTitle } = useUpdatePageTitle(currentPage ?? null, mutatePage);
   const { mutate: updateTags, isPending: isUpdatingTags } = useUpdatePageTags(
@@ -271,6 +309,12 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
 
     // 标签瞬间更新，无视网络延迟
     await updateTags({ tagsToAdd, tagsToRemove });
+    
+    // 标签添加成功后，清除输入草稿（可选：根据 UX 需求决定是否保留）
+    // 这里选择清除，因为标签已经添加成功，输入框应该清空
+    if (tagsToAdd.length > 0) {
+      setTagInputValue("");
+    }
   };
 
   const suggestions = useMemo(() => allTags.map((tag) => tag.name), [allTags]);
@@ -356,6 +400,9 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             >
               <EditableTitle
                 title={currentPage?.title || ""}
+                draftValue={draftTitle}
+                onDraftChange={setDraftTitle}
+                isRestored={isTitleRestored}
                 isUrl={isUrlTitle}
                 isLoading={loading}
                 onSave={handleTitleSave}
@@ -369,6 +416,8 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
             >
               <TagInput
                 tags={currentPageTagNames}
+                inputValue={tagInputValue}
+                onInputValueChange={setTagInputValue}
                 onTagsChange={handleTagsChange}
                 mode="list"
                 placeholder="Enter a tag..."

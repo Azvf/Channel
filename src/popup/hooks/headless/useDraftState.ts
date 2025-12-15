@@ -58,6 +58,11 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
   
   // 初始化时尝试从 Storage 恢复
   const [value, setValue] = useState<T>(() => {
+    // #region agent log
+    if (typeof window !== 'undefined') {
+      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'Initializing draft state',data:{key,enable,initialValue:typeof initialValue==='string'?initialValue.substring(0,50):String(initialValue).substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    }
+    // #endregion
     if (!enable) {
       return initialValue;
     }
@@ -68,16 +73,31 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
       // 对于 chrome.storage，我们需要异步读取，但为了简化，先尝试 localStorage
       if (typeof window !== 'undefined' && window.localStorage) {
         const draft = window.localStorage.getItem(key);
+        // #region agent log
+        if (typeof window !== 'undefined') {
+          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'localStorage check',data:{key,hasDraft:draft!==null,draftValue:draft?draft.substring(0,50):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        }
+        // #endregion
         if (draft !== null) {
           const parsed = JSON.parse(draft) as T;
           isRestoredRef.current = true;
           valueRef.current = parsed;
+          // #region agent log
+          if (typeof window !== 'undefined') {
+            fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'Draft restored from localStorage',data:{key,restoredValue:typeof parsed==='string'?parsed.substring(0,50):String(parsed).substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          }
+          // #endregion
           return parsed;
         }
       }
     } catch (error) {
       // 解析失败时使用初始值
       console.warn(`[useDraftState] Failed to restore draft for key "${key}":`, error);
+      // #region agent log
+      if (typeof window !== 'undefined') {
+        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:useState-init',message:'Draft restore failed',data:{key,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      }
+      // #endregion
     }
     
     valueRef.current = initialValue;
@@ -110,7 +130,7 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
         const draft = window.localStorage.getItem(key);
         hasDraft = draft !== null;
       }
-    } catch (error) {
+    } catch (_error) {
       // 忽略错误
     }
 
@@ -129,7 +149,13 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
   // 防抖保存函数
   const saveDraft = useCallback(
     (newValue: T) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'saveDraft called',data:{key,enable,newValue:typeof newValue==='string'?newValue.substring(0,50):String(newValue).substring(0,50),debounceMs},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       if (!enable) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'saveDraft disabled',data:{key,enable},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         return;
       }
       
@@ -140,9 +166,15 @@ export function useDraftState<T>(options: UseDraftOptions<T>): UseDraftStateRetu
       timeoutIdRef.current = setTimeout(async () => {
         try {
           await storageService.set(key, newValue);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'Draft saved',data:{key,value:typeof newValue==='string'?newValue.substring(0,50):String(newValue).substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
         } catch (error) {
           // 静默降级，不影响 UI
           console.warn(`[useDraftState] Failed to save draft for key "${key}":`, error);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useDraftState.ts:saveDraft',message:'Draft save failed',data:{key,error:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
         } finally {
           timeoutIdRef.current = null;
         }

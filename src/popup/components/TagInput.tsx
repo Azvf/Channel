@@ -26,6 +26,9 @@ interface TagInputProps {
   onCreateTag?: (tagName: string) => void;
   allowCreation?: boolean;
   dropdownZIndex?: string;
+  // 受控模式参数（可选）
+  inputValue?: string;              // 外部控制的输入值
+  onInputValueChange?: (value: string) => void;  // 输入值变化回调
 }
 
 /**
@@ -45,8 +48,15 @@ export function TagInput({
   mode = "list",
   onCreateTag,
   allowCreation = true,
-  dropdownZIndex = "var(--z-dropdown)"
+  dropdownZIndex = "var(--z-dropdown)",
+  inputValue: controlledInputValue,
+  onInputValueChange,
 }: TagInputProps) {
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TagInput.tsx:props',message:'TagInput props',data:{hasControlledValue:controlledInputValue!==undefined,controlledValue:controlledInputValue,hasCallback:!!onInputValueChange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
   const { 
     inputValue, 
     options, 
@@ -71,6 +81,8 @@ export function TagInput({
     onCreateTag,
     autoFocus,
     disabled,
+    inputValue: controlledInputValue,
+    onInputValueChange,
   });
 
   // 使用 useDropdownSections 处理数据切片

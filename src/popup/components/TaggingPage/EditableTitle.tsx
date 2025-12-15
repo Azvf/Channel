@@ -11,6 +11,10 @@ interface EditableTitleProps {
   isLoading?: boolean;
   onSave: (newTitle: string) => void;
   className?: string;
+  // 受控模式参数（可选，用于草稿状态）
+  draftValue?: string;              // 草稿值（优先显示）
+  onDraftChange?: (value: string) => void;  // 草稿变化回调
+  isRestored?: boolean;             // 是否从草稿恢复
 }
 
 export const EditableTitle: React.FC<EditableTitleProps> = ({
@@ -19,31 +23,77 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
   isLoading,
   onSave,
   className = "",
+  draftValue,
+  onDraftChange,
+  isRestored: _isRestored = false, // 保留参数以保持接口一致性，但当前未使用
 }) => {
+  // 判断是否使用受控模式（草稿模式）
+  const isControlled = draftValue !== undefined && onDraftChange !== undefined;
+  
+  // 显示值：优先使用草稿值，否则使用 title
+  const displayValue = isControlled ? (draftValue ?? title) : title;
+  
   const [isEditing, setIsEditing] = useState(false);
-  const [value, setValue] = useState(title);
+  // 非受控模式的初始值应该是 title
+  const [internalValue, setInternalValue] = useState(title);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevTitleRef = useRef<string>(title);
+  const prevDraftValueRef = useRef<string | undefined>(draftValue);
 
-  // 同步外部数据
+  // 当前使用的值（受控模式用 displayValue，非受控模式用 internalValue）
+  const value = isControlled ? displayValue : internalValue;
+  
+  // 统一的 setValue 函数：优先调用外部回调，否则更新内部状态
+  const setValue = (newValue: string) => {
+    if (isControlled) {
+      onDraftChange!(newValue);
+    } else {
+      setInternalValue(newValue);
+    }
+  };
+
+  // 同步外部数据（title 或 draftValue）
   useEffect(() => {
     const prevValue = prevTitleRef.current;
-    prevTitleRef.current = title;
-    setValue(title);
+    const prevDraft = prevDraftValueRef.current;
     
-    // 记录title prop变化
-    if (prevValue !== title) {
-      logger.debug('[EditableTitle] title prop变化:', {
-        prevValue,
-        newValue: title,
-        isEditing,
-        willResetInput: !isEditing, // 如果不在编辑状态，会重置输入框
-      });
+    // 更新 refs
+    prevTitleRef.current = title;
+    prevDraftValueRef.current = draftValue;
+    
+    // 如果使用受控模式，不需要同步（由外部控制）
+    if (isControlled) {
+      // 如果 draftValue 变化，记录日志
+      if (prevDraft !== draftValue) {
+        logger.debug('[EditableTitle] draftValue 变化:', {
+          prevDraft,
+          newDraft: draftValue,
+          isEditing,
+        });
+      }
+      return;
     }
-  }, [title, isEditing]);
+    
+    // 非受控模式：同步 title prop
+    // 如果不在编辑状态，或者 title 变化，更新内部值
+    if (!isEditing || prevValue !== title) {
+      setInternalValue(title);
+      
+      // 记录title prop变化
+      if (prevValue !== title) {
+        logger.debug('[EditableTitle] title prop变化:', {
+          prevValue,
+          newValue: title,
+          isEditing,
+          willResetInput: !isEditing,
+        });
+      }
+    }
+  }, [title, draftValue, isEditing, isControlled]);
 
   const handleBlur = () => {
     setIsEditing(false);
+    // 使用 value（当前实际使用的值）进行比较
     if (value.trim() !== title) {
       onSave(value);
     }
@@ -55,7 +105,12 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
       textareaRef.current?.blur();
     } else if (e.key === "Escape") {
       e.preventDefault();
-      setValue(title);
+      // Escape 时恢复为 title（丢弃草稿）
+      if (isControlled) {
+        onDraftChange!(title);
+      } else {
+        setInternalValue(title);
+      }
       setIsEditing(false);
     }
   };

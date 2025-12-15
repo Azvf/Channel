@@ -16,6 +16,9 @@ export interface UseTagInputProps {
   onCreateTag?: (tag: string) => void;
   autoFocus?: boolean;
   disabled?: boolean;
+  // 受控模式参数（可选）
+  inputValue?: string;              // 外部控制的输入值
+  onInputValueChange?: (value: string) => void;  // 输入值变化回调
 }
 
 export interface UseTagInputReturn {
@@ -86,9 +89,32 @@ export function useTagInput({
   onCreateTag,
   autoFocus: _autoFocus = false,
   disabled = false,
+  inputValue: controlledInputValue,
+  onInputValueChange,
 }: UseTagInputProps): UseTagInputReturn {
   // --- 状态机 ---
-  const [inputValue, setInputValue] = useState("");
+  // 判断是否使用受控模式
+  const isControlled = controlledInputValue !== undefined && onInputValueChange !== undefined;
+  const [internalInputValue, setInternalInputValue] = useState("");
+  
+  // 使用受控值或内部状态
+  const inputValue = isControlled ? controlledInputValue : internalInputValue;
+  
+  // 统一的 setInputValue 函数：优先调用外部回调，否则更新内部状态
+  const setInputValue = useCallback((newValue: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:setInputValue',message:'setInputValue called',data:{newValue,isControlled,hasCallback:!!onInputValueChange},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    if (isControlled) {
+      onInputValueChange!(newValue);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:setInputValue',message:'onInputValueChange called',data:{newValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+    } else {
+      setInternalInputValue(newValue);
+    }
+  }, [isControlled, onInputValueChange]);
+  
   const [isMenuOpenState, setIsMenuOpenState] = useState(false);
   
   // 使用新的 useSmartCombobox Hook
@@ -327,6 +353,9 @@ export function useTagInput({
       ...restUserProps,
       value: inputValue,
       onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/d2e1e5c0-f79e-4559-a3a1-792f3b455e30',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useTagInput.ts:onChange',message:'Input onChange',data:{newValue:e.target.value,oldValue:inputValue,isControlled},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         // 用户输入时清除手动关闭标记，允许菜单在输入时自动重新打开
         if (manuallyClosedRef.current && e.target.value !== inputValue) {
           manuallyClosedRef.current = false;
