@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { GlassDepthProvider, useGlassDepth } from '../context/GlassDepthContext';
-import { DURATION } from '../../design-tokens/animation'; // [Refactor] 使用统一的动画时间常量
 
 // 让 Props 继承 HTMLAttributes，支持所有标准的 div 属性
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -9,8 +8,8 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   style?: React.CSSProperties;
   disabled?: boolean;
   /**
-   * 性能开关：如果这是一个频繁移动/动画的卡片，设为 true
-   * 在动画期间会自动禁用模糊效果以提升性能
+   * 性能开关：已废弃，浏览器 GPU 会自动优化 backdrop-filter
+   * @deprecated 不再需要手动控制，依赖浏览器 GPU 合成层优化
    */
   isAnimated?: boolean;
   /**
@@ -19,8 +18,8 @@ interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
    */
   depthLevel?: number;
   /**
-   * 外部控制的动画状态（可选）
-   * 如果提供了此属性，将使用它而不是内部状态
+   * 外部控制的动画状态：已废弃
+   * @deprecated 不再需要手动控制，依赖浏览器 GPU 合成层优化
    */
   isAnimating?: boolean;
 }
@@ -30,9 +29,9 @@ export function GlassCard({
   className = "", 
   style = {}, 
   disabled = false,
-  isAnimated = false,
+  isAnimated: _isAnimated, // 已废弃，保留以保持向后兼容
   depthLevel,
-  isAnimating: externalIsAnimating,
+  isAnimating: _isAnimating, // 已废弃，保留以保持向后兼容
   onClick,
   ...rest 
 }: GlassCardProps) {
@@ -41,33 +40,11 @@ export function GlassCard({
   // 实际使用的深度
   const depth = depthLevel ?? parentDepth;
   
-  // 内部动画状态管理
-  const [internalIsAnimating, setInternalIsAnimating] = useState(false);
-  
-  // 检测动画状态
-  useEffect(() => {
-    if (isAnimated || externalIsAnimating !== undefined) {
-      const shouldBeAnimating = isAnimated || externalIsAnimating || false;
-      setInternalIsAnimating(shouldBeAnimating);
-      
-      // 动画结束后延迟恢复，避免闪烁
-      // [Refactor] 使用 DURATION.FAST (200ms) + 50ms 缓冲，确保 CSS transition 完全结束
-      // 避免动画还没结束，模糊效果就突然"跳"回来，造成视觉卡顿
-      if (!shouldBeAnimating) {
-        const timer = setTimeout(() => {
-          setInternalIsAnimating(false);
-        }, (DURATION.FAST * 1000) + 50);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [isAnimated, externalIsAnimating]);
-  
-  // 判断是否处于性能模式
-  const isPerformanceMode = isAnimated || internalIsAnimating || externalIsAnimating || false;
+  // 移除 JS 控制的性能优化逻辑，依赖浏览器 GPU 合成层优化
+  // 浏览器会自动优化 backdrop-filter，通过 will-change: transform 或 translateZ(0) 创建合成层
   
   const combinedClassName = [
     'liquidGlass-wrapper',
-    isPerformanceMode ? 'performance-mode' : '', // 动画模式下会有特殊处理
     disabled ? 'glasscard-disabled' : '',
     className
   ].filter(Boolean).join(' ');

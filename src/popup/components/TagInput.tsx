@@ -1,17 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Plus } from "lucide-react";
 
 import { cn } from "@/popup/utils/cn";
 import { Input } from "./ui/input";
+import { Popover, PopoverAnchor, PopoverContent } from "./ui/popover";
+import { Command, CommandList, CommandItem } from "./ui/command";
 
 import { useTagInput } from "../hooks/headless/useTagInput";
 
-import { StickyDropdown } from "./StickyDropdown";
 import { Tag } from "./Tag";
 import { ShortcutBadge } from "./ShortcutBadge";
 import { useDropdownSections } from "../hooks/headless/useDropdownSections";
-import { DropdownLayout, DropdownBody, DropdownFooter } from "./ui/DropdownLayout";
 
 interface TagInputProps {
   tags: string[];
@@ -48,7 +48,7 @@ export function TagInput({
   mode = "list",
   onCreateTag,
   allowCreation = true,
-  dropdownZIndex = "var(--z-dropdown)",
+  dropdownZIndex: _dropdownZIndex = "var(--z-dropdown)",
   inputValue: controlledInputValue,
   onInputValueChange,
 }: TagInputProps) {
@@ -63,7 +63,7 @@ export function TagInput({
     removeTag,
     inputRef,
     containerRef,
-    optionButtonsRef,
+    optionButtonsRef: _optionButtonsRef,
     renderedItems,
     secondaryAction,
   } = useTagInput({
@@ -97,205 +97,175 @@ export function TagInput({
     useDropdownSections(itemsToProcess);
 
   const hasFooter = !!fixedFooterItem;
-  
-  // 修正：无论是否有 footer，滚动区域都展示最多 4 行。
-  // 因为我们将 Footer 移出了滚动计算区域，所以这里只需要定义 Body 的高度。
-  const visibleRows = 4;
 
   const dropdownButtonRef = useRef<HTMLButtonElement>(null);
-  const isButtonClickingRef = useRef(false);
-  const menuOpenRef = useRef(isMenuOpen);
-
-  useEffect(() => {
-    menuOpenRef.current = isMenuOpen;
-  }, [isMenuOpen]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (isButtonClickingRef.current) {
-        return;
-      }
-
-      const target = event.target as Node;
-      const isClickOnDropdownButton = dropdownButtonRef.current && (
-        dropdownButtonRef.current === target || 
-        dropdownButtonRef.current.contains(target)
-      );
-      
-      if (isClickOnDropdownButton) {
-        return;
-      }
-
-      const isClickInsideContainer = containerRef.current?.contains(target);
-      const dropdownElement = (target as Element)?.closest('[data-sticky-dropdown]');
-      
-      if (!isClickInsideContainer && !dropdownElement) {
-        setIsMenuOpen(false);
-      }
-    }
-    
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  }, [setIsMenuOpen, containerRef, isMenuOpen]);
 
   const inputProps = getInputProps({
     placeholder: tags.length === 0 ? placeholder : "",
   });
 
-  // 提取公共样式函数：保证 Create 和 List Item 视觉完全一致
-  const getItemClassName = (isHighlighted: boolean) => cn(
-    "w-full text-left transition-colors flex items-center justify-between gap-2 tag-input-option relative select-none",
-    "py-2 px-3 rounded-md text-sm", // 标准化 padding 和 圆角
-    isHighlighted 
-      ? "bg-[var(--bg-surface-glass-hover)] text-[var(--color-text-action)]" 
-      : "bg-transparent text-[var(--color-text-primary)]"
-  );
-
   return (
-    <div 
-      ref={containerRef} 
-      className={`relative ${className}`}
-      onClick={() => {
-        inputRef.current?.focus();
-        if (suggestions.length > 0 && !isMenuOpen) {
-           setIsMenuOpen(true);
-        }
-      }}
-    >
-      <div className="liquidGlass-wrapper relative cursor-text">
-        <div className="liquidGlass-content">
-          <motion.div 
-            className="min-h-[2.6rem]"
-            style={{ backfaceVisibility: 'hidden', overflow: 'hidden' }}
-            layout
-          >
-            <div
-              className="flex flex-wrap gap-2 items-center"
-              style={{ 
-                height: 'auto',
-                padding: 'var(--space-2) var(--space-4)' 
-              }}
-            >
-              <AnimatePresence mode="popLayout">
-                {mode === "list" && tags.map((tag, index) => (
-                  <Tag 
-                    key={tag}
-                    label={tag} 
-                    onRemove={() => removeTag(index)}
-                  />
-                ))}
-              </AnimatePresence>
-              
-              <Input
-                ref={inputRef}
-                {...inputProps}
-                onClick={(e) => e.stopPropagation()} 
-                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none h-auto p-0 min-w-[calc(var(--space-12)*1.25)]"
-              />
-              
-              {/* 下拉按钮 */}
-              {suggestions.length > 0 && (
-                <button
-                  ref={dropdownButtonRef}
-                  onMouseDown={(e) => {
-                    isButtonClickingRef.current = true;
-                    e.stopPropagation();
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    setIsMenuOpen(!isMenuOpen);
-                    setTimeout(() => {
-                      isButtonClickingRef.current = false;
-                    }, 0);
-                  }}
-                  className="p-1.5 rounded-full flex-shrink-0 transition-all ml-auto"
+    <Popover open={isMenuOpen && (renderedItems?.length ?? options.length) > 0} onOpenChange={setIsMenuOpen}>
+      <div 
+        ref={containerRef} 
+        className={`relative ${className}`}
+        onClick={() => {
+          inputRef.current?.focus();
+          if (suggestions.length > 0 && !isMenuOpen) {
+             setIsMenuOpen(true);
+          }
+        }}
+      >
+        <PopoverAnchor asChild>
+          <div className="liquidGlass-wrapper relative cursor-text">
+            <div className="liquidGlass-content">
+              <motion.div 
+                className="min-h-[2.6rem]"
+                style={{ backfaceVisibility: 'hidden', overflow: 'hidden' }}
+                layout
+              >
+                <div
+                  className="flex flex-wrap gap-2 items-center"
                   style={{ 
-                    color: isMenuOpen ? 'var(--color-text-action)' : 'var(--color-text-tertiary)',
-                    background: isMenuOpen ? 'var(--bg-surface-glass-active)' : 'transparent'
+                    height: 'auto',
+                    padding: 'var(--space-2) var(--space-4)' 
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isMenuOpen) {
-                      e.currentTarget.style.color = 'var(--color-text-action)';
-                      e.currentTarget.style.background = 'var(--bg-surface-glass-hover)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isMenuOpen) {
-                      e.currentTarget.style.color = 'var(--color-text-tertiary)';
-                      e.currentTarget.style.background = 'transparent';
-                    }
-                  }}
-                  tabIndex={-1}
                 >
-                  <motion.div
-                    animate={{ rotate: isMenuOpen ? 180 : 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <ChevronDown className="icon-base" strokeWidth={1.5} />
-                  </motion.div>
-                </button>
-              )}
+                  <AnimatePresence mode="popLayout">
+                    {mode === "list" && tags.map((tag, index) => (
+                      <Tag 
+                        key={tag}
+                        label={tag} 
+                        onRemove={() => removeTag(index)}
+                      />
+                    ))}
+                  </AnimatePresence>
+                  
+                  <Input
+                    ref={inputRef}
+                    {...inputProps}
+                    onClick={(e) => e.stopPropagation()} 
+                    className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none h-auto p-0 min-w-[calc(var(--space-12)*1.25)]"
+                  />
+                  
+                  {/* 下拉按钮 */}
+                  {suggestions.length > 0 && (
+                    <button
+                      ref={dropdownButtonRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setIsMenuOpen(!isMenuOpen);
+                      }}
+                      className={cn(
+                        "p-1.5 rounded-full flex-shrink-0 transition-all ml-auto",
+                        isMenuOpen 
+                          ? "text-[var(--color-text-action)] bg-[var(--bg-surface-glass-active)]" 
+                          : "text-[var(--color-text-tertiary)] bg-transparent hover:text-[var(--color-text-action)] hover:bg-[var(--bg-surface-glass-hover)]"
+                      )}
+                      tabIndex={-1}
+                    >
+                      <motion.div
+                        animate={{ rotate: isMenuOpen ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDown className="icon-base" strokeWidth={1.5} />
+                      </motion.div>
+                    </button>
+                  )}
+                </div>
+              </motion.div>
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </PopoverAnchor>
       </div>
 
-      <StickyDropdown 
-        isOpen={isMenuOpen && (renderedItems?.length ?? options.length) > 0}
-        anchorRef={containerRef}
-        zIndex={dropdownZIndex}
+      <PopoverContent 
+        align="start" 
+        side="bottom" 
+        sideOffset={4}
+        className="p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DropdownLayout
-          maxRows={visibleRows}
-          id="tag-input-listbox"
-          role="listbox"
-          data-sticky-dropdown
-        >
-          {/* 滚动区域 */}
-          <DropdownBody>
+        <Command shouldFilter={false} className="max-h-[calc(4*2.5rem)]">
+          <CommandList className="max-h-[calc(4*2.5rem)]">
+            {/* 滚动区域 */}
             {scrollableItems.map((item, localIndex) => {
               const originalIndex = getOriginalIndex(localIndex, 'scrollable');
               const optionProps = getOptionProps(originalIndex);
               
               return (
-                <div key={item.id} className="scrollbar-hide">
-                  <button
-                    ref={(el) => { if (optionButtonsRef.current) optionButtonsRef.current[originalIndex] = el; }}
-                    {...optionProps}
-                    className={getItemClassName(item.isHighlighted)}
-                  >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="truncate font-normal">
-                        {item.data}
-                      </span>
-                    </div>
-                  </button>
-                </div>
+                <CommandItem
+                  key={item.id}
+                  value={item.data ?? undefined}
+                  onSelect={() => {
+                    // cmdk 的 onSelect 接收 value，我们需要手动触发 onClick
+                    // 创建一个合成事件来调用原始的 onClick
+                    const syntheticEvent = {
+                      preventDefault: () => {},
+                      stopPropagation: () => {},
+                      currentTarget: document.createElement('button'),
+                      target: document.createElement('button'),
+                    } as unknown as React.MouseEvent<HTMLButtonElement>;
+                    optionProps.onClick?.(syntheticEvent);
+                  }}
+                  onMouseEnter={() => optionProps.onMouseEnter()}
+                  data-active={optionProps['data-active']}
+                  id={optionProps.id}
+                  role={optionProps.role}
+                  aria-selected={optionProps['aria-selected']}
+                  className={cn(
+                    "w-full text-left transition-colors flex items-center justify-between gap-2 py-2 px-3 rounded-md text-sm",
+                    item.isHighlighted 
+                      ? "bg-[var(--bg-surface-glass-hover)] text-[var(--color-text-action)]" 
+                      : "bg-transparent text-[var(--color-text-primary)]"
+                  )}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="truncate font-normal">
+                      {item.data}
+                    </span>
+                  </div>
+                </CommandItem>
               );
             })}
-          </DropdownBody>
+            
+            {/* 固定底部：Create 选项 */}
+            {hasFooter && fixedFooterItem && (
+              <>
+                <div className="h-px bg-border my-1" />
+                {(() => {
+                  const originalIndex = getOriginalIndex(0, 'footer');
+                  const optionProps = getOptionProps(originalIndex);
+                  const displayText = `Create "${fixedFooterItem.data}"`;
 
-          {/* 固定底部：样式完全复用，仅图标不同 */}
-          {hasFooter && fixedFooterItem && (
-            <DropdownFooter showSeparator>
-              {(() => {
-                const originalIndex = getOriginalIndex(0, 'footer');
-                const optionProps = getOptionProps(originalIndex);
-                // 显示逻辑：如果只是单纯的 Create 提示，可以加引号
-                const displayText = `Create "${fixedFooterItem.data}"`;
-
-                return (
-                  <div key={fixedFooterItem.id} className="scrollbar-hide">
-                    <button
-                      ref={(el) => { if (optionButtonsRef.current) optionButtonsRef.current[originalIndex] = el; }}
-                      {...optionProps}
-                      className={getItemClassName(fixedFooterItem.isHighlighted)}
+                  return (
+                    <CommandItem
+                      key={fixedFooterItem.id}
+                      value={fixedFooterItem.data ?? undefined}
+                      onSelect={() => {
+                        // cmdk 的 onSelect 接收 value，我们需要手动触发 onClick
+                        const syntheticEvent = {
+                          preventDefault: () => {},
+                          stopPropagation: () => {},
+                          currentTarget: document.createElement('button'),
+                          target: document.createElement('button'),
+                        } as unknown as React.MouseEvent<HTMLButtonElement>;
+                        optionProps.onClick?.(syntheticEvent);
+                      }}
+                      onMouseEnter={() => optionProps.onMouseEnter()}
+                      data-active={optionProps['data-active']}
+                      id={optionProps.id}
+                      role={optionProps.role}
+                      aria-selected={optionProps['aria-selected']}
+                      className={cn(
+                        "w-full text-left transition-colors flex items-center justify-between gap-2 py-2 px-3 rounded-md text-sm",
+                        fixedFooterItem.isHighlighted 
+                          ? "bg-[var(--bg-surface-glass-hover)] text-[var(--color-text-action)]" 
+                          : "bg-transparent text-[var(--color-text-primary)]"
+                      )}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        {/* 保持图标容器大小与普通 Item 的对齐方式一致 */}
                         <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--bg-action-subtle)] text-[var(--color-text-action)] flex-shrink-0">
                           <Plus className="w-3.5 h-3.5" strokeWidth={3} />
                         </div>
@@ -307,14 +277,14 @@ export function TagInput({
                       {secondaryAction === 'CREATE' && (
                          <ShortcutBadge keys={['Shift', 'Enter']} className="flex-shrink-0 opacity-80" />
                       )}
-                    </button>
-                  </div>
-                );
-              })()}
-            </DropdownFooter>
-          )}
-        </DropdownLayout>
-      </StickyDropdown>
+                    </CommandItem>
+                  );
+                })()}
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
       
       {/* Live Region for Screen Readers */}
       <div
@@ -348,6 +318,6 @@ export function TagInput({
           `无匹配项，按 Enter 创建新标签`
         )}
       </div>
-    </div>
+    </Popover>
   );
 }

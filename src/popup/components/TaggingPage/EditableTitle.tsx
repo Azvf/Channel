@@ -149,7 +149,7 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
           style={{ cursor: isLoading ? "default" : "text" }}
         >
           {isLoading ? (
-            <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] opacity-80">
+            <div className="flex items-center gap-2 text-muted-foreground opacity-80">
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -160,15 +160,15 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             </div>
           ) : showUrlState ? (
             // URL 状态美化
-            <div className="flex items-center gap-2 text-[var(--color-text-secondary)] w-full overflow-hidden">
+            <div className="flex items-center gap-2 text-muted-foreground w-full overflow-hidden">
               <LinkIcon size={16} className="shrink-0 opacity-70" />
               <span className="truncate font-mono text-sm opacity-80">{value}</span>
             </div>
           ) : (
             // 普通标题状态
-            <span className="text-[var(--color-text-primary)] w-full">
+            <span className="text-foreground w-full">
               {value || (
-                <span className="text-[var(--color-text-tertiary)] opacity-50">
+                <span className="text-muted-foreground opacity-50">
                   Untitled Page
                 </span>
               )}
@@ -202,8 +202,9 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
               willChange: "height",
             }}
           >
-            {/* 加上一个零宽空格或普通空格，防止空行塌陷 */}
-            {value + (value.endsWith("\n") ? " " : "")}
+            {/* 零宽空格保护：防止空值或换行时高度塌陷 */}
+            {value || '\u200b'}
+            {value.endsWith("\n") ? "\u200b" : ""}
           </div>
 
           {/* 2. 真正的 Textarea
