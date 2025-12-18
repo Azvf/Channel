@@ -13,7 +13,7 @@
   overflow: hidden;
   isolation: isolate;
   /* [Refactor] 使用 Tokenized Radius */
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-xl) !important;
   
   /* [性能优化] 强制提升为合成层 (Compositor Layer) */
   /* 这会让浏览器将此元素及其模糊效果缓存为纹理，避免每帧重绘 */
@@ -34,14 +34,16 @@
   
   /* 动态模糊值（现代浏览器支持 CSS 变量在 backdrop-filter 中使用） */
   /* 如果浏览器不支持，会回退到基础值 12px（通过 JavaScript 动态注入） */
-  backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--saturation));
-  -webkit-backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--saturation));
+  backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--saturation)) !important;
+  -webkit-backdrop-filter: blur(var(--dynamic-blur)) saturate(var(--saturation)) !important;
   
   /* --- [核心优化] 动态不透明度计算 --- */
   /* 深度越深，越不透明，增加层级感 */
   --dynamic-opacity: calc(var(--glass-opacity-base) + (var(--local-depth) * var(--glass-opacity-increment)));
   
-  background-color: color-mix(in oklch, var(--c-glass) calc(var(--dynamic-opacity) * 100%), transparent);
+  background-color: color-mix(in oklch, var(--c-glass) calc(var(--dynamic-opacity) * 100%), transparent) !important;
+  border: none !important;
+  box-shadow: none !important;
   
   /* --- 阴影优化 (保持原有的精美设计，但可以微调强度) --- */
   /* 随着深度增加，阴影可以稍微加重，增强立体感 */
@@ -60,7 +62,7 @@
     inset 2px -6.5px 1px -4px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
     /* 外阴影 - 使用主题的阴影色 */
     0px 1px 5px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
-    0px 6px 16px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * (10% + var(--local-depth) * 1%)), transparent);
+    0px 6px 16px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * (10% + var(--local-depth) * 1%)), transparent) !important;
   
   /* 平滑过渡，避免视觉跳跃 */
   /* [Refactor] 使用标准过渡时间 Token */
