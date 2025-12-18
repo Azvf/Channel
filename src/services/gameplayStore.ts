@@ -587,6 +587,38 @@ export class GameplayStore {
   }
 
   /**
+   * 批量添加页面（用于后台增量加载）
+   * 将新页面添加到现有页面集合中，不覆盖已存在的页面
+   * @param newPages 要添加的页面集合
+   */
+  public addPages(newPages: PageCollection): void {
+    const log = logger('GameplayStore');
+    
+    if (!this._isInitialized) {
+      console.warn('[GameplayStore] addPages: Store 未初始化，跳过添加');
+      return;
+    }
+    
+    let addedCount = 0;
+    for (const [pageId, page] of Object.entries(newPages)) {
+      // 只添加不存在的页面，避免覆盖已有数据
+      if (!this.pages[pageId]) {
+        this.pages[pageId] = page;
+        // 更新索引
+        this._tagToPages = new Map(); // 重置索引，后续会通过rebuildIndices重建
+        addedCount++;
+      }
+    }
+    
+    if (addedCount > 0) {
+      // 重建索引以包含新页面
+      this.rebuildIndices();
+      this.notifyListeners(); // 通知 UI
+      log.debug('addPages: 添加了页面', { addedCount, totalPages: Object.keys(this.pages).length });
+    }
+  }
+
+  /**
    * 更新页面的 coverImage
    * 只在创建新页面或现有页面没有 coverImage 时更新（避免覆盖已有值）
    */

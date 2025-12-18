@@ -10,7 +10,7 @@ import {
   IBackgroundApi
 } from './protocol';
 
-const DEFAULT_TIMEOUT = 10000; // 10秒
+const DEFAULT_TIMEOUT = 5000; // 5秒 - 快速失败策略，配合优化后的初始化（预期2-3秒）
 
 /**
  * 生成唯一请求ID

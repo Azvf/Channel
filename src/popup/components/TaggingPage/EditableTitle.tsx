@@ -30,8 +30,11 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
   // 判断是否使用受控模式（草稿模式）
   const isControlled = draftValue !== undefined && onDraftChange !== undefined;
   
-  // 显示值：优先使用草稿值，否则使用 title
-  const displayValue = isControlled ? (draftValue ?? title) : title;
+  // 显示值：优先使用草稿值，但如果草稿值为空且 title 存在，则使用 title
+  // 修复：空字符串不会触发 ?? 运算符，需要显式检查
+  const displayValue = isControlled 
+    ? (draftValue || title)  // 使用 || 而不是 ??，这样空字符串会回退到 title
+    : title;
   
   const [isEditing, setIsEditing] = useState(false);
   // 非受控模式的初始值应该是 title
@@ -116,14 +119,19 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
   };
 
   // [关键] 共享样式：必须确保 Ghost Div 和 Textarea 的 排版属性 完全一致！
-  // 使用设计 Token 替换硬编码值，确保样式一致性
-  // 注意：所有影响布局的属性（box-sizing、border、padding、margin）必须完全一致
+  // 使用 Tailwind 原子类替换 CSS 变量，确保物理像素级一致性
+  // 原设计 Token 映射到 Tailwind:
+  // --font-page-title-size: 1.1rem       → text-lg (1.125rem, 接近 1.1rem)
+  // --font-page-title-weight: 600        → font-semibold
+  // --font-page-title-line-height: 1.35  → leading-snug (1.375, 接近 1.35)
+  // --letter-spacing-page-title: -0.015em → tracking-tight
+  const typographyClass = "text-lg font-semibold leading-snug tracking-tight text-foreground";
   const typographyClassName = "w-full break-words whitespace-pre-wrap box-border m-0 border-none py-1";
-  const typographyStyle: React.CSSProperties = {
-    fontSize: 'var(--font-page-title-size, 1.1rem)',
-    fontWeight: 'var(--font-page-title-weight, 600)',
-    lineHeight: 'var(--font-page-title-line-height, 1.35)',
-    letterSpacing: 'var(--letter-spacing-page-title, -0.015em)',
+  const sharedStyle: React.CSSProperties = {
+    width: "100%",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    boxSizing: "border-box",
   };
 
   const containerStyle: React.CSSProperties = {
@@ -151,9 +159,9 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
               });
             }
           }}
-          className={`${typographyClassName} w-full h-full flex items-start transition-colors duration-200 ease-out hover:bg-accent/50 cursor-text rounded-lg`}
+          className={`${typographyClass} ${typographyClassName} w-full h-full flex items-start transition-colors duration-200 ease-out hover:bg-accent/50 cursor-text rounded-lg`}
           style={{ 
-            ...typographyStyle,
+            ...sharedStyle,
             cursor: isLoading ? "default" : "text" 
           }}
         >
@@ -204,9 +212,9 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
           */}
           <div
             aria-hidden="true"
-            className={typographyClassName}
+            className={`${typographyClass} ${typographyClassName}`}
             style={{
-              ...typographyStyle,
+              ...sharedStyle,
               visibility: "hidden",
               // 提示浏览器优化高度变化
               willChange: "height",
@@ -229,9 +237,9 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             rows={1}
-            className={`${typographyClassName} absolute inset-0 w-full resize-none outline-none bg-transparent p-0 m-0 text-foreground`}
+            className={`${typographyClass} ${typographyClassName} absolute inset-0 w-full resize-none outline-none bg-transparent p-0 m-0`}
             style={{
-              ...typographyStyle,
+              ...sharedStyle,
               height: "100%",
               overflow: "hidden", // 隐藏滚动条，因为高度由 ghost 撑开
             }}

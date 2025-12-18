@@ -335,12 +335,12 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
       <motion.div layout>
         <Card className="p-4">
           <CardContent className="p-0">
-            <motion.div
-              layout
-              transition={LAYOUT_TRANSITION}
-              className="space-y-4"
-              style={{ willChange: "height", overflow: "visible" }}
-            >
+          <motion.div
+            layout
+            transition={LAYOUT_TRANSITION}
+            className="space-y-4"
+            style={{ willChange: "height", overflow: "visible" }}
+          >
             <motion.div layout="position">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -483,7 +483,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
                 </div>
               </motion.div>
             )}
-            </motion.div>
+          </motion.div>
           </CardContent>
         </Card>
       </motion.div>
