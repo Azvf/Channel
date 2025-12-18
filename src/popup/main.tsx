@@ -23,6 +23,9 @@ const ReactQueryDevtoolsProduction = React.lazy(() =>
   ),
 );
 
+// Toast system
+import { Toaster } from 'sonner';
+
 /**
  * 注册 Houdini CSS Typed OM 属性
  * 
@@ -254,6 +257,7 @@ initializeApp().then((initialState) => {
             <App initialState={appState} />
           </AppProvider>
         </ModalRegistryProvider>
+        <Toaster position="top-center" />
         {/* 仅在开发环境显示 DevTools */}
         {isDev && (
           <Suspense fallback={null}>

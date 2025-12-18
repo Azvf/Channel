@@ -1,8 +1,8 @@
 import React from 'react';
 import { ModalHeader } from './ModalHeader';
-import { BaseModal, BaseModalProps } from './BaseModal';
+import { Modal, ModalProps } from './ui/modal';
 
-export interface FunctionalModalProps extends Omit<BaseModalProps, 'children'> {
+export interface FunctionalModalProps extends Omit<ModalProps, 'children'> {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -33,7 +33,7 @@ export function FunctionalModal({
     .join(' ');
 
   return (
-    <BaseModal
+    <Modal
       {...baseModalProps}
       glassCardClassName={combinedGlassCardClassName}
       glassCardStyle={{
@@ -65,7 +65,7 @@ export function FunctionalModal({
 
       {/* Footer: 固定高度 */}
       {footer && <div className="flex-shrink-0">{footer}</div>}
-    </BaseModal>
+    </Modal>
   );
 }
 

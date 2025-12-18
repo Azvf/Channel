@@ -62,13 +62,17 @@ export function AlertModal({
     <ModalFooter>
       {actions.map((action) => {
         const { id, label, variant, onClick: handleClick, autoFocus } = action;
-        // Map 'default' to 'secondary' for Button
-        const buttonVariant = variant === 'default' ? 'secondary' : variant;
+        // Map variants to shadcn Button variants
+        const variantMap: Record<AlertActionVariant, 'default' | 'secondary' | 'destructive'> = {
+          'default': 'secondary',
+          'primary': 'default',
+          'destructive': 'destructive',
+        };
         return (
           <Button
             key={id}
             onClick={handleClick}
-            variant={buttonVariant}
+            variant={variantMap[variant]}
             autoFocus={autoFocus ?? id === resolvedAutoFocusId}
           >
             {label}

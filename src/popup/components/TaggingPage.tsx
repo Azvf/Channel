@@ -10,7 +10,7 @@ import { useAppContext } from "../context/AppContext";
 import { useUpdatePageTitle, useUpdatePageTags } from "../hooks/mutations/usePageMutations";
 import { LAYOUT_TRANSITION } from "../utils/motion";
 import { EditableTitle } from "./TaggingPage/EditableTitle";
-import { Card, CardContent } from "./ui/card";
+import { GlassCard } from "./GlassCard";
 import { TagInput } from "./TagInput";
 
 import { isTitleUrl } from '@/shared/utils/titleUtils';
@@ -333,8 +333,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
   return (
     <div className={className}>
       <motion.div layout>
-        <Card className="p-4">
-          <CardContent className="p-0">
+        <GlassCard className="p-4">
           <motion.div
             layout
             transition={LAYOUT_TRANSITION}
@@ -484,8 +483,7 @@ export function TaggingPage({ className = "" }: TaggingPageProps) {
               </motion.div>
             )}
           </motion.div>
-          </CardContent>
-        </Card>
+        </GlassCard>
       </motion.div>
     </div>
   );

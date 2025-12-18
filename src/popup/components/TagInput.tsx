@@ -281,7 +281,7 @@ export function TagInput({
                       : "bg-transparent text-[var(--color-text-primary)]"
                   )}
                   id={`combobox-option-${index}`}
-                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
                   onMouseEnter={() => {
                     // 鼠标悬停时更新高亮索引
                     setHighlightedIndex(index);

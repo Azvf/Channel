@@ -2,6 +2,9 @@
    LAYER 4: MODALS COMPONENT
    Settings, Stats Wall, Dialogs
    Refactored for System v2.0
+   
+   Note: BaseModal has been migrated to shadcn/ui Dialog (src/popup/components/ui/modal.tsx)
+   This file now only contains component-specific styles (Settings, StatsWall, ChannelTitle)
    ======================================== */
 
 /* Settings Modal */

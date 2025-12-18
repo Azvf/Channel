@@ -8,6 +8,9 @@ export default {
   theme: {
     extend: {
       // 🔥 核心修复：将 Tailwind 的类名映射到 CSS 变量
+      fontFamily: {
+        sans: ['var(--font-family)', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', '"Fira Sans"', '"Droid Sans"', '"Helvetica Neue"', 'sans-serif'],
+      },
       borderRadius: {
         'none': '0',
         'xs': 'var(--radius-xs)',   // rounded-xs -> 8px

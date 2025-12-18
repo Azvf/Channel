@@ -118,7 +118,7 @@ export function EditPageDialog({
       <Button onClick={handleCancel} variant="secondary">Cancel</Button>
       <Button 
         onClick={handleSave} 
-        variant="primary" 
+        variant="default" 
         icon={<Save className="icon-base" />}
       >
         Save

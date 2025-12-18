@@ -1,5 +1,7 @@
 import React from 'react';
 import { GlassDepthProvider, useGlassDepth } from '../context/GlassDepthContext';
+import { Card } from './ui/card';
+import { cn } from '../utils/cn';
 
 // 让 Props 继承 HTMLAttributes，支持所有标准的 div 属性
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -43,11 +45,11 @@ export function GlassCard({
   // 移除 JS 控制的性能优化逻辑，依赖浏览器 GPU 合成层优化
   // 浏览器会自动优化 backdrop-filter，通过 will-change: transform 或 translateZ(0) 创建合成层
   
-  const combinedClassName = [
+  const combinedClassName = cn(
     'liquidGlass-wrapper',
-    disabled ? 'glasscard-disabled' : '',
+    disabled && 'glasscard-disabled',
     className
-  ].filter(Boolean).join(' ');
+  );
 
   const handleClick: React.MouseEventHandler<HTMLDivElement> | undefined = disabled
     ? (event) => {
@@ -59,11 +61,15 @@ export function GlassCard({
   return (
     // 每一个 GlassCard 都是一个新的 Provider，为其子元素提供 +1 的深度
     <GlassDepthProvider forceDepth={depthLevel}>
-      <div 
-        className={combinedClassName} 
+      <Card
+        className={combinedClassName}
         style={{
           // 传入 CSS 变量供 calc() 使用
           '--local-depth': depth,
+          // 移除 shadcn Card 的默认样式，使用玻璃态样式
+          border: 'none',
+          boxShadow: 'none',
+          backgroundColor: 'transparent',
           ...style
         } as React.CSSProperties}
         aria-disabled={disabled || undefined}
@@ -94,7 +100,7 @@ export function GlassCard({
         <div className="liquidGlass-content">
           {children}
         </div>
-      </div>
+      </Card>
     </GlassDepthProvider>
   );
 }
