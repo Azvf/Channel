@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Plus } from "lucide-react";
 
 import { cn } from "@/popup/utils/cn";
+import { Input } from "./ui/input";
 
 import { useTagInput } from "../hooks/headless/useTagInput";
-import { LAYOUT_TRANSITION } from "../utils/motion";
 
 import { StickyDropdown } from "./StickyDropdown";
 import { Tag } from "./Tag";
@@ -188,18 +188,11 @@ export function TagInput({
                 ))}
               </AnimatePresence>
               
-              <motion.input
+              <Input
                 ref={inputRef}
-                layout
-                transition={{
-                   layout: LAYOUT_TRANSITION
-                }}
-                type="text"
                 {...inputProps}
                 onClick={(e) => e.stopPropagation()} 
-                style={{
-                    minWidth: 'calc(var(--space-12) * 1.25)' 
-                }}
+                className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none h-auto p-0 min-w-[calc(var(--space-12)*1.25)]"
               />
               
               {/* 下拉按钮 */}

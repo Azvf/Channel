@@ -3,7 +3,7 @@ import type { KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FunctionalModal } from "./FunctionalModal";
 import { GlassCard } from "./GlassCard";
-import { GlassInput } from "./GlassInput";
+import { Input } from "./ui/input";
 import { currentPageService } from "../../services/popup/currentPageService";
 import { GameplayTag } from "../../shared/types/gameplayTag";
 import { AlertModal, type AlertAction } from "./AlertModal";
@@ -344,7 +344,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
       >
         {/* Search Input */}
         <div className="mb-4">
-          <GlassInput
+          <Input
             ref={searchInputRef}
             value={searchQuery}
             onChange={(e) => {

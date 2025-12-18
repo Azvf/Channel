@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { GlassInput } from "./GlassInput";
+import { Textarea } from "./ui/textarea";
 import { TagInput } from "./TagInput";
 import { FunctionalModal } from "./FunctionalModal";
 import { ModalFooter } from "./ModalFooter";
@@ -143,11 +143,10 @@ export function EditPageDialog({
         {/* Title Input */}
         <div>
           <label style={labelStyle}>Title</label>
-          <GlassInput
+          <Textarea
             value={editedTitle}
             onChange={(e) => setEditedTitle(e.target.value)}
             placeholder="Enter page title"
-            as="textarea"
             rows={2}
           />
         </div>

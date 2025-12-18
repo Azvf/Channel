@@ -116,20 +116,9 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
   };
 
   // [关键] 共享样式：必须确保 Ghost Div 和 Textarea 的 排版属性 完全一致！
-  // 提取自你原来的 TaggingPage.tsx 样式
+  // 使用 Tailwind 类替换 CSS 变量，确保样式一致性
   // 注意：所有影响布局的属性（box-sizing、border、padding、margin）必须完全一致
-  const typographyStyle: React.CSSProperties = {
-    font: "var(--font-page-title)",
-    letterSpacing: "var(--letter-spacing-page-title)",
-    lineHeight: 1.35,
-    padding: "0.25rem 0", // 保持一致的 vertical padding
-    width: "100%",
-    wordBreak: "break-word",
-    whiteSpace: "pre-wrap", // 允许换行
-    boxSizing: "border-box", // 确保 box-sizing 一致
-    margin: 0, // 确保 margin 一致
-    border: "none", // 确保 border 一致（Ghost Div 和 Textarea 都使用）
-  };
+  const typographyClassName = "text-[1.1rem] font-semibold leading-[1.35] tracking-[-0.015em] py-1 w-full break-words whitespace-pre-wrap box-border m-0 border-none";
 
   const containerStyle: React.CSSProperties = {
     minHeight: "1.985rem",
@@ -156,8 +145,8 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
               });
             }
           }}
-          className="w-full h-full flex items-start transition-colors duration-200 ease-out hover:bg-[var(--bg-surface-glass-hover)] cursor-text rounded-lg"
-          style={{ ...typographyStyle, cursor: isLoading ? "default" : "text" }}
+          className={`${typographyClassName} w-full h-full flex items-start transition-colors duration-200 ease-out hover:bg-accent/50 cursor-text rounded-lg`}
+          style={{ cursor: isLoading ? "default" : "text" }}
         >
           {isLoading ? (
             <div className="flex items-center gap-2 text-[var(--color-text-tertiary)] opacity-80">
@@ -206,8 +195,8 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
           */}
           <div
             aria-hidden="true"
+            className={typographyClassName}
             style={{
-              ...typographyStyle,
               visibility: "hidden",
               // 提示浏览器优化高度变化
               willChange: "height",
@@ -229,13 +218,10 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             rows={1}
-            className="absolute inset-0 w-full resize-none outline-none bg-transparent p-0 m-0"
+            className={`${typographyClassName} absolute inset-0 w-full resize-none outline-none bg-transparent p-0 m-0 text-foreground`}
             style={{
-              ...typographyStyle,
               height: "100%",
               overflow: "hidden", // 隐藏滚动条，因为高度由 ghost 撑开
-              color: "var(--color-text-primary)",
-              // border 已在 typographyStyle 中设置为 "none"，确保与 Ghost Div 一致
             }}
             autoFocus
           />

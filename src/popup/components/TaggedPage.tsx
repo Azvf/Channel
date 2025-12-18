@@ -25,7 +25,7 @@ import { getTransition, DURATION } from "../../design-tokens/animation"; // [Ref
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { normalizeTaggedPagePartial } from "../../shared/utils/dataNormalizer";
 import { AlertModal, type AlertAction } from "./AlertModal";
-import { GlassButton, IconButton } from "./ui/buttons";
+import { ShadcnButton, IconButton } from "./ui/buttons";
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
 // 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
@@ -534,8 +534,10 @@ export function TaggedPage({
                   </span>
                 </div>
 
-                <GlassButton
+                <ShadcnButton
                   onClick={() => setSearchTags([])}
+                  variant="secondary"
+                  size="sm"
                   className="px-3 py-1 text-sm"
                   style={{
                     // [Refactor] 使用标准字体 Token
@@ -548,7 +550,7 @@ export function TaggedPage({
                   disabled={loading}
                 >
                   Clear All
-                </GlassButton>
+                </ShadcnButton>
               </div>
 
               <TagInput
