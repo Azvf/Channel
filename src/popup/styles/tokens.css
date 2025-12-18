@@ -248,31 +248,31 @@
   
   /* Text Colors */
   --color-text-primary: var(--c-content);
-  --color-text-secondary: color-mix(in srgb, var(--c-content) 50%, transparent);
-  --color-text-tertiary: color-mix(in srgb, var(--c-content) 40%, transparent);
-  --color-text-quaternary: color-mix(in srgb, var(--c-content) 30%, transparent);
+  --color-text-secondary: color-mix(in oklch, var(--c-content) 50%, transparent);
+  --color-text-tertiary: color-mix(in oklch, var(--c-content) 40%, transparent);
+  --color-text-quaternary: color-mix(in oklch, var(--c-content) 30%, transparent);
   --color-text-action: var(--c-action);
-  --color-text-module-title: color-mix(in srgb, var(--c-content) 70%, var(--c-bg));
+  --color-text-module-title: color-mix(in oklch, var(--c-content) 70%, var(--c-bg));
 
   /* Surface Colors (Glass) */
-  --bg-surface-glass: color-mix(in srgb, var(--c-glass) 10%, transparent);
-  --bg-surface-glass-hover: color-mix(in srgb, var(--c-glass) 15%, transparent);
-  --bg-surface-glass-active: color-mix(in srgb, var(--c-glass) 20%, transparent);
-  --bg-surface-glass-subtle: color-mix(in srgb, var(--c-glass) 8%, transparent);
-  --bg-surface-solid-ish: color-mix(in srgb, var(--c-bg) 98%, transparent); /* [Refactor] 接近不透明的背景，用于大型模态框 */
+  --bg-surface-glass: color-mix(in oklch, var(--c-glass) 10%, transparent);
+  --bg-surface-glass-hover: color-mix(in oklch, var(--c-glass) 15%, transparent);
+  --bg-surface-glass-active: color-mix(in oklch, var(--c-glass) 20%, transparent);
+  --bg-surface-glass-subtle: color-mix(in oklch, var(--c-glass) 8%, transparent);
+  --bg-surface-solid-ish: color-mix(in oklch, var(--c-bg) 98%, transparent); /* [Refactor] 接近不透明的背景，用于大型模态框 */
 
   /* Surface Colors (Action) */
-  --bg-action-subtle: color-mix(in srgb, var(--c-action) 10%, transparent);
-  --bg-action-moderate: color-mix(in srgb, var(--c-action) 20%, transparent);
-  --bg-action-strong: color-mix(in srgb, var(--c-action) 80%, transparent);
+  --bg-action-subtle: color-mix(in oklch, var(--c-action) 10%, transparent);
+  --bg-action-moderate: color-mix(in oklch, var(--c-action) 20%, transparent);
+  --bg-action-strong: color-mix(in oklch, var(--c-action) 80%, transparent);
   --bg-action-solid: var(--c-action);
 
   /* Borders */
   /* 边框宽度由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --border-glass-subtle: color-mix(in srgb, var(--c-glass) 15%, transparent);
-  --border-glass-moderate: color-mix(in srgb, var(--c-glass) 20%, transparent);
-  --border-glass-strong: color-mix(in srgb, var(--c-glass) 30%, transparent);
-  --border-action-subtle: color-mix(in srgb, var(--c-action) 20%, transparent);
+  --border-glass-subtle: color-mix(in oklch, var(--c-glass) 15%, transparent);
+  --border-glass-moderate: color-mix(in oklch, var(--c-glass) 20%, transparent);
+  --border-glass-strong: color-mix(in oklch, var(--c-glass) 30%, transparent);
+  --border-action-subtle: color-mix(in oklch, var(--c-action) 20%, transparent);
 
   /* Legacy Hover Mappings (Backward Compatibility) */
   --hover-bg-glass: var(--bg-surface-glass-hover);
@@ -282,17 +282,17 @@
 
   /* Intent Colors (for Alerts, Badges, etc.) */
   /* Intent 颜色由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --hover-bg-destructive: color-mix(in srgb, var(--color-destructive) 15%, transparent);
+  --hover-bg-destructive: color-mix(in oklch, var(--color-destructive) 15%, transparent);
   --hover-color-destructive: var(--color-destructive);
 
   /* Tooltip Specifics */
   /* Tooltip 样式由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --tooltip-bg: color-mix(in srgb, var(--c-bg) 85%, var(--c-glass) 10%);
-  --tooltip-border: 1px solid color-mix(in srgb, var(--border-glass-moderate) calc(var(--tooltip-border-opacity) * 100%), transparent);
+  --tooltip-bg: color-mix(in oklch, var(--c-bg) 85%, var(--c-glass) 10%);
+  --tooltip-border: 1px solid color-mix(in oklch, var(--border-glass-moderate) calc(var(--tooltip-border-opacity) * 100%), transparent);
   --tooltip-radius: var(--radius-md);
   --tooltip-shadow: 
-    0 4px 12px -2px color-mix(in srgb, var(--shadow-color) calc(var(--tooltip-shadow-intensity) * 100%), transparent),
-    inset 0 1px 0 0 color-mix(in srgb, var(--c-light) 40%, transparent);
+    0 4px 12px -2px color-mix(in oklch, var(--shadow-color) calc(var(--tooltip-shadow-intensity) * 100%), transparent),
+    inset 0 1px 0 0 color-mix(in oklch, var(--c-light) 40%, transparent);
   --tooltip-font-size: 0.75rem;
   --tooltip-line-height: 1.2;
   --tooltip-font-weight: 500;
@@ -308,55 +308,55 @@
   --sb-width: 10px;
   --sb-thumb-width-visual: 4px;
   /* 滚动条透明度由 Vanilla Extract 主题系统提供，无需重新定义 */
-  --sb-thumb-idle: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-idle) * 100%), transparent);
-  --sb-thumb-hover: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-hover) * 100%), transparent);
-  --sb-thumb-active: color-mix(in srgb, var(--c-content) calc(var(--sb-thumb-opacity-active) * 100%), transparent);
+  --sb-thumb-idle: color-mix(in oklch, var(--c-content) calc(var(--sb-thumb-opacity-idle) * 100%), transparent);
+  --sb-thumb-hover: color-mix(in oklch, var(--c-content) calc(var(--sb-thumb-opacity-hover) * 100%), transparent);
+  --sb-thumb-active: color-mix(in oklch, var(--c-content) calc(var(--sb-thumb-opacity-active) * 100%), transparent);
 
   /* --- Shadow System --- */
   /* 使用主题化的阴影颜色 */
-  --shadow-sm: 0 1px 2px 0 color-mix(in srgb, var(--shadow-color) 50%, transparent);
-  --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px color-mix(in srgb, var(--shadow-color) 60%, transparent);
-  --shadow-lg: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px color-mix(in srgb, var(--shadow-color) 50%, transparent);
-  --shadow-xl: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+  --shadow-sm: 0 1px 2px 0 color-mix(in oklch, var(--shadow-color) 50%, transparent);
+  --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px color-mix(in oklch, var(--shadow-color) 60%, transparent);
+  --shadow-lg: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px color-mix(in oklch, var(--shadow-color) 50%, transparent);
+  --shadow-xl: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px color-mix(in oklch, var(--shadow-color) 40%, transparent);
 
   /* Elevation (for Dropdowns & Modals) */
   --shadow-elevation-low: var(--shadow-sm);
   --shadow-elevation-medium: var(--shadow-md);
-  --shadow-elevation-high: 0 16px 40px -12px var(--shadow-color), 0 4px 12px -4px color-mix(in srgb, var(--shadow-color) 50%, transparent);
+  --shadow-elevation-high: 0 16px 40px -12px var(--shadow-color), 0 4px 12px -4px color-mix(in oklch, var(--shadow-color) 50%, transparent);
 
   /* --- Component-Level Shadow Tokens (Glass Effects) --- */
   /* [Refactor] 提取复杂阴影逻辑，统一管理光照方向 */
   --shadow-glass-button-inner: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
-    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
-    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
-    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 3px 6px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+    inset 0 0 0 1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 25%), transparent),
+    inset 2px 1px 0px -1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+    inset -1.5px -1px 0px -1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
+    inset -2px -6px 1px -5px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 65%), transparent), 
+    inset -1px 2px 3px -1px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 25%), transparent), 
+    inset 0px -4px 1px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    0px 3px 6px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent);
 
   --shadow-switcher-track: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 10%), transparent),
-    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
-    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 80%), transparent), 
-    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
-    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
-    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 20%), transparent), 
-    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent), 
-    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent);
+    inset 0 0 0 1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 25%), transparent),
+    inset 1.8px 3px 0px -2px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+    inset -2px -2px 0px -2px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
+    inset -3px -8px 1px -6px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 65%), transparent), 
+    inset -0.3px -1px 4px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    inset -1.5px 2.5px 0px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 25%), transparent), 
+    inset 0px 3px 4px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 25%), transparent), 
+    inset 2px -6.5px 1px -4px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    0px 1px 5px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    0px 6px 16px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent);
 
   --shadow-switcher-tab-track: 
-    inset 0 0 0 1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 15%), transparent),
-    inset 2px 1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent), 
-    inset -1.5px -1px 0px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
-    inset -2px -6px 1px -5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 70%), transparent),
-    inset 1px -2px 2px -1px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 40%), transparent),
-    inset -1px 2px 3px -1px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
-    inset 0px -4px 1px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 4%), transparent), 
-    0px 2px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 3%), transparent),
-    0px 1px 2px 0px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 20%), transparent);
+    inset 0 0 0 1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 25%), transparent),
+    inset 2px 1px 0px -1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 95%), transparent), 
+    inset -1.5px -1px 0px -1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 90%), transparent), 
+    inset -2px -6px 1px -5px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 75%), transparent),
+    inset 1px -2px 2px -1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 50%), transparent),
+    inset -1px 2px 3px -1px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 12%), transparent), 
+    inset 0px -4px 1px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
+    0px 2px 4px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 6%), transparent),
+    0px 1px 2px 0px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 30%), transparent);
 
   /* --- Opacity System --- */
   --opacity-disabled: 0.6; /* [Refactor] Tokenized Disabled State */
@@ -366,36 +366,47 @@
 
 /* ----------------------------------------
 
-   3. TAILWIND MAPPING
+   3. TAILWIND MAPPING (SHADCN BRIDGE LAYER)
 
    (Bridging Design Tokens to Tailwind Classes)
+   
+   映射规则：
+   --c-action    -> --primary
+   --c-bg        -> --background
+   --c-content   -> --foreground
+   --c-glass     -> （独立保留，shadcn 无对应概念）
 
    ---------------------------------------- */
 :root {
   --font-size: 20px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
+  
+  /* Shadcn 桥接层 - 使用 OKLCH 通道分离格式 */
+  /* 映射自内部语义变量，支持 Tailwind 透明度修饰符 */
+  /* 注意：由于 CSS 无法从 oklch() 值中提取通道，这里直接使用通道值 */
+  /* 这些值需要与 theme.ts 中的值保持一致 */
+  --background: 0.93 0.003 264;           /* 映射自 --c-bg (light 主题) */
+  --foreground: 0.15 0.05 264;             /* 映射自 --c-content (light 主题) */
+  --card: 0.93 0.003 264;                  /* 卡片背景使用主背景 */
+  --card-foreground: 0.15 0.05 264;        /* 卡片文本使用主文本色 */
+  --popover: 1 0 0;                        /* 映射自 --c-light: 纯白 */
+  --popover-foreground: 0.15 0.05 264;     /* Popover 文本 */
+  --primary: 0.55 0.22 264;                /* 映射自 --c-action (light 主题) */
+  --primary-foreground: 1 0 0;             /* 主色文本使用白色 */
+  --secondary: 0.95 0.005 264;            /* 次要背景（浅灰） */
+  --secondary-foreground: 0.15 0.05 264;    /* 次要文本 */
+  --muted: 0.92 0.003 264;                 /* 静音背景（极浅灰） */
+  --muted-foreground: 0.50 0.01 264;       /* 静音文本（中灰） */
+  --accent: 0.94 0.005 264;                /* 强调背景 */
+  --accent-foreground: 0.15 0.05 264;      /* 强调文本 */
+  --destructive: 0.45 0.25 12;             /* 映射自 --color-destructive (light 主题) */
+  --destructive-foreground: 1 0 0;         /* 破坏性操作文本 */
+  --border: 0.50 0.01 264;                /* 边框（透明度通过 Tailwind 修饰符控制） */
+  --input: transparent;                     /* 输入框背景透明 */
+  --input-background: 0.96 0.003 264;      /* 输入框背景（浅灰） */
+  --switch-background: 0.82 0.005 264;     /* 开关背景 */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
+  --ring: 0.70 0 0;                        /* 焦点环颜色（中灰） */
   
   /* Radius Mapping */
   /* ✅ 修复：只保留通用的 --radius 变量，删除所有自我引用的 radius-* 变量 */
@@ -404,46 +415,97 @@
   --radius: var(--radius-md); /* 通用 radius 变量，供 Shadcn UI 使用 */
   
   /* Sidebar Colors */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: 0.985 0 0;                    /* 侧边栏背景（近白） */
+  --sidebar-foreground: var(--c-content);   /* 侧边栏文本 */
+  --sidebar-primary: var(--c-action);       /* 侧边栏主色 */
+  --sidebar-primary-foreground: var(--c-light); /* 侧边栏主色文本 */
+  --sidebar-accent: 0.97 0 0;              /* 侧边栏强调色 */
+  --sidebar-accent-foreground: 0.20 0.01 264; /* 侧边栏强调文本 */
+  --sidebar-border: 0.92 0 0;              /* 侧边栏边框 */
+  --sidebar-ring: 0.70 0 0;                /* 侧边栏焦点环 */
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  /* Dark 主题使用 [data-theme="dark"] 选择器中的变量 */
+  /* 这些值会通过主题系统自动注入，这里提供 fallback */
+  /* 注意：实际运行时，这些值会被 [data-theme="dark"] 选择器中的值覆盖 */
+  --background: 0.12 0.005 264;          /* 映射自 dark 主题的 --c-bg */
+  --foreground: 0.88 0.005 264;          /* 映射自 dark 主题的 --c-content */
+  --card: 0.12 0.005 264;                /* 卡片背景 */
+  --card-foreground: 0.88 0.005 264;     /* 卡片文本 */
+  --popover: 0.12 0.005 264;            /* Popover 背景 */
+  --popover-foreground: 0.88 0.005 264; /* Popover 文本 */
+  --primary: 0.80 0.15 196;             /* 映射自 dark 主题的 --c-action */
+  --primary-foreground: 0.20 0.01 264;  /* 主色文本（深色） */
+  --secondary: 0.27 0 0;                /* 次要背景 */
+  --secondary-foreground: 0.985 0 0;    /* 次要文本 */
+  --muted: 0.27 0 0;                    /* 静音背景 */
+  --muted-foreground: 0.71 0 0;         /* 静音文本 */
+  --accent: 0.27 0 0;                   /* 强调背景 */
+  --accent-foreground: 0.985 0 0;       /* 强调文本 */
+  --destructive: 0.60 0.25 12;          /* 映射自 dark 主题的 --color-destructive */
+  --destructive-foreground: 1 0 0;       /* 破坏性操作文本 */
+  --border: 0.27 0 0;                   /* 边框 */
+  --input: 0.27 0 0;                    /* 输入框背景 */
+  --ring: 0.44 0 0;                     /* 焦点环 */
   
   /* Sidebar Colors (Dark) */
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --sidebar: 0.20 0 0;                  /* 侧边栏背景 */
+  --sidebar-foreground: 0.985 0 0;      /* 侧边栏文本 */
+  --sidebar-primary: 0.49 0.24 264;     /* 侧边栏主色 */
+  --sidebar-primary-foreground: 0.985 0 0; /* 侧边栏主色文本 */
+  --sidebar-accent: 0.27 0 0;           /* 侧边栏强调色 */
+  --sidebar-accent-foreground: 0.985 0 0; /* 侧边栏强调文本 */
+  --sidebar-border: 0.27 0 0;           /* 侧边栏边框 */
+  --sidebar-ring: 0.44 0 0;             /* 侧边栏焦点环 */
+}
+
+/* 主题特定的桥接变量覆盖 */
+[data-theme="dark"] {
+  --background: 0.12 0.005 264;
+  --foreground: 0.88 0.005 264;
+  --primary: 0.80 0.15 196;
+  --card: 0.12 0.005 264;
+  --card-foreground: 0.88 0.005 264;
+  --input: 0.27 0 0;
+  --input-background: 0.27 0 0;
+  --destructive: 0.60 0.25 12;
+}
+
+[data-theme="dim"] {
+  --background: 0.05 0.01 170;          /* 极深背景 */
+  --foreground: 0.75 0.20 120;          /* 绿色文本 */
+  --primary: 0.85 0.18 100;             /* 黄绿色动作色 */
+  --card: 0.05 0.01 170;                 /* 卡片背景 */
+  --card-foreground: 0.75 0.20 120;      /* 卡片文本 */
+  --input: 0.10 0.03 170;                /* 输入框背景（深青色玻璃） */
+  --input-background: 0.10 0.03 170;    /* 输入框背景 */
+  --border: 0.75 0.20 120 / 0.3;        /* 边框（绿色，带透明度） */
+  --muted: 0.08 0.02 170;                /* 静音背景 */
+  --muted-foreground: 0.60 0.15 120;     /* 静音文本 */
+  --accent: 0.10 0.03 170;               /* 强调背景 */
+  --accent-foreground: 0.75 0.20 120;    /* 强调文本 */
+  --destructive: 0.60 0.25 12;           /* 破坏性操作 */
+}
+
+[data-theme="rhine-light"] {
+  --background: 0.96 0.005 240;
+  --foreground: 0.18 0.01 240;
+  --primary: 0.65 0.18 100;
+  --card: 0.96 0.005 240;
+  --card-foreground: 0.18 0.01 240;
+  --input: transparent;
+  --input-background: 0.94 0.005 240;
+}
+
+[data-theme="rhine-dark"] {
+  --background: 0.11 0.005 240;
+  --foreground: 0.92 0.005 240;
+  --primary: 0.85 0.18 100;
+  --card: 0.11 0.005 240;
+  --card-foreground: 0.92 0.005 240;
+  --input: 0.20 0.01 240;
+  --input-background: 0.20 0.01 240;
 }
 
 /* Theme variables mapping (Tailwind v4 compat) */

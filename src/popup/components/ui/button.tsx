@@ -18,12 +18,16 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        glass: "bg-[var(--bg-surface-glass)] text-[var(--color-text-primary)] hover:text-[var(--color-text-action)] hover:scale-105 active:scale-[0.98] shadow-[var(--shadow-glass-button-inner)] transition-all",
+        "glass-primary": "bg-[var(--bg-action-strong)] text-[var(--c-light)] hover:bg-[var(--bg-action-solid)] hover:scale-105 active:scale-[0.98] shadow-[var(--shadow-glass-button-inner)] transition-all",
+        "glass-destructive": "bg-[var(--bg-surface-glass)] text-[var(--color-text-primary)] hover:text-[var(--hover-color-destructive)] hover:scale-105 active:scale-[0.98] shadow-[var(--shadow-glass-button-inner)] transition-all",
       },
       size: {
         default: "h-10 px-4 py-2",
         sm: "h-9 rounded-md px-3",
         lg: "h-11 rounded-md px-8",
         icon: "h-10 w-10",
+        fluid: "px-[1.2em] py-[0.6em]",
       },
     },
     defaultVariants: {

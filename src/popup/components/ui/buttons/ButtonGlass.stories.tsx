@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { GlassButton } from './GlassButton';
+import { Button } from '../button';
 
-const meta: Meta<typeof GlassButton> = {
-  title: 'Popup/Buttons/GlassButton',
-  component: GlassButton,
+const meta: Meta<typeof Button> = {
+  title: 'Popup/Buttons/Button Glass Variants',
+  component: Button,
   parameters: {
     layout: 'centered',
   },
@@ -12,27 +12,30 @@ const meta: Meta<typeof GlassButton> = {
 
 export default meta;
 
-type Story = StoryObj<typeof GlassButton>;
+type Story = StoryObj<typeof Button>;
 
 // Default State (默认态)
-export const Default: Story = {
+export const GlassSecondary: Story = {
   args: {
     children: 'Glass Button',
-    variant: 'secondary',
+    variant: 'glass',
+    size: 'fluid',
   },
 };
 
-export const Primary: Story = {
+export const GlassPrimary: Story = {
   args: {
     children: 'Primary Button',
-    variant: 'primary',
+    variant: 'glass-primary',
+    size: 'fluid',
   },
 };
 
-export const Destructive: Story = {
+export const GlassDestructive: Story = {
   args: {
     children: 'Destructive Button',
-    variant: 'destructive',
+    variant: 'glass-destructive',
+    size: 'fluid',
   },
 };
 
@@ -40,7 +43,8 @@ export const Destructive: Story = {
 export const Hover: Story = {
   args: {
     children: 'Hover Me',
-    variant: 'secondary',
+    variant: 'glass',
+    size: 'fluid',
   },
   parameters: {
     pseudo: {
@@ -52,7 +56,8 @@ export const Hover: Story = {
 export const Active: Story = {
   args: {
     children: 'Active State',
-    variant: 'secondary',
+    variant: 'glass',
+    size: 'fluid',
   },
   parameters: {
     pseudo: {
@@ -64,7 +69,8 @@ export const Active: Story = {
 export const Disabled: Story = {
   args: {
     children: 'Disabled Button',
-    variant: 'secondary',
+    variant: 'glass',
+    size: 'fluid',
     disabled: true,
   },
 };
@@ -74,20 +80,20 @@ export const AllVariants: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <GlassButton variant="secondary">Secondary</GlassButton>
-        <GlassButton variant="primary">Primary</GlassButton>
-        <GlassButton variant="destructive">Destructive</GlassButton>
+        <Button variant="glass" size="fluid">Secondary</Button>
+        <Button variant="glass-primary" size="fluid">Primary</Button>
+        <Button variant="glass-destructive" size="fluid">Destructive</Button>
       </div>
       <div className="flex items-center gap-3">
-        <GlassButton variant="secondary" disabled>
+        <Button variant="glass" size="fluid" disabled>
           Disabled Secondary
-        </GlassButton>
-        <GlassButton variant="primary" disabled>
+        </Button>
+        <Button variant="glass-primary" size="fluid" disabled>
           Disabled Primary
-        </GlassButton>
-        <GlassButton variant="destructive" disabled>
+        </Button>
+        <Button variant="glass-destructive" size="fluid" disabled>
           Disabled Destructive
-        </GlassButton>
+        </Button>
       </div>
     </div>
   ),
@@ -98,9 +104,9 @@ export const CustomPadding: Story = {
   render: () => (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <GlassButton className="px-3 py-1 text-sm">Small</GlassButton>
-        <GlassButton className="px-4 py-2 text-base">Medium</GlassButton>
-        <GlassButton className="px-6 py-3 text-lg">Large</GlassButton>
+        <Button variant="glass" size="fluid" className="text-sm">Small</Button>
+        <Button variant="glass" size="fluid" className="text-base">Medium</Button>
+        <Button variant="glass" size="fluid" className="text-lg">Large</Button>
       </div>
     </div>
   ),
@@ -110,12 +116,11 @@ export const CustomPadding: Story = {
 export const LongText: Story = {
   render: () => (
     <div className="flex flex-col gap-3 max-w-xs">
-      <GlassButton>Short</GlassButton>
-      <GlassButton>This is a longer button text that might overflow</GlassButton>
-      <GlassButton className="truncate max-w-full">
+      <Button variant="glass" size="fluid">Short</Button>
+      <Button variant="glass" size="fluid">This is a longer button text that might overflow</Button>
+      <Button variant="glass" size="fluid" className="truncate max-w-full">
         This is a very long button text that should be truncated
-      </GlassButton>
+      </Button>
     </div>
   ),
 };
-

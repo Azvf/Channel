@@ -41,21 +41,26 @@
   /* 深度越深，越不透明，增加层级感 */
   --dynamic-opacity: calc(var(--glass-opacity-base) + (var(--local-depth) * var(--glass-opacity-increment)));
   
-  background-color: color-mix(in srgb, var(--c-glass) calc(var(--dynamic-opacity) * 100%), transparent);
+  background-color: color-mix(in oklch, var(--c-glass) calc(var(--dynamic-opacity) * 100%), transparent);
   
   /* --- 阴影优化 (保持原有的精美设计，但可以微调强度) --- */
   /* 随着深度增加，阴影可以稍微加重，增强立体感 */
+  /* 高光和阴影使用主题的 --c-light 和 --c-dark，确保与主题色彩同步 */
+  /* 提高透明度乘数，让主题色彩（特别是 dim 主题的霓虹效果）更明显 */
   box-shadow: 
-    inset 0 0 0 1.5px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 15%), transparent),
-    inset 1.8px 3px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 70%), transparent), 
-    inset -2px -2px 0px -2px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 60%), transparent), 
-    inset -3px -8px 1px -6px color-mix(in srgb, var(--c-light) calc(var(--glass-reflex-light) * 40%), transparent), 
-    inset -0.3px -1px 4px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent),
-    inset -1.5px 2.5px 0px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
-    inset 0px 3px 4px -2px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
-    inset 2px -6.5px 1px -4px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
-    0px 1px 5px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * 8%), transparent), 
-    0px 6px 16px 0px color-mix(in srgb, var(--c-dark) calc(var(--glass-reflex-dark) * (5% + var(--local-depth) * 1%)), transparent);
+    /* 内边缘高光 - 使用主题的高光色，提高透明度让主题色彩更明显 */
+    inset 0 0 0 1.5px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 30%), transparent),
+    inset 1.8px 3px 0px -2px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
+    inset -2px -2px 0px -2px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 75%), transparent), 
+    inset -3px -8px 1px -6px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 55%), transparent), 
+    /* 内边缘阴影 - 使用主题的阴影色，提高透明度让主题色彩更明显 */
+    inset -0.3px -1px 4px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent),
+    inset -1.5px 2.5px 0px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 25%), transparent), 
+    inset 0px 3px 4px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 25%), transparent), 
+    inset 2px -6.5px 1px -4px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    /* 外阴影 - 使用主题的阴影色 */
+    0px 1px 5px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    0px 6px 16px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * (10% + var(--local-depth) * 1%)), transparent);
   
   /* 平滑过渡，避免视觉跳跃 */
   /* [Refactor] 使用标准过渡时间 Token */
@@ -73,11 +78,11 @@
   -webkit-backdrop-filter: none !important;
   
   /* 作为补偿，增加不透明度，避免看起来太透 */
-  background-color: color-mix(in srgb, var(--c-glass) 80%, transparent);
+  background-color: color-mix(in oklch, var(--c-glass) 80%, transparent);
   
   /* 移除昂贵的阴影计算 */
   box-shadow: none;
-  border: 1px solid color-mix(in srgb, var(--c-glass) 30%, transparent);
+  border: 1px solid color-mix(in oklch, var(--c-glass) 30%, transparent);
   
   /* 只在动画模式下使用 will-change，避免滥用 */
   will-change: transform, opacity;
@@ -121,5 +126,36 @@
   /* 当使用 backdrop-filter 和 transform 时，浏览器有时会忽略 overflow: hidden 对子元素的裁剪 */
   -webkit-mask-image: -webkit-radial-gradient(white, black);
   mask-image: radial-gradient(white, black);
+}
+
+/* ========================================
+   SHADCN CARD COMPONENT - GLASS EFFECT INTEGRATION
+   为 shadcn Card 组件添加主题化的玻璃高光和阴影
+   ======================================== */
+
+/* 覆盖 Tailwind 的 border 和 shadow-sm，使用主题化的玻璃效果 */
+.rounded-lg.border.bg-card {
+  /* 移除 Tailwind 的默认边框和阴影 */
+  border: none !important;
+  box-shadow: none !important;
+  
+  /* 应用主题化的玻璃高光和阴影 */
+  box-shadow: 
+    /* 内边缘高光 - 使用主题的高光色 */
+    inset 0 0 0 1px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 30%), transparent),
+    inset 1.8px 3px 0px -2px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 85%), transparent), 
+    inset -2px -2px 0px -2px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 75%), transparent), 
+    inset -3px -8px 1px -6px color-mix(in oklch, var(--c-light) calc(var(--glass-reflex-light) * 55%), transparent), 
+    /* 内边缘阴影 - 使用主题的阴影色 */
+    inset -0.3px -1px 4px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent),
+    inset -1.5px 2.5px 0px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 25%), transparent), 
+    inset 0px 3px 4px -2px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 25%), transparent), 
+    inset 2px -6.5px 1px -4px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    /* 外阴影 - 使用主题的阴影色 */
+    0px 1px 5px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 15%), transparent), 
+    0px 6px 16px 0px color-mix(in oklch, var(--c-dark) calc(var(--glass-reflex-dark) * 10%), transparent);
+  
+  /* 平滑过渡 */
+  transition: box-shadow var(--transition-fast) var(--ease-glass);
 }
 

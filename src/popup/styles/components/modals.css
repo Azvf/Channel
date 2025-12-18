@@ -168,7 +168,7 @@
   background: linear-gradient(
     90deg, 
     var(--c-action) 0%, 
-    color-mix(in srgb, var(--c-content) 90%, transparent) 80%
+    color-mix(in oklch, var(--c-content) 90%, transparent) 80%
   );
   -webkit-background-clip: text;
   background-clip: text;
@@ -188,7 +188,7 @@
   background: linear-gradient(
     90deg, 
     transparent 0%, 
-    color-mix(in srgb, var(--c-light) 60%, transparent) 50%, 
+    color-mix(in oklch, var(--c-light) 60%, transparent) 50%, 
     transparent 100%
   );
   opacity: 0.8;

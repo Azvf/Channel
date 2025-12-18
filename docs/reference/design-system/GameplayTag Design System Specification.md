@@ -52,6 +52,7 @@
 **物理规则**:
 1.  **Depth ↑ (深度增加)** = **Blur ↓ (模糊减少)** + **Opacity ↑ (不透明度增加)**
 2.  **实现**: 严禁手动编写 `backdrop-filter`。必须使用 `<GlassCard depthLevel={n} />` 组件。
+3.  **色彩空间**: Glass 材质使用 `color-mix(in oklch, ...)` 确保渐变平滑，避免灰色区域
 
 详见: [`src/popup/components/GlassCard.tsx`](../src/popup/components/GlassCard.tsx)
 
@@ -98,13 +99,47 @@
 * **主题工具函数**: [`src/popup/utils/theme.ts`](../src/popup/utils/theme.ts) - 运行时主题切换工具函数
 * **样式变量**: [`src/popup/styles/tokens.css`](../src/popup/styles/tokens.css) - 语义化变量和派生变量定义
 
+### 色彩格式：OKLCH
+
+**统一使用 OKLCH 色彩空间**，所有颜色值使用通道分离格式（`L C H`，不带 `oklch()` 函数包装）。
+
+**优势**：
+- **感知均匀性**：OKLCH 是感知均匀的色彩空间，不同色相的亮度感知一致
+- **更好的色彩插值**：`color-mix(in oklch, ...)` 产生更平滑的渐变，避免灰色区域
+- **P3 色域支持**：可表达比 sRGB 更鲜艳的颜色（在支持 Display P3 的设备上）
+- **多主题一致性**：5 个主题间的色彩协调性更好
+
+**格式示例**：
+```typescript
+// ✅ 正确：OKLCH 通道分离格式
+'--c-action': '0.55 0.22 264',  // Lightness 55%, Chroma 0.22, Hue 264°
+'--c-bg': '0.93 0.003 264',     // 浅灰背景
+
+// ❌ 错误：Hex 或 HSL 格式（已废弃）
+'--c-action': '#0052f5',
+'--c-bg': 'hsl(240, 5%, 93%)',
+```
+
+**在 CSS 中使用**：
+```css
+/* Tailwind 配置中使用 oklch() 函数包装 */
+background: oklch(var(--c-action) / <alpha-value>);
+
+/* color-mix 使用 oklch 色彩空间 */
+--bg-surface-glass: color-mix(in oklch, var(--c-glass) 10%, transparent);
+```
+
+**转换工具**：
+- [oklch.com](https://oklch.com) - 可视化选择器
+- [colorjs.io](https://colorjs.io/apps/convert/) - 批量转换
+
 ### 主题变量结构
 
 主题变量主要包括：
 
-* **基础颜色**: `--c-glass`, `--c-light`, `--c-dark`, `--c-bg` - 基础颜色系统
-* **内容颜色**: `--c-content` - 文本内容颜色
-* **操作颜色**: `--c-action` - 主要操作按钮颜色
+* **基础颜色**: `--c-glass`, `--c-light`, `--c-dark`, `--c-bg` - 基础颜色系统（OKLCH 格式）
+* **内容颜色**: `--c-content` - 文本内容颜色（OKLCH 格式）
+* **操作颜色**: `--c-action` - 主要操作按钮颜色（OKLCH 格式）
 * **Glass 效果**: `--glass-reflex-dark`, `--glass-reflex-light`, `--saturation` - 毛玻璃效果参数
 
 ### 扩展新主题

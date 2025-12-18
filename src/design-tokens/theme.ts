@@ -60,12 +60,12 @@ function mergeTheme(
  * 参考: [tokens.css](../../popup/styles/tokens.css) 中的 fallback 值应该与此保持一致
  */
 const DEFAULT_THEME: ThemeVariables = {
-    '--c-glass': '#bbbbbc',
-    '--c-light': '#fff',
-    '--c-dark': '#000',
-    '--c-content': '#224',
-    '--c-action': '#0052f5',
-    '--c-bg': '#E8E8E9',
+    '--c-glass': 'oklch(0.77 0.005 264)',  // OKLCH: 中性灰（略带蓝调）
+    '--c-light': 'oklch(1 0 0)',            // OKLCH: 纯白
+    '--c-dark': 'oklch(0 0 0)',             // OKLCH: 纯黑
+    '--c-content': 'oklch(0.15 0.05 264)',  // OKLCH: 深色文本
+    '--c-action': 'oklch(0.55 0.22 264)',   // OKLCH: 蓝色动作色
+    '--c-bg': 'oklch(0.93 0.003 264)',     // OKLCH: 浅灰背景
     '--glass-reflex-dark': '1',
     '--glass-reflex-light': '1',
     '--saturation': '150%',
@@ -156,8 +156,8 @@ const DEFAULT_THEME: ThemeVariables = {
     '--tooltip-shadow-intensity': '0.12',
     '--tooltip-border-opacity': '0.2',
     // Intent 颜色
-    '--color-destructive': '#D0021B',
-    '--color-warning': '#F5A623'
+    '--color-destructive': 'oklch(0.45 0.25 12)',  // OKLCH: 红色警告
+    '--color-warning': 'oklch(0.70 0.15 70)'       // OKLCH: 橙色警告
 } as const;
 
 /**
@@ -176,9 +176,9 @@ const PARTIAL_THEMES = {
    */
   dark: {
     // 颜色变量 - 只覆盖不同的颜色
-    '--c-content': '#e1e1e1',
-    '--c-action': '#03d5ff',
-    '--c-bg': '#1b1b1d',
+    '--c-content': 'oklch(0.88 0.005 264)',  // OKLCH: 浅色文本
+    '--c-action': 'oklch(0.80 0.15 196)',     // OKLCH: 青色动作色
+    '--c-bg': 'oklch(0.12 0.005 264)',       // OKLCH: 深灰背景
     // Glass 反射参数
     '--glass-reflex-dark': '2',
     '--glass-reflex-light': '0.3',
@@ -197,8 +197,8 @@ const PARTIAL_THEMES = {
     '--tooltip-shadow-intensity': '0.15',
     '--tooltip-border-opacity': '0.25',
     // Intent 颜色
-    '--color-destructive': '#FF4444',
-    '--color-warning': '#FFB84D'
+    '--color-destructive': 'oklch(0.60 0.25 12)',  // OKLCH: 亮红色警告
+    '--color-warning': 'oklch(0.75 0.18 70)'        // OKLCH: 亮橙色警告
   },
   /**
    * dim 主题 - 莱茵生命暗色主题（黑客/隐身模式）
@@ -206,12 +206,12 @@ const PARTIAL_THEMES = {
    */
   dim: {
     // 颜色变量
-    '--c-light': '#80FFEA',
-    '--c-dark': '#001A15',
-    '--c-glass': 'hsl(170 30% 10% / 0.8)',
-    '--c-content': '#A6E22E',
-    '--c-action': '#CCF728',
-    '--c-bg': '#05080A',
+    '--c-light': 'oklch(0.95 0.12 170)',     // OKLCH: 青色高光
+    '--c-dark': 'oklch(0.08 0.02 170)',      // OKLCH: 深青色阴影
+    '--c-glass': 'oklch(0.10 0.03 170)',     // OKLCH: 深青色玻璃（注意：透明度在 color-mix 中处理）
+    '--c-content': 'oklch(0.75 0.20 120)',    // OKLCH: 绿色文本（黑客风格）
+    '--c-action': 'oklch(0.85 0.18 100)',     // OKLCH: 黄绿色动作色
+    '--c-bg': 'oklch(0.05 0.01 170)',         // OKLCH: 极深背景
     // Glass 反射参数
     '--glass-reflex-dark': '2',
     '--glass-reflex-light': '0.8',
@@ -243,8 +243,8 @@ const PARTIAL_THEMES = {
     '--tooltip-shadow-intensity': '0.2',
     '--tooltip-border-opacity': '0.3',
     // Intent 颜色
-    '--color-destructive': '#FF4444',
-    '--color-warning': '#FFB84D'
+    '--color-destructive': 'oklch(0.60 0.25 12)',  // OKLCH: 亮红色警告
+    '--color-warning': 'oklch(0.75 0.18 70)'        // OKLCH: 亮橙色警告
   },
   /**
    * rhine-light 主题 - 莱茵生命风格亮色主题
@@ -252,12 +252,12 @@ const PARTIAL_THEMES = {
    */
   'rhine-light': {
     // 颜色变量
-    '--c-glass': '#DEE4EA',
-    '--c-light': '#FFFFFF',
-    '--c-dark': '#0B0C0E',
-    '--c-content': '#1D2129',
-    '--c-action': '#88B00D',
-    '--c-bg': '#F2F4F8',
+    '--c-glass': 'oklch(0.90 0.01 240)',      // OKLCH: 浅灰蓝玻璃
+    '--c-light': 'oklch(1 0 0)',               // OKLCH: 纯白
+    '--c-dark': 'oklch(0.10 0.005 240)',     // OKLCH: 深色阴影
+    '--c-content': 'oklch(0.18 0.01 240)',    // OKLCH: 深色文本
+    '--c-action': 'oklch(0.65 0.18 100)',     // OKLCH: 黄绿色动作色（莱茵生命风格）
+    '--c-bg': 'oklch(0.96 0.005 240)',        // OKLCH: 极浅背景
     // Glass 反射参数
     '--glass-reflex-dark': '0.8',
     '--glass-reflex-light': '1.2',
@@ -295,12 +295,12 @@ const PARTIAL_THEMES = {
    */
   'rhine-dark': {
     // 颜色变量
-    '--c-glass': '#242830',
-    '--c-light': '#FFFFFF',
-    '--c-dark': '#000000',
-    '--c-content': '#E6E8EB',
-    '--c-action': '#CCF728',
-    '--c-bg': '#14161A',
+    '--c-glass': 'oklch(0.20 0.01 240)',     // OKLCH: 深灰蓝玻璃
+    '--c-light': 'oklch(1 0 0)',               // OKLCH: 纯白
+    '--c-dark': 'oklch(0 0 0)',                // OKLCH: 纯黑
+    '--c-content': 'oklch(0.92 0.005 240)',   // OKLCH: 浅色文本
+    '--c-action': 'oklch(0.85 0.18 100)',      // OKLCH: 黄绿色动作色（莱茵生命风格）
+    '--c-bg': 'oklch(0.11 0.005 240)',        // OKLCH: 深色背景
     // Glass 反射参数
     '--glass-reflex-dark': '1.5',
     '--glass-reflex-light': '0.5',
@@ -331,8 +331,8 @@ const PARTIAL_THEMES = {
     '--tooltip-shadow-intensity': '0.25',
     '--tooltip-border-opacity': '0.3',
     // Intent 颜色
-    '--color-destructive': '#FF5555',
-    '--color-warning': '#FFCC00'
+    '--color-destructive': 'oklch(0.65 0.25 12)',  // OKLCH: 亮红色警告
+    '--color-warning': 'oklch(0.80 0.18 70)'        // OKLCH: 亮黄色警告
   }
 } as const;
 
