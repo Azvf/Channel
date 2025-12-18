@@ -116,13 +116,19 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
   };
 
   // [关键] 共享样式：必须确保 Ghost Div 和 Textarea 的 排版属性 完全一致！
-  // 使用 Tailwind 类替换 CSS 变量，确保样式一致性
+  // 使用设计 Token 替换硬编码值，确保样式一致性
   // 注意：所有影响布局的属性（box-sizing、border、padding、margin）必须完全一致
-  const typographyClassName = "text-[1.1rem] font-semibold leading-[1.35] tracking-[-0.015em] py-1 w-full break-words whitespace-pre-wrap box-border m-0 border-none";
+  const typographyClassName = "w-full break-words whitespace-pre-wrap box-border m-0 border-none py-1";
+  const typographyStyle: React.CSSProperties = {
+    fontSize: 'var(--font-page-title-size, 1.1rem)',
+    fontWeight: 'var(--font-page-title-weight, 600)',
+    lineHeight: 'var(--font-page-title-line-height, 1.35)',
+    letterSpacing: 'var(--letter-spacing-page-title, -0.015em)',
+  };
 
   const containerStyle: React.CSSProperties = {
-    minHeight: "1.985rem",
-    borderRadius: "0.5rem",
+    minHeight: 'var(--row-min-height)',
+    borderRadius: 'var(--radius-md)',
   };
 
   // 视觉状态计算
@@ -146,7 +152,10 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             }
           }}
           className={`${typographyClassName} w-full h-full flex items-start transition-colors duration-200 ease-out hover:bg-accent/50 cursor-text rounded-lg`}
-          style={{ cursor: isLoading ? "default" : "text" }}
+          style={{ 
+            ...typographyStyle,
+            cursor: isLoading ? "default" : "text" 
+          }}
         >
           {isLoading ? (
             <div className="flex items-center gap-2 text-muted-foreground opacity-80">
@@ -154,14 +163,14 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
               >
-                <Loader2 size={16} />
+                <Loader2 className="icon-base" />
               </motion.div>
               <span className="text-sm font-medium">Fetching title...</span>
             </div>
           ) : showUrlState ? (
             // URL 状态美化
             <div className="flex items-center gap-2 text-muted-foreground w-full overflow-hidden">
-              <LinkIcon size={16} className="shrink-0 opacity-70" />
+              <LinkIcon className="icon-base shrink-0 opacity-70" />
               <span className="truncate font-mono text-sm opacity-80">{value}</span>
             </div>
           ) : (
@@ -197,6 +206,7 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             aria-hidden="true"
             className={typographyClassName}
             style={{
+              ...typographyStyle,
               visibility: "hidden",
               // 提示浏览器优化高度变化
               willChange: "height",
@@ -221,6 +231,7 @@ export const EditableTitle: React.FC<EditableTitleProps> = ({
             rows={1}
             className={`${typographyClassName} absolute inset-0 w-full resize-none outline-none bg-transparent p-0 m-0 text-foreground`}
             style={{
+              ...typographyStyle,
               height: "100%",
               overflow: "hidden", // 隐藏滚动条，因为高度由 ghost 撑开
             }}

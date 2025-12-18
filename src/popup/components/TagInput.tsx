@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Plus } from "lucide-react";
 
@@ -7,11 +7,12 @@ import { Input } from "./ui/input";
 import { Popover, PopoverAnchor, PopoverContent } from "./ui/popover";
 import { Command, CommandList, CommandItem } from "./ui/command";
 
-import { useTagInput } from "../hooks/headless/useTagInput";
+import { useSmartCombobox } from "../hooks/headless/useSmartCombobox";
+import { InputIntentResolver } from "../hooks/headless/inputIntentMap";
+import { createStringMatchStrategy } from "../hooks/headless/searchStrategy";
 
 import { Tag } from "./Tag";
 import { ShortcutBadge } from "./ShortcutBadge";
-import { useDropdownSections } from "../hooks/headless/useDropdownSections";
 
 interface TagInputProps {
   tags: string[];
@@ -32,9 +33,8 @@ interface TagInputProps {
 }
 
 /**
- * TagInput 组件 - 视觉层（Skin）
- * 只负责渲染 Glass 效果、布局、动画
- * 所有逻辑都在 useTagInput hook 中（Brain）
+ * TagInput 组件 - 直接使用 useSmartCombobox 的简化架构
+ * 逻辑与视图分离：useSmartCombobox 处理状态机，组件只负责渲染
  */
 export function TagInput({ 
   tags, 
@@ -52,76 +52,139 @@ export function TagInput({
   inputValue: controlledInputValue,
   onInputValueChange,
 }: TagInputProps) {
-  const { 
-    inputValue, 
-    options, 
-    isMenuOpen, 
-    activeIndex, 
-    setIsMenuOpen, 
-    getInputProps, 
-    getOptionProps, 
-    removeTag,
-    inputRef,
-    containerRef,
-    optionButtonsRef: _optionButtonsRef,
-    renderedItems,
-    secondaryAction,
-  } = useTagInput({
-    tags,
-    suggestions,
-    excludeTags,
-    onTagsChange,
-    allowCreation,
-    mode,
-    onCreateTag,
-    autoFocus,
-    disabled,
-    inputValue: controlledInputValue,
-    onInputValueChange,
-  });
-
-  // 使用 useDropdownSections 处理数据切片
-  const itemsToProcess = (renderedItems && renderedItems.length > 0) 
-    ? renderedItems 
-    : options.map((opt, idx) => ({
-        type: (allowCreation && opt === inputValue.trim() && !suggestions.some(s => s.toLowerCase() === opt.toLowerCase())) 
-          ? 'create' as const 
-          : 'match' as const,
-        data: opt,
-        index: idx,
-        isHighlighted: idx === activeIndex,
-        id: `tag-input-option-${idx}`,
-      }));
-
-  const { scrollableItems, fixedFooterItem, getOriginalIndex } = 
-    useDropdownSections(itemsToProcess);
-
-  const hasFooter = !!fixedFooterItem;
-
+  // 1. 状态管理
+  const isControlled = controlledInputValue !== undefined && onInputValueChange !== undefined;
+  const [internalInputValue, setInternalInputValue] = useState("");
+  const inputValue = isControlled ? controlledInputValue : internalInputValue;
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const intentResolverRef = useRef(new InputIntentResolver());
   const dropdownButtonRef = useRef<HTMLButtonElement>(null);
 
-  const inputProps = getInputProps({
-    placeholder: tags.length === 0 ? placeholder : "",
+  const setInputValue = useCallback((newValue: string) => {
+    if (isControlled) {
+      onInputValueChange!(newValue);
+    } else {
+      setInternalInputValue(newValue);
+    }
+  }, [isControlled, onInputValueChange]);
+
+  // 2. 核心：使用 Hook 接管逻辑
+  const searchStrategy = useMemo(() => createStringMatchStrategy<string>(), []);
+  const {
+    renderedItems,
+    highlightedIndex,
+    setHighlightedIndex,
+    navigateNext,
+    navigatePrev,
+    handleIntent,
+    secondaryAction,
+  } = useSmartCombobox({
+    inputValue,
+    source: suggestions,
+    searchStrategy,
+    selectedItems: tags,
+    excludedItems: excludeTags,
+    allowCreation,
   });
 
+  // 3. 事件处理：只负责副作用 (Side Effects)
+  const handleSelect = useCallback((item: string, isCreate: boolean) => {
+    if (mode === "create" && isCreate && onCreateTag) {
+      onCreateTag(item);
+    } else if (!tags.includes(item)) {
+      onTagsChange([...tags, item]);
+    }
+    setInputValue("");
+    setIsOpen(false);
+    // 保持焦点
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [tags, onTagsChange, setInputValue, mode, onCreateTag]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 允许 Tab 键切出
+    if (e.key === 'Tab') return;
+
+    // 只有在 Open 状态或特定键才拦截
+    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      setIsOpen(true);
+      return;
+    }
+
+    const intent = intentResolverRef.current.resolve(e);
+    if (intent) {
+      if (isOpen || intent === 'CONFIRM_PRIMARY') {
+        e.preventDefault();
+      }
+      
+      // 处理导航意图（滚动由 useEffect 监听 highlightedIndex 变化自动处理）
+      if (intent === 'NAVIGATE_NEXT') {
+        navigateNext();
+        return;
+      } else if (intent === 'NAVIGATE_PREV') {
+        navigatePrev();
+        return;
+      }
+      
+      // 处理其他意图
+      const result = handleIntent(intent);
+      
+      if (result.action === 'select' || result.action === 'create') {
+        if (result.item) handleSelect(result.item as string, result.action === 'create');
+      } else if (result.action === 'cancel') {
+        setIsOpen(false);
+      }
+    } else if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
+      onTagsChange(tags.slice(0, -1));
+    }
+  };
+
+  // 自动打开/聚焦逻辑
+  useEffect(() => {
+    if (inputValue.trim() && !isOpen && renderedItems.length > 0) {
+      setIsOpen(true);
+    }
+  }, [inputValue, renderedItems.length]); // 移除 isOpen 依赖，防止死循环
+
+  // 自动聚焦
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
+
+  // 键盘导航后滚动到高亮项
+  useEffect(() => {
+    if (isOpen && highlightedIndex >= 0) {
+      const el = document.getElementById(`combobox-option-${highlightedIndex}`);
+      el?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightedIndex, isOpen]);
+
+  // 移除标签
+  const removeTag = useCallback((index: number) => {
+    onTagsChange(tags.filter((_, i) => i !== index));
+  }, [tags, onTagsChange]);
+
   return (
-    <Popover open={isMenuOpen && (renderedItems?.length ?? options.length) > 0} onOpenChange={setIsMenuOpen}>
-      <div 
-        ref={containerRef} 
-        className={`relative ${className}`}
-        onClick={() => {
-          inputRef.current?.focus();
-          if (suggestions.length > 0 && !isMenuOpen) {
-             setIsMenuOpen(true);
-          }
-        }}
-      >
-        <PopoverAnchor asChild>
+    <Popover open={isOpen && renderedItems.length > 0} onOpenChange={setIsOpen}>
+      <PopoverAnchor asChild>
+        <div 
+          ref={containerRef}
+          className={cn("relative", className)}
+          onClick={() => inputRef.current?.focus()}
+        >
           <div className="liquidGlass-wrapper relative cursor-text">
             <div className="liquidGlass-content">
               <motion.div 
-                className="min-h-[2.6rem]"
-                style={{ backfaceVisibility: 'hidden', overflow: 'hidden' }}
+                style={{ 
+                  minHeight: 'var(--row-min-height)',
+                  backfaceVisibility: 'hidden', 
+                  overflow: 'hidden' 
+                }}
                 layout
               >
                 <div
@@ -143,9 +206,17 @@ export function TagInput({
                   
                   <Input
                     ref={inputRef}
-                    {...inputProps}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => { 
+                      if (inputValue || suggestions.length > 0) setIsOpen(true);
+                    }}
                     onClick={(e) => e.stopPropagation()} 
-                    className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none h-auto p-0 min-w-[calc(var(--space-12)*1.25)]"
+                    placeholder={tags.length === 0 ? placeholder : ""}
+                    disabled={disabled}
+                    className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none h-auto p-0"
+                    style={{ minWidth: 'calc(var(--space-12) + var(--space-3))' }}
                   />
                   
                   {/* 下拉按钮 */}
@@ -155,18 +226,18 @@ export function TagInput({
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
-                        setIsMenuOpen(!isMenuOpen);
+                        setIsOpen(!isOpen);
                       }}
                       className={cn(
                         "p-1.5 rounded-full flex-shrink-0 transition-all ml-auto",
-                        isMenuOpen 
+                        isOpen 
                           ? "text-[var(--color-text-action)] bg-[var(--bg-surface-glass-active)]" 
                           : "text-[var(--color-text-tertiary)] bg-transparent hover:text-[var(--color-text-action)] hover:bg-[var(--bg-surface-glass-hover)]"
                       )}
                       tabIndex={-1}
                     >
                       <motion.div
-                        animate={{ rotate: isMenuOpen ? 180 : 0 }}
+                        animate={{ rotate: isOpen ? 180 : 0 }}
                         transition={{ duration: 0.2 }}
                       >
                         <ChevronDown className="icon-base" strokeWidth={1.5} />
@@ -177,111 +248,72 @@ export function TagInput({
               </motion.div>
             </div>
           </div>
-        </PopoverAnchor>
-      </div>
+        </div>
+      </PopoverAnchor>
 
       <PopoverContent 
         align="start" 
         side="bottom" 
-        sideOffset={4}
-        className="p-0"
+        sideOffset={4} // 使用 var(--space-1) 的值 (4px)，Radix UI 的 sideOffset 只接受数字
+        className="p-0 w-[var(--radix-popover-anchor-width)]"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <Command shouldFilter={false} className="max-h-[calc(4*2.5rem)]">
-          <CommandList className="max-h-[calc(4*2.5rem)]">
-            {/* 滚动区域 */}
-            {scrollableItems.map((item, localIndex) => {
-              const originalIndex = getOriginalIndex(localIndex, 'scrollable');
-              const optionProps = getOptionProps(originalIndex);
+        <Command shouldFilter={false} style={{ maxHeight: 'var(--dropdown-max-height)' }}>
+          <CommandList style={{ maxHeight: 'var(--dropdown-max-height)' }}>
+            {renderedItems.length === 0 && (
+              <div className="p-4 text-center text-muted-foreground text-sm">无匹配项</div>
+            )}
+            {renderedItems.map((item, index) => {
+              if (item.type === 'separator') return null;
+              const content = item.data as string;
+              const isSelected = index === highlightedIndex;
               
               return (
                 <CommandItem
                   key={item.id}
-                  value={item.data ?? undefined}
-                  onSelect={() => {
-                    // cmdk 的 onSelect 接收 value，我们需要手动触发 onClick
-                    // 创建一个合成事件来调用原始的 onClick
-                    const syntheticEvent = {
-                      preventDefault: () => {},
-                      stopPropagation: () => {},
-                      currentTarget: document.createElement('button'),
-                      target: document.createElement('button'),
-                    } as unknown as React.MouseEvent<HTMLButtonElement>;
-                    optionProps.onClick?.(syntheticEvent);
-                  }}
-                  onMouseEnter={() => optionProps.onMouseEnter()}
-                  data-active={optionProps['data-active']}
-                  id={optionProps.id}
-                  role={optionProps.role}
-                  aria-selected={optionProps['aria-selected']}
+                  value={content}
+                  onSelect={() => handleSelect(content, item.type === 'create')}
+                  data-selected={isSelected}
                   className={cn(
                     "w-full text-left transition-colors flex items-center justify-between gap-2 py-2 px-3 rounded-md text-sm",
-                    item.isHighlighted 
+                    isSelected 
                       ? "bg-[var(--bg-surface-glass-hover)] text-[var(--color-text-action)]" 
                       : "bg-transparent text-[var(--color-text-primary)]"
                   )}
+                  id={`combobox-option-${index}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => {
+                    // 鼠标悬停时更新高亮索引
+                    setHighlightedIndex(index);
+                  }}
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="truncate font-normal">
-                      {item.data}
-                    </span>
-                  </div>
+                  {item.type === 'create' ? (
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div 
+                        className="flex items-center justify-center rounded-full bg-[var(--bg-action-subtle)] text-[var(--color-text-action)] flex-shrink-0 icon-md"
+                      >
+                        <Plus 
+                          className="icon-sm" 
+                          strokeWidth={3} 
+                        />
+                      </div>
+                      <span className="truncate font-medium">
+                        创建 "{content}"
+                      </span>
+                      {secondaryAction === 'CREATE' && (
+                        <ShortcutBadge keys={['Shift', 'Enter']} className="flex-shrink-0 opacity-80 ml-auto" />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="truncate font-normal">
+                        {content}
+                      </span>
+                    </div>
+                  )}
                 </CommandItem>
               );
             })}
-            
-            {/* 固定底部：Create 选项 */}
-            {hasFooter && fixedFooterItem && (
-              <>
-                <div className="h-px bg-border my-1" />
-                {(() => {
-                  const originalIndex = getOriginalIndex(0, 'footer');
-                  const optionProps = getOptionProps(originalIndex);
-                  const displayText = `Create "${fixedFooterItem.data}"`;
-
-                  return (
-                    <CommandItem
-                      key={fixedFooterItem.id}
-                      value={fixedFooterItem.data ?? undefined}
-                      onSelect={() => {
-                        // cmdk 的 onSelect 接收 value，我们需要手动触发 onClick
-                        const syntheticEvent = {
-                          preventDefault: () => {},
-                          stopPropagation: () => {},
-                          currentTarget: document.createElement('button'),
-                          target: document.createElement('button'),
-                        } as unknown as React.MouseEvent<HTMLButtonElement>;
-                        optionProps.onClick?.(syntheticEvent);
-                      }}
-                      onMouseEnter={() => optionProps.onMouseEnter()}
-                      data-active={optionProps['data-active']}
-                      id={optionProps.id}
-                      role={optionProps.role}
-                      aria-selected={optionProps['aria-selected']}
-                      className={cn(
-                        "w-full text-left transition-colors flex items-center justify-between gap-2 py-2 px-3 rounded-md text-sm",
-                        fixedFooterItem.isHighlighted 
-                          ? "bg-[var(--bg-surface-glass-hover)] text-[var(--color-text-action)]" 
-                          : "bg-transparent text-[var(--color-text-primary)]"
-                      )}
-                    >
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--bg-action-subtle)] text-[var(--color-text-action)] flex-shrink-0">
-                          <Plus className="w-3.5 h-3.5" strokeWidth={3} />
-                        </div>
-                        <span className="truncate font-medium">
-                          {displayText}
-                        </span>
-                      </div>
-                      
-                      {secondaryAction === 'CREATE' && (
-                         <ShortcutBadge keys={['Shift', 'Enter']} className="flex-shrink-0 opacity-80" />
-                      )}
-                    </CommandItem>
-                  );
-                })()}
-              </>
-            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -304,7 +336,7 @@ export function TagInput({
           borderWidth: 0,
         }}
       >
-        {renderedItems && renderedItems.length > 0 && (
+        {renderedItems.length > 0 && (
           <>
             {renderedItems.filter(item => item.type === 'match').length > 0 && (
               `找到 ${renderedItems.filter(item => item.type === 'match').length} 个标签，按向下键导航`
@@ -314,7 +346,7 @@ export function TagInput({
             )}
           </>
         )}
-        {(!renderedItems || renderedItems.length === 0) && inputValue.trim() && (
+        {renderedItems.length === 0 && inputValue.trim() && (
           `无匹配项，按 Enter 创建新标签`
         )}
       </div>

@@ -12,7 +12,7 @@ const PopoverAnchor = PopoverPrimitive.Anchor
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "start", sideOffset = 4, ...props }, ref) => (
+>(({ className, align = "start", sideOffset = 4, ...props }, ref) => ( // sideOffset 使用 var(--space-1) 的值 (4px)，Radix UI 的 sideOffset 只接受数字
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
       ref={ref}

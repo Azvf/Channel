@@ -77,12 +77,12 @@ export function GlassCard({
               position: 'absolute',
               top: 0,
               right: 0,
-              fontSize: '10px',
+              fontSize: 'var(--font-micro-size, 0.6rem)',
               opacity: 0.5,
-              padding: '2px 4px',
-              background: 'var(--bg-surface-glass-active)', // Tokenized
-              color: 'var(--color-text-primary)', // Tokenized
-              borderRadius: '0 1.4em 0 0',
+              padding: 'var(--space-0_5) var(--space-1)',
+              background: 'var(--bg-surface-glass-active)',
+              color: 'var(--color-text-primary)',
+              borderRadius: '0 1.4em 0 0', // 使用 em 单位，相对于字体大小
               pointerEvents: 'none',
               // [Refactor] 开发模式调试信息使用最高层级，确保显示在所有内容之上
               zIndex: 'var(--z-cursor-drag)',
