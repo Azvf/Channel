@@ -22,7 +22,6 @@ export * from './typography';
 export * from './icon';
 export * from './color';
 export * from './opacity';
-export * from './shadow';
 export * from './scrollbar';
 export * from './focus';
 export * from './theme';
@@ -39,7 +38,6 @@ import { TYPOGRAPHY } from './typography';
 import { ICON_SIZES } from './icon';
 import { COLORS } from './color';
 import { OPACITY } from './opacity';
-import { SHADOWS } from './shadow';
 import { SCROLLBAR } from './scrollbar';
 import { FOCUS } from './focus';
 import { THEME_VARS } from './theme';
@@ -59,7 +57,6 @@ export const TOKENS = {
   ICON_SIZES,
   COLORS,
   OPACITY,
-  SHADOWS,
   SCROLLBAR,
   FOCUS,
   THEME_VARS,

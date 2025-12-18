@@ -43,7 +43,7 @@ export function ShortcutBadge({ keys, className = '' }: ShortcutBadgeProps) {
             padding: 'var(--space-0_5) var(--space-1)',
             background: 'transparent',
             border: 'var(--border-width-base) solid',
-            borderColor: 'rgba(128, 128, 128, 0.3)',
+            borderColor: 'oklch(0.5 0 0 / 0.3)',  // OKLCH: 中等灰色，30% 透明度
             borderRadius: 'var(--radius-xs)',
             font: 'var(--font-micro)',
             fontSize: 'var(--font-micro-size)',

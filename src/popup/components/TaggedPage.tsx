@@ -28,7 +28,7 @@ import { AlertModal, type AlertAction } from "./AlertModal";
 import { ShadcnButton, IconButton } from "./ui/buttons";
 
 // [Refactor] 使用 Token 替换硬编码的 color-mix
-// 原: color: "color-mix(in srgb, var(--c-content) 50%, var(--c-bg))" -> var(--color-text-secondary)
+// 当前: 使用 var(--color-text-secondary)，该变量在 tokens.css 中使用 color-mix(in oklch, var(--c-content) 50%, transparent)
 const StatItem = ({ icon, value }: { icon: React.ReactNode; value: number }) => (
   <div
     className="flex items-center gap-1"

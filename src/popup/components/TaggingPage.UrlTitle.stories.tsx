@@ -61,8 +61,8 @@ const meta: Meta<typeof UrlTitleStoryWrapper> = {
     backgrounds: {
       default: 'glass',
       values: [
-        { name: 'glass', value: '#F5F5F7' },
-        { name: 'dark-glass', value: '#1C1C1E' },
+        { name: 'glass', value: 'oklch(0.97 0.003 264)' },  // OKLCH: 浅色毛玻璃背景
+        { name: 'dark-glass', value: 'oklch(0.12 0.005 264)' },  // OKLCH: 深色毛玻璃背景
       ],
     },
   },

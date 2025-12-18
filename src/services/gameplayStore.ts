@@ -926,8 +926,16 @@ export class GameplayStore {
 
   private generateColor(): string {
     const colors = [
-      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-      '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+      'oklch(0.70 0.20 25)',   // OKLCH: 红色
+      'oklch(0.75 0.15 180)',   // OKLCH: 青色
+      'oklch(0.70 0.15 220)',   // OKLCH: 蓝色
+      'oklch(0.75 0.12 150)',   // OKLCH: 绿色
+      'oklch(0.85 0.15 90)',    // OKLCH: 黄色
+      'oklch(0.75 0.12 300)',   // OKLCH: 紫色
+      'oklch(0.75 0.10 160)',   // OKLCH: 青绿色
+      'oklch(0.80 0.15 85)',    // OKLCH: 黄绿色
+      'oklch(0.70 0.10 310)',   // OKLCH: 淡紫色
+      'oklch(0.75 0.12 210)',   // OKLCH: 天蓝色
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   }

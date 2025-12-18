@@ -71,7 +71,7 @@ const DEFAULT_THEME: ThemeVariables = {
     '--saturation': '150%',
     '--font-family': "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
     // 阴影系统
-    '--shadow-color': 'rgba(0, 0, 0, 0.1)',
+    '--shadow-color': 'oklch(0 0 0 / 0.1)',  // OKLCH: 纯黑，10% 透明度
     // Glass 物理参数
     '--glass-blur-base': '12px',
     '--glass-blur-decay': '2px',
@@ -183,7 +183,7 @@ const PARTIAL_THEMES = {
     '--glass-reflex-dark': '2',
     '--glass-reflex-light': '0.3',
     // 阴影系统 - 暗色主题需要更深的阴影
-    '--shadow-color': 'rgba(0, 0, 0, 0.3)',
+    '--shadow-color': 'oklch(0 0 0 / 0.3)',  // OKLCH: 纯黑，30% 透明度
     // Glass 物理参数 - 暗色主题需要更强的模糊和更高的不透明度
     '--glass-blur-base': '14px',
     '--glass-opacity-base': '0.2',
@@ -216,7 +216,7 @@ const PARTIAL_THEMES = {
     '--glass-reflex-dark': '2',
     '--glass-reflex-light': '0.8',
     // 阴影系统
-    '--shadow-color': 'rgba(0, 0, 0, 0.3)',
+    '--shadow-color': 'oklch(0 0 0 / 0.3)',  // OKLCH: 纯黑，30% 透明度
     // Glass 物理参数
     '--glass-blur-base': '16px',
     '--glass-opacity-base': '0.25',
@@ -263,7 +263,7 @@ const PARTIAL_THEMES = {
     '--glass-reflex-light': '1.2',
     '--saturation': '110%',
     // 阴影系统
-    '--shadow-color': 'rgba(11, 12, 14, 0.08)',
+    '--shadow-color': 'oklch(0.05 0.005 240 / 0.08)',  // OKLCH: 深灰蓝，8% 透明度
     // Glass 物理参数
     '--glass-blur-base': '10px',
     '--glass-opacity-base': '0.12',
@@ -306,7 +306,7 @@ const PARTIAL_THEMES = {
     '--glass-reflex-light': '0.5',
     '--saturation': '130%',
     // 阴影系统
-    '--shadow-color': 'rgba(0, 0, 0, 0.4)',
+    '--shadow-color': 'oklch(0 0 0 / 0.4)',  // OKLCH: 纯黑，40% 透明度
     // Glass 物理参数
     '--glass-blur-base': '14px',
     '--glass-opacity-base': '0.2',

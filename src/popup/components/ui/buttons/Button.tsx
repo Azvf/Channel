@@ -42,7 +42,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
     const variants = {
       primary: {
         background: 'var(--bg-action-solid)',
-        color: '#ffffff', // 强制白色，保证在任何主题下的对比度
+        color: 'oklch(1 0 0)',  // OKLCH: 纯白色，保证在任何主题下的对比度
         boxShadow: 'var(--shadow-md)',
       },
       secondary: {

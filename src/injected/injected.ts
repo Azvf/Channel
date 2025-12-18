@@ -43,7 +43,7 @@ const InjectedUtils = {
             left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
             font-size: 48px;
-            color: rgba(0, 0, 0, 0.1);
+            color: oklch(0 0 0 / 0.1);  // OKLCH: 纯黑，10% 透明度
             pointer-events: none;
             z-index: 9999;
             font-family: Arial, sans-serif;
