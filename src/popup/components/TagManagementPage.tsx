@@ -334,6 +334,7 @@ export function TagManagementPage({ isOpen, onClose }: TagManagementPageProps) {
         title="Tag Library"
         onBackdropClick={onClose}
         contentRef={contentRef}
+        depthLevel={3} // [关键修复] 统一深度级别，与 Activity 保持一致的光感
         glassCardStyle={{
           padding: "var(--space-5)",
         }}
